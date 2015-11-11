@@ -120,8 +120,11 @@ struct PoissonFactorAnalysis {
 
   double log_likelihood(const IMatrix &counts) const {
     double l = 0;
+    std::vector<double> alpha(G, priors.alpha);
     for (size_t k = 0; k < K; ++k) {
-      l += 0;  // TODO
+      std::vector<double> phik(G, 0);
+      for (size_t g = 0; g < G; ++g) phik[g] = phi[g][k];
+      l += K * log_dirichlet(alpha, phik);
       l += log_gamma(r[k], priors.c0 * priors.r0, 1.0 / priors.c0);
       l += log_beta(p[k], priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
