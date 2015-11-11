@@ -15,8 +15,8 @@ void write_resuls(const PFA &pfa) {
   write_vector(pfa.p, "p.txt");
 }
 
-void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa, size_t num_steps,
-         Verbosity verbosity) {
+void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa,
+                                 size_t num_steps, Verbosity verbosity) {
   MCMC::Evaluator<PFA> evaluator(counts);
   MCMC::Generator<PFA> generator(counts);
   MCMC::MonteCarlo<PFA> mc(generator, evaluator, verbosity);
@@ -28,9 +28,9 @@ void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa, size_t nu
   write_resuls(res.rbegin()->first);
 }
 
-void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa, size_t num_steps,
-          Verbosity verbosity) {
-  for (size_t iteration = 0; iteration < num_steps; ++iteration) {
+void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
+                            size_t num_steps, Verbosity verbosity) {
+  for (size_t iteration = 1; iteration <= num_steps; ++iteration) {
     if (verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
     pfa.sample_contributions(counts);
@@ -38,8 +38,10 @@ void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa, size_t num_ste
     pfa.sample_p();
     pfa.sample_r();
     pfa.sample_theta();
+    if (iteration % 20 == 0)
+      cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
   }
-  cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+  cout << "Final log-likelihood = " << pfa.log_likelihood(counts) << endl;
   write_resuls(pfa);
 }
 
@@ -61,7 +63,7 @@ int main(int argc, char **argv) {
   PFA::Priors priors;
   PoissonFactorAnalysis pfa(counts, K, priors, verbosity);
 
-  size_t num_steps = 20;
+  size_t num_steps = 1000;
 
   if (0)
     perform_metropolis_hastings(counts, pfa, num_steps, verbosity);
