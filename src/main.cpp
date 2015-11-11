@@ -23,12 +23,12 @@ int main(int argc, char **argv) {
   Verbosity verbosity = Verbosity::Verbose;
 
   MCMC::Evaluator<PFA> evaluator(counts);
-  MCMC::Generator<PFA> generator(counts, verbosity);
+  MCMC::Generator<PFA> generator(counts);
   MCMC::MonteCarlo<PFA> mc(generator, evaluator, verbosity);
 
   size_t K = 10;
   PFA::Priors priors;
-  PoissonFactorAnalysis pfa(counts, K, priors);
+  PoissonFactorAnalysis pfa(counts, K, priors, verbosity);
 
   double temperature = 10.0;
   double anneal = 1.0;

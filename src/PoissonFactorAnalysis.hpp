@@ -73,8 +73,10 @@ struct PoissonFactorAnalysis {
   /** scale parameter for the prior of the factor scores */
   Vector p;
 
+  Verbosity verbosity;
+
   PoissonFactorAnalysis(const IMatrix &counts, const size_t K_,
-                        const Priors &priors_)
+                        const Priors &priors_, Verbosity verbosity_)
       : G(counts.shape()[0]),
         N(counts.shape()[1]),
         K(K_),
@@ -83,7 +85,8 @@ struct PoissonFactorAnalysis {
         phi(boost::extents[G][K]),
         theta(boost::extents[N][K]),
         r(boost::extents[K]),
-        p(boost::extents[K]) {
+        p(boost::extents[K]),
+        verbosity(verbosity_) {
     // randomly initialize P
     for (size_t k = 0; k < K; ++k)
       p[k] = sample_beta<Float>(priors.c * priors.epsilon,
@@ -144,6 +147,65 @@ struct PoissonFactorAnalysis {
       */
     return l;
   }
+
+  /** sample count decomposition */
+  void sample_contributions(const IMatrix &counts) {
+    if (verbosity >= Verbosity::Verbose)
+      std::cout << "Sampling contributions" << std::endl;
+    for (size_t g = 0; g < G; ++g)
+      for (size_t n = 0; n < N; ++n) {
+        std::vector<double> p(K);
+        double z = 0;
+        for (size_t k = 0; k < K; ++k) z += p[k] = phi[g][k] * theta[n][k];
+        for (size_t k = 0; k < K; ++k) p[k] /= z;
+        auto v = sample_multinomial<Int>(counts[g][n], p);
+        for (size_t k = 0; k < K; ++k) contributions[g][n][k] = v[k];
+      }
+  }
+
+  /** sample phi */
+  void sample_phi() {
+    if (verbosity >= Verbosity::Verbose)
+      std::cout << "Sampling Phi" << std::endl;
+    for (size_t k = 0; k < K; ++k) {
+      std::vector<double> a(G, priors.alpha);
+      for (size_t g = 0; g < G; ++g)
+        for (size_t n = 0; n < N; ++n) a[g] += contributions[g][n][k];
+      auto phi_k = sample_dirichlet<Float>(a);
+      for (size_t g = 0; g < G; ++g) phi[g][k] = phi_k[k];
+    }
+  }
+
+  void sample_p() {
+    // sample p
+    if (verbosity >= Verbosity::Verbose) std::cout << "Sampling P" << std::endl;
+    for (size_t k = 0; k < K; ++k) {
+      Int sum = 0;
+      for (size_t g = 0; g < G; ++g)
+        for (size_t n = 0; n < N; ++n) sum += contributions[g][n][k];
+      p[k] = sample_beta<Float>(priors.c * priors.epsilon + sum,
+                                priors.c * (1 - priors.epsilon) + N * r[k]);
+    }
+  }
+
+  /** sample r */
+  void sample_r() {
+    if (verbosity >= Verbosity::Verbose) std::cout << "Sampling R" << std::endl;
+    // TODO
+  }
+
+  void sample_theta() {
+    // sample theta
+    if (verbosity >= Verbosity::Verbose)
+      std::cout << "Sampling Theta" << std::endl;
+    for (size_t k = 0; k < K; ++k)
+      for (size_t n = 0; n < N; ++n) {
+        Int sum = 0;
+        for (size_t g = 0; g < G; ++g) sum += contributions[g][n][k];
+        theta[n][k] = std::gamma_distribution<Float>(r[k] + sum,
+                                                     p[k])(EntropySource::rng);
+      }
+  }
 };
 
 namespace MCMC {
@@ -162,11 +224,9 @@ template <>
 class Generator<PoissonFactorAnalysis> {
   using PFA = PoissonFactorAnalysis;
   PFA::IMatrix counts;
-  Verbosity verbosity;
 
  public:
-  Generator<PFA>(const PFA::IMatrix &counts_, Verbosity verbosity_)
-      : counts(counts_), verbosity(verbosity_){};
+  Generator<PFA>(const PFA::IMatrix &counts_) : counts(counts_) {}
 
   PFA generate(const PFA &current) const {
     PFA next(current);
@@ -176,69 +236,20 @@ class Generator<PoissonFactorAnalysis> {
     while (i == 3 or i == 2) i = r_unif(EntropySource::rng);
     switch (i) {
       case 0:
-        // sample count decomposition
-        if (verbosity >= Verbosity::Verbose)
-          std::cout << "Sampling contributions" << std::endl;
-        for (size_t g = 0; g < current.G; ++g)
-          for (size_t n = 0; n < current.N; ++n) {
-            std::vector<double> p(current.K);
-            double z = 0;
-            for (size_t k = 0; k < current.K; ++k)
-              z += p[k] = next.phi[g][k] * next.theta[n][k];
-            for (size_t k = 0; k < current.K; ++k) p[k] /= z;
-            auto v = sample_multinomial<PFA::Int>(counts[g][n], p);
-            for (size_t k = 0; k < current.K; ++k)
-              next.contributions[g][n][k] = v[k];
-          }
+        next.sample_contributions(counts);
         break;
       case 1:
         // sample phi
-        if (verbosity >= Verbosity::Verbose)
-          std::cout << "Sampling Phi" << std::endl;
-        for (size_t k = 0; k < current.K; ++k) {
-          std::vector<double> a(current.G, current.priors.alpha);
-          for (size_t g = 0; g < current.G; ++g)
-            for (size_t n = 0; n < current.N; ++n)
-              a[g] += current.contributions[g][n][k];
-          // if (verbosity >= Verbosity::Verbose)
-          //   std::cout << "Sampling Phi k = " << k << std::endl;
-          auto phi = sample_dirichlet<PFA::Float>(a);
-          for (size_t g = 0; g < current.G; ++g) next.phi[g][k] = phi[k];
-        }
+        next.sample_phi();
         break;
       case 2:
-        // sample p
-        if (verbosity >= Verbosity::Verbose)
-          std::cout << "Sampling P" << std::endl;
-        for (size_t k = 0; k < current.K; ++k) {
-          PFA::Int sum = 0;
-          for (size_t g = 0; g < current.G; ++g)
-            for (size_t n = 0; n < current.N; ++n)
-              sum += current.contributions[g][n][k];
-          next.p[k] = sample_beta<PFA::Float>(
-              current.priors.c * current.priors.epsilon + sum,
-              current.priors.c * (1 - current.priors.epsilon) +
-                  current.N * current.r[k]);
-        }
+        next.sample_p();
         break;
       case 3:
-        // sample r
-        if (verbosity >= Verbosity::Verbose)
-          std::cout << "Sampling R" << std::endl;
-        // TODO
+        next.sample_r();
         break;
       case 4:
-        // sample theta
-        if (verbosity >= Verbosity::Verbose)
-          std::cout << "Sampling Theta" << std::endl;
-        for (size_t k = 0; k < current.K; ++k)
-          for (size_t n = 0; n < current.N; ++n) {
-            PFA::Int sum = 0;
-            for (size_t g = 0; g < current.G; ++g)
-              sum += current.contributions[g][n][k];
-            next.theta[n][k] = std::gamma_distribution<PFA::Float>(
-                current.r[k] + sum, current.p[k])(EntropySource::rng);
-          }
+        next.sample_theta();
         break;
     }
     return next;
