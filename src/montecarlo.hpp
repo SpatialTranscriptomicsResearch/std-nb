@@ -95,9 +95,9 @@ private:
     double r = RandomDistribution::Uniform(EntropySource::rng);
     double p = std::min<double>(1.0, boltzdist(-dG, temp));
     if (verbosity >= Verbosity::Verbose)
-      std::cerr << "T = " << temp << " next state = " << nextstate << std::endl
+      std::cerr << "T= " << temp << " next = " << nextstate << std::endl
                 << "nextG = " << nextG << " G = " << G << " dG = " << dG
-                << std::endl << " p = " << p << " r = " << r << std::endl;
+                << " p = " << p << " r = " << r << std::endl;
     if (std::isnan(nextG) == 0 and (dG > 0 or r <= p)) {
       if (verbosity >= Verbosity::Verbose)
         std::cerr << "Accepted!" << std::endl;
@@ -121,8 +121,7 @@ private:
                 << " G2 = " << G2 << std::endl << "r = " << r << " p = " << p
                 << std::endl;
     if (r <= p) {
-      if (verbosity >= Verbosity::Verbose)
-        std::cerr << "Swap!" << std::endl;
+      if (verbosity >= Verbosity::Verbose) std::cerr << "Swap!" << std::endl;
       std::swap<T>(state1, state2);
       std::swap<double>(G1, G2);
       return true;
@@ -141,6 +140,9 @@ public:
     std::list<E> trajectory;
     // trajectory.push_back(E(state, G));
     for (size_t i = 0; i < steps; i++) {
+      if (verbosity >= Verbosity::Info)
+        std::cerr << std::endl << "Iteration " << i << " of " << steps
+                  << std::endl;
       GibbsStep(temp, state, G);
       // if (GibbsStep(temp, state, G))
         // trajectory.push_back(E(state, G));
@@ -159,8 +161,7 @@ public:
     std::vector<T> state = init;
 
     std::vector<double> G;
-    for (auto s : state)
-      G.push_back(evaluator.evaluate(s));
+    for (auto s : state) G.push_back(evaluator.evaluate(s));
 
     std::vector<std::list<E>> trajectory(temp.size());
     for (size_t t = 0; t < temp.size(); t++)
@@ -177,8 +178,7 @@ public:
 
       if (verbosity >= Verbosity::Info) {
         std::cout << "Scores =";
-        for (size_t t = 0; t < n; t++)
-          std::cout << " " << G[t];
+        for (size_t t = 0; t < n; t++) std::cout << " " << G[t];
         std::cout << std::endl;
       }
 
