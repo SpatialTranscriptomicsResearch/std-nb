@@ -15,15 +15,15 @@ int main(int argc, char **argv) {
   EntropySource::seed();
   const size_t N = 1000;
   for(size_t i = 0; i < N; ++i) {
-    auto x = sample_multinomial(10000, p);
-    auto y = sample_dirichlet(x);
+    auto x = sample_multinomial<size_t>(10000, p);
+    auto y = sample_dirichlet<double>(x);
     print_vec(x);
     print_vec(y);
   }
 
   cout << endl;
   for(size_t i = 0; i < N; i++) {
-    double x = sample_beta(1.5, 0.5);
+    double x = sample_beta<double>(1.5, 0.5);
     cout << x << endl;
   }
   return EXIT_SUCCESS;
