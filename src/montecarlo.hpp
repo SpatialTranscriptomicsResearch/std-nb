@@ -95,7 +95,7 @@ private:
     double r = RandomDistribution::Uniform(EntropySource::rng);
     double p = std::min<double>(1.0, boltzdist(-dG, temp));
     if (verbosity >= Verbosity::Verbose)
-      std::cerr << "T= " << temp << " next = " << nextstate << std::endl
+      std::cerr << "T = " << temp << " next = " << nextstate << std::endl
                 << "nextG = " << nextG << " G = " << G << " dG = " << dG
                 << " p = " << p << " r = " << r << std::endl;
     if (std::isnan(nextG) == 0 and (dG > 0 or r <= p)) {
