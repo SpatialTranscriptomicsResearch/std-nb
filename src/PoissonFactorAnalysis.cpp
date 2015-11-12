@@ -28,7 +28,7 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t K_,
     p[k] = sample_beta<Float>(priors.c * priors.epsilon,
                               priors.c * (1 - priors.epsilon));
 
-  // randomly initialize P
+  // randomly initialize R
   for (size_t k = 0; k < K; ++k)
     r[k] = std::gamma_distribution<Float>(priors.c0 * priors.r0,
                                           1.0 / priors.c0)(EntropySource::rng);
@@ -90,11 +90,11 @@ void PFA::sample_contributions(const IMatrix &counts) {
     std::cout << "Sampling contributions" << std::endl;
   for (size_t g = 0; g < G; ++g)
     for (size_t n = 0; n < N; ++n) {
-      std::vector<double> p(K);
+      std::vector<double> rel_rate(K);
       double z = 0;
-      for (size_t k = 0; k < K; ++k) z += p[k] = phi[g][k] * theta[n][k];
-      for (size_t k = 0; k < K; ++k) p[k] /= z;
-      auto v = sample_multinomial<Int>(counts[g][n], p);
+      for (size_t k = 0; k < K; ++k) z += rel_rate[k] = phi[g][k] * theta[n][k];
+      for (size_t k = 0; k < K; ++k) rel_rate[k] /= z;
+      auto v = sample_multinomial<Int>(counts[g][n], rel_rate);
       for (size_t k = 0; k < K; ++k) contributions[g][n][k] = v[k];
     }
 }
