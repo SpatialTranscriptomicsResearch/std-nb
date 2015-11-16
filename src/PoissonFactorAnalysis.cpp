@@ -9,7 +9,7 @@ std::ostream &operator<<(std::ostream &os, const PoissonFactorAnalysis &pfa) {
      << "G = " << pfa.G << " "
      << "K = " << pfa.K << endl;
 
-  if (verbosity >= Verbosity::Verbose) {
+  if (pfa.verbosity >= Verbosity::Verbose) {
     os << "Phi" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
       for (size_t k = 0; k < pfa.K; ++k)
