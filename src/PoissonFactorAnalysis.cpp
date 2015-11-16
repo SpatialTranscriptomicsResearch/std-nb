@@ -64,26 +64,52 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t K_,
       r(boost::extents[K]),
       p(boost::extents[K]),
       verbosity(verbosity_) {
-  // randomly initialize P
-  for (size_t k = 0; k < K; ++k)
-    p[k] = sample_beta<Float>(priors.c * priors.epsilon,
-                              priors.c * (1 - priors.epsilon));
+  if (false) {
+    // randomly initialize P
+    for (size_t k = 0; k < K; ++k)
+      p[k] = sample_beta<Float>(priors.c * priors.epsilon,
+                                priors.c * (1 - priors.epsilon));
 
-  // randomly initialize R
-  for (size_t k = 0; k < K; ++k)
-    r[k] = std::gamma_distribution<Float>(priors.c0 * priors.r0,
-                                          1.0 / priors.c0)(EntropySource::rng);
-  // randomly initialize Theta
-  for (size_t n = 0; n < N; ++n)
+    // randomly initialize R
+    for (size_t k = 0; k < K; ++k)
+      r[k] = std::gamma_distribution<Float>(
+          priors.c0 * priors.r0, 1.0 / priors.c0)(EntropySource::rng);
+
+    // randomly initialize Theta
+    for (size_t n = 0; n < N; ++n)
+      for (size_t k = 0; k < K; ++k) {
+        theta[n][k] = std::gamma_distribution<Float>(
+            r[k], p[k] / (1 - p[k]))(EntropySource::rng);
+      }
+
+    // randomly initialize Phi
     for (size_t k = 0; k < K; ++k) {
-      theta[n][k] = std::gamma_distribution<Float>(
-          r[k], p[k] / (1 - p[k]))(EntropySource::rng);
+      auto phi_ = sample_dirichlet<Float>(std::vector<Float>(G, priors.alpha));
+      for (size_t g = 0; g < G; ++g) phi[g][k] = phi_[k];
+    }
+  } else {
+    // randomly initialize Phi
+    // Phi = rand(P,K);
+    // Phi = bsxfun(@rdivide,Phi,sum(Phi,1));
+    for (size_t k = 0; k < K; ++k) {
+      double sum = 0;
+      for (size_t g = 0; g < G; ++g)
+        sum += phi[g][k] = RandomDistribution::Uniform(EntropySource::rng);
+      for (size_t g = 0; g < G; ++g) phi[g][k] /= sum;
     }
 
-  // randomly initialize Phi
-  for (size_t k = 0; k < K; ++k) {
-    auto phi_ = sample_dirichlet<Float>(std::vector<Float>(G, priors.alpha));
-    for (size_t g = 0; g < G; ++g) phi[g][k] = phi_[k];
+    // initialize Theta
+    // Theta = zeros(K,N)+1/K;
+    for (size_t n = 0; n < N; ++n)
+      for (size_t k = 0; k < K; ++k) theta[n][k] = 1.0 / K;
+
+    // randomly initialize P
+    // p_k=ones(K,1)*0.5;
+    for (size_t k = 0; k < K; ++k) p[k] = 0.5 * K;
+
+    // initialize R
+    // r_k= 50/K*ones(K,1)
+    for (size_t k = 0; k < K; ++k) r[k] = 50.0 / K;
   }
 
   // randomly initialize the contributions
