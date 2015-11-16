@@ -148,7 +148,7 @@ void PFA::sample_phi() {
     for (size_t g = 0; g < G; ++g)
       for (size_t n = 0; n < N; ++n) a[g] += contributions[g][n][k];
     auto phi_k = sample_dirichlet<Float>(a);
-    for (size_t g = 0; g < G; ++g) phi[g][k] = phi_k[k];
+    for (size_t g = 0; g < G; ++g) phi[g][k] = phi_k[g];
   }
 }
 
