@@ -175,6 +175,34 @@ void PFA::sample_phi() {
       for (size_t n = 0; n < N; ++n) a[g] += contributions[g][n][k];
     auto phi_k = sample_dirichlet<Float>(a);
     for (size_t g = 0; g < G; ++g) phi[g][k] = phi_k[g];
+
+    if (verbosity >= Verbosity::Debug) {
+      cout << "G = " << G << endl;
+      cout << "Size of a = " << a.size() << endl;
+      cout << "Size of phi_k = " << phi_k.size() << endl;
+      double sum = 0;
+      for (auto &x : phi_k) sum += x;
+      if (fabs(sum - 1) > 1e-6) {
+        cout << "Error: dirichlet-sampled distribution phi_k doesn't add up to "
+                "one! "
+                "Sum = " << sum << " difference = " << (sum - 1) << endl;
+        exit(EXIT_FAILURE);
+      }
+
+      // for (size_t g = 0; g < G; ++g)
+      // if(fabs(phi[g][k] - phi_k[) > 1e-6)
+      //   cout << "Error: there is a difference between phi[" << g << "][" << k
+      //        << "] and phi_k[" << k
+
+      sum = 0;
+      for (size_t g = 0; g < G; ++g) sum += phi[g][k];
+      if (fabs(sum - 1) > 1e-6) {
+        cout << "Error: dirichlet-sampled distribution phi doesn't add up to "
+                "one! "
+                "Sum = " << sum << " difference = " << (sum - 1) << endl;
+        exit(EXIT_FAILURE);
+      }
+    }
   }
 }
 
