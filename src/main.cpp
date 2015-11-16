@@ -65,11 +65,11 @@ int main(int argc, char **argv) {
 
   Verbosity verbosity = Verbosity::Verbose;
 
-  size_t K = 10;
+  size_t K = 20;
   PFA::Priors priors;
   PoissonFactorAnalysis pfa(counts, K, priors, verbosity);
 
-  size_t num_steps = 1000;
+  size_t num_steps = 500;
 
   if (0)
     perform_metropolis_hastings(counts, pfa, num_steps, verbosity);
