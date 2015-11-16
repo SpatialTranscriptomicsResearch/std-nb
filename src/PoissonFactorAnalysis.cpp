@@ -7,7 +7,48 @@ std::ostream &operator<<(std::ostream &os, const PoissonFactorAnalysis &pfa) {
   os << "Poisson Factor Analysis "
      << "N = " << pfa.N << " "
      << "G = " << pfa.G << " "
-     << "K = " << pfa.K;
+     << "K = " << pfa.K << endl;
+
+  if (verbosity >= Verbosity::Verbose) {
+    os << "Phi" << endl;
+    for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
+      for (size_t k = 0; k < pfa.K; ++k)
+        os << (k > 0 ? "\t" : "") << pfa.phi[g][k];
+      os << endl;
+    }
+
+    os << "Phi factor sums" << endl;
+    for (size_t k = 0; k < pfa.K; ++k) {
+      double sum = 0;
+      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][k];
+      os << (k > 0 ? "\t" : "") << sum;
+    }
+    os << endl;
+
+    os << "Theta" << endl;
+    for (size_t n = 0; n < min<size_t>(pfa.N, 10); ++n) {
+      for (size_t k = 0; k < pfa.K; ++k)
+        os << (k > 0 ? "\t" : "") << pfa.theta[n][k];
+      os << endl;
+    }
+
+    os << "Theta factor sums" << endl;
+    for (size_t k = 0; k < pfa.K; ++k) {
+      double sum = 0;
+      for (size_t n = 0; n < pfa.N; ++n) sum += pfa.theta[n][k];
+      os << (k > 0 ? "\t" : "") << sum;
+    }
+    os << endl;
+
+    os << "P" << endl;
+    for (size_t k = 0; k < pfa.K; ++k) os << (k > 0 ? "\t" : "") << pfa.p[k];
+    os << endl;
+
+    os << "R" << endl;
+    for (size_t k = 0; k < pfa.K; ++k) os << (k > 0 ? "\t" : "") << pfa.r[k];
+    os << endl;
+  }
+
   return os;
 }
 
