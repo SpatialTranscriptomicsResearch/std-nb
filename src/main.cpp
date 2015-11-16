@@ -30,6 +30,8 @@ void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa,
 
 void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
                             size_t num_steps, Verbosity verbosity) {
+  if (verbosity >= Verbosity::Info)
+    cout << "Initial model" << endl << pfa << endl;
   for (size_t iteration = 1; iteration <= num_steps; ++iteration) {
     if (verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
@@ -38,10 +40,14 @@ void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
     pfa.sample_p();
     pfa.sample_r();
     pfa.sample_theta();
-    if (iteration % 20 == 0)
-      cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+    if (verbosity >= Verbosity::Info)
+      if (iteration % 20 == 0)
+        cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+    if (verbosity >= Verbosity::Info)
+      cout << "Current model" << endl << pfa << endl;
   }
-  cout << "Final log-likelihood = " << pfa.log_likelihood(counts) << endl;
+  if (verbosity >= Verbosity::Info)
+    cout << "Final log-likelihood = " << pfa.log_likelihood(counts) << endl;
   write_resuls(pfa);
 }
 
