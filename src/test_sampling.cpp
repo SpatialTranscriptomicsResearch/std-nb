@@ -3,11 +3,12 @@
 
 using namespace std;
 
-template <class X> void print_vec(const std::vector<X> &x) {
+template <class X>
+void print_vec(const std::vector<X> &x) {
   cout << "[";
-  for(auto y: x)
-    cout << " " << y;
-  cout << " " << "]" << endl;
+  for (auto y : x) cout << " " << y;
+  cout << " "
+       << "]" << endl;
 }
 
 int main(int argc, char **argv) {
@@ -39,7 +40,7 @@ int main(int argc, char **argv) {
   }
 
   cout << endl;
-  for(size_t i = 0; i < N; i++) {
+  for (size_t i = 0; i < N; i++) {
     double x = sample_beta<double>(1.5, 0.5);
     cout << x << endl;
   }
