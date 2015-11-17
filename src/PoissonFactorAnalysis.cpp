@@ -1,4 +1,7 @@
+#include <omp.h>
 #include "PoissonFactorAnalysis.hpp"
+
+#define DO_PARALLEL 1
 
 using namespace std;
 using PFA = PoissonFactorAnalysis;
@@ -155,6 +158,7 @@ double PFA::log_likelihood(const IMatrix &counts) const {
 void PFA::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling contributions" << std::endl;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t n = 0; n < N; ++n) {
       std::vector<double> rel_rate(K);
@@ -171,6 +175,7 @@ void PFA::sample_phi() {
   if (verbosity >= Verbosity::Verbose) std::cout << "Sampling Phi" << std::endl;
   for (size_t k = 0; k < K; ++k) {
     std::vector<double> a(G, priors.alpha);
+#pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t n = 0; n < N; ++n) a[g] += contributions[g][n][k];
     auto phi_k = sample_dirichlet<Float>(a);
@@ -183,6 +188,7 @@ void PFA::sample_p() {
   if (verbosity >= Verbosity::Verbose) std::cout << "Sampling P" << std::endl;
   for (size_t k = 0; k < K; ++k) {
     Int sum = 0;
+#pragma omp parallel for reduction (+ : sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t n = 0; n < N; ++n) sum += contributions[g][n][k];
     p[k] = sample_beta<Float>(priors.c * priors.epsilon + sum,
@@ -201,6 +207,7 @@ void PFA::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling Theta" << std::endl;
   for (size_t k = 0; k < K; ++k)
+#pragma omp parallel for if (DO_PARALLEL)
     for (size_t n = 0; n < N; ++n) {
       Int sum = 0;
       for (size_t g = 0; g < G; ++g) sum += contributions[g][n][k];
