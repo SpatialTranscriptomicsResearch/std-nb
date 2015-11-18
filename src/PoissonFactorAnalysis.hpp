@@ -53,8 +53,8 @@ struct PoissonFactorAnalysis {
   // const size_t N;
   size_t N;
   /** number of factors */
-  // const size_t K;
-  size_t K;
+  // const size_t T;
+  size_t T;
 
   // const Priors priors;
   Priors priors;
@@ -75,7 +75,7 @@ struct PoissonFactorAnalysis {
 
   Verbosity verbosity;
 
-  PoissonFactorAnalysis(const IMatrix &counts, const size_t K,
+  PoissonFactorAnalysis(const IMatrix &counts, const size_t T,
                         const Priors &priors, Verbosity verbosity);
   double log_likelihood(const IMatrix &counts) const;
 
