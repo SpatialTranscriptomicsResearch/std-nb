@@ -6,15 +6,22 @@ using namespace std;
 using PFA = PoissonFactorAnalysis;
 using Int = PFA::Int;
 
-vector<vector<Int>> read_matrix_vec_of_vec(const string &path) {
+vector<vector<Int>> read_matrix_vec_of_vec(const string &path, size_t skip_lines, size_t skip_cols, const string &separator) {
+  using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+  boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
   ifstream ifs(path);
   string line;
+  size_t line_nr = 0;
+  while(line_nr++ < skip_lines)
+    getline(ifs,line);
   while(getline(ifs, line)) {
-    boost::tokenizer<> tok(line);
+    tokenizer tok(line, sep);
+    size_t col = 0;
     vector<Int> v;
     for(auto token: tok)
-      v.push_back(atoi(token.c_str()));
+      if(++col > skip_cols)
+        v.push_back(atoi(token.c_str()));
     m.push_back(v);
   }
 
