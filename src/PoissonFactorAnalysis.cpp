@@ -118,11 +118,11 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
   // randomly initialize the contributions
   for (size_t g = 0; g < G; ++g)
     for (size_t n = 0; n < N; ++n) {
-      std::vector<double> p(T);
+      std::vector<double> prob(T);
       double z = 0;
-      for (size_t t = 0; t < T; ++t) z += p[t] = phi[g][t] * theta[n][t];
-      for (size_t t = 0; t < T; ++t) p[t] /= z;
-      auto v = sample_multinomial<Int>(counts[g][n], p);
+      for (size_t t = 0; t < T; ++t) z += prob[t] = phi[g][t] * theta[n][t];
+      for (size_t t = 0; t < T; ++t) prob[t] /= z;
+      auto v = sample_multinomial<Int>(counts[g][n], prob);
       for (size_t t = 0; t < T; ++t) contributions[g][n][t] = v[t];
     }
 }
