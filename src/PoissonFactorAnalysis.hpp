@@ -50,8 +50,8 @@ struct PoissonFactorAnalysis {
   // const size_t G;
   size_t G;
   /** number of samples */
-  // const size_t N;
-  size_t N;
+  // const size_t S;
+  size_t S;
   /** number of factors */
   // const size_t T;
   size_t T;
