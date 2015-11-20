@@ -188,7 +188,7 @@ void PFA::sample_p() {
   if (verbosity >= Verbosity::Verbose) std::cout << "Sampling P" << std::endl;
   for (size_t t = 0; t < T; ++t) {
     Int sum = 0;
-#pragma omp parallel for reduction (+ : sum) if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
     p[t] = sample_beta<Float>(priors.c * priors.epsilon + sum,
@@ -207,10 +207,9 @@ void PFA::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling Theta" << std::endl;
   for (size_t t = 0; t < T; ++t)
-// #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s) {
       Int sum = 0;
-#pragma omp parallel for reduction (+ : sum) if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g) sum += contributions[g][s][t];
       theta[s][t] =
           std::gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
