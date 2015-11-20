@@ -93,6 +93,9 @@ struct PoissonFactorAnalysis {
 
   /** sample theta */
   void sample_theta();
+
+  /** sample each of the variables from their conditional posterior */
+  void gibbs_sample(const IMatrix &counts);
 };
 
 namespace MCMC {

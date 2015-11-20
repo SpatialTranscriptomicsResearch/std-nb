@@ -216,3 +216,22 @@ void PFA::sample_theta() {
           std::gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
     }
 }
+
+void PFA::gibbs_sample(const IMatrix &counts) {
+  sample_contributions(counts);
+  if (verbosity >= Verbosity::Debug)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  sample_phi();
+  if (verbosity >= Verbosity::Debug)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  sample_p();
+  if (verbosity >= Verbosity::Debug)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  // sample_r(); TODO - doesn't compute anything at the moment
+  //     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  // if (verbosity >= Verbosity::Debug)
+  //   cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  sample_theta();
+  if (verbosity >= Verbosity::Debug)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+}
