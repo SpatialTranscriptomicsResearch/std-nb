@@ -123,7 +123,7 @@ class Generator<PoissonFactorAnalysis> {
 
     std::uniform_int_distribution<size_t> r_unif(0, 4);
     size_t i = r_unif(EntropySource::rng);
-    while (i == 3 or i == 2) i = r_unif(EntropySource::rng);
+    while (i == 3) i = r_unif(EntropySource::rng);
     switch (i) {
       case 0:
         next.sample_contributions(counts);
