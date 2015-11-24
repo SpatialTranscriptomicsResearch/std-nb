@@ -129,7 +129,6 @@ class Generator<PoissonFactorAnalysis> {
         next.sample_contributions(counts);
         break;
       case 1:
-        // sample phi
         next.sample_phi();
         break;
       case 2:
