@@ -29,37 +29,26 @@ struct PoissonFactorAnalysis {
           alpha(alpha_){};
 
     // priors for the beta distribution (22)
-    // const Float c;
     Float c;
-    // const Float epsilon;
     Float epsilon;
 
     // priors for the gamma distribution (21)
-    // const Float c0;
     Float c0;
-    // const Float r0;
     Float r0;
 
-    // const Float gamma;
     Float gamma;
-    // const Float alpha;
     Float alpha;
   };
 
   /** number of genes */
-  // const size_t G;
   size_t G;
   /** number of samples */
-  // const size_t S;
   size_t S;
   /** number of factors */
-  // const size_t T;
   size_t T;
 
-  // const Priors priors;
   Priors priors;
 
-  // const Matrix counts;
   ITensor contributions;
 
   /** factor loading matrix */
