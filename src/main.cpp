@@ -73,6 +73,8 @@ int main(int argc, char **argv) {
 
   Options options;
 
+  PFA::Priors priors;
+
   string config_path;
   string usage_info = "How to use this software";
 
@@ -84,6 +86,7 @@ int main(int argc, char **argv) {
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
+  po::options_description prior_options("Prior options", num_cols);
 
   required_options.add_options()
     ("file,f", po::value(&options.paths)->required(),
@@ -101,7 +104,21 @@ int main(int argc, char **argv) {
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.");
 
-  cli_options.add(generic_options).add(required_options).add(basic_options);
+  prior_options.add_options()
+    ("alpha,a", po::value(&priors.alpha)->default_value(priors.alpha),
+     "Dirichlet prior alpha of the factor loading matrix.")
+    ("beta_c", po::value(&priors.c)->default_value(priors.c),
+     "Beta prior c.")
+    ("beta_eps", po::value(&priors.epsilon)->default_value(priors.epsilon),
+     "Beta prior epsilon.")
+    ("gamma_c", po::value(&priors.c0)->default_value(priors.c0),
+     "Gamma prior c0.")
+    ("gamma_r", po::value(&priors.r0)->default_value(priors.r0),
+     "Gamma prior r0.")
+    ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
+     "Prior gamma.");
+
+  cli_options.add(generic_options).add(required_options).add(basic_options).add(prior_options);
 
   po::positional_options_description positional_options;
   positional_options.add("file", -1);
@@ -120,7 +137,6 @@ int main(int argc, char **argv) {
 
   auto counts = read_matrix(options.paths[0]);
 
-  PFA::Priors priors;
   PoissonFactorAnalysis pfa(counts, options.num_factors, priors, options.verbosity);
 
   if (0)
