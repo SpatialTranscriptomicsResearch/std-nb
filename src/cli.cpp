@@ -143,7 +143,6 @@ ExecutionInformation process_cli_options(
     exit(EXIT_FAILURE);
   }
 
-  verbosity = Verbosity::Info;
   if (vm.count("verbose")) verbosity = Verbosity::Verbose;
   if (vm.count("noisy")) verbosity = Verbosity::Debug;
 

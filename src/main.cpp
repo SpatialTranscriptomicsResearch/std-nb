@@ -14,7 +14,7 @@ const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Options {
   vector<string> paths;
-  Verbosity verbosity = Verbosity::Verbose;
+  Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
   size_t report_interval = 20;
@@ -53,9 +53,9 @@ void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
     pfa.gibbs_sample(counts);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
-    if (iteration % options.report_interval == 0 and
-        options.verbosity >= Verbosity::Info and
-        options.verbosity < Verbosity::Debug)
+    if ((iteration % options.report_interval == 0 and
+         options.verbosity >= Verbosity::Info) or
+        options.verbosity >= Verbosity::Debug)
       cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
   }
   if (options.verbosity >= Verbosity::Info)
