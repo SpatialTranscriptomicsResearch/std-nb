@@ -158,7 +158,7 @@ ExecutionInformation process_cli_options(
     std::cout << exec_info.program_name << " " << exec_info.program_version
               << std::endl;
     std::cout
-        << "Copyright (C) 2011 Jonas Maaskola\n"
+        << "Copyright (C) 2015 Jonas Maaskola\n"
            "Provided under GNU General Public License Version 3 or later.\n"
            "See the file COPYING provided with this software for details of "
            "the license.\n" << std::endl;
