@@ -199,7 +199,24 @@ void PFA::sample_p() {
 /** sample r */
 void PFA::sample_r() {
   if (verbosity >= Verbosity::Verbose) std::cout << "Sampling R" << std::endl;
-  // TODO
+  for (size_t t = 0; t < T; ++t) {
+    vector<Int> count_spot_type(S, 0);
+    Int sum = 0;
+    for (size_t s = 0; s < S; ++s) {
+      Int sum_spot = 0;
+#pragma omp parallel for reduction(+ : sum_spot) if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g)
+        sum_spot += contributions[g][s][t];
+      sum += sum_spot;
+      count_spot_type[s] = sum_spot;
+    }
+    if(sum == 0) {
+      r[t] = std::gamma_distribution<Float>(priors.c0 * priors.r0, 1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
+    } else {
+      // TODO: implement sampling of R when sum != 0
+    }
+  }
+
 }
 
 /** sample theta */
@@ -226,9 +243,9 @@ void PFA::gibbs_sample(const IMatrix &counts) {
   sample_p();
   if (verbosity >= Verbosity::Debug)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  // sample_r(); TODO - doesn't compute anything at the moment
-  // if (verbosity >= Verbosity::Debug)
-  //   cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  sample_r();
+  if (verbosity >= Verbosity::Debug)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   sample_theta();
   if (verbosity >= Verbosity::Debug)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
