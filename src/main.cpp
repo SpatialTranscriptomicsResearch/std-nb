@@ -105,7 +105,7 @@ int main(int argc, char **argv) {
      "Prefix for generated output files.");
 
   prior_options.add_options()
-    ("alpha,a", po::value(&priors.alpha)->default_value(priors.alpha),
+    ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
      "Dirichlet prior alpha of the factor loading matrix.")
     ("beta_c", po::value(&priors.c)->default_value(priors.c),
      "Beta prior c.")
