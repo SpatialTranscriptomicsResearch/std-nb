@@ -36,3 +36,7 @@ double log_dirichlet(const vector<double> &alpha, const vector<double> &p) {
 
   return l;
 }
+
+double log_negative_binomial(double x, double r, double p) {
+  return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * log(p) + r * log(1-p);
+}
