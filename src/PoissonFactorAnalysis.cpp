@@ -1,10 +1,32 @@
 #include <omp.h>
+#include <boost/math/special_functions/digamma.hpp>
+#include <boost/math/special_functions/trigamma.hpp>
 #include "PoissonFactorAnalysis.hpp"
+#include "montecarlo.hpp"
 
 #define DO_PARALLEL 1
 
 using namespace std;
 using PFA = PoissonFactorAnalysis;
+
+PFA::Float digamma(PFA::Float x) {
+  return boost::math::digamma(x);
+}
+
+PFA::Float trigamma(PFA::Float x) {
+  return boost::math::trigamma(x);
+}
+
+template <typename T>
+T square(T x) {
+  return x * x;
+}
+
+/** Adjustable step size for Metropolis-Hastings sampling of r[t] */
+const double adj_step_size = 1.0;
+/** Temperature for Metropolis-Hastings sampling of r[t] */
+const double temp = 1.0;
+
 
 std::ostream &operator<<(std::ostream &os, const PoissonFactorAnalysis &pfa) {
   os << "Poisson Factor Analysis "
@@ -214,7 +236,91 @@ void PFA::sample_r() {
           priors.c0 * priors.r0,
           1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
     } else {
-      // TODO: implement sampling of R when sum != 0
+      // TODO: check sampling of R when sum != 0
+      const Float alpha = priors.c0 * priors.r0;
+      const Float beta = 1 / priors.c0;
+      const Float rt = r[t];
+      const Float pt = p[t];
+      const Float rt2 = square(rt);
+      const Float S2 = square(S);
+      // for(auto &x: count_spot_type)
+      //   x += rt;
+      const Float log_1_minus_p = log(1 - pt);
+      const Float digamma_r = digamma(rt);
+      const Float trigamma_r = trigamma(rt);
+
+      Float digamma_sum = 0;
+      for (auto &x : count_spot_type) digamma_sum += digamma(x + rt);
+
+      Float trigamma_term = 0;
+      for (auto &x : count_spot_type)
+        trigamma_term +=
+            trigamma(x + rt) + (log_1_minus_p - digamma_r) * digamma(rt + x);
+
+      const Float numerator =
+          rt2 * (S * (digamma_r - log_1_minus_p) - digamma_sum + beta) +
+          (1 - alpha) * rt;
+      const Float denominator =
+          rt2 * S2 * square(digamma_r - log_1_minus_p) +
+          S * (2 * rt2 * (log_1_minus_p - digamma_r) * digamma_sum -
+               rt2 * trigamma_r +
+               2 * (beta * rt2 + (1 - alpha) * rt) * digamma_r -
+               2 * beta * log_1_minus_p * rt2 +
+               2 * (alpha - 1) * log_1_minus_p * rt) +
+          rt2 * trigamma_term + rt2 * square(digamma_sum) +
+          (rt2 * digamma_r - (log_1_minus_p + 2 * beta) * rt2 +
+           2 * (alpha - 1) * rt) *
+              digamma_sum +
+          square(beta) * rt2 + 2 * (1 - alpha) * beta * rt + square(alpha) -
+          3 * alpha + 2;
+      // const Float x = -numerator / denominator;
+      const Float r_prime = rt - (-numerator / denominator);
+      // compute original posterior (or rather a value proportional to it
+      double log_posterior_current =
+          log_gamma(rt, priors.c0 * priors.r0, 1 / priors.c0);
+      for (auto &x : count_spot_type)
+        log_posterior_current += log_negative_binomial(x, rt, pt);
+
+      while (true) {
+        const Float r_new = normal_distribution<Float>(
+            r_prime, adj_step_size * sqrt(r_prime))(EntropySource::rng);
+
+        double log_posterior_new =
+            log_gamma(r_new, priors.c0 * priors.r0, 1 / priors.c0);
+        for (auto &x : count_spot_type)
+          log_posterior_new += log_negative_binomial(x, r_new, pt);
+
+        if (log_posterior_new > log_posterior_current) {
+          r[t] = r_new;
+          if (verbosity >= Verbosity::Debug)
+            std::cerr << "T = " << temp << " current = " << rt
+                      << " next = " << r_new << std::endl
+                      << "nextG = " << log_posterior_new
+                      << " G = " << log_posterior_current
+                      << " dG = " << (log_posterior_new - log_posterior_current)
+                      << std::endl << "Improved!" << std::endl;
+          break;
+        } else {
+          const Float dG = log_posterior_new - log_posterior_current;
+          double rnd = RandomDistribution::Uniform(EntropySource::rng);
+          double prob = std::min<double>(1.0, MCMC::boltzdist(-dG, temp));
+          if (verbosity >= Verbosity::Debug)
+            std::cerr << "T = " << temp << " current = " << rt
+                      << " next = " << r_new << std::endl
+                      << "nextG = " << log_posterior_new
+                      << " G = " << log_posterior_current << " dG = " << dG
+                      << " prob = " << prob << " rnd = " << rnd << std::endl;
+          if (std::isnan(log_posterior_new) == 0 and (dG > 0 or rnd <= prob)) {
+            if (verbosity >= Verbosity::Debug)
+              std::cerr << "Accepted!" << std::endl;
+            r[t] = r_new;
+            break;
+          } else {
+            if (verbosity >= Verbosity::Debug)
+              std::cerr << "Rejected!" << std::endl;
+          }
+        }
+      }
     }
   }
 }
