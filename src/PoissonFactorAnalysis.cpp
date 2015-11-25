@@ -205,18 +205,18 @@ void PFA::sample_r() {
     for (size_t s = 0; s < S; ++s) {
       Int sum_spot = 0;
 #pragma omp parallel for reduction(+ : sum_spot) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        sum_spot += contributions[g][s][t];
+      for (size_t g = 0; g < G; ++g) sum_spot += contributions[g][s][t];
       sum += sum_spot;
       count_spot_type[s] = sum_spot;
     }
-    if(sum == 0) {
-      r[t] = std::gamma_distribution<Float>(priors.c0 * priors.r0, 1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
+    if (sum == 0) {
+      r[t] = std::gamma_distribution<Float>(
+          priors.c0 * priors.r0,
+          1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
     } else {
       // TODO: implement sampling of R when sum != 0
     }
   }
-
 }
 
 /** sample theta */
