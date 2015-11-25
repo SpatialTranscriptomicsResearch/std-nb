@@ -76,7 +76,14 @@ int main(int argc, char **argv) {
   PFA::Priors priors;
 
   string config_path;
-  string usage_info = "How to use this software";
+  string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
+    "Beta-Negative Binomial Process and Poisson Factor Analysis\n"
+    "by Mingyuan Zhou, Lauren A. Hannah, David B. Dunson, and Lawrence Carin\n"
+    "Proceedings of the 15th International Conference on Artificial Intelligence and\n"
+    "Statistics (AISTATS) 2012, La Palma, Canary Islands. Volume XX of JMLR: W&CP XX.\n"
+    "\n"
+    "Please provide one or more count matrices as argument to the --file switch or as\n"
+    "free arguments.";
 
   size_t num_cols = 80;
   namespace po = boost::program_options;
