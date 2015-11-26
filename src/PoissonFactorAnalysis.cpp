@@ -9,13 +9,9 @@
 using namespace std;
 using PFA = PoissonFactorAnalysis;
 
-PFA::Float digamma(PFA::Float x) {
-  return boost::math::digamma(x);
-}
+PFA::Float digamma(PFA::Float x) { return boost::math::digamma(x); }
 
-PFA::Float trigamma(PFA::Float x) {
-  return boost::math::trigamma(x);
-}
+PFA::Float trigamma(PFA::Float x) { return boost::math::trigamma(x); }
 
 template <typename T>
 T square(T x) {
@@ -27,8 +23,7 @@ const double adj_step_size = 1.0;
 /** Temperature for Metropolis-Hastings sampling of r[t] */
 const double temp = 1.0;
 
-
-std::ostream &operator<<(std::ostream &os, const PoissonFactorAnalysis &pfa) {
+ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
   os << "Poisson Factor Analysis "
      << "S = " << pfa.S << " "
      << "G = " << pfa.G << " "
@@ -97,19 +92,19 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
 
     // randomly initialize R
     for (size_t t = 0; t < T; ++t)
-      r[t] = std::gamma_distribution<Float>(
-          priors.c0 * priors.r0, 1.0 / priors.c0)(EntropySource::rng);
+      r[t] = gamma_distribution<Float>(priors.c0 * priors.r0,
+                                       1.0 / priors.c0)(EntropySource::rng);
 
     // randomly initialize Theta
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t) {
-        theta[s][t] = std::gamma_distribution<Float>(
+        theta[s][t] = gamma_distribution<Float>(
             r[t], p[t] / (1 - p[t]))(EntropySource::rng);
       }
 
     // randomly initialize Phi
     for (size_t t = 0; t < T; ++t) {
-      auto phi_ = sample_dirichlet<Float>(std::vector<Float>(G, priors.alpha));
+      auto phi_ = sample_dirichlet<Float>(vector<Float>(G, priors.alpha));
       for (size_t g = 0; g < G; ++g) phi[g][t] = phi_[t];
     }
   } else {
@@ -140,7 +135,7 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
   // randomly initialize the contributions
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      std::vector<double> prob(T);
+      vector<double> prob(T);
       double z = 0;
       for (size_t t = 0; t < T; ++t) z += prob[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) prob[t] /= z;
@@ -151,9 +146,9 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
 
 double PFA::log_likelihood(const IMatrix &counts) const {
   double l = 0;
-  std::vector<double> alpha(G, priors.alpha);
+  vector<double> alpha(G, priors.alpha);
   for (size_t t = 0; t < T; ++t) {
-    std::vector<double> phik(G, 0);
+    vector<double> phik(G, 0);
     for (size_t g = 0; g < G; ++g) phik[g] = phi[g][t];
     l += log_dirichlet(phik, alpha);
     l += log_gamma(r[t], priors.c0 * priors.r0, 1.0 / priors.c0);
@@ -178,12 +173,11 @@ double PFA::log_likelihood(const IMatrix &counts) const {
 
 /** sample count decomposition */
 void PFA::sample_contributions(const IMatrix &counts) {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling contributions" << std::endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      std::vector<double> rel_rate(T);
+      vector<double> rel_rate(T);
       double z = 0;
       for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
@@ -194,9 +188,9 @@ void PFA::sample_contributions(const IMatrix &counts) {
 
 /** sample phi */
 void PFA::sample_phi() {
-  if (verbosity >= Verbosity::Verbose) std::cout << "Sampling Phi" << std::endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling Phi" << endl;
   for (size_t t = 0; t < T; ++t) {
-    std::vector<double> a(G, priors.alpha);
+    vector<double> a(G, priors.alpha);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s) a[g] += contributions[g][s][t];
@@ -207,7 +201,7 @@ void PFA::sample_phi() {
 
 /** sample p */
 void PFA::sample_p() {
-  if (verbosity >= Verbosity::Verbose) std::cout << "Sampling P" << std::endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   for (size_t t = 0; t < T; ++t) {
     Int sum = 0;
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
@@ -220,7 +214,7 @@ void PFA::sample_p() {
 
 /** sample r */
 void PFA::sample_r() {
-  if (verbosity >= Verbosity::Verbose) std::cout << "Sampling R" << std::endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
   for (size_t t = 0; t < T; ++t) {
     vector<Int> count_spot_type(S, 0);
     Int sum = 0;
@@ -232,7 +226,7 @@ void PFA::sample_r() {
       count_spot_type[s] = sum_spot;
     }
     if (sum == 0) {
-      r[t] = std::gamma_distribution<Float>(
+      r[t] = gamma_distribution<Float>(
           priors.c0 * priors.r0,
           1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
     } else {
@@ -293,31 +287,27 @@ void PFA::sample_r() {
         if (log_posterior_new > log_posterior_current) {
           r[t] = r_new;
           if (verbosity >= Verbosity::Debug)
-            std::cerr << "T = " << temp << " current = " << rt
-                      << " next = " << r_new << std::endl
-                      << "nextG = " << log_posterior_new
-                      << " G = " << log_posterior_current
-                      << " dG = " << (log_posterior_new - log_posterior_current)
-                      << std::endl << "Improved!" << std::endl;
+            cout << "T = " << temp << " current = " << rt << " next = " << r_new
+                 << endl << "nextG = " << log_posterior_new
+                 << " G = " << log_posterior_current
+                 << " dG = " << (log_posterior_new - log_posterior_current)
+                 << endl << "Improved!" << endl;
           break;
         } else {
           const Float dG = log_posterior_new - log_posterior_current;
           double rnd = RandomDistribution::Uniform(EntropySource::rng);
-          double prob = std::min<double>(1.0, MCMC::boltzdist(-dG, temp));
+          double prob = min<double>(1.0, MCMC::boltzdist(-dG, temp));
           if (verbosity >= Verbosity::Debug)
-            std::cerr << "T = " << temp << " current = " << rt
-                      << " next = " << r_new << std::endl
-                      << "nextG = " << log_posterior_new
-                      << " G = " << log_posterior_current << " dG = " << dG
-                      << " prob = " << prob << " rnd = " << rnd << std::endl;
+            cout << "T = " << temp << " current = " << rt << " next = " << r_new
+                 << endl << "nextG = " << log_posterior_new
+                 << " G = " << log_posterior_current << " dG = " << dG
+                 << " prob = " << prob << " rnd = " << rnd << endl;
           if (std::isnan(log_posterior_new) == 0 and (dG > 0 or rnd <= prob)) {
-            if (verbosity >= Verbosity::Debug)
-              std::cerr << "Accepted!" << std::endl;
+            if (verbosity >= Verbosity::Debug) cout << "Accepted!" << endl;
             r[t] = r_new;
             break;
           } else {
-            if (verbosity >= Verbosity::Debug)
-              std::cerr << "Rejected!" << std::endl;
+            if (verbosity >= Verbosity::Debug) cout << "Rejected!" << endl;
           }
         }
       }
@@ -327,15 +317,14 @@ void PFA::sample_r() {
 
 /** sample theta */
 void PFA::sample_theta() {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling Theta" << std::endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling Theta" << endl;
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
       Int sum = 0;
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g) sum += contributions[g][s][t];
       theta[s][t] =
-          std::gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
+          gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
     }
 }
 
