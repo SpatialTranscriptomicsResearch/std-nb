@@ -125,7 +125,7 @@ FIND_PACKAGE(Boost COMPONENTS iostreams regex system filesystem
   unit_test_framework program_options serialization date_time REQUIRED)
 IF(Boost_FOUND)
   ADD_DEFINITIONS( "-DHAS_BOOST" )
-  INCLUDE_DIRECTORIES(${Boost_INCLUDE_DIR})
+  INCLUDE_DIRECTORIES(SYSTEM ${Boost_INCLUDE_DIR})
   LINK_DIRECTORIES(${Boost_LIBRARY_DIRS})
 ENDIF()
 
