@@ -230,6 +230,7 @@ void PFA::sample_r() {
           priors.c0 * priors.r0,
           1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
     } else {
+      if (verbosity >= Verbosity::Debug) cout << "Sum counts = " << sum << endl;
       // TODO: check sampling of R when sum != 0
       const Float alpha = priors.c0 * priors.r0;
       const Float beta = 1 / priors.c0;
@@ -269,6 +270,9 @@ void PFA::sample_r() {
           3 * alpha + 2;
       // const Float x = -numerator / denominator;
       const Float r_prime = rt - (-numerator / denominator);
+
+      if (verbosity >= Verbosity::Debug) cout << "R' = " << r_prime << endl;
+
       // compute original posterior (or rather a value proportional to it
       double log_posterior_current =
           log_gamma(rt, priors.c0 * priors.r0, 1 / priors.c0);
