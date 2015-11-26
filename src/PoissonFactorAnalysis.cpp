@@ -155,7 +155,7 @@ double PFA::log_likelihood(const IMatrix &counts) const {
   for (size_t t = 0; t < T; ++t) {
     std::vector<double> phik(G, 0);
     for (size_t g = 0; g < G; ++g) phik[g] = phi[g][t];
-    l += log_dirichlet(alpha, phik);
+    l += log_dirichlet(phik, alpha);
     l += log_gamma(r[t], priors.c0 * priors.r0, 1.0 / priors.c0);
     l += log_beta(p[t], priors.c * priors.epsilon,
                   priors.c * (1 - priors.epsilon));
