@@ -334,18 +334,18 @@ void PFA::sample_theta() {
 
 void PFA::gibbs_sample(const IMatrix &counts) {
   sample_contributions(counts);
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   sample_phi();
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   sample_p();
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   sample_r();
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   sample_theta();
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
 }
