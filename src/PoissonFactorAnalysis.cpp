@@ -92,12 +92,14 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
 
     // randomly initialize R
     for (size_t t = 0; t < T; ++t)
+      // NOTE: gamma_distribution takes a shape and scale parameter
       r[t] = gamma_distribution<Float>(priors.c0 * priors.r0,
                                        1.0 / priors.c0)(EntropySource::rng);
 
     // randomly initialize Theta
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t) {
+      // NOTE: gamma_distribution takes a shape and scale parameter
         theta[s][t] = gamma_distribution<Float>(
             r[t], p[t] / (1 - p[t]))(EntropySource::rng);
       }
@@ -151,10 +153,12 @@ double PFA::log_likelihood(const IMatrix &counts) const {
     vector<double> phik(G, 0);
     for (size_t g = 0; g < G; ++g) phik[g] = phi[g][t];
     l += log_dirichlet(phik, alpha);
+    // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(r[t], priors.c0 * priors.r0, 1.0 / priors.c0);
     l += log_beta(p[t], priors.c * priors.epsilon,
                   priors.c * (1 - priors.epsilon));
     for (size_t s = 0; s < S; ++s)
+      // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(theta[s][t], r[t], p[t] / (1 - p[t]));
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
@@ -226,6 +230,7 @@ void PFA::sample_r() {
       count_spot_type[s] = sum_spot;
     }
     if (sum == 0) {
+      // NOTE: gamma_distribution takes a shape and scale parameter
       r[t] = gamma_distribution<Float>(
           priors.c0 * priors.r0,
           1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
@@ -273,20 +278,33 @@ void PFA::sample_r() {
 
       if (verbosity >= Verbosity::Debug) cout << "R' = " << r_prime << endl;
 
-      // compute original posterior (or rather a value proportional to it
-      double log_posterior_current =
-          log_gamma(rt, priors.c0 * priors.r0, 1 / priors.c0);
-      for (auto &x : count_spot_type)
-        log_posterior_current += log_negative_binomial(x, rt, pt);
+      /** compute conditional posterior of r (or rather: a value proportional to it) */
+      auto compute_cond_posterior = [&](Float x) {
+        double log_posterior =
+            log_gamma(x, priors.c0 * priors.r0, 1 / priors.c0);
+        for (auto &y : count_spot_type)
+          log_posterior += log_negative_binomial(y, x, pt);
+        return log_posterior;
+      };
+
+      // NOTE: log_gamma takes a shape and scale parameter
+      double log_posterior_current = compute_cond_posterior(rt);
+
+      if (verbosity >= Verbosity::Debug) {
+        // NOTE: log_gamma takes a shape and scale parameter
+        double log_posterior_prime = compute_cond_posterior(r_prime);
+
+        cout << "R = " << rt << " R' = " << r_prime << endl
+             << "f(R) = " << log_posterior_current
+             << " f(R') = " << log_posterior_prime << endl;
+      }
 
       while (true) {
         const Float r_new = normal_distribution<Float>(
             r_prime, adj_step_size * sqrt(r_prime))(EntropySource::rng);
 
-        double log_posterior_new =
-            log_gamma(r_new, priors.c0 * priors.r0, 1 / priors.c0);
-        for (auto &x : count_spot_type)
-          log_posterior_new += log_negative_binomial(x, r_new, pt);
+        // NOTE: log_gamma takes a shape and scale parameter
+        double log_posterior_new = compute_cond_posterior(r_new);
 
         if (log_posterior_new > log_posterior_current) {
           r[t] = r_new;
@@ -314,6 +332,8 @@ void PFA::sample_r() {
             if (verbosity >= Verbosity::Debug) cout << "Rejected!" << endl;
           }
         }
+
+        if (r_prime < 0) exit(EXIT_FAILURE);
       }
     }
   }
@@ -327,6 +347,7 @@ void PFA::sample_theta() {
       Int sum = 0;
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g) sum += contributions[g][s][t];
+      // NOTE: gamma_distribution takes a shape and scale parameter
       theta[s][t] =
           gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
     }
