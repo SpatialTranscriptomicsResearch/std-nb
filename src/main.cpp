@@ -21,45 +21,49 @@ struct Options {
   string output = default_output_string;
 };
 
-void write_resuls(const PFA &pfa, const string &prefix) {
-  write_matrix(pfa.phi, prefix + "phi.txt");
-  write_matrix(pfa.theta, prefix + "theta.txt");
-  write_vector(pfa.r, prefix + "r.txt");
-  write_vector(pfa.p, prefix + "p.txt");
+void write_resuls(const PFA &pfa, const Counts &counts, const string &prefix) {
+  vector<string> factor_names;
+  for (size_t t = 0; t < pfa.T; ++t)
+    factor_names.push_back("Factor " + to_string(t));
+  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
+  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
+  write_vector(pfa.r, prefix + "r.txt", factor_names);
+  write_vector(pfa.p, prefix + "p.txt", factor_names);
 }
 
-void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa,
+void perform_metropolis_hastings(const Counts &data, PFA &pfa,
                                  const Options &options) {
-  MCMC::Evaluator<PFA> evaluator(counts);
-  MCMC::Generator<PFA> generator(counts);
+  MCMC::Evaluator<PFA> evaluator(data.counts);
+  MCMC::Generator<PFA> generator(data.counts);
   MCMC::MonteCarlo<PFA> mc(generator, evaluator, options.verbosity);
 
   double anneal = 1.0;
 
   auto res = mc.run(pfa.parameters.temperature, anneal, pfa, options.num_steps);
-  write_resuls(res.rbegin()->first, options.output);
+  write_resuls(res.rbegin()->first, data, options.output);
 }
 
-void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
+void perform_gibbs_sampling(const Counts &data, PFA &pfa,
                             const Options &options) {
   if (options.verbosity >= Verbosity::Info)
     cout << "Initial model" << endl << pfa << endl;
   if (options.verbosity >= Verbosity::Debug)
-    cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+    cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
-    pfa.gibbs_sample(counts);
+    pfa.gibbs_sample(data.counts);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
     if ((iteration % options.report_interval == 0 and
          options.verbosity >= Verbosity::Info) or
         options.verbosity >= Verbosity::Debug)
-      cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+      cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   }
   if (options.verbosity >= Verbosity::Info)
-    cout << "Final log-likelihood = " << pfa.log_likelihood(counts) << endl;
-  write_resuls(pfa, options.output);
+    cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
+         << endl;
+  write_resuls(pfa, data, options.output);
 }
 
 int main(int argc, char **argv) {
@@ -155,15 +159,15 @@ int main(int argc, char **argv) {
     }
   }
 
-  auto counts = read_matrix(options.paths[0]);
+  Counts data(options.paths[0]);
 
-  PoissonFactorAnalysis pfa(counts, options.num_factors, priors, parameters,
-                            options.verbosity);
+  PoissonFactorAnalysis pfa(data.counts, options.num_factors, priors,
+                            parameters, options.verbosity);
 
   if (0)
-    perform_metropolis_hastings(counts, pfa, options);
+    perform_metropolis_hastings(data, pfa, options);
   else
-    perform_gibbs_sampling(counts, pfa, options);
+    perform_gibbs_sampling(data, pfa, options);
 
   return EXIT_SUCCESS;
 }

@@ -12,7 +12,6 @@ struct PoissonFactorAnalysis {
   using Int = uint32_t;
   using Float = double;
   using Vector = boost::multi_array<Float, 1>;
-  using CVector = boost::multi_array<Float, 1>;
   using Matrix = boost::multi_array<Float, 2>;
   using IMatrix = boost::multi_array<Int, 2>;
   using Tensor = boost::multi_array<Float, 3>;
