@@ -34,10 +34,9 @@ void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa,
   MCMC::Generator<PFA> generator(counts);
   MCMC::MonteCarlo<PFA> mc(generator, evaluator, options.verbosity);
 
-  double temperature = 10.0;
   double anneal = 1.0;
 
-  auto res = mc.run(temperature, anneal, pfa, options.num_steps);
+  auto res = mc.run(pfa.parameters.temperature, anneal, pfa, options.num_steps);
   write_resuls(res.rbegin()->first, options.output);
 }
 
@@ -74,6 +73,7 @@ int main(int argc, char **argv) {
   Options options;
 
   PFA::Priors priors;
+  PFA::Parameters parameters;
 
   string config_path;
   string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
@@ -94,6 +94,7 @@ int main(int argc, char **argv) {
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
   po::options_description prior_options("Prior options", num_cols);
+  po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
     ("file,f", po::value(&options.paths)->required(),
@@ -125,7 +126,17 @@ int main(int argc, char **argv) {
     ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
      "Prior gamma.");
 
-  cli_options.add(generic_options).add(required_options).add(basic_options).add(prior_options);
+  inference_options.add_options()
+    ("step", po::value(&parameters.adj_step_size)->default_value(parameters.adj_step_size),
+     "Adjustable step size for Metropolis-Hastings sampling of R.")
+    ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
+     "Temperature for Metropolis-Hastings sampling of R.");
+
+  cli_options.add(generic_options)
+      .add(required_options)
+      .add(basic_options)
+      .add(prior_options)
+      .add(inference_options);
 
   po::positional_options_description positional_options;
   positional_options.add("file", -1);
@@ -134,9 +145,11 @@ int main(int argc, char **argv) {
       argc, const_cast<const char **>(argv), options.verbosity, usage_info,
       cli_options, true, positional_options);
 
-  if(options.output == default_output_string) {
-    options.output = generate_random_label(exec_info.program_name, 0, options.verbosity) + "/";
-    if(not boost::filesystem::create_directory(options.output)) {
+  if (options.output == default_output_string) {
+    options.output =
+        generate_random_label(exec_info.program_name, 0, options.verbosity) +
+        "/";
+    if (not boost::filesystem::create_directory(options.output)) {
       cout << "Error creating output directory " << options.output << endl;
       exit(EXIT_FAILURE);
     }
@@ -144,7 +157,8 @@ int main(int argc, char **argv) {
 
   auto counts = read_matrix(options.paths[0]);
 
-  PoissonFactorAnalysis pfa(counts, options.num_factors, priors, options.verbosity);
+  PoissonFactorAnalysis pfa(counts, options.num_factors, priors, parameters,
+                            options.verbosity);
 
   if (0)
     perform_metropolis_hastings(counts, pfa, options);

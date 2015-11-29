@@ -18,11 +18,6 @@ T square(T x) {
   return x * x;
 }
 
-/** Adjustable step size for Metropolis-Hastings sampling of r[t] */
-const double adj_step_size = 1.0;
-/** Temperature for Metropolis-Hastings sampling of r[t] */
-const double temp = 1.0;
-
 ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
   os << "Poisson Factor Analysis "
      << "S = " << pfa.S << " "
@@ -73,11 +68,13 @@ ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
 }
 
 PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
-                           const Priors &priors_, Verbosity verbosity_)
+                           const Priors &priors_, const Parameters &parameters_,
+                           Verbosity verbosity_)
     : G(counts.shape()[0]),
       S(counts.shape()[1]),
       T(T_),
       priors(priors_),
+      parameters(parameters_),
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
@@ -301,7 +298,8 @@ void PFA::sample_r() {
 
       while (true) {
         const Float r_new = normal_distribution<Float>(
-            r_prime, adj_step_size * sqrt(r_prime))(EntropySource::rng);
+            r_prime,
+            parameters.adj_step_size * sqrt(r_prime))(EntropySource::rng);
 
         // NOTE: log_gamma takes a shape and scale parameter
         double log_posterior_new = compute_cond_posterior(r_new);
@@ -309,8 +307,9 @@ void PFA::sample_r() {
         if (log_posterior_new > log_posterior_current) {
           r[t] = r_new;
           if (verbosity >= Verbosity::Debug)
-            cout << "T = " << temp << " current = " << rt << " next = " << r_new
-                 << endl << "nextG = " << log_posterior_new
+            cout << "T = " << parameters.temperature << " current = " << rt
+                 << " next = " << r_new << endl
+                 << "nextG = " << log_posterior_new
                  << " G = " << log_posterior_current
                  << " dG = " << (log_posterior_new - log_posterior_current)
                  << endl << "Improved!" << endl;
@@ -318,10 +317,12 @@ void PFA::sample_r() {
         } else {
           const Float dG = log_posterior_new - log_posterior_current;
           double rnd = RandomDistribution::Uniform(EntropySource::rng);
-          double prob = min<double>(1.0, MCMC::boltzdist(-dG, temp));
+          double prob =
+              min<double>(1.0, MCMC::boltzdist(-dG, parameters.temperature));
           if (verbosity >= Verbosity::Debug)
-            cout << "T = " << temp << " current = " << rt << " next = " << r_new
-                 << endl << "nextG = " << log_posterior_new
+            cout << "T = " << parameters.temperature << " current = " << rt
+                 << " next = " << r_new << endl
+                 << "nextG = " << log_posterior_new
                  << " G = " << log_posterior_current << " dG = " << dG
                  << " prob = " << prob << " rnd = " << rnd << endl;
           if (std::isnan(log_posterior_new) == 0 and (dG > 0 or rnd <= prob)) {

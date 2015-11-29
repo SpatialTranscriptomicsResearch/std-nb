@@ -40,6 +40,13 @@ struct PoissonFactorAnalysis {
     Float alpha;
   };
 
+  struct Parameters {
+    /** Adjustable step size for Metropolis-Hastings sampling of r[t] */
+    double adj_step_size = 1.0;
+    /** Temperature for Metropolis-Hastings sampling of r[t] */
+    double temperature = 1.0;
+  };
+
   /** number of genes */
   size_t G;
   /** number of samples */
@@ -48,6 +55,7 @@ struct PoissonFactorAnalysis {
   size_t T;
 
   Priors priors;
+  Parameters parameters;
 
   ITensor contributions;
 
@@ -65,7 +73,9 @@ struct PoissonFactorAnalysis {
   Verbosity verbosity;
 
   PoissonFactorAnalysis(const IMatrix &counts, const size_t T,
-                        const Priors &priors, Verbosity verbosity);
+                        const Priors &priors, const Parameters &parameters,
+                        Verbosity verbosity);
+
   double log_likelihood(const IMatrix &counts) const;
 
   /** sample count decomposition */
