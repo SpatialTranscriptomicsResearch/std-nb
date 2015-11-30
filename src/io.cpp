@@ -1,6 +1,7 @@
 #include <fstream>
 #include <exception>
 #include <boost/tokenizer.hpp>
+#include "compression.hpp"
 #include "io.hpp"
 
 using namespace std;
@@ -17,13 +18,11 @@ PFA::IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
   return A;
 }
 
-PFA::IMatrix read_counts(const string &path, const string &separator,
+PFA::IMatrix read_counts(istream &ifs, const string &separator,
                          vector<string> &row_names, vector<string> &col_names) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
-
-  ifstream ifs(path);
 
   string line;
 
@@ -51,7 +50,8 @@ PFA::IMatrix read_counts(const string &path, const string &separator,
 Counts::Counts(const string &path, const string &separator)
     : row_names(),
       col_names(),
-      counts(read_counts(path, separator, row_names, col_names)) {}
+      counts(parse_file<PFA::IMatrix>(path, read_counts, separator, row_names,
+                                      col_names)) {}
 
 void write_vector(const PFA::Vector &v, const string &path,
                   const std::vector<std::string> &names) {
