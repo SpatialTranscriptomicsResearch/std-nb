@@ -103,7 +103,7 @@ ENDIF()
 # You may try uncommenting some of the commented options below if you have
 # trouble automatically finding Boost on your system.
 
-SET(BOOST_MIN_VERSION "1.57.0")
+SET(BOOST_MIN_VERSION "1.58.0")
 # Toggle verbose output of the boost configuration
 #
 SET(Boost_DEBUG OFF)
