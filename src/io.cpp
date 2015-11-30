@@ -54,7 +54,7 @@ Counts::Counts(const string &path, const string &separator)
                                       col_names)) {}
 
 void write_vector(const PFA::Vector &v, const string &path,
-                  const std::vector<std::string> &names) {
+                  const vector<string> &names) {
   auto shape = v.shape();
   size_t X = shape[0];
 
@@ -62,9 +62,9 @@ void write_vector(const PFA::Vector &v, const string &path,
 
   if (names_given) {
     if (names.size() != X)
-      throw(std::runtime_error(
-          "Error: length of names (" + to_string(names.size()) +
-          ") does not match length of vector (" + to_string(X) + ")."));
+      throw(runtime_error("Error: length of names (" + to_string(names.size()) +
+                          ") does not match length of vector (" + to_string(X) +
+                          ")."));
   }
 
   ofstream ofs(path);
@@ -73,8 +73,8 @@ void write_vector(const PFA::Vector &v, const string &path,
 }
 
 void write_matrix(const PFA::Matrix &m, const string &path,
-                  const std::vector<std::string> &row_names,
-                  const std::vector<std::string> &col_names) {
+                  const vector<string> &row_names,
+                  const vector<string> &col_names) {
   auto shape = m.shape();
   size_t X = shape[0];
   size_t Y = shape[1];
@@ -84,14 +84,14 @@ void write_matrix(const PFA::Matrix &m, const string &path,
 
   if (row_names_given) {
     if (row_names.size() != X)
-      throw(std::runtime_error(
+      throw(runtime_error(
           "Error: length of row names (" + to_string(row_names.size()) +
           ") does not match number of rows (" + to_string(X) + ")."));
   }
 
   if (col_names_given) {
     if (col_names.size() != Y)
-      throw(std::runtime_error(
+      throw(runtime_error(
           "Error: length of col names (" + to_string(col_names.size()) +
           ") does not match number of cols (" + to_string(Y) + ")."));
   }
