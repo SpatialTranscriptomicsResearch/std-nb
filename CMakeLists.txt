@@ -103,6 +103,7 @@ ENDIF()
 # You may try uncommenting some of the commented options below if you have
 # trouble automatically finding Boost on your system.
 
+SET(BOOST_MIN_VERSION "1.57.0")
 # Toggle verbose output of the boost configuration
 #
 SET(Boost_DEBUG OFF)
@@ -121,7 +122,7 @@ SET(Boost_DEBUG OFF)
 # SET(Boost_USE_STATIC_LIBS  OFF)
 # SET(Boost_USE_STATIC_RUNTIME ON)
 # SET(Boost_ADDITIONAL_VERSIONS "1.47" "1.47.0" "1.46" "1.46.0" "1.42.0" "1.40.0")
-FIND_PACKAGE(Boost COMPONENTS iostreams regex system filesystem
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} COMPONENTS iostreams regex system filesystem
   unit_test_framework program_options serialization date_time REQUIRED)
 IF(Boost_FOUND)
   ADD_DEFINITIONS( "-DHAS_BOOST" )
