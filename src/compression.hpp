@@ -64,27 +64,27 @@ struct Parsing : public std::runtime_error {
 }
 
 template <typename T, typename X, typename... Args>
-T parse_file(const std::string& path, X fnc, Args&... args) {
-  if (not boost::filesystem::exists(path))
-    throw Exception::File::Existence(path);
+T parse_file(const std::string& p, X fnc, Args&... args) {
+  using namespace boost::filesystem;
+  if (not exists(p))
+    throw Exception::File::Existence(p);
 
-  bool use_gzip = path.size() >= 3 and path.substr(path.size() - 3, 3) == ".gz";
-  bool use_bzip2 =
-      path.size() >= 4 and path.substr(path.size() - 4, 4) == ".bz2";
+  bool use_gzip = path(p).extension() == ".gz";
+  bool use_bzip2 = path(p).extension() == ".bz2";
   std::ios_base::openmode flags = std::ios_base::in;
   if (use_gzip or use_bzip2) flags |= std::ios_base::binary;
 
-  std::ifstream file(path, flags);
-  if (not file) throw Exception::File::Access(path);
+  std::ifstream file(p, flags);
+  if (not file) throw Exception::File::Access(p);
   boost::iostreams::filtering_stream<boost::iostreams::input> in;
   if (use_gzip) in.push(boost::iostreams::gzip_decompressor());
   if (use_bzip2) in.push(boost::iostreams::bzip2_decompressor());
   in.push(file);
 
   T return_value = fnc(in, args...);
-  if (in.bad()) throw Exception::File::Reading(path);
+  if (in.bad()) throw Exception::File::Reading(p);
   // if (in.fail())
-  //   throw Exception::File::Parsing(path);
+  //   throw Exception::File::Parsing(p);
   return return_value;
 };
 
