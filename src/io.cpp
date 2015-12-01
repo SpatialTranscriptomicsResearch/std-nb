@@ -76,25 +76,31 @@ unordered_map<T, size_t> generate_index_map(const vector<T> &v) {
   return m;
 }
 
-Counts Counts::operator+(const Counts &other) const {
-  auto n1 = row_names;
-  auto n2 = other.row_names;
+Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
+  auto n1 = a.row_names;
+  auto n2 = b.row_names;
   sort(begin(n1), end(n1));
   sort(begin(n2), end(n2));
   vector<string> rnames(n1.size() + n2.size());
-  auto it = set_union(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
-  rnames.resize(it - begin(rnames));
+  if (intersect) {
+    auto it =
+        set_intersection(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
+    rnames.resize(it - begin(rnames));
+  } else {
+    auto it = set_union(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
+    rnames.resize(it - begin(rnames));
+  }
 
-  vector<string> cnames = col_names;
-  for (auto &name : other.col_names) cnames.push_back(name);
+  vector<string> cnames = a.col_names;
+  for (auto &name : b.col_names) cnames.push_back(name);
 
-  auto m1 = generate_index_map(row_names);
-  auto m2 = generate_index_map(other.row_names);
+  auto m1 = generate_index_map(a.row_names);
+  auto m2 = generate_index_map(b.row_names);
 
   const size_t nrow = rnames.size();
   const size_t ncol = cnames.size();
 
-  const size_t ncol1 = col_names.size();
+  const size_t ncol1 = a.col_names.size();
 
   PFA::IMatrix cnt(boost::extents[nrow][ncol]);
   size_t col_idx = 0;
@@ -103,7 +109,7 @@ Counts Counts::operator+(const Counts &other) const {
     for (auto &name : rnames) {
       auto iter = m1.find(name);
       if (iter != end(m1))
-        cnt[row_idx][col_idx] = counts[iter->second][col_idx];
+        cnt[row_idx][col_idx] = a.counts[iter->second][col_idx];
       row_idx++;
     }
   }
@@ -112,7 +118,7 @@ Counts Counts::operator+(const Counts &other) const {
     for (auto &name : rnames) {
       auto iter = m2.find(name);
       if (iter != end(m2))
-        cnt[row_idx][col_idx] = other.counts[iter->second][col_idx - ncol1];
+        cnt[row_idx][col_idx] = b.counts[iter->second][col_idx - ncol1];
       row_idx++;
     }
   }
@@ -120,47 +126,11 @@ Counts Counts::operator+(const Counts &other) const {
 }
 
 Counts Counts::operator*(const Counts &other) const {
-  auto n1 = row_names;
-  auto n2 = other.row_names;
-  sort(begin(n1), end(n1));
-  sort(begin(n2), end(n2));
-  vector<string> rnames(n1.size() + n2.size());
-  auto it =
-      set_intersection(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
-  rnames.resize(it - begin(rnames));
+  return combine_counts(*this, other, true);
+}
 
-  vector<string> cnames = col_names;
-  for (auto &name : other.col_names) cnames.push_back(name);
-
-  auto m1 = generate_index_map(row_names);
-  auto m2 = generate_index_map(other.row_names);
-
-  const size_t nrow = rnames.size();
-  const size_t ncol = cnames.size();
-
-  const size_t ncol1 = col_names.size();
-
-  PFA::IMatrix cnt(boost::extents[nrow][ncol]);
-  size_t col_idx = 0;
-  for (; col_idx < ncol1; ++col_idx) {
-    size_t row_idx = 0;
-    for (auto &name : rnames) {
-      auto iter = m1.find(name);
-      if (iter != end(m1))
-        cnt[row_idx][col_idx] = counts[iter->second][col_idx];
-      row_idx++;
-    }
-  }
-  for (; col_idx < ncol; ++col_idx) {
-    size_t row_idx = 0;
-    for (auto &name : rnames) {
-      auto iter = m2.find(name);
-      if (iter != end(m2))
-        cnt[row_idx][col_idx] = other.counts[iter->second][col_idx - ncol1];
-      row_idx++;
-    }
-  }
-  return {rnames, cnames, cnt};
+Counts Counts::operator+(const Counts &other) const {
+  return combine_counts(*this, other, false);
 }
 
 void write_vector(const PFA::Vector &v, const string &path,
