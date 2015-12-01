@@ -235,13 +235,13 @@ void PFA::sample_r() {
       if (verbosity >= Verbosity::Debug) cout << "Sum counts = " << sum << endl;
       // TODO: check sampling of R when sum != 0
       const Float alpha = priors.c0 * priors.r0;
-      const Float beta = 1 / priors.c0;
+      // TODO: determine which of the following two is the right one to use
+      // const Float beta = 1 / priors.c0;
+      // NOTE: likely it is the latter definition here that is correct
+      const Float beta = priors.c0;
       const Float rt = r[t];
       const Float pt = p[t];
       const Float rt2 = square(rt);
-      const Float S2 = square(S);
-      // for(auto &x: count_spot_type)
-      //   x += rt;
       const Float log_1_minus_p = log(1 - pt);
       const Float digamma_r = digamma(rt);
       const Float trigamma_r = trigamma(rt);
@@ -258,22 +258,17 @@ void PFA::sample_r() {
           rt2 * (S * (digamma_r - log_1_minus_p) - digamma_sum + beta) +
           (1 - alpha) * rt;
       const Float denominator =
-          rt2 * S2 * square(digamma_r - log_1_minus_p) +
-          S * (2 * rt2 * (log_1_minus_p - digamma_r) * digamma_sum -
-               rt2 * trigamma_r +
-               2 * (beta * rt2 + (1 - alpha) * rt) * digamma_r -
-               2 * beta * log_1_minus_p * rt2 +
-               2 * (alpha - 1) * log_1_minus_p * rt) +
-          rt2 * trigamma_term + rt2 * square(digamma_sum) +
-          (rt2 * digamma_r - (log_1_minus_p + 2 * beta) * rt2 +
-           2 * (alpha - 1) * rt) *
-              digamma_sum +
-          square(beta) * rt2 + 2 * (1 - alpha) * beta * rt + square(alpha) -
-          3 * alpha + 2;
-      // const Float x = -numerator / denominator;
-      const Float r_prime = rt - (-numerator / denominator);
+          rt2 * (trigamma_r * S - trigamma_term +
+                 (log_1_minus_p - digamma_r) * digamma_sum) +
+          alpha - 1;
 
-      if (verbosity >= Verbosity::Debug) cout << "R' = " << r_prime << endl;
+      const Float ratio = numerator / denominator;
+
+      Float r_prime = rt - ratio;
+
+      if (verbosity >= Verbosity::Debug)
+        cout << "numerator = " << numerator << " denominator = " << denominator
+             << " ratio = " << ratio << " R' = " << r_prime << endl;
 
       /** compute conditional posterior of r (or rather: a value proportional to it) */
       auto compute_cond_posterior = [&](Float x) {
