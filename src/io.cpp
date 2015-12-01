@@ -59,11 +59,6 @@ Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const PFA::IMatrix &cnts)
     : row_names(rnames), col_names(cnames), counts(cnts) {}
 
-Counts::Counts(const Counts &other)
-    : row_names(other.row_names),
-      col_names(other.col_names),
-      counts(other.counts) {}
-
 Counts &Counts::operator=(const Counts &other) {
   row_names = other.row_names;
   col_names = other.col_names;

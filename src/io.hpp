@@ -9,7 +9,6 @@ struct Counts {
   Counts(const std::vector<std::string> &rnames,
          const std::vector<std::string> &cnames,
          const PoissonFactorAnalysis::IMatrix &cnts);
-  Counts(const Counts &other);
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
   PoissonFactorAnalysis::IMatrix counts;
