@@ -1,0 +1,9 @@
+* storing loading of models to and from files
+* collect log-likelihoods and write to file
+* dump log to file in output prefix
+* use something like libmagic to figure out file types
+* write out version information into log
+* load and use multiple data sets simultaneously by taking either
+ - the intersection of genes, or
+ - the union of genes
+ 
