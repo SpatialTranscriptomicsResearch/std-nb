@@ -19,6 +19,7 @@ struct Options {
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
+  bool intersect = false;
 };
 
 void write_resuls(const PFA &pfa, const Counts &counts, const string &prefix) {
@@ -114,7 +115,9 @@ int main(int argc, char **argv) {
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for computing and printing the likelihood.")
     ("output,o", po::value(&options.output),
-     "Prefix for generated output files.");
+     "Prefix for generated output files.")
+    ("intersect", po::bool_switch(&options.intersect),
+     "When using multiple count matrices, use the intersection of rows, rather than their union.");
 
   prior_options.add_options()
     ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
@@ -160,6 +163,11 @@ int main(int argc, char **argv) {
   }
 
   Counts data(options.paths[0]);
+  for(size_t i = 1; i < options.paths.size(); ++i)
+    if(options.intersect)
+      data = data * Counts(options.paths[i]);
+    else
+      data = data + Counts(options.paths[i]);
 
   PoissonFactorAnalysis pfa(data.counts, options.num_factors, priors,
                             parameters, options.verbosity);

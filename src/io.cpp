@@ -59,6 +59,20 @@ Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const PFA::IMatrix &cnts)
     : row_names(rnames), col_names(cnames), counts(cnts) {}
 
+Counts::Counts(const Counts &other)
+    : row_names(other.row_names),
+      col_names(other.col_names),
+      counts(other.counts) {}
+
+Counts &Counts::operator=(const Counts &other) {
+  row_names = other.row_names;
+  col_names = other.col_names;
+  auto shape = other.counts.shape();
+  counts.resize(boost::extents[shape[0]][shape[1]]);
+  counts = other.counts;
+  return *this;
+}
+
 template <typename T>
 unordered_map<T, size_t> generate_index_map(const vector<T> &v) {
   const size_t n = v.size();
@@ -68,9 +82,13 @@ unordered_map<T, size_t> generate_index_map(const vector<T> &v) {
 }
 
 Counts Counts::operator+(const Counts &other) const {
-  vector<string> rnames;
-  set_union(begin(row_names), end(row_names), begin(other.row_names),
-            end(other.row_names), begin(rnames));
+  auto n1 = row_names;
+  auto n2 = other.row_names;
+  sort(begin(n1), end(n1));
+  sort(begin(n2), end(n2));
+  vector<string> rnames(n1.size() + n2.size());
+  auto it = set_union(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
+  rnames.resize(it - begin(rnames));
 
   vector<string> cnames = col_names;
   for (auto &name : other.col_names) cnames.push_back(name);
@@ -107,9 +125,14 @@ Counts Counts::operator+(const Counts &other) const {
 }
 
 Counts Counts::operator*(const Counts &other) const {
-  vector<string> rnames;
-  set_intersection(begin(row_names), end(row_names), begin(other.row_names),
-                   end(other.row_names), begin(rnames));
+  auto n1 = row_names;
+  auto n2 = other.row_names;
+  sort(begin(n1), end(n1));
+  sort(begin(n2), end(n2));
+  vector<string> rnames(n1.size() + n2.size());
+  auto it =
+      set_intersection(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
+  rnames.resize(it - begin(rnames));
 
   vector<string> cnames = col_names;
   for (auto &name : other.col_names) cnames.push_back(name);
