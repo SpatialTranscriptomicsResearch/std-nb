@@ -1,5 +1,7 @@
+#include <algorithm>
 #include <fstream>
 #include <exception>
+#include <unordered_map>
 #include <boost/tokenizer.hpp>
 #include "compression.hpp"
 #include "io.hpp"
@@ -52,6 +54,96 @@ Counts::Counts(const string &path, const string &separator)
       col_names(),
       counts(parse_file<PFA::IMatrix>(path, read_counts, separator, row_names,
                                       col_names)) {}
+
+Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
+               const PFA::IMatrix &cnts)
+    : row_names(rnames), col_names(cnames), counts(cnts) {}
+
+template <typename T>
+unordered_map<T, size_t> generate_index_map(const vector<T> &v) {
+  const size_t n = v.size();
+  unordered_map<T, size_t> m;
+  for (size_t i = 0; i < n; ++i) m[v[i]] = i;
+  return m;
+}
+
+Counts Counts::operator+(const Counts &other) const {
+  vector<string> rnames;
+  set_union(begin(row_names), end(row_names), begin(other.row_names),
+            end(other.row_names), begin(rnames));
+
+  vector<string> cnames = col_names;
+  for (auto &name : other.col_names) cnames.push_back(name);
+
+  auto m1 = generate_index_map(row_names);
+  auto m2 = generate_index_map(other.row_names);
+
+  const size_t nrow = rnames.size();
+  const size_t ncol = cnames.size();
+
+  const size_t ncol1 = col_names.size();
+
+  PFA::IMatrix cnt(boost::extents[nrow][ncol]);
+  size_t col_idx = 0;
+  for (; col_idx < ncol1; ++col_idx) {
+    size_t row_idx = 0;
+    for (auto &name : rnames) {
+      auto iter = m1.find(name);
+      if (iter != end(m1))
+        cnt[row_idx][col_idx] = counts[iter->second][col_idx];
+      row_idx++;
+    }
+  }
+  for (; col_idx < ncol; ++col_idx) {
+    size_t row_idx = 0;
+    for (auto &name : rnames) {
+      auto iter = m2.find(name);
+      if (iter != end(m2))
+        cnt[row_idx][col_idx] = other.counts[iter->second][col_idx - ncol1];
+      row_idx++;
+    }
+  }
+  return {rnames, cnames, cnt};
+}
+
+Counts Counts::operator*(const Counts &other) const {
+  vector<string> rnames;
+  set_intersection(begin(row_names), end(row_names), begin(other.row_names),
+                   end(other.row_names), begin(rnames));
+
+  vector<string> cnames = col_names;
+  for (auto &name : other.col_names) cnames.push_back(name);
+
+  auto m1 = generate_index_map(row_names);
+  auto m2 = generate_index_map(other.row_names);
+
+  const size_t nrow = rnames.size();
+  const size_t ncol = cnames.size();
+
+  const size_t ncol1 = col_names.size();
+
+  PFA::IMatrix cnt(boost::extents[nrow][ncol]);
+  size_t col_idx = 0;
+  for (; col_idx < ncol1; ++col_idx) {
+    size_t row_idx = 0;
+    for (auto &name : rnames) {
+      auto iter = m1.find(name);
+      if (iter != end(m1))
+        cnt[row_idx][col_idx] = counts[iter->second][col_idx];
+      row_idx++;
+    }
+  }
+  for (; col_idx < ncol; ++col_idx) {
+    size_t row_idx = 0;
+    for (auto &name : rnames) {
+      auto iter = m2.find(name);
+      if (iter != end(m2))
+        cnt[row_idx][col_idx] = other.counts[iter->second][col_idx - ncol1];
+      row_idx++;
+    }
+  }
+  return {rnames, cnames, cnt};
+}
 
 void write_vector(const PFA::Vector &v, const string &path,
                   const vector<string> &names) {
