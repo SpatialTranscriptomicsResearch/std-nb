@@ -6,4 +6,5 @@
 * load and use multiple data sets simultaneously by taking either
  - the intersection of genes, or
  - the union of genes
+* option to only use the top n genes
  
