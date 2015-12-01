@@ -296,6 +296,13 @@ void PFA::sample_r() {
              << " f(R') = " << log_posterior_prime << endl;
       }
 
+      if (r_prime < 0) {
+        // TODO improve this hack! e.g. by using an exp-transform
+        if (verbosity >= Verbosity::Debug)
+          cout << "Warning R' < 0! Setting to " << rt / 2 << endl;
+        r_prime = rt / 2;
+      }
+
       while (true) {
         const Float r_new = normal_distribution<Float>(
             r_prime,
