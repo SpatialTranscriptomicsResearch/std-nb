@@ -7,4 +7,4 @@
  - the intersection of genes, or
  - the union of genes
 * option to only use the top n genes
- 
+* note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
