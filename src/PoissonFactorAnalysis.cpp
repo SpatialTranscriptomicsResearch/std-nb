@@ -154,9 +154,11 @@ double PFA::log_likelihood(const IMatrix &counts) const {
     l += log_gamma(r[t], priors.c0 * priors.r0, 1.0 / priors.c0);
     l += log_beta(p[t], priors.c * priors.epsilon,
                   priors.c * (1 - priors.epsilon));
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(theta[s][t], r[t], p[t] / (1 - p[t]));
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
         l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
