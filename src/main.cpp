@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -6,13 +7,33 @@
 #include "cli.hpp"
 #include "PoissonFactorAnalysis.hpp"
 #include "io.hpp"
+#include "aux.hpp"
 
 using namespace std;
 using PFA = PoissonFactorAnalysis;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
+vector<string> gen_alpha_labels() {
+  vector<string> v;
+  for(char y = 'A'; y <= 'Z'; ++y)
+    v.push_back(string() + y);
+  for(char y = 'a'; y <= 'z'; ++y)
+    v.push_back(string() + y);
+  for(char y = '0'; y <= '9'; ++y)
+    v.push_back(string() + y);
+  return v;
+}
+
+const vector<string> alphabetic_labels = gen_alpha_labels();
+
 struct Options {
+  enum class Labeling {
+    Auto,
+    None,
+    Path,
+    Alpha
+  };
   vector<string> paths;
   Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
@@ -20,7 +41,23 @@ struct Options {
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
+  Labeling labeling = Labeling::Auto;
 };
+
+istream &operator>>(istream &is, Options::Labeling &label) {
+  string token;
+  is >> token;
+  if(to_lower(token) == "auto")
+    label = Options::Labeling::Auto;
+  else if(to_lower(token) == "none")
+    label = Options::Labeling::None;
+  else if(to_lower(token) == "path")
+    label = Options::Labeling::Path;
+  else if(to_lower(token) == "alpha")
+    label = Options::Labeling::Alpha;
+  else throw std::runtime_error("Error: could not parse labeling '" + token + "'.");
+  return is;
+}
 
 void write_resuls(const PFA &pfa, const Counts &counts, const string &prefix) {
   vector<string> factor_names;
@@ -117,7 +154,9 @@ int main(int argc, char **argv) {
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("intersect", po::bool_switch(&options.intersect),
-     "When using multiple count matrices, use the intersection of rows, rather than their union.");
+     "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("label", po::value(&options.labeling),
+     "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
   prior_options.add_options()
     ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
@@ -162,12 +201,36 @@ int main(int argc, char **argv) {
     }
   }
 
-  Counts data(options.paths[0]);
+  vector<string> labels;
+  switch (options.labeling) {
+    case Options::Labeling::None:
+      labels = vector<string>(options.paths.size(), "");
+      break;
+    case Options::Labeling::Path:
+      labels = options.paths;
+      break;
+    case Options::Labeling::Alpha:
+      labels = alphabetic_labels;
+      break;
+    case Options::Labeling::Auto:
+      if (options.paths.size() > 1)
+        labels = alphabetic_labels;
+      else
+        labels = vector<string>(options.paths.size(), "");
+      break;
+  }
+
+  if(labels.size() < options.paths.size()) {
+    cout << "Warning: too few labels available! Using paths as labels." << endl;
+    labels = options.paths;
+  }
+
+  Counts data(options.paths[0], labels[0]);
   for(size_t i = 1; i < options.paths.size(); ++i)
     if(options.intersect)
-      data = data * Counts(options.paths[i]);
+      data = data * Counts(options.paths[i], labels[i]);
     else
-      data = data + Counts(options.paths[i]);
+      data = data + Counts(options.paths[i], labels[i]);
 
   PoissonFactorAnalysis pfa(data.counts, options.num_factors, priors,
                             parameters, options.verbosity);

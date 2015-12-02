@@ -21,7 +21,8 @@ PFA::IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
 }
 
 PFA::IMatrix read_counts(istream &ifs, const string &separator,
-                         vector<string> &row_names, vector<string> &col_names) {
+                         vector<string> &row_names, vector<string> &col_names,
+                         const string &label) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
@@ -32,7 +33,8 @@ PFA::IMatrix read_counts(istream &ifs, const string &separator,
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    if (col++ > 0) col_names.push_back(token.c_str());
+    if (col++ > 0)
+      col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
@@ -49,11 +51,11 @@ PFA::IMatrix read_counts(istream &ifs, const string &separator,
   return vec_of_vec_to_multi_array(m);
 }
 
-Counts::Counts(const string &path, const string &separator)
+Counts::Counts(const string &path, const string &label, const string &separator)
     : row_names(),
       col_names(),
       counts(parse_file<PFA::IMatrix>(path, read_counts, separator, row_names,
-                                      col_names)) {}
+                                      col_names, label)) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const PFA::IMatrix &cnts)

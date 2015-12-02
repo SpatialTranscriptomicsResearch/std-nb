@@ -5,7 +5,8 @@
 #include "PoissonFactorAnalysis.hpp"
 
 struct Counts {
-  Counts(const std::string &path, const std::string &separator = "\t");
+  Counts(const std::string &path, const std::string &label = "",
+         const std::string &separator = "\t");
   Counts(const std::vector<std::string> &rnames,
          const std::vector<std::string> &cnames,
          const PoissonFactorAnalysis::IMatrix &cnts);
