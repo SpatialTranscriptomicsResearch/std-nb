@@ -24,7 +24,7 @@ struct Options {
 
 void write_resuls(const PFA &pfa, const Counts &counts, const string &prefix) {
   vector<string> factor_names;
-  for (size_t t = 0; t < pfa.T; ++t)
+  for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
   write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
