@@ -25,14 +25,14 @@ ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
      << "T = " << pfa.T << endl;
 
   if (pfa.verbosity >= Verbosity::Verbose) {
-    os << "Phi" << endl;
+    os << "Φ" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
       for (size_t t = 0; t < pfa.T; ++t)
         os << (t > 0 ? "\t" : "") << pfa.phi[g][t];
       os << endl;
     }
 
-    os << "Phi factor sums" << endl;
+    os << "Φ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
       for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][t];
@@ -40,14 +40,14 @@ ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
     }
     os << endl;
 
-    os << "Theta" << endl;
+    os << "Θ" << endl;
     for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
       for (size_t t = 0; t < pfa.T; ++t)
         os << (t > 0 ? "\t" : "") << pfa.theta[s][t];
       os << endl;
     }
 
-    os << "Theta factor sums" << endl;
+    os << "Θ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
       for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta[s][t];
@@ -154,9 +154,11 @@ double PFA::log_likelihood(const IMatrix &counts) const {
     l += log_gamma(r[t], priors.c0 * priors.r0, 1.0 / priors.c0);
     l += log_beta(p[t], priors.c * priors.epsilon,
                   priors.c * (1 - priors.epsilon));
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(theta[s][t], r[t], p[t] / (1 - p[t]));
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
         l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
@@ -189,7 +191,7 @@ void PFA::sample_contributions(const IMatrix &counts) {
 
 /** sample phi */
 void PFA::sample_phi() {
-  if (verbosity >= Verbosity::Verbose) cout << "Sampling Phi" << endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   for (size_t t = 0; t < T; ++t) {
     vector<double> a(G, priors.alpha);
 #pragma omp parallel for if (DO_PARALLEL)
@@ -344,7 +346,7 @@ void PFA::sample_r() {
 
 /** sample theta */
 void PFA::sample_theta() {
-  if (verbosity >= Verbosity::Verbose) cout << "Sampling Theta" << endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling Θ" << endl;
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
       Int sum = 0;
