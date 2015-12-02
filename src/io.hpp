@@ -4,10 +4,26 @@
 #include <vector>
 #include "PoissonFactorAnalysis.hpp"
 
-std::vector<std::vector<PoissonFactorAnalysis::Int>> read_matrix_vec_of_vec(const std::string &path, size_t skip_lines=1, size_t skip_col=1, const std::string &separator="\t");
-PoissonFactorAnalysis::IMatrix vec_of_vec_to_multi_array(const std::vector<std::vector<PoissonFactorAnalysis::Int>> &v);
-PoissonFactorAnalysis::IMatrix read_matrix(const std::string &path);
-void write_vector(const PoissonFactorAnalysis::Vector &v, const std::string &path);
-void write_matrix(const PoissonFactorAnalysis::Matrix &m, const std::string &path);
+struct Counts {
+  Counts(const std::string &path, const std::string &label = "",
+         const std::string &separator = "\t");
+  Counts(const std::vector<std::string> &rnames,
+         const std::vector<std::string> &cnames,
+         const PoissonFactorAnalysis::IMatrix &cnts);
+  std::vector<std::string> row_names;
+  std::vector<std::string> col_names;
+  PoissonFactorAnalysis::IMatrix counts;
+  Counts operator+(const Counts &other) const;
+  Counts operator*(const Counts &other) const;
+  Counts &operator=(const Counts &other);
+};
+
+void write_vector(
+    const PoissonFactorAnalysis::Vector &v, const std::string &path,
+    const std::vector<std::string> &names = std::vector<std::string>());
+void write_matrix(
+    const PoissonFactorAnalysis::Matrix &m, const std::string &path,
+    const std::vector<std::string> &row_names = std::vector<std::string>(),
+    const std::vector<std::string> &col_names = std::vector<std::string>());
 
 #endif

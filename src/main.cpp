@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <exception>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -6,61 +7,101 @@
 #include "cli.hpp"
 #include "PoissonFactorAnalysis.hpp"
 #include "io.hpp"
+#include "aux.hpp"
 
 using namespace std;
 using PFA = PoissonFactorAnalysis;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
+vector<string> gen_alpha_labels() {
+  vector<string> v;
+  for(char y = 'A'; y <= 'Z'; ++y)
+    v.push_back(string() + y);
+  for(char y = 'a'; y <= 'z'; ++y)
+    v.push_back(string() + y);
+  for(char y = '0'; y <= '9'; ++y)
+    v.push_back(string() + y);
+  return v;
+}
+
+const vector<string> alphabetic_labels = gen_alpha_labels();
+
 struct Options {
+  enum class Labeling {
+    Auto,
+    None,
+    Path,
+    Alpha
+  };
   vector<string> paths;
   Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
+  bool intersect = false;
+  Labeling labeling = Labeling::Auto;
 };
 
-void write_resuls(const PFA &pfa, const string &prefix) {
-  write_matrix(pfa.phi, prefix + "phi.txt");
-  write_matrix(pfa.theta, prefix + "theta.txt");
-  write_vector(pfa.r, prefix + "r.txt");
-  write_vector(pfa.p, prefix + "p.txt");
+istream &operator>>(istream &is, Options::Labeling &label) {
+  string token;
+  is >> token;
+  if(to_lower(token) == "auto")
+    label = Options::Labeling::Auto;
+  else if(to_lower(token) == "none")
+    label = Options::Labeling::None;
+  else if(to_lower(token) == "path")
+    label = Options::Labeling::Path;
+  else if(to_lower(token) == "alpha")
+    label = Options::Labeling::Alpha;
+  else throw std::runtime_error("Error: could not parse labeling '" + token + "'.");
+  return is;
 }
 
-void perform_metropolis_hastings(const PFA::IMatrix &counts, PFA &pfa,
+void write_resuls(const PFA &pfa, const Counts &counts, const string &prefix) {
+  vector<string> factor_names;
+  for (size_t t = 1; t <= pfa.T; ++t)
+    factor_names.push_back("Factor " + to_string(t));
+  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
+  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
+  write_vector(pfa.r, prefix + "r.txt", factor_names);
+  write_vector(pfa.p, prefix + "p.txt", factor_names);
+}
+
+void perform_metropolis_hastings(const Counts &data, PFA &pfa,
                                  const Options &options) {
-  MCMC::Evaluator<PFA> evaluator(counts);
-  MCMC::Generator<PFA> generator(counts);
+  MCMC::Evaluator<PFA> evaluator(data.counts);
+  MCMC::Generator<PFA> generator(data.counts);
   MCMC::MonteCarlo<PFA> mc(generator, evaluator, options.verbosity);
 
-  double temperature = 10.0;
   double anneal = 1.0;
 
-  auto res = mc.run(temperature, anneal, pfa, options.num_steps);
-  write_resuls(res.rbegin()->first, options.output);
+  auto res = mc.run(pfa.parameters.temperature, anneal, pfa, options.num_steps);
+  write_resuls(res.rbegin()->first, data, options.output);
 }
 
-void perform_gibbs_sampling(const PFA::IMatrix &counts, PFA &pfa,
+void perform_gibbs_sampling(const Counts &data, PFA &pfa,
                             const Options &options) {
   if (options.verbosity >= Verbosity::Info)
     cout << "Initial model" << endl << pfa << endl;
   if (options.verbosity >= Verbosity::Debug)
-    cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+    cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
-    pfa.gibbs_sample(counts);
+    pfa.gibbs_sample(data.counts);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
     if ((iteration % options.report_interval == 0 and
          options.verbosity >= Verbosity::Info) or
         options.verbosity >= Verbosity::Debug)
-      cout << "Log-likelihood = " << pfa.log_likelihood(counts) << endl;
+      cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   }
   if (options.verbosity >= Verbosity::Info)
-    cout << "Final log-likelihood = " << pfa.log_likelihood(counts) << endl;
-  write_resuls(pfa, options.output);
+    cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
+         << endl;
+  write_resuls(pfa, data, options.output);
 }
 
 int main(int argc, char **argv) {
@@ -74,6 +115,7 @@ int main(int argc, char **argv) {
   Options options;
 
   PFA::Priors priors;
+  PFA::Parameters parameters;
 
   string config_path;
   string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
@@ -94,6 +136,7 @@ int main(int argc, char **argv) {
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
   po::options_description prior_options("Prior options", num_cols);
+  po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
     ("file,f", po::value(&options.paths)->required(),
@@ -109,7 +152,11 @@ int main(int argc, char **argv) {
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for computing and printing the likelihood.")
     ("output,o", po::value(&options.output),
-     "Prefix for generated output files.");
+     "Prefix for generated output files.")
+    ("intersect", po::bool_switch(&options.intersect),
+     "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("label", po::value(&options.labeling),
+     "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
   prior_options.add_options()
     ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
@@ -125,7 +172,17 @@ int main(int argc, char **argv) {
     ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
      "Prior gamma.");
 
-  cli_options.add(generic_options).add(required_options).add(basic_options).add(prior_options);
+  inference_options.add_options()
+    ("step", po::value(&parameters.adj_step_size)->default_value(parameters.adj_step_size),
+     "Adjustable step size for Metropolis-Hastings sampling of R.")
+    ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
+     "Temperature for Metropolis-Hastings sampling of R.");
+
+  cli_options.add(generic_options)
+      .add(required_options)
+      .add(basic_options)
+      .add(prior_options)
+      .add(inference_options);
 
   po::positional_options_description positional_options;
   positional_options.add("file", -1);
@@ -134,22 +191,54 @@ int main(int argc, char **argv) {
       argc, const_cast<const char **>(argv), options.verbosity, usage_info,
       cli_options, true, positional_options);
 
-  if(options.output == default_output_string) {
-    options.output = generate_random_label(exec_info.program_name, 0, options.verbosity) + "/";
-    if(not boost::filesystem::create_directory(options.output)) {
+  if (options.output == default_output_string) {
+    options.output =
+        generate_random_label(exec_info.program_name, 0, options.verbosity) +
+        "/";
+    if (not boost::filesystem::create_directory(options.output)) {
       cout << "Error creating output directory " << options.output << endl;
       exit(EXIT_FAILURE);
     }
   }
 
-  auto counts = read_matrix(options.paths[0]);
+  vector<string> labels;
+  switch (options.labeling) {
+    case Options::Labeling::None:
+      labels = vector<string>(options.paths.size(), "");
+      break;
+    case Options::Labeling::Path:
+      labels = options.paths;
+      break;
+    case Options::Labeling::Alpha:
+      labels = alphabetic_labels;
+      break;
+    case Options::Labeling::Auto:
+      if (options.paths.size() > 1)
+        labels = alphabetic_labels;
+      else
+        labels = vector<string>(options.paths.size(), "");
+      break;
+  }
 
-  PoissonFactorAnalysis pfa(counts, options.num_factors, priors, options.verbosity);
+  if(labels.size() < options.paths.size()) {
+    cout << "Warning: too few labels available! Using paths as labels." << endl;
+    labels = options.paths;
+  }
+
+  Counts data(options.paths[0], labels[0]);
+  for(size_t i = 1; i < options.paths.size(); ++i)
+    if(options.intersect)
+      data = data * Counts(options.paths[i], labels[i]);
+    else
+      data = data + Counts(options.paths[i], labels[i]);
+
+  PoissonFactorAnalysis pfa(data.counts, options.num_factors, priors,
+                            parameters, options.verbosity);
 
   if (0)
-    perform_metropolis_hastings(counts, pfa, options);
+    perform_metropolis_hastings(data, pfa, options);
   else
-    perform_gibbs_sampling(counts, pfa, options);
+    perform_gibbs_sampling(data, pfa, options);
 
   return EXIT_SUCCESS;
 }
