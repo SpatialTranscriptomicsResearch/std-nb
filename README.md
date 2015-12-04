@@ -1,6 +1,7 @@
 This is code to perform Metropolis-Hastings Monte-Carlo Markov Chain (MCMC) inference for the multi-scoop extension of the Indian Buffer Process (msIBP).
 
 In order to compile it, your Boost version needs to be at least as recent as 1.58.0.
+The reason why such a recent version of Boost is required is because it was only in this version that the trigamma function (i.e. the curvature, or second derivative, of the gamma function) was introduced.
 
 Compiling
 =========
