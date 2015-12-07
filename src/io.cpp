@@ -7,22 +7,24 @@
 #include "io.hpp"
 
 using namespace std;
-using PFA = PoissonFactorAnalysis;
-using Int = PFA::Int;
+using Int = FactorAnalysis::Int;
+using IMatrix = FactorAnalysis::IMatrix;
+using Matrix = FactorAnalysis::Matrix;
+using Vector = FactorAnalysis::Vector;
 
-PFA::IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
+IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
   const size_t s1 = v.size();
   const size_t s2 = v[0].size();
-  using index = PoissonFactorAnalysis::IMatrix::index;
-  PFA::IMatrix A(boost::extents[s1][s2]);
+  using index = IMatrix::index;
+  IMatrix A(boost::extents[s1][s2]);
   for (size_t i = 0; i < s1; ++i)
     for (size_t j = 0; j < s2; ++j) A[i][j] = v[i][j];
   return A;
 }
 
-PFA::IMatrix read_counts(istream &ifs, const string &separator,
-                         vector<string> &row_names, vector<string> &col_names,
-                         const string &label) {
+IMatrix read_counts(istream &ifs, const string &separator,
+                    vector<string> &row_names, vector<string> &col_names,
+                    const string &label) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
@@ -54,11 +56,11 @@ PFA::IMatrix read_counts(istream &ifs, const string &separator,
 Counts::Counts(const string &path, const string &label, const string &separator)
     : row_names(),
       col_names(),
-      counts(parse_file<PFA::IMatrix>(path, read_counts, separator, row_names,
-                                      col_names, label)) {}
+      counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
+                                 col_names, label)) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
-               const PFA::IMatrix &cnts)
+               const IMatrix &cnts)
     : row_names(rnames), col_names(cnames), counts(cnts) {}
 
 Counts &Counts::operator=(const Counts &other) {
@@ -104,7 +106,7 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
 
   const size_t ncol1 = a.col_names.size();
 
-  PFA::IMatrix cnt(boost::extents[nrow][ncol]);
+  IMatrix cnt(boost::extents[nrow][ncol]);
   size_t col_idx = 0;
   for (; col_idx < ncol1; ++col_idx) {
     size_t row_idx = 0;
@@ -135,7 +137,7 @@ Counts Counts::operator+(const Counts &other) const {
   return combine_counts(*this, other, false);
 }
 
-void write_vector(const PFA::Vector &v, const string &path,
+void write_vector(const Vector &v, const string &path,
                   const vector<string> &names) {
   auto shape = v.shape();
   size_t X = shape[0];
@@ -154,7 +156,7 @@ void write_vector(const PFA::Vector &v, const string &path,
     ofs << (names_given ? names[x] + "\t" : "") << v[x] << endl;
 }
 
-void write_matrix(const PFA::Matrix &m, const string &path,
+void write_matrix(const Matrix &m, const string &path,
                   const vector<string> &row_names,
                   const vector<string> &col_names) {
   auto shape = m.shape();

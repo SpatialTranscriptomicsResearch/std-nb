@@ -1,73 +1,15 @@
 #include <omp.h>
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
-#include "PoissonFactorAnalysis.hpp"
+#include "PoissonModel.hpp"
 #include "montecarlo.hpp"
+#include "pdist.hpp"
 
 #define DO_PARALLEL 1
 
 using namespace std;
-using PFA = PoissonFactorAnalysis;
-
-PFA::Float digamma(PFA::Float x) { return boost::math::digamma(x); }
-
-PFA::Float trigamma(PFA::Float x) { return boost::math::trigamma(x); }
-
-template <typename T>
-T square(T x) {
-  return x * x;
-}
-
-ostream &operator<<(ostream &os, const PoissonFactorAnalysis &pfa) {
-  os << "Poisson Factor Analysis "
-     << "S = " << pfa.S << " "
-     << "G = " << pfa.G << " "
-     << "T = " << pfa.T << endl;
-
-  if (pfa.verbosity >= Verbosity::Verbose) {
-    os << "Φ" << endl;
-    for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
-      for (size_t t = 0; t < pfa.T; ++t)
-        os << (t > 0 ? "\t" : "") << pfa.phi[g][t];
-      os << endl;
-    }
-
-    os << "Φ factor sums" << endl;
-    for (size_t t = 0; t < pfa.T; ++t) {
-      double sum = 0;
-      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][t];
-      os << (t > 0 ? "\t" : "") << sum;
-    }
-    os << endl;
-
-    os << "Θ" << endl;
-    for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
-      for (size_t t = 0; t < pfa.T; ++t)
-        os << (t > 0 ? "\t" : "") << pfa.theta[s][t];
-      os << endl;
-    }
-
-    os << "Θ factor sums" << endl;
-    for (size_t t = 0; t < pfa.T; ++t) {
-      double sum = 0;
-      for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta[s][t];
-      os << (t > 0 ? "\t" : "") << sum;
-    }
-    os << endl;
-
-    os << "P" << endl;
-    for (size_t t = 0; t < pfa.T; ++t) os << (t > 0 ? "\t" : "") << pfa.p[t];
-    os << endl;
-
-    os << "R" << endl;
-    for (size_t t = 0; t < pfa.T; ++t) os << (t > 0 ? "\t" : "") << pfa.r[t];
-    os << endl;
-  }
-
-  return os;
-}
-
-PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
+namespace FactorAnalysis {
+PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
                            const Priors &priors_, const Parameters &parameters_,
                            Verbosity verbosity_)
     : G(counts.shape()[0]),
@@ -96,7 +38,7 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
     // randomly initialize Theta
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t) {
-      // NOTE: gamma_distribution takes a shape and scale parameter
+        // NOTE: gamma_distribution takes a shape and scale parameter
         theta[s][t] = gamma_distribution<Float>(
             r[t], p[t] / (1 - p[t]))(EntropySource::rng);
       }
@@ -143,7 +85,7 @@ PFA::PoissonFactorAnalysis(const IMatrix &counts, const size_t T_,
     }
 }
 
-double PFA::log_likelihood(const IMatrix &counts) const {
+double PoissonModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;
   vector<double> alpha(G, priors.alpha);
   for (size_t t = 0; t < T; ++t) {
@@ -175,7 +117,7 @@ double PFA::log_likelihood(const IMatrix &counts) const {
 }
 
 /** sample count decomposition */
-void PFA::sample_contributions(const IMatrix &counts) {
+void PoissonModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -190,7 +132,7 @@ void PFA::sample_contributions(const IMatrix &counts) {
 }
 
 /** sample phi */
-void PFA::sample_phi() {
+void PoissonModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   for (size_t t = 0; t < T; ++t) {
     vector<double> a(G, priors.alpha);
@@ -203,7 +145,7 @@ void PFA::sample_phi() {
 }
 
 /** sample p */
-void PFA::sample_p() {
+void PoissonModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   for (size_t t = 0; t < T; ++t) {
     Int sum = 0;
@@ -216,7 +158,7 @@ void PFA::sample_p() {
 }
 
 /** sample r */
-void PFA::sample_r() {
+void PoissonModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
   for (size_t t = 0; t < T; ++t) {
     vector<Int> count_spot_type(S, 0);
@@ -272,7 +214,8 @@ void PFA::sample_r() {
         cout << "numerator = " << numerator << " denominator = " << denominator
              << " ratio = " << ratio << " R' = " << r_prime << endl;
 
-      /** compute conditional posterior of r (or rather: a value proportional to it) */
+      /** compute conditional posterior of r (or rather: a value proportional to
+       * it) */
       auto compute_cond_posterior = [&](Float x) {
         double log_posterior =
             log_gamma(x, priors.c0 * priors.r0, 1 / priors.c0);
@@ -345,7 +288,7 @@ void PFA::sample_r() {
 }
 
 /** sample theta */
-void PFA::sample_theta() {
+void PoissonModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Θ" << endl;
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
@@ -358,7 +301,7 @@ void PFA::sample_theta() {
     }
 }
 
-void PFA::gibbs_sample(const IMatrix &counts) {
+void PoissonModel::gibbs_sample(const IMatrix &counts) {
   sample_contributions(counts);
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -374,4 +317,54 @@ void PFA::gibbs_sample(const IMatrix &counts) {
   sample_theta();
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+}
+}
+
+ostream &operator<<(ostream &os, const FactorAnalysis::PoissonModel &pfa) {
+  os << "Poisson Factor Analysis "
+     << "S = " << pfa.S << " "
+     << "G = " << pfa.G << " "
+     << "T = " << pfa.T << endl;
+
+  if (pfa.verbosity >= Verbosity::Verbose) {
+    os << "Φ" << endl;
+    for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
+      for (size_t t = 0; t < pfa.T; ++t)
+        os << (t > 0 ? "\t" : "") << pfa.phi[g][t];
+      os << endl;
+    }
+
+    os << "Φ factor sums" << endl;
+    for (size_t t = 0; t < pfa.T; ++t) {
+      double sum = 0;
+      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][t];
+      os << (t > 0 ? "\t" : "") << sum;
+    }
+    os << endl;
+
+    os << "Θ" << endl;
+    for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
+      for (size_t t = 0; t < pfa.T; ++t)
+        os << (t > 0 ? "\t" : "") << pfa.theta[s][t];
+      os << endl;
+    }
+
+    os << "Θ factor sums" << endl;
+    for (size_t t = 0; t < pfa.T; ++t) {
+      double sum = 0;
+      for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta[s][t];
+      os << (t > 0 ? "\t" : "") << sum;
+    }
+    os << endl;
+
+    os << "P" << endl;
+    for (size_t t = 0; t < pfa.T; ++t) os << (t > 0 ? "\t" : "") << pfa.p[t];
+    os << endl;
+
+    os << "R" << endl;
+    for (size_t t = 0; t < pfa.T; ++t) os << (t > 0 ? "\t" : "") << pfa.r[t];
+    os << endl;
+  }
+
+  return os;
 }

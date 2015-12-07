@@ -4,7 +4,7 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -Wno-unused-local-typedefs -march=
 # Make it possible to #include <discrover_config.hpp> for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
-ADD_EXECUTABLE(multiScoopIBP main.cpp aux.cpp executioninformation.cpp cli.cpp io.cpp PoissonFactorAnalysis.cpp sampling.cpp montecarlo.cpp terminal.cpp pdist.cpp)
+ADD_EXECUTABLE(multiScoopIBP main.cpp aux.cpp executioninformation.cpp cli.cpp io.cpp FactorAnalysis.cpp PoissonModel.cpp VariantModel.cpp sampling.cpp montecarlo.cpp terminal.cpp pdist.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp sampling.cpp)
 
 TARGET_LINK_LIBRARIES(multiScoopIBP
