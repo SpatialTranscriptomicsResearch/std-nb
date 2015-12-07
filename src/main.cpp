@@ -55,8 +55,7 @@ istream &operator>>(istream &is, Options::Labeling &label) {
   return is;
 }
 
-template <typename T>
-void write_resuls(const T &pfa, const Counts &counts, const string &prefix) {
+void write_resuls(const FactorAnalysis::PoissonModel &pfa, const Counts &counts, const string &prefix) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
@@ -64,6 +63,17 @@ void write_resuls(const T &pfa, const Counts &counts, const string &prefix) {
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
   write_vector(pfa.r, prefix + "r.txt", factor_names);
   write_vector(pfa.p, prefix + "p.txt", factor_names);
+}
+
+
+void write_resuls(const FactorAnalysis::VariantModel &pfa, const Counts &counts, const string &prefix) {
+  vector<string> factor_names;
+  for (size_t t = 1; t <= pfa.T; ++t)
+    factor_names.push_back("Factor " + to_string(t));
+  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
+  write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
+  write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
+  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
 }
 
 template <typename T>

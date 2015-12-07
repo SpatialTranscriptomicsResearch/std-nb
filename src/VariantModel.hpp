@@ -24,10 +24,10 @@ struct VariantModel {
   /** factor score matrix */
   Matrix theta;
 
-  /** shape parameter for the prior of the factor scores */
-  Vector r;
-  /** scale parameter for the prior of the factor scores */
-  Vector p;
+  /** shape parameter for the prior of the loading matrix */
+  Matrix r;
+  /** scale parameter for the prior of the loading matrix */
+  Matrix p;
 
   Verbosity verbosity;
 
