@@ -5,3 +5,6 @@
 * write out version information into log
 * option to only use the top n genes
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
+* compute covariance of spots across cell type contributiones during MCMC and accumulate statistics -> clustering of spots
+* propagate gene expression uncertainty to spot level
+* perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
