@@ -147,7 +147,7 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
 }
 
 /** sample theta */
-// NOTE this is likely correct
+// NOTE this is proven to be correct
 void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Θ" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -175,141 +175,58 @@ void VariantModel::sample_p() {
 }
 
 /** sample r */
+/* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_r() {
-  // TODO implement
-  /*
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
+  auto compute_conditional = [&](Float x, size_t g, size_t t) {
+    double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
+    l += log_gamma(phi[g][t], x, p[g][t] / (1 - p[g][t]));
+    return l;
+  };
+
+  normal_distribution<double> rnorm(0, 0.5);
   for (size_t t = 0; t < T; ++t) {
-    vector<Int> count_spot_type(S, 0);
-    Int sum = 0;
-    for (size_t s = 0; s < S; ++s) {
-      Int sum_spot = 0;
-#pragma omp parallel for reduction(+ : sum_spot) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g) sum_spot += contributions[g][s][t];
-      sum += sum_spot;
-      count_spot_type[s] = sum_spot;
-    }
-    if (sum == 0) {
-      // NOTE: gamma_distribution takes a shape and scale parameter
-      r[t] = gamma_distribution<Float>(
-          priors.c0 * priors.r0,
-          1 / (priors.c0 - S * log(1 - p[t])))(EntropySource::rng);
-    } else {
-      if (verbosity >= Verbosity::Debug) cout << "Sum counts = " << sum << endl;
-      // TODO: check sampling of R when sum != 0
-      const Float alpha = priors.c0 * priors.r0;
-      // TODO: determine which of the following two is the right one to use
-      // const Float beta = 1 / priors.c0;
-      // NOTE: likely it is the latter definition here that is correct
-      const Float beta = priors.c0;
-      const Float rt = r[t];
-      const Float pt = p[t];
-      const Float rt2 = square(rt);
-      const Float log_1_minus_p = log(1 - pt);
-      const Float digamma_r = digamma(rt);
-      const Float trigamma_r = trigamma(rt);
+    for (size_t g = 0; g < G; ++g) {
+      const double current_r = r[g][t];
+      const double current_ll = compute_conditional(current_r, g, t);
+      const size_t n_iter_initial = 100;
+      size_t n_iter = n_iter_initial;
+      bool accept = false;
+      while (n_iter--) {
+        const double f = exp(rnorm(EntropySource::rng));
+        const double new_r = current_r * f;
+        const double new_ll = compute_conditional(new_r, g, t);
 
-      Float digamma_sum = 0;
-      for (auto &x : count_spot_type) digamma_sum += digamma(x + rt);
-
-      Float trigamma_term = 0;
-      for (auto &x : count_spot_type)
-        trigamma_term +=
-            trigamma(x + rt) + (log_1_minus_p - digamma_r) * digamma(rt + x);
-
-      const Float numerator =
-          rt2 * (S * (digamma_r - log_1_minus_p) - digamma_sum + beta) +
-          (1 - alpha) * rt;
-      const Float denominator =
-          rt2 * (trigamma_r * S - trigamma_term +
-                 (log_1_minus_p - digamma_r) * digamma_sum) +
-          alpha - 1;
-
-      const Float ratio = numerator / denominator;
-
-      Float r_prime = rt - ratio;
-
-      if (verbosity >= Verbosity::Debug)
-        cout << "numerator = " << numerator << " denominator = " << denominator
-             << " ratio = " << ratio << " R' = " << r_prime << endl;
-             */
-
-      /** compute conditional posterior of r (or rather: a value proportional to
-       * it) */
-    /*
-      auto compute_cond_posterior = [&](Float x) {
-        double log_posterior =
-            log_gamma(x, priors.c0 * priors.r0, 1 / priors.c0);
-        for (auto &y : count_spot_type)
-          log_posterior += log_negative_binomial(y, x, pt);
-        return log_posterior;
-      };
-
-      // NOTE: log_gamma takes a shape and scale parameter
-      double log_posterior_current = compute_cond_posterior(rt);
-
-      if (verbosity >= Verbosity::Debug) {
-        // NOTE: log_gamma takes a shape and scale parameter
-        double log_posterior_prime = compute_cond_posterior(r_prime);
-
-        cout << "R = " << rt << " R' = " << r_prime << endl
-             << "f(R) = " << log_posterior_current
-             << " f(R') = " << log_posterior_prime << endl;
-      }
-
-      if (r_prime < 0) {
-        // TODO improve this hack! e.g. by using an exp-transform
-        if (verbosity >= Verbosity::Debug)
-          cout << "Warning R' < 0! Setting to " << rt / 2 << endl;
-        r_prime = rt / 2;
-      }
-
-      while (true) {
-        const Float r_new = normal_distribution<Float>(
-            r_prime,
-            parameters.adj_step_size * sqrt(r_prime))(EntropySource::rng);
-
-        // NOTE: log_gamma takes a shape and scale parameter
-        double log_posterior_new = compute_cond_posterior(r_new);
-
-        if (log_posterior_new > log_posterior_current) {
-          r[t] = r_new;
-          if (verbosity >= Verbosity::Debug)
-            cout << "T = " << parameters.temperature << " current = " << rt
-                 << " next = " << r_new << endl
-                 << "nextG = " << log_posterior_new
-                 << " G = " << log_posterior_current
-                 << " dG = " << (log_posterior_new - log_posterior_current)
-                 << endl << "Improved!" << endl;
-          break;
+        if (new_ll > current_ll) {
+          if (verbosity >= Verbosity::Debug) cout << "Improved!" << endl;
+          accept = true;
         } else {
-          const Float dG = log_posterior_new - log_posterior_current;
+          const Float dG = new_ll - current_ll;
           double rnd = RandomDistribution::Uniform(EntropySource::rng);
           double prob =
               min<double>(1.0, MCMC::boltzdist(-dG, parameters.temperature));
-          if (verbosity >= Verbosity::Debug)
-            cout << "T = " << parameters.temperature << " current = " << rt
-                 << " next = " << r_new << endl
-                 << "nextG = " << log_posterior_new
-                 << " G = " << log_posterior_current << " dG = " << dG
-                 << " prob = " << prob << " rnd = " << rnd << endl;
-          if (std::isnan(log_posterior_new) == 0 and (dG > 0 or rnd <= prob)) {
+          if (std::isnan(new_ll) == 0 and (dG > 0 or rnd <= prob)) {
+            accept = true;
             if (verbosity >= Verbosity::Debug) cout << "Accepted!" << endl;
-            r[t] = r_new;
-            break;
           } else {
             if (verbosity >= Verbosity::Debug) cout << "Rejected!" << endl;
           }
         }
-
-        if (r_prime < 0) exit(EXIT_FAILURE);
+        if (accept) {
+          r[g][t] = new_r;
+          break;
+        }
       }
+      if (verbosity >= Verbosity::Debug)
+        cout << "Left MCMC " << (accept ? "" : "un") << "successfully for r["
+             << g << "][" << t << "] after " << (n_iter_initial - n_iter)
+             << " iterations." << endl;
     }
   }
-  */
 }
 
 /** sample phi */
+// NOTE this is proven to be correct
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(boost::extents[T]);
