@@ -53,6 +53,9 @@ struct VariantModel {
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts);
+
+  /** check that parameter invariants are fulfilled */
+  void check_model(const IMatrix &counts) const;
 };
 }
 
