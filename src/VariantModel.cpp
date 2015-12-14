@@ -99,18 +99,30 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(r[g][t], priors.c0 * priors.r0, 1.0 / priors.c0);
+    if(std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       l += log_beta(p[g][t], priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
+    if(std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to Beta-distributed p[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
+    for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(phi[g][t], r[g][t], p[g][t] / (1 - p[g][t]));
+      if (std::isnan(l))
+        cout << "Likelihood is NAN after adding the contribution due to "
+                "Gamma-distributed phi[" << g << "][" << t
+             << "]; phi=" << phi[g][t] << " r=" << r[g][t] << " p=" << p[g][t]
+             << endl;
+    }
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
         l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
+    if(std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to Poisson-distributed contributions[g][s][" << t << "]." << endl;
   }
 
   for (size_t g = 0; g < G; ++g) {
@@ -118,6 +130,8 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
     for (size_t t = 0; t < T; ++t) thetak[g] = theta[g][t];
     l += log_dirichlet(thetak, alpha);
   }
+    if(std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to Dirichlet-distributed theta." << endl;
 
   /*
   for (size_t g = 0; g < G; ++g)
@@ -245,21 +259,27 @@ void VariantModel::sample_phi() {
 }
 
 void VariantModel::gibbs_sample(const IMatrix &counts) {
+  check_model(counts);
   sample_contributions(counts);
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
   sample_phi();
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
   sample_p();
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
   sample_r();
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
   sample_theta();
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
 }
 
 void VariantModel::check_model(const IMatrix &counts) const {
