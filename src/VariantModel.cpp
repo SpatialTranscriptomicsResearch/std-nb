@@ -71,7 +71,15 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
     for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) p[g][t] = 0.5 * G * T;
+      for (size_t t = 0; t < T; ++t)
+        if (false)
+          p[g][t] = 0.5 * G * T;
+        else
+          p[g][t] = sample_beta<Float>(1, 1);
+        /*
+          p[g][t] = sample_beta<Float>(priors.c * priors.epsilon,
+                                       priors.c * (1 - priors.epsilon));
+        */
 
     // initialize R
     // r_k= 50/T*ones(T,1)
