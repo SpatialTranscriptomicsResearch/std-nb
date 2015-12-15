@@ -4,6 +4,7 @@
 #include "pdist.hpp"
 
 #define DO_PARALLEL 1
+#define PHI_ZERO_WARNING true
 
 using namespace std;
 namespace FactorAnalysis {
@@ -263,6 +264,20 @@ void VariantModel::sample_phi() {
       phi[g][t] = gamma_distribution<Float>(
           r[g][t] + sum,
           1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]))(EntropySource::rng);
+      if(PHI_ZERO_WARNING and phi[g][t] == 0) {
+        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
+          << "r[" << g << "][" << t << "] = " << r[g][t] << endl
+          << "p[" << g << "][" << t << "] = " << p[g][t] << endl
+          << "theta_t[" << t << "] = " << theta_t[t] << endl
+          << "r[g][t] + sum = " << r[g][t] + sum << endl
+          << "1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) = " <<  1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) << endl
+          << "sum = " << sum << endl;
+        Int sum2 = 0;
+        for (size_t tt = 0; tt < T; ++tt)
+          for (size_t s = 0; s < S; ++s) sum2 += contributions[g][s][tt];
+        cout << "sum2 = " << sum2 << endl;
+        exit(EXIT_FAILURE);
+      }
     }
 }
 
