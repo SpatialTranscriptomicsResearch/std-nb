@@ -24,6 +24,9 @@ struct VariantModel {
   /** factor score matrix */
   Matrix theta;
 
+  /** spot scaling vector */
+  Vector scaling;
+
   /** shape parameter for the prior of the loading matrix */
   Matrix r;
   /** scale parameter for the prior of the loading matrix */
@@ -50,6 +53,9 @@ struct VariantModel {
 
   /** sample theta */
   void sample_theta();
+
+  /** sample scaling factors */
+  void sample_scaling();
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts);

@@ -8,6 +8,9 @@
 
 using namespace std;
 namespace FactorAnalysis {
+const Float scaling_prior_a = 1;
+const Float scaling_prior_b = 1;
+
 VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
                            const Priors &priors_, const Parameters &parameters_,
                            Verbosity verbosity_)
@@ -19,6 +22,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
+      scaling(boost::extents[S]),
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
@@ -68,6 +72,12 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
         sum += theta[s][t] = RandomDistribution::Uniform(EntropySource::rng);
       for (size_t t = 0; t < T; ++t) theta[s][t] /= sum;
     }
+
+    // initialize scaling factors
+    for (size_t s = 0; s < S; ++s)
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      scaling[s] = gamma_distribution<Float>(
+          scaling_prior_a, scaling_prior_b)(EntropySource::rng);
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
@@ -254,7 +264,7 @@ void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(boost::extents[T]);
   for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t];
+    for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t] * scaling[s];
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g) {
       Int sum = 0;
@@ -281,7 +291,40 @@ void VariantModel::sample_phi() {
     }
 }
 
+/** sample scaling factors */
+void VariantModel::sample_scaling() {
+  for (size_t s = 0; s < S; ++s) {
+    Int count_sum = 0;
+#pragma omp parallel for reduction(+ : count_sum) if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t) count_sum += contributions[g][s][t];
+
+    Float intensity_sum = 0;
+    for (size_t t = 0; t < T; ++t) {
+      Float x = theta[s][t];
+#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g) x *= phi[g][t];
+      intensity_sum += x;
+    }
+
+    if (verbosity >= Verbosity::Info)
+      cout << "count_sum=" << count_sum << " intensity_sum=" << intensity_sum
+           << " prev scaling[" << s << "]=" << scaling[s];
+
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    scaling[s] = gamma_distribution<Float>(
+        scaling_prior_a + count_sum,
+        scaling_prior_b + intensity_sum)(EntropySource::rng);
+    if (verbosity >= Verbosity::Info)
+      cout << "new scaling[" << s << "]=" << scaling[s] << endl;
+  }
+}
+
 void VariantModel::gibbs_sample(const IMatrix &counts) {
+  check_model(counts);
+  sample_scaling();
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
   sample_contributions(counts);
   if (verbosity >= Verbosity::Everything)
@@ -419,6 +462,11 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
         os << (t > 0 ? "\t" : "") << pfa.r[g][t];
       os << endl;
     }
+
+    os << "Scaling factors" << endl;
+    for (size_t s = 0; s < pfa.S; ++s)
+      os << (s > 0 ? "\t" : "") << pfa.scaling[s];
+    os << endl;
   }
 
   return os;
