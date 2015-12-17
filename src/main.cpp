@@ -74,6 +74,7 @@ void write_resuls(const FactorAnalysis::VariantModel &pfa, const Counts &counts,
   write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
   write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
+  write_vector(pfa.scaling, prefix + "scaling.txt");
 }
 
 template <typename T>
