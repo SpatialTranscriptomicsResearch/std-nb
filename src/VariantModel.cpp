@@ -4,7 +4,7 @@
 #include "pdist.hpp"
 
 #define DO_PARALLEL 1
-#define PHI_ZERO_WARNING true
+#define PHI_ZERO_WARNING false
 
 using namespace std;
 namespace FactorAnalysis {
@@ -286,7 +286,7 @@ void VariantModel::sample_phi() {
         for (size_t tt = 0; tt < T; ++tt)
           for (size_t s = 0; s < S; ++s) sum2 += contributions[g][s][tt];
         cout << "sum2 = " << sum2 << endl;
-        exit(EXIT_FAILURE);
+        // exit(EXIT_FAILURE);
       }
     }
 }
@@ -302,7 +302,7 @@ void VariantModel::sample_scaling() {
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t) {
       Float x = theta[s][t];
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+#pragma omp parallel for reduction(* : x) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g) x *= phi[g][t];
       intensity_sum += x;
     }
@@ -321,10 +321,6 @@ void VariantModel::sample_scaling() {
 }
 
 void VariantModel::gibbs_sample(const IMatrix &counts) {
-  check_model(counts);
-  sample_scaling();
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
   sample_contributions(counts);
   if (verbosity >= Verbosity::Everything)
@@ -346,9 +342,14 @@ void VariantModel::gibbs_sample(const IMatrix &counts) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  sample_scaling();
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
 }
 
 void VariantModel::check_model(const IMatrix &counts) const {
+  return;
   // check that the contributions add up to the observations
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
@@ -363,9 +364,11 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
+      /* 
       if (phi[g][t] == 0)
         throw(runtime_error("Phi is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
+                            */
       if (phi[g][t] < 0)
         throw(runtime_error("Phi is negative for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
@@ -385,7 +388,7 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that r and p are positive, and that p is < 1
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      if (p[g][t] <= 0 or p[g][t] >= 1)
+      if (p[g][t] < 0 or p[g][t] > 1)
         throw(runtime_error("P[" + to_string(g) + "][" + to_string(t) +
                             "] is smaller zero or larger 1: p=" +
                             to_string(p[g][t]) + "."));

@@ -318,6 +318,63 @@ void PoissonModel::gibbs_sample(const IMatrix &counts) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
 }
+
+void PoissonModel::check_model(const IMatrix &counts) const {
+  // check that the contributions add up to the observations
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      Int z = 0;
+      for (size_t t = 0; t < T; ++t) z += contributions[g][s][t];
+      if (z != counts[g][s])
+        throw(runtime_error(
+            "Contributions do not add up to observations for gene " +
+            to_string(g) + " in spot " + to_string(s) + "."));
+    }
+
+  // check that phi is positive
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) {
+      if (phi[g][t] == 0)
+        throw(runtime_error("Phi is zero for gene " + to_string(g) +
+                            " in factor " + to_string(t) + "."));
+      if (phi[g][t] < 0)
+        throw(runtime_error("Phi is negative for gene " + to_string(g) +
+                            " in factor " + to_string(t) + "."));
+    }
+
+  // check that theta is positive
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t) {
+      if (theta[s][t] == 0)
+        throw(runtime_error("Theta is zero for spot " + to_string(s) +
+                            " in factor " + to_string(t) + "."));
+      if (theta[s][t] < 0)
+        throw(runtime_error("Theta is negative for spot " + to_string(s) +
+                            " in factor " + to_string(t) + "."));
+    }
+
+  // check that r and p are positive, and that p is < 1
+  for (size_t t = 0; t < T; ++t) {
+    if (p[t] <= 0 or p[t] >= 1)
+      throw(runtime_error("P[" + to_string(t) + "] is smaller zero or larger 1: p=" +
+                          to_string(p[t]) + "."));
+    if ((1 - p[t]) / p[t] == 0)
+      throw(runtime_error("(1-P)/P is zero in factor " + to_string(t) + "."));
+
+    if (r[t] < 0)
+      throw(runtime_error("R[" + to_string(t) + "] is smaller zero: r=" + to_string(r[t]) + "."));
+    if (r[t] == 0)
+      throw(runtime_error("R is zero in factor " + to_string(t) + "."));
+  }
+
+  // check priors
+  if (priors.c0 == 0) throw(runtime_error("The prior c0 is zero."));
+  if (priors.r0 == 0) throw(runtime_error("The prior r0 is zero."));
+  if (priors.alpha == 0) throw(runtime_error("The prior r0 is zero."));
+  if (priors.c == 0) throw(runtime_error("The prior c is zero."));
+  if (priors.epsilon == 0) throw(runtime_error("The prior epsilon is zero."));
+  if (priors.epsilon == 1) throw(runtime_error("The prior epsilon is unit."));
+}
 }
 
 ostream &operator<<(ostream &os, const FactorAnalysis::PoissonModel &pfa) {
