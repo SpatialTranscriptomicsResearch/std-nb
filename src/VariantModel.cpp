@@ -188,8 +188,8 @@ void VariantModel::sample_theta() {
     vector<double> a(T, priors.alpha);
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) a[t] += contributions[g][s][t];
-    auto theta_k = sample_dirichlet<Float>(a);
-    for (size_t t = 0; t < T; ++t) theta[s][t] = theta_k[t];
+    auto theta_ = sample_dirichlet<Float>(a);
+    for (size_t t = 0; t < T; ++t) theta[s][t] = theta_[t];
   }
 }
 
