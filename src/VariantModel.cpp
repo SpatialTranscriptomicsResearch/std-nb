@@ -302,10 +302,10 @@ void VariantModel::sample_scaling() {
 
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t) {
-      Float x = theta[s][t];
-#pragma omp parallel for reduction(* : x) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g) x *= phi[g][t];
-      intensity_sum += x;
+      Float x = 0;
+#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g) x += phi[g][t];
+      intensity_sum += x * theta[s][t];
     }
 
     if (verbosity >= Verbosity::Info)
@@ -315,7 +315,7 @@ void VariantModel::sample_scaling() {
     // NOTE: gamma_distribution takes a shape and scale parameter
     scaling[s] = gamma_distribution<Float>(
         scaling_prior_a + count_sum,
-        scaling_prior_b + intensity_sum)(EntropySource::rng);
+        1.0/(scaling_prior_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Info)
       cout << "new scaling[" << s << "]=" << scaling[s] << endl;
   }
