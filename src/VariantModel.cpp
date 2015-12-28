@@ -283,10 +283,12 @@ void VariantModel::sample_phi() {
           << "r[g][t] + sum = " << r[g][t] + sum << endl
           << "1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) = " <<  1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) << endl
           << "sum = " << sum << endl;
-        Int sum2 = 0;
-        for (size_t tt = 0; tt < T; ++tt)
-          for (size_t s = 0; s < S; ++s) sum2 += contributions[g][s][tt];
-        cout << "sum2 = " << sum2 << endl;
+        if (verbosity >= Verbosity::Debug) {
+          Int sum2 = 0;
+          for (size_t tt = 0; tt < T; ++tt)
+            for (size_t s = 0; s < S; ++s) sum2 += contributions[g][s][tt];
+          cout << "sum2 = " << sum2 << endl;
+        }
         // exit(EXIT_FAILURE);
       }
     }
