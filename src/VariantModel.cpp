@@ -430,13 +430,18 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << endl;
     }
 
+    size_t phi_zeros = 0;
     os << "Φ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
-      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][t];
+      for (size_t g = 0; g < pfa.G; ++g) {
+        if (pfa.phi[g][t] == 0) phi_zeros++;
+        sum += pfa.phi[g][t];
+      }
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;
+    os << "There are " << phi_zeros << " zeros in Φ." << endl;
 
     os << "Θ" << endl;
     for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
@@ -445,13 +450,18 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << endl;
     }
 
+    size_t theta_zeros = 0;
     os << "Θ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
-      for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta[s][t];
+      for (size_t s = 0; s < pfa.S; ++s) {
+        if (pfa.theta[s][t] == 0) theta_zeros++;
+        sum += pfa.theta[s][t];
+      }
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;
+    os << "There are " << theta_zeros << " zeros in Θ." << endl;
 
     os << "P" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
@@ -460,6 +470,12 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << endl;
     }
 
+    size_t p_zeros = 0;
+    for (size_t g = 0; g < pfa.G; ++g)
+      for (size_t t = 0; t < pfa.T; ++t)
+        if (pfa.p[g][t] == 0) p_zeros++;
+    os << "There are " << p_zeros << " zeros in p." << endl;
+
     os << "R" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
       for (size_t t = 0; t < pfa.T; ++t)
@@ -467,10 +483,20 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << endl;
     }
 
+    size_t r_zeros = 0;
+    for (size_t g = 0; g < pfa.G; ++g)
+      for (size_t t = 0; t < pfa.T; ++t)
+        if (pfa.r[g][t] == 0) r_zeros++;
+    os << "There are " << r_zeros << " zeros in r." << endl;
+
     os << "Scaling factors" << endl;
     for (size_t s = 0; s < pfa.S; ++s)
       os << (s > 0 ? "\t" : "") << pfa.scaling[s];
     os << endl;
+    size_t scaling_zeros = 0;
+    for (size_t s = 0; s < pfa.S; ++s)
+      if (pfa.scaling[s] == 0) scaling_zeros++;
+    os << "There are " << scaling_zeros << " zeros in scaling." << endl;
   }
 
   return os;
