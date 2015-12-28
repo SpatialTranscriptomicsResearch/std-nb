@@ -443,7 +443,7 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;
-    os << "There are " << phi_zeros << " zeros in Φ." << endl;
+    os << "There are " << phi_zeros << " zeros in Φ. This corresponds to " << (100.0 * phi_zeros / pfa.T / pfa.G) << "%." << endl;
 
     os << "Θ" << endl;
     for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
@@ -476,7 +476,7 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     for (size_t g = 0; g < pfa.G; ++g)
       for (size_t t = 0; t < pfa.T; ++t)
         if (pfa.p[g][t] == 0) p_zeros++;
-    os << "There are " << p_zeros << " zeros in p." << endl;
+    os << "There are " << p_zeros << " zeros in p. This corresponds to " << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
 
     os << "R" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
