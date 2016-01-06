@@ -204,7 +204,7 @@ void VariantModel::sample_p() {
       for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
       p[g][t] =
           sample_beta<Float>(priors.c * priors.epsilon + sum,
-                             priors.c * (1 - priors.epsilon) + S * r[g][t]);
+                             priors.c * (1 - priors.epsilon) + r[g][t]);
     }
 }
 
