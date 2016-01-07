@@ -8,3 +8,10 @@
 * compute covariance of spots across cell type contributiones during MCMC and accumulate statistics -> clustering of spots
 * propagate gene expression uncertainty to spot level
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
+* way to freeze the scaling factors
+* computing means etc. on chain statistics:
+  - point estimates: mean, standard deviation, percentiles
+  - interval estimates: equal-tail and highest posterior density (HPD) intervals
+  - posterior covariance matrix
+  - posterior correlation matrix
+  - deviance information criterion (DIC)
