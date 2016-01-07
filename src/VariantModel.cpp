@@ -1,6 +1,6 @@
 #include <omp.h>
 #include "VariantModel.hpp"
-#include "montecarlo.hpp"
+#include "metropolis_hastings.hpp"
 #include "pdist.hpp"
 
 #define DO_PARALLEL 1
@@ -218,45 +218,11 @@ void VariantModel::sample_r() {
     return l;
   };
 
-  normal_distribution<double> rnorm(0, 0.5);
-  for (size_t t = 0; t < T; ++t) {
-    for (size_t g = 0; g < G; ++g) {
-      const double current_r = r[g][t];
-      const double current_ll = compute_conditional(current_r, g, t);
-      const size_t n_iter_initial = 100;
-      size_t n_iter = n_iter_initial;
-      bool accept = false;
-      while (n_iter--) {
-        const double f = exp(rnorm(EntropySource::rng));
-        const double new_r = current_r * f;
-        const double new_ll = compute_conditional(new_r, g, t);
+  MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
 
-        if (new_ll > current_ll) {
-          if (verbosity >= Verbosity::Debug) cout << "Improved!" << endl;
-          accept = true;
-        } else {
-          const Float dG = new_ll - current_ll;
-          double rnd = RandomDistribution::Uniform(EntropySource::rng);
-          double prob =
-              min<double>(1.0, MCMC::boltzdist(-dG, parameters.temperature));
-          if (std::isnan(new_ll) == 0 and (dG > 0 or rnd <= prob)) {
-            accept = true;
-            if (verbosity >= Verbosity::Debug) cout << "Accepted!" << endl;
-          } else {
-            if (verbosity >= Verbosity::Debug) cout << "Rejected!" << endl;
-          }
-        }
-        if (accept) {
-          r[g][t] = new_r;
-          break;
-        }
-      }
-      if (verbosity >= Verbosity::Debug)
-        cout << "Left MCMC " << (accept ? "" : "un") << "successfully for r["
-             << g << "][" << t << "] after " << (n_iter_initial - n_iter)
-             << " iterations." << endl;
-    }
-  }
+  for (size_t t = 0; t < T; ++t)
+    for (size_t g = 0; g < G; ++g)
+      r[g][t] = mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t);
 }
 
 /** sample phi */

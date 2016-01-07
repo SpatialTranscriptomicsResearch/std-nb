@@ -246,7 +246,7 @@ void PoissonModel::sample_r() {
       while (true) {
         const Float r_new = normal_distribution<Float>(
             r_prime,
-            parameters.adj_step_size * sqrt(r_prime))(EntropySource::rng);
+            sqrt(r_prime))(EntropySource::rng);
 
         // NOTE: log_gamma takes a shape and scale parameter
         double log_posterior_new = compute_cond_posterior(r_new);

@@ -173,10 +173,12 @@ int main(int argc, char **argv) {
      "Prior gamma.");
 
   inference_options.add_options()
-    ("step", po::value(&parameters.adj_step_size)->default_value(parameters.adj_step_size),
-     "Adjustable step size for Metropolis-Hastings sampling of R.")
-    ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
-     "Temperature for Metropolis-Hastings sampling of R.");
+    ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
+     "Maximal number of propositions for Metropolis-Hastings sampling of r")
+    ("MHtemp", po::value(&parameters.temperature)->default_value(parameters.temperature),
+     "Temperature for Metropolis-Hastings sampling of R.")
+    ("MHsd", po::value(&parameters.prop_sd)->default_value(parameters.prop_sd),
+     "Standard deviation for log-normal proposition scaling in Metropolis-Hastings sampling of r[g][t]");
 
   cli_options.add(generic_options)
       .add(required_options)

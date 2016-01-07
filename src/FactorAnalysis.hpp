@@ -37,10 +37,12 @@ struct Priors {
 };
 
 struct Parameters {
-  /** Adjustable step size for Metropolis-Hastings sampling of r[t] */
-  double adj_step_size = 1.0;
-  /** Temperature for Metropolis-Hastings sampling of r[t] */
+  /** Maximal number of propositions for Metropolis-Hastings sampling of r[g][t] */
+  double n_iter = 100;
+  /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
+  /** Standard deviation for log-normal proposition scaling in Metropolis-Hastings sampling of r[g][t] */
+  double prop_sd = 0.5;
 };
 
 Float digamma(Float x);
