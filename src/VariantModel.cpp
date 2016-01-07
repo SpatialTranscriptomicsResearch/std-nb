@@ -310,7 +310,7 @@ void VariantModel::sample_scaling() {
       intensity_sum += x * theta[s][t];
     }
 
-    if (verbosity >= Verbosity::Info)
+    if (verbosity >= Verbosity::Debug)
       cout << "count_sum=" << count_sum << " intensity_sum=" << intensity_sum
            << " prev scaling[" << s << "]=" << scaling[s];
 
@@ -318,7 +318,7 @@ void VariantModel::sample_scaling() {
     scaling[s] = gamma_distribution<Float>(
         scaling_prior_a + count_sum,
         1.0/(scaling_prior_b + intensity_sum))(EntropySource::rng);
-    if (verbosity >= Verbosity::Info)
+    if (verbosity >= Verbosity::Debug)
       cout << "new scaling[" << s << "]=" << scaling[s] << endl;
   }
 }

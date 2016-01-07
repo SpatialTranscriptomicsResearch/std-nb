@@ -36,6 +36,7 @@ struct Options {
   bool intersect = false;
   bool variant_model = false;
   Labeling labeling = Labeling::Auto;
+  bool compute_likelihood = false;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -55,7 +56,7 @@ istream &operator>>(istream &is, Options::Labeling &label) {
   return is;
 }
 
-void write_resuls(const FactorAnalysis::PoissonModel &pfa, const Counts &counts, const string &prefix) {
+void write_results(const FactorAnalysis::PoissonModel &pfa, const Counts &counts, const string &prefix) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
@@ -66,7 +67,7 @@ void write_resuls(const FactorAnalysis::PoissonModel &pfa, const Counts &counts,
 }
 
 
-void write_resuls(const FactorAnalysis::VariantModel &pfa, const Counts &counts, const string &prefix) {
+void write_results(const FactorAnalysis::VariantModel &pfa, const Counts &counts, const string &prefix) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
@@ -82,7 +83,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
   if (options.verbosity >= Verbosity::Info)
     cout << "Initial model" << endl << pfa << endl;
-  if (options.verbosity >= Verbosity::Debug)
+  if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (options.verbosity >= Verbosity::Info)
@@ -90,22 +91,20 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     pfa.gibbs_sample(data.counts);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
-    if ((iteration % options.report_interval == 0 and
-         options.verbosity >= Verbosity::Info) or
-        options.verbosity >= Verbosity::Debug)
-      cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
+    if (iteration % options.report_interval == 0) {
+      if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
+        cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
+      write_results(pfa, data,
+                    options.output + "iter" + to_string(iteration) + "_");
+    }
   }
-  if (options.verbosity >= Verbosity::Info)
+  if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_resuls(pfa, data, options.output);
+  write_results(pfa, data, options.output);
 }
 
 int main(int argc, char **argv) {
-  // TODO allow multiple samples - in that case take the conjunction of genes
-  // TODO when reading in count tables, store the row and column labels, and use
-  // them when printing out the results
-
   EntropySource::seed();
   MCMC::EntropySource::seed();
 
@@ -147,7 +146,9 @@ int main(int argc, char **argv) {
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
-     "Interval for computing and printing the likelihood.")
+     "Interval for reporting the parameters.")
+    ("likelihood", po::bool_switch(&options.compute_likelihood),
+     "Compute and print the likelihood every time parameters are reported.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("variant,a", po::bool_switch(&options.variant_model),
