@@ -40,3 +40,8 @@ double log_beta(double x, double a, double b) {
 double log_negative_binomial(double x, double r, double p) {
   return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * log(p) + r * log(1-p);
 }
+
+double log_negative_binomial(double x, double r, double p1, double p2) {
+  double logp = log(p1 + p2);
+  return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * (log(p1) - logp) + r * (log(p2) - logp);
+}

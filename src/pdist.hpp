@@ -10,6 +10,7 @@
 double log_poisson(size_t k, double lambda);
 /** Negative binomial probability mass function for x given a number of failures r and a success probability p */
 double log_negative_binomial(double x, double r, double p);
+double log_negative_binomial(double x, double r, double p1, double p2);
 
 // Continuous probability distributions
 
