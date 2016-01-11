@@ -196,35 +196,18 @@ void VariantModel::sample_theta() {
 }
 
 /** sample p */
-/*
-void VariantModel::sample_p() {
-  if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
-  for (size_t t = 0; t < T; ++t)
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
-      Int sum = 0;
-      for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
-      p[g][t] =
-          sample_beta<Float>(priors.c * priors.epsilon + sum,
-                             priors.c * (1 - priors.epsilon) + r[g][t]);
-    }
-}  */
-
-/** sample q */
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
-    double l = log_beta(x/(x+1), priors.c * priors.epsilon, priors.c * (1 - priors.epsilon));
-    // l += log_gamma(phi[g][t], x, p[g][t] / (1 - p[g][t]));
-    // double gamma = x / (1 - x);
+    double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
+                        priors.c * (1 - priors.epsilon));
+    auto gamma = (1 - x) / x;
     Float z = 0;
-    for(size_t s = 0; s < S; ++s)
-      z += theta[s][t] * scaling[s];
+    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     Int counts = 0;
-    for(size_t s = 0; s < S; ++s)
-      counts += contributions[g][s][t];
-    l += log_negative_binomial(counts, r[g][t], z, (1-x)/x);
+    for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
+    l += log_negative_binomial(counts, r[g][t], z, gamma);
     return l;
   };
 
@@ -232,10 +215,10 @@ void VariantModel::sample_p() {
 
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      p[g][t] = mh.sample(p[g][t]/(1-p[g][t]), parameters.n_iter, compute_conditional, g, t);
+      p[g][t] = mh.sample(p[g][t] / (1 - p[g][t]), parameters.n_iter,
+                          compute_conditional, g, t);
   for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g)
-      p[g][t] = p[g][t] / (p[g][t] + 1);
+    for (size_t g = 0; g < G; ++g) p[g][t] = p[g][t] / (p[g][t] + 1);
 }
 
 /** sample r */
@@ -244,14 +227,11 @@ void VariantModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
     double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
-    // l += log_gamma(phi[g][t], x, p[g][t] / (1 - p[g][t]));
-    auto gamma = p[g][t] / (1 - p[g][t]);
+    auto gamma = (1 - p[g][t]) / p[g][t];
     Float z = 0;
-    for(size_t s = 0; s < S; ++s)
-      z += theta[s][t] * scaling[s];
+    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     Int counts = 0;
-    for(size_t s = 0; s < S; ++s)
-      counts += contributions[g][s][t];
+    for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
     l += log_negative_binomial(counts, x, z, gamma);
     return l;
   };
@@ -260,7 +240,8 @@ void VariantModel::sample_r() {
 
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      r[g][t] = mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t);
+      r[g][t] =
+          mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t);
 }
 
 /** sample phi */
