@@ -85,8 +85,10 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         if (false)
+          // TODO store odds, not the probability
           p[g][t] = 0.5 * G * T;
         else
+          // TODO store odds, not the probability
           p[g][t] = sample_beta<Float>(1, 1);
         /*
           p[g][t] = sample_beta<Float>(priors.c * priors.epsilon,
@@ -123,6 +125,7 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
       cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
+      // TODO store odds, not the probability
       l += log_beta(p[g][t], priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
     if(std::isnan(l))
@@ -130,6 +133,7 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
+      // TODO store odds, not the probability
       l += log_gamma(phi[g][t], r[g][t], p[g][t] / (1 - p[g][t]));
       if (std::isnan(l))
         cout << "Likelihood is NAN after adding the contribution due to "
@@ -202,6 +206,7 @@ void VariantModel::sample_p() {
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
     double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
+    // TODO store odds, not the probability
     auto gamma = (1 - x) / x;
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
@@ -215,6 +220,7 @@ void VariantModel::sample_p() {
 
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
+      // TODO store odds, not the probability
       p[g][t] = mh.sample(p[g][t], parameters.n_iter,
                           compute_conditional, g, t);
   // TODO store odds, not the probability
@@ -228,6 +234,7 @@ void VariantModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
     double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
+    // TODO store odds, not the probability
     auto gamma = (1 - p[g][t]) / p[g][t];
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
@@ -377,10 +384,12 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that r and p are positive, and that p is < 1
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
+      // TODO store odds, not the probability
       if (p[g][t] < 0 or p[g][t] > 1)
         throw(runtime_error("P[" + to_string(g) + "][" + to_string(t) +
                             "] is smaller zero or larger 1: p=" +
                             to_string(p[g][t]) + "."));
+      // TODO store odds, not the probability
       if ((1 - p[g][t]) / p[g][t] == 0)
         throw(runtime_error("(1-P)/P is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
