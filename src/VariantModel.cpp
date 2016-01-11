@@ -215,10 +215,11 @@ void VariantModel::sample_p() {
 
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      p[g][t] = mh.sample(p[g][t] / (1 - p[g][t]), parameters.n_iter,
+      p[g][t] = mh.sample(p[g][t], parameters.n_iter,
                           compute_conditional, g, t);
-  for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g) p[g][t] = p[g][t] / (p[g][t] + 1);
+  // TODO store odds, not the probability
+  // for (size_t t = 0; t < T; ++t)
+  //   for (size_t g = 0; g < G; ++g) p[g][t] = p[g][t] / (p[g][t] + 1);
 }
 
 /** sample r */
