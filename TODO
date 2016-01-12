@@ -15,4 +15,4 @@
   - posterior covariance matrix
   - posterior correlation matrix
   - deviance information criterion (DIC)
-* store odds, instead of probability, for p
+* print timing information

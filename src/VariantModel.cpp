@@ -222,13 +222,9 @@ void VariantModel::sample_theta() {
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
-  auto compute_conditional = [&](Float x, size_t g, size_t t) {
+  auto compute_conditional = [&](Float x, size_t g, size_t t, Int counts, Float z) {
     double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
-    Float z = 0;
-    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    Int counts = 0;
-    for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
   // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
     return l;
@@ -237,21 +233,22 @@ void VariantModel::sample_p() {
   MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
 
   for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g)
-      p[g][t] = mh.sample(p[g][t], parameters.n_iter,
-                          compute_conditional, g, t);
+    for (size_t g = 0; g < G; ++g) {
+      Float z = 0;
+      for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
+      Int counts = 0;
+      for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
+      p[g][t] =
+          mh.sample(p[g][t], parameters.n_iter, compute_conditional, g, t, counts, z);
+    }
 }
 
 /** sample r */
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
-  auto compute_conditional = [&](Float x, size_t g, size_t t) {
+  auto compute_conditional = [&](Float x, size_t g, size_t t, Int counts, Float z) {
     double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
-    Float z = 0;
-    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    Int counts = 0;
-    for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
     // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, x, z, p[g][t]);
     return l;
@@ -260,9 +257,14 @@ void VariantModel::sample_r() {
   MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
 
   for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g)
+    for (size_t g = 0; g < G; ++g) {
+      Float z = 0;
+      for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
+      Int counts = 0;
+      for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
       r[g][t] =
-          mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t);
+          mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t, counts, z);
+    }
 }
 
 /** sample phi */
