@@ -282,14 +282,14 @@ void VariantModel::sample_phi() {
           r[g][t] + sum,
           // TODO ensure correctness of odds handling
           1.0 / (p[g][t] + theta_t[t]))(EntropySource::rng);
-      if(PHI_ZERO_WARNING and phi[g][t] == 0) {
-        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
-          << "r[" << g << "][" << t << "] = " << r[g][t] << endl
-          << "p[" << g << "][" << t << "] = " << p[g][t] << endl
-          << "theta_t[" << t << "] = " << theta_t[t] << endl
-          << "r[g][t] + sum = " << r[g][t] + sum << endl
-          << "1.0 / (p[g][t] + theta_t[t]) = " <<  1.0 / (p[g][t] + theta_t[t]) << endl
-          << "sum = " << sum << endl;
+      if (PHI_ZERO_WARNING and phi[g][t] == 0) {
+        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl << "r["
+             << g << "][" << t << "] = " << r[g][t] << endl << "p[" << g << "]["
+             << t << "] = " << p[g][t] << endl << "theta_t[" << t
+             << "] = " << theta_t[t] << endl
+             << "r[g][t] + sum = " << r[g][t] + sum << endl
+             << "1.0 / (p[g][t] + theta_t[t]) = "
+             << 1.0 / (p[g][t] + theta_t[t]) << endl << "sum = " << sum << endl;
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
           for (size_t tt = 0; tt < T; ++tt)
