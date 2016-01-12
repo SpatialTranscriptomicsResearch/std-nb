@@ -12,6 +12,22 @@ namespace FactorAnalysis {
 const Float scaling_prior_a = 1;
 const Float scaling_prior_b = 1;
 
+template <typename T>
+T odds_to_prob(T x) {
+  return x / (x + 1);
+}
+
+template <typename T>
+T prob_to_odds(T x) {
+  return x / (1 - x);
+}
+
+template <typename T>
+T prob_to_neg_odds(T x) {
+  return (1 - x) / x;
+}
+
+
 VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
                            const Priors &priors_, const Parameters &parameters_,
                            Verbosity verbosity_)
@@ -85,15 +101,18 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         if (false)
-          // TODO store odds, not the probability
           p[g][t] = 0.5 * G * T;
         else
-          // TODO store odds, not the probability
           p[g][t] = sample_beta<Float>(1, 1);
         /*
           p[g][t] = sample_beta<Float>(priors.c * priors.epsilon,
                                        priors.c * (1 - priors.epsilon));
         */
+
+    // TODO ensure correctness of odds handling
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        p[g][t] = prob_to_neg_odds(p[g][t]);
 
     // initialize R
     // r_k= 50/T*ones(T,1)
@@ -125,16 +144,16 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
       cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      // TODO store odds, not the probability
-      l += log_beta(p[g][t], priors.c * priors.epsilon,
+      // TODO ensure correctness of odds handling
+      l += log_beta(odds_to_prob(p[g][t]), priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
     if(std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to Beta-distributed p[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
-      // TODO store odds, not the probability
-      l += log_gamma(phi[g][t], r[g][t], p[g][t] / (1 - p[g][t]));
+      // TODO ensure correctness of odds handling
+      l += log_gamma(phi[g][t], r[g][t], p[g][t]);
       if (std::isnan(l))
         cout << "Likelihood is NAN after adding the contribution due to "
                 "Gamma-distributed phi[" << g << "][" << t
@@ -206,13 +225,12 @@ void VariantModel::sample_p() {
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
     double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
-    // TODO store odds, not the probability
-    auto gamma = (1 - x) / x;
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     Int counts = 0;
     for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-    l += log_negative_binomial(counts, r[g][t], z, gamma);
+  // TODO ensure correctness of odds handling
+    l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
     return l;
   };
 
@@ -220,12 +238,8 @@ void VariantModel::sample_p() {
 
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      // TODO store odds, not the probability
       p[g][t] = mh.sample(p[g][t], parameters.n_iter,
                           compute_conditional, g, t);
-  // TODO store odds, not the probability
-  // for (size_t t = 0; t < T; ++t)
-  //   for (size_t g = 0; g < G; ++g) p[g][t] = p[g][t] / (p[g][t] + 1);
 }
 
 /** sample r */
@@ -234,13 +248,12 @@ void VariantModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
   auto compute_conditional = [&](Float x, size_t g, size_t t) {
     double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
-    // TODO store odds, not the probability
-    auto gamma = (1 - p[g][t]) / p[g][t];
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     Int counts = 0;
     for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-    l += log_negative_binomial(counts, x, z, gamma);
+    // TODO ensure correctness of odds handling
+    l += log_negative_binomial(counts, x, z, p[g][t]);
     return l;
   };
 
@@ -267,14 +280,15 @@ void VariantModel::sample_phi() {
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
           r[g][t] + sum,
-          1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]))(EntropySource::rng);
+          // TODO ensure correctness of odds handling
+          1.0 / (p[g][t] + theta_t[t]))(EntropySource::rng);
       if(PHI_ZERO_WARNING and phi[g][t] == 0) {
         cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
           << "r[" << g << "][" << t << "] = " << r[g][t] << endl
           << "p[" << g << "][" << t << "] = " << p[g][t] << endl
           << "theta_t[" << t << "] = " << theta_t[t] << endl
           << "r[g][t] + sum = " << r[g][t] + sum << endl
-          << "1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) = " <<  1.0 / ((1 - p[g][t]) / p[g][t] + theta_t[t]) << endl
+          << "1.0 / (p[g][t] + theta_t[t]) = " <<  1.0 / (p[g][t] + theta_t[t]) << endl
           << "sum = " << sum << endl;
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
@@ -384,14 +398,14 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that r and p are positive, and that p is < 1
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      // TODO store odds, not the probability
-      if (p[g][t] < 0 or p[g][t] > 1)
+      // TODO ensure correctness of odds handling
+      if (p[g][t] < 0)
         throw(runtime_error("P[" + to_string(g) + "][" + to_string(t) +
-                            "] is smaller zero or larger 1: p=" +
+                            "] is smaller zero: p=" +
                             to_string(p[g][t]) + "."));
-      // TODO store odds, not the probability
-      if ((1 - p[g][t]) / p[g][t] == 0)
-        throw(runtime_error("(1-P)/P is zero for gene " + to_string(g) +
+      // TODO ensure correctness of odds handling
+      if (p[g][t] == 0)
+        throw(runtime_error("P is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
 
       if (r[g][t] < 0)
