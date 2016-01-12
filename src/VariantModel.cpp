@@ -232,15 +232,16 @@ void VariantModel::sample_p() {
 
   MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
 
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < T; ++t) {
+    Float z = 0;
+    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     for (size_t g = 0; g < G; ++g) {
-      Float z = 0;
-      for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
       Int counts = 0;
       for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-      p[g][t] =
-          mh.sample(p[g][t], parameters.n_iter, compute_conditional, g, t, counts, z);
+      p[g][t] = mh.sample(p[g][t], parameters.n_iter, compute_conditional, g, t,
+                          counts, z);
     }
+  }
 }
 
 /** sample r */
@@ -256,15 +257,16 @@ void VariantModel::sample_r() {
 
   MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
 
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < T; ++t) {
+    Float z = 0;
+    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
     for (size_t g = 0; g < G; ++g) {
-      Float z = 0;
-      for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
       Int counts = 0;
       for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-      r[g][t] =
-          mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t, counts, z);
+      r[g][t] = mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t,
+                          counts, z);
     }
+  }
 }
 
 /** sample phi */
