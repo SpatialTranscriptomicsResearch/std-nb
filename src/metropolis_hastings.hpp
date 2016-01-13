@@ -15,14 +15,14 @@ struct MetropolisHastings {
 
   MetropolisHastings(double temp, double prop_sd_, Verbosity verb);
 
-  template <typename T, typename Fnc, typename... Args>
-  T sample(T current, size_t n_iter_initial, Fnc fnc, Args&... args) {
+  template <typename T, typename Fnc, typename RNG, typename... Args>
+  T sample(T current, size_t n_iter_initial, RNG &rng, Fnc fnc, Args&... args) {
     const auto current_score = fnc(current, args...);
     size_t n_iter = n_iter_initial;
     T accepted = current;
     bool accept = false;
     while (n_iter--) {
-      const double f = exp(rnorm(EntropySource::rng));
+      const double f = exp(rnorm(rng));
       const T propsition = current * f;
       const auto propsition_score = fnc(propsition, args...);
 

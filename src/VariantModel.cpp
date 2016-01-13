@@ -223,24 +223,41 @@ void VariantModel::sample_theta() {
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
-  auto compute_conditional = [&](Float x, size_t g, size_t t, Int counts, Float z) {
+  auto compute_conditional =
+      [&](Float x, size_t g, size_t t, Int counts, Float z) {
     double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
-  // TODO ensure correctness of odds handling
+    // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
     return l;
   };
 
-  MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
-
   for (size_t t = 0; t < T; ++t) {
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    for (size_t g = 0; g < G; ++g) {
-      Int counts = 0;
-      for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-      p[g][t] = mh.sample(p[g][t], parameters.n_iter, compute_conditional, g, t,
-                          counts, z);
+    vector<mt19937> rngs;
+    vector<MetropolisHastings> mhs;
+#pragma omp parallel if (DO_PARALLEL)
+    {
+#pragma omp single
+      {
+        for (int thread_num = 0; thread_num < omp_get_num_threads();
+             ++thread_num) {
+          rngs.push_back(mt19937());
+          mhs.push_back(MetropolisHastings(parameters.temperature,
+                                           parameters.prop_sd, verbosity));
+        }
+        for (auto &rng : rngs) rng.seed(EntropySource::rng());
+      }
+#pragma omp for
+      for (size_t g = 0; g < G; ++g) {
+        Int counts = 0;
+        for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
+        size_t thread_num = omp_get_thread_num();
+        p[g][t] =
+            mhs[thread_num].sample(p[g][t], parameters.n_iter, rngs[thread_num],
+                                   compute_conditional, g, t, counts, z);
+      }
     }
   }
 }
@@ -249,23 +266,40 @@ void VariantModel::sample_p() {
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling R" << endl;
-  auto compute_conditional = [&](Float x, size_t g, size_t t, Int counts, Float z) {
+  auto compute_conditional =
+      [&](Float x, size_t g, size_t t, Int counts, Float z) {
     double l = log_gamma(x, priors.c0 * priors.r0, 1.0 / priors.c0);
     // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, x, z, p[g][t]);
     return l;
   };
 
-  MetropolisHastings mh(parameters.temperature, parameters.prop_sd, verbosity);
-
   for (size_t t = 0; t < T; ++t) {
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    for (size_t g = 0; g < G; ++g) {
-      Int counts = 0;
-      for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
-      r[g][t] = mh.sample(r[g][t], parameters.n_iter, compute_conditional, g, t,
-                          counts, z);
+    vector<mt19937> rngs;
+    vector<MetropolisHastings> mhs;
+#pragma omp parallel if (DO_PARALLEL)
+    {
+#pragma omp single
+      {
+        for (int thread_num = 0; thread_num < omp_get_num_threads();
+             ++thread_num) {
+          rngs.push_back(mt19937());
+          mhs.push_back(MetropolisHastings(parameters.temperature,
+                                           parameters.prop_sd, verbosity));
+        }
+        for (auto &rng : rngs) rng.seed(EntropySource::rng());
+      }
+#pragma omp for
+      for (size_t g = 0; g < G; ++g) {
+        Int counts = 0;
+        for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
+        size_t thread_num = omp_get_thread_num();
+        r[g][t] =
+            mhs[thread_num].sample(r[g][t], parameters.n_iter, rngs[thread_num],
+                                   compute_conditional, g, t, counts, z);
+      }
     }
   }
 }
