@@ -34,7 +34,7 @@ struct Options {
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
-  bool variant_model = false;
+  bool original_model = false;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool timing = true;
@@ -152,8 +152,8 @@ int main(int argc, char **argv) {
      "Compute and print the likelihood every time parameters are reported.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
-    ("variant,a", po::bool_switch(&options.variant_model),
-     "Use the variant model.")
+    ("original", po::bool_switch(&options.original_model),
+     "Use the original model.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("timing", po::bool_switch(&options.timing),
@@ -237,7 +237,7 @@ int main(int argc, char **argv) {
     else
       data = data + Counts(options.paths[i], labels[i]);
 
-  if (not options.variant_model) {
+  if (options.original_model) {
     FactorAnalysis::PoissonModel pfa(data.counts, options.num_factors, priors,
                                      parameters, options.verbosity);
 
