@@ -17,11 +17,11 @@ make
 make install
 ```
 
-Note that <INSTALL_PREFIX>/bin has to be included in your $PATH variable.
+Note that ```<INSTALL_PREFIX>/bin``` has to be included in your $PATH variable.
 To do this you have to have a line like
 
 ```sh
 export PATH=<INSTALL_PREFIX>/bin:$PATH
 ```
 
-in your $HOME/.bashrc file (or similar in case you are a shell other than bash).
+in your ```$HOME/.bashrc``` file (or similar in case you are a shell other than bash).
