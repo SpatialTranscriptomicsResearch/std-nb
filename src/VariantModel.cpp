@@ -307,6 +307,7 @@ void VariantModel::sample_phi() {
 
 /** sample scaling factors */
 void VariantModel::sample_scaling() {
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
     Int count_sum = 0;
 #pragma omp parallel for reduction(+ : count_sum) if (DO_PARALLEL)
