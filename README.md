@@ -7,7 +7,7 @@ Compiling
 =========
 You build and install the code as follows.
 Note that ```<INSTALL_PREFIX>``` is a path below which the program will be installed.
-This could be e.g. $HOME/local to install into a user-local prefix.
+This could be e.g. ```$HOME/local``` to install into a user-local prefix.
 
 ```sh
 mkdir build
@@ -17,7 +17,7 @@ make
 make install
 ```
 
-Note that ```<INSTALL_PREFIX>/bin``` has to be included in your $PATH variable.
+Note that ```<INSTALL_PREFIX>/bin``` has to be included in your ```$PATH``` variable.
 To do this you have to have a line like
 
 ```sh
