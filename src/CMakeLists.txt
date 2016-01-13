@@ -6,7 +6,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_EXECUTABLE(multiScoopIBP main.cpp aux.cpp executioninformation.cpp cli.cpp
   io.cpp metropolis_hastings.cpp FactorAnalysis.cpp PoissonModel.cpp
-  VariantModel.cpp sampling.cpp montecarlo.cpp terminal.cpp pdist.cpp)
+  VariantModel.cpp sampling.cpp montecarlo.cpp terminal.cpp timer.cpp pdist.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp sampling.cpp)
 
 TARGET_LINK_LIBRARIES(multiScoopIBP

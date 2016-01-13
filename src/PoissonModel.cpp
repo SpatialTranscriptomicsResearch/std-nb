@@ -4,6 +4,7 @@
 #include "PoissonModel.hpp"
 #include "montecarlo.hpp"
 #include "pdist.hpp"
+#include "timer.hpp"
 
 #define DO_PARALLEL 1
 
@@ -301,20 +302,35 @@ void PoissonModel::sample_theta() {
     }
 }
 
-void PoissonModel::gibbs_sample(const IMatrix &counts) {
+void PoissonModel::gibbs_sample(const IMatrix &counts, bool timing) {
+  Timer timer;
   sample_contributions(counts);
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  timer.tick();
   sample_phi();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  timer.tick();
   sample_p();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  timer.tick();
   sample_r();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  timer.tick();
   sample_theta();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
 }

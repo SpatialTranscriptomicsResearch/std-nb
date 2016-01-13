@@ -37,6 +37,7 @@ struct Options {
   bool variant_model = false;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
+  bool timing = true;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -88,7 +89,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
-    pfa.gibbs_sample(data.counts);
+    pfa.gibbs_sample(data.counts, options.timing);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
     if (iteration % options.report_interval == 0) {
@@ -155,6 +156,8 @@ int main(int argc, char **argv) {
      "Use the variant model.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("timing", po::bool_switch(&options.timing),
+     "Print out timing information.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 

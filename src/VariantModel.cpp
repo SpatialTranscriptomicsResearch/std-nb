@@ -3,6 +3,7 @@
 #include "metropolis_hastings.hpp"
 #include "pdist.hpp"
 #include "stats.hpp"
+#include "timer.hpp"
 
 #define DO_PARALLEL 1
 #define PHI_ZERO_WARNING false
@@ -335,29 +336,47 @@ void VariantModel::sample_scaling() {
   }
 }
 
-void VariantModel::gibbs_sample(const IMatrix &counts) {
+void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   check_model(counts);
+  Timer timer;
   sample_contributions(counts);
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  timer.tick();
   sample_phi();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  timer.tick();
   sample_p();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  timer.tick();
   sample_r();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  timer.tick();
   sample_theta();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+  timer.tick();
   sample_scaling();
+  if(timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
