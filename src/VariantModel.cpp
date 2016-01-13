@@ -278,9 +278,9 @@ void VariantModel::sample_phi() {
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t] * scaling[s];
   for (size_t t = 0; t < T; ++t)
+#pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       Int sum = 0;
-#pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
       for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
