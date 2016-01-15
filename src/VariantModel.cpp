@@ -532,19 +532,6 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     os << endl;
     os << "There are " << theta_zeros << " zeros in Θ." << endl;
 
-    os << "P" << endl;
-    for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
-      for (size_t t = 0; t < pfa.T; ++t)
-        os << (t > 0 ? "\t" : "") << pfa.p[g][t];
-      os << endl;
-    }
-
-    size_t p_zeros = 0;
-    for (size_t g = 0; g < pfa.G; ++g)
-      for (size_t t = 0; t < pfa.T; ++t)
-        if (pfa.p[g][t] == 0) p_zeros++;
-    os << "There are " << p_zeros << " zeros in p. This corresponds to " << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
-
     os << "R" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
       for (size_t t = 0; t < pfa.T; ++t)
@@ -558,6 +545,19 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
         if (pfa.r[g][t] == 0) r_zeros++;
     os << "There are " << r_zeros << " zeros in r." << endl;
     // os << Stats::summary<FactorAnalysis::Matrix, FactorAnalysis::Float>(pfa.r) << endl;
+
+    os << "P" << endl;
+    for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
+      for (size_t t = 0; t < pfa.T; ++t)
+        os << (t > 0 ? "\t" : "") << pfa.p[g][t];
+      os << endl;
+    }
+
+    size_t p_zeros = 0;
+    for (size_t g = 0; g < pfa.G; ++g)
+      for (size_t t = 0; t < pfa.T; ++t)
+        if (pfa.p[g][t] == 0) p_zeros++;
+    os << "There are " << p_zeros << " zeros in p. This corresponds to " << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
 
     os << "Scaling factors" << endl;
     for (size_t s = 0; s < pfa.S; ++s)
