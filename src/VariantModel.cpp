@@ -432,7 +432,7 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      /* 
+      /*
       if (phi[g][t] == 0)
         throw(runtime_error("Phi is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
