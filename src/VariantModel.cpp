@@ -19,6 +19,11 @@ T odds_to_prob(T x) {
 }
 
 template <typename T>
+T neg_odds_to_prob(T x) {
+  return 1 / (x + 1);
+}
+
+template <typename T>
 T prob_to_odds(T x) {
   return x / (1 - x);
 }
@@ -146,7 +151,7 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // TODO ensure correctness of odds handling
-      l += log_beta(odds_to_prob(p[g][t]), priors.c * priors.epsilon,
+      l += log_beta(neg_odds_to_prob(p[g][t]), priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
     if(std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to Beta-distributed p[g][" << t << "]." << endl;
@@ -225,7 +230,7 @@ void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   auto compute_conditional =
       [&](Float x, size_t g, size_t t, Int counts, Float z) {
-    double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
+    double l = log_beta(neg_odds_to_prob(x), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
     // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
