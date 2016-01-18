@@ -33,7 +33,6 @@ T prob_to_neg_odds(T x) {
   return (1 - x) / x;
 }
 
-
 VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
                            const Priors &priors_, const Parameters &parameters_,
                            Verbosity verbosity_)
@@ -198,16 +197,19 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
+  for (size_t g = 0; g < G; ++g) {
+    size_t thread_num = omp_get_thread_num();
     for (size_t s = 0; s < S; ++s) {
       vector<double> rel_rate(T);
       double z = 0;
       // NOTE: in principle, lambda has a factor of q[s], but as this would cancel, we do not multiply it in here
       for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
-      auto v = sample_multinomial<Int>(counts[g][s], rel_rate);
+      auto v = sample_multinomial<Int>(counts[g][s], rel_rate,
+                                       EntropySource::rngs[thread_num]);
       for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
     }
+  }
 }
 
 /** sample theta */
@@ -216,10 +218,11 @@ void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Θ" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
+    size_t thread_num = omp_get_thread_num();
     vector<double> a(T, priors.alpha);
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) a[t] += contributions[g][s][t];
-    auto theta_ = sample_dirichlet<Float>(a);
+    auto theta_ = sample_dirichlet<Float>(a, EntropySource::rngs[thread_num]);
     for (size_t t = 0; t < T; ++t) theta[s][t] = theta_[t];
   }
 }
@@ -246,28 +249,24 @@ void VariantModel::sample_p_negative_binomial() {
   for (size_t t = 0; t < T; ++t) {
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    vector<mt19937> rngs;
     vector<MetropolisHastings> mhs;
 #pragma omp parallel if (DO_PARALLEL)
     {
 #pragma omp single
       {
         for (int thread_num = 0; thread_num < omp_get_num_threads();
-             ++thread_num) {
-          rngs.push_back(mt19937());
+             ++thread_num)
           mhs.push_back(MetropolisHastings(parameters.temperature,
                                            parameters.prop_sd, verbosity));
-        }
-        for (auto &rng : rngs) rng.seed(EntropySource::rng());
       }
 #pragma omp for
       for (size_t g = 0; g < G; ++g) {
         Int counts = 0;
         for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
         size_t thread_num = omp_get_thread_num();
-        p[g][t] =
-            mhs[thread_num].sample(p[g][t], parameters.n_iter, rngs[thread_num],
-                                   compute_conditional, g, t, counts, z);
+        p[g][t] = mhs[thread_num].sample(p[g][t], parameters.n_iter,
+                                         EntropySource::rngs[thread_num],
+                                         compute_conditional, g, t, counts, z);
       }
     }
   }
@@ -339,28 +338,24 @@ void VariantModel::sample_r() {
   for (size_t t = 0; t < T; ++t) {
     Float z = 0;
     for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
-    vector<mt19937> rngs;
     vector<MetropolisHastings> mhs;
 #pragma omp parallel if (DO_PARALLEL)
     {
 #pragma omp single
       {
         for (int thread_num = 0; thread_num < omp_get_num_threads();
-             ++thread_num) {
-          rngs.push_back(mt19937());
+             ++thread_num)
           mhs.push_back(MetropolisHastings(parameters.temperature,
                                            parameters.prop_sd, verbosity));
-        }
-        for (auto &rng : rngs) rng.seed(EntropySource::rng());
       }
 #pragma omp for
       for (size_t g = 0; g < G; ++g) {
         Int counts = 0;
         for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
         size_t thread_num = omp_get_thread_num();
-        r[g][t] =
-            mhs[thread_num].sample(r[g][t], parameters.n_iter, rngs[thread_num],
-                                   compute_conditional, g, t, counts, z);
+        r[g][t] = mhs[thread_num].sample(r[g][t], parameters.n_iter,
+                                         EntropySource::rngs[thread_num],
+                                         compute_conditional, g, t, counts, z);
       }
     }
   }
@@ -376,13 +371,14 @@ void VariantModel::sample_phi() {
   for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
+      size_t thread_num = omp_get_thread_num();
       Int sum = 0;
       for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
           r[g][t] + sum,
           // TODO ensure correctness of odds handling
-          1.0 / (p[g][t] + theta_t[t]))(EntropySource::rng);
+          1.0 / (p[g][t] + theta_t[t]))(EntropySource::rngs[thread_num]);
       if (PHI_ZERO_WARNING and phi[g][t] == 0) {
         cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl << "r["
              << g << "][" << t << "] = " << r[g][t] << endl << "p[" << g << "]["
