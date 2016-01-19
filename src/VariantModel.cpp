@@ -279,7 +279,7 @@ void VariantModel::sample_p_negative_multinomial() {
   auto compute_conditional
       = [&](Float x, size_t g, size_t t, const vector<Int> &counts, Float z_sum,
             const vector<Float> &z) {
-          vector<Float> ps(S, 0);
+          vector<Float> ps(S);
           for (size_t s = 0; s < S; ++s)
             ps[s] = z[s] / (x + z_sum);
           double l = log_beta(neg_odds_to_prob(x), priors.c * priors.epsilon,
@@ -294,20 +294,15 @@ void VariantModel::sample_p_negative_multinomial() {
     vector<Float> z(S, 0);
     for (size_t s = 0; s < S; ++s)
       z_sum += z[s] = theta[s][t] * scaling[s];
-    vector<mt19937> rngs;
     vector<MetropolisHastings> mhs;
 #pragma omp parallel if (DO_PARALLEL)
     {
 #pragma omp single
       {
         for (int thread_num = 0; thread_num < omp_get_num_threads();
-             ++thread_num) {
-          rngs.push_back(mt19937());
+             ++thread_num)
           mhs.push_back(MetropolisHastings(parameters.temperature,
                                            parameters.prop_sd, verbosity));
-        }
-        for (auto &rng : rngs)
-          rng.seed(EntropySource::rng());
       }
 #pragma omp for
       for (size_t g = 0; g < G; ++g) {
@@ -315,9 +310,9 @@ void VariantModel::sample_p_negative_multinomial() {
         for (size_t s = 0; s < S; ++s)
           counts[s] = contributions[g][s][t];
         size_t thread_num = omp_get_thread_num();
-        p[g][t] = mhs[thread_num].sample(p[g][t], parameters.n_iter,
-                                         rngs[thread_num], compute_conditional,
-                                         g, t, counts, z_sum, z);
+        p[g][t] = mhs[thread_num].sample(
+            p[g][t], parameters.n_iter, EntropySource::rngs[thread_num],
+            compute_conditional, g, t, counts, z_sum, z);
       }
     }
   }
