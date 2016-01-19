@@ -367,11 +367,11 @@ void VariantModel::sample_phi() {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       size_t thread_num = omp_get_thread_num();
-      Int sum = 0;
-      for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
+      Int summed_contribution = 0;
+      for (size_t s = 0; s < S; ++s) summed_contribution += contributions[g][s][t];
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
-          r[g][t] + sum,
+          r[g][t] + summed_contribution,
           // TODO ensure correctness of odds handling
           1.0 / (p[g][t] + theta_t[t]))(EntropySource::rngs[thread_num]);
       if (PHI_ZERO_WARNING and phi[g][t] == 0) {
@@ -379,9 +379,9 @@ void VariantModel::sample_phi() {
              << g << "][" << t << "] = " << r[g][t] << endl << "p[" << g << "]["
              << t << "] = " << p[g][t] << endl << "theta_t[" << t
              << "] = " << theta_t[t] << endl
-             << "r[g][t] + sum = " << r[g][t] + sum << endl
+             << "r[g][t] + sum = " << r[g][t] + summed_contribution << endl
              << "1.0 / (p[g][t] + theta_t[t]) = "
-             << 1.0 / (p[g][t] + theta_t[t]) << endl << "sum = " << sum << endl;
+             << 1.0 / (p[g][t] + theta_t[t]) << endl << "sum = " << summed_contribution << endl;
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
           for (size_t tt = 0; tt < T; ++tt)
@@ -397,10 +397,10 @@ void VariantModel::sample_phi() {
 void VariantModel::sample_scaling() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
-    Int count_sum = 0;
-#pragma omp parallel for reduction(+ : count_sum) if (DO_PARALLEL)
+    Int summed_contribution = 0;
+#pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) count_sum += contributions[g][s][t];
+      for (size_t t = 0; t < T; ++t) summed_contribution += contributions[g][s][t];
 
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t) {
@@ -411,12 +411,12 @@ void VariantModel::sample_scaling() {
     }
 
     if (verbosity >= Verbosity::Debug)
-      cout << "count_sum=" << count_sum << " intensity_sum=" << intensity_sum
+      cout << "summed_contribution=" << summed_contribution << " intensity_sum=" << intensity_sum
            << " prev scaling[" << s << "]=" << scaling[s];
 
     // NOTE: gamma_distribution takes a shape and scale parameter
     scaling[s] = gamma_distribution<Float>(
-        scaling_prior_a + count_sum,
+        scaling_prior_a + summed_contribution,
         1.0/(scaling_prior_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new scaling[" << s << "]=" << scaling[s] << endl;
