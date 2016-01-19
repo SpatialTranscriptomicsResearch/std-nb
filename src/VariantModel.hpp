@@ -45,14 +45,8 @@ struct VariantModel {
   /** sample phi */
   void sample_phi();
 
-  /** sample p */
-  void sample_p();
-  void sample_p_negative_binomial();
-  void sample_p_negative_multinomial();
+  /** sample p and r */
   void sample_p_and_r();
-
-  /** sample r */
-  void sample_r();
 
   /** sample theta */
   void sample_theta();
