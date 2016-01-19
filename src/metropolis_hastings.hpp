@@ -11,20 +11,23 @@ struct MetropolisHastings {
   double temperature;
   double prop_sd;
   Verbosity verbosity;
-  std::normal_distribution<double> rnorm;
+  // std::normal_distribution<double> rnorm;
 
   MetropolisHastings(double temp, double prop_sd_, Verbosity verb);
 
-  template <typename T, typename Fnc, typename RNG, typename... Args>
-  T sample(T current, size_t n_iter_initial, RNG &rng, Fnc fnc, Args&... args) {
+  template <typename T, typename RNG, typename Gen, typename Score,
+            typename... Args>
+  T sample(T current, size_t n_iter_initial, RNG &rng, Gen generate,
+           Score fnc, Args &... args) const {
     const auto current_score = fnc(current, args...);
     size_t n_iter = n_iter_initial;
     T accepted = current;
     bool accept = false;
     while (n_iter--) {
-      const double f = exp(rnorm(rng));
-      const T propsition = current * f;
-      const auto propsition_score = fnc(propsition, args...);
+      // const double f = exp(rnorm(rng));
+      // const T proposition = current * f;
+      const T proposition = generate(current, rng);
+      const auto propsition_score = fnc(proposition, args...);
 
       if (propsition_score > current_score) {
         if (verbosity >= Verbosity::Debug)
@@ -44,7 +47,7 @@ struct MetropolisHastings {
         }
       }
       if (accept) {
-        accepted = propsition;
+        accepted = proposition;
         break;
       }
     }

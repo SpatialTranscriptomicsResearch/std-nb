@@ -49,6 +49,7 @@ struct VariantModel {
   void sample_p();
   void sample_p_negative_binomial();
   void sample_p_negative_multinomial();
+  void sample_p_and_r();
 
   /** sample r */
   void sample_r();
