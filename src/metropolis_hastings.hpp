@@ -32,7 +32,7 @@ struct MetropolisHastings {
         accept = true;
       } else {
         const auto dG = propsition_score - current_score;
-        const double rnd = RandomDistribution::Uniform(EntropySource::rng);
+        const double rnd = RandomDistribution::Uniform(rng);
         const double prob = std::min<double>(1.0, boltzdist(-dG, temperature));
         if (std::isnan(propsition_score) == 0 and (dG > 0 or rnd <= prob)) {
           accept = true;
