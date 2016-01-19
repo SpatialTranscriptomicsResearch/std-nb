@@ -99,7 +99,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
     for (size_t s = 0; s < S; ++s)
       // NOTE: gamma_distribution takes a shape and scale parameter
       scaling[s] = gamma_distribution<Float>(
-          scaling_prior_a, scaling_prior_b)(EntropySource::rng);
+          scaling_prior_a, 1 / scaling_prior_b)(EntropySource::rng);
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
