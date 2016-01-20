@@ -137,6 +137,39 @@ Counts Counts::operator+(const Counts &other) const {
   return combine_counts(*this, other, false);
 }
 
+void Counts::select_top(size_t n) {
+  using pair_t = pair<size_t, size_t>;
+  vector<pair_t> rowsum_and_index;
+  const size_t nrow = row_names.size();
+  const size_t ncol = col_names.size();
+
+  for(size_t r = 0; r < nrow; ++r) {
+    size_t sum = 0;
+    for(size_t c = 0; c < ncol; ++c)
+      sum += counts[r][c];
+    rowsum_and_index.push_back(pair_t(sum, r));
+  }
+
+  sort(begin(rowsum_and_index), end(rowsum_and_index), [](const pair_t &a, const pair_t &b) {
+      return a > b;
+      });
+
+  vector<string> new_row_names(n);
+  for(size_t i = 0; i < n; ++i)
+    new_row_names[i] = row_names[rowsum_and_index[i].second];
+
+  auto extents = boost::extents[n][ncol];
+  PoissonFactorAnalysis::IMatrix new_counts(extents);
+
+  for(size_t r = 0; r < n; ++r)
+    for(size_t c = 0; c < ncol; ++c)
+      new_counts[r][c] = counts[rowsum_and_index[r].second][c];
+
+  row_names = new_row_names;
+  counts.resize(extents);
+  counts = new_counts;
+}
+
 void write_vector(const Vector &v, const string &path,
                   const vector<string> &names) {
   auto shape = v.shape();
