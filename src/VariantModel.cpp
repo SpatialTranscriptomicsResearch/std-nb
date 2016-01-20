@@ -247,7 +247,7 @@ void VariantModel::sample_p_and_r() {
         log_negative_multinomial(counts, current_r, ps);
   };
 
-  auto gen = [&](pair<Float, Float> &x, mt19937 &rng) {
+  auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
     normal_distribution<double> rnorm;
     const double f1 = exp(rnorm(rng));
     const double f2 = exp(rnorm(rng));
