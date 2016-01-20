@@ -147,8 +147,7 @@ ExecutionInformation process_cli_options(
   if (vm.count("noisy")) verbosity = Verbosity::Debug;
 
   if (vm.count("version") and not vm.count("help")) {
-    std::cout << exec_info.program_name << " " << exec_info.program_version
-              << " [" << GIT_BRANCH << " branch]" << std::endl;
+    std::cout << exec_info.name_and_version() << endl;
     if (verbosity >= Verbosity::Verbose) std::cout << GIT_SHA1 << std::endl;
     exit(EXIT_SUCCESS);
   }
