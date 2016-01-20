@@ -232,20 +232,19 @@ void VariantModel::sample_theta() {
 void VariantModel::sample_p_and_r() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling P and R" << endl;
-  auto compute_conditional = [&](const pair<Float, Float> &x, size_t g,
-                                 size_t t, const vector<Int> &counts,
-                                 Float z_sum, const vector<Float> &z) {
+  auto compute_conditional =
+      [&](const pair<Float, Float> &x, size_t g, size_t t,
+          const vector<Int> &counts, Float z_sum, const vector<Float> &z) {
     Float current_r = x.first;
     Float current_p = x.second;
     vector<Float> ps(S);
-    for (size_t s = 0; s < S; ++s)
-      ps[s] = z[s] / (current_p + z_sum);
-    double l = log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
-                        priors.c * (1 - priors.epsilon))
-               + log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0)
-               // TODO ensure correctness of odds handling
-               + log_negative_multinomial(counts, current_r, ps);
-    return l;
+    for (size_t s = 0; s < S; ++s) ps[s] = z[s] / (current_p + z_sum);
+    return log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
+                   priors.c * (1 - priors.epsilon)) +
+        log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0)
+        // TODO ensure correctness of odds handling
+        +
+        log_negative_multinomial(counts, current_r, ps);
   };
 
   auto gen = [&](pair<Float, Float> &x, mt19937 &rng) {
