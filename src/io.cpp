@@ -159,7 +159,7 @@ void Counts::select_top(size_t n) {
     new_row_names[i] = row_names[rowsum_and_index[i].second];
 
   auto extents = boost::extents[n][ncol];
-  PoissonFactorAnalysis::IMatrix new_counts(extents);
+  IMatrix new_counts(extents);
 
   for(size_t r = 0; r < n; ++r)
     for(size_t c = 0; c < ncol; ++c)
