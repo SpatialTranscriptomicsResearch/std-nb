@@ -42,6 +42,7 @@ struct Options {
   string output = default_output_string;
   bool intersect = false;
   Labeling labeling = Labeling::Auto;
+  size_t top = 0;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -153,6 +154,8 @@ int main(int argc, char **argv) {
      "Interval for computing and printing the likelihood.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
+    ("top", po::value(&options.top)->default_value(options.top),
+     "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("label", po::value(&options.labeling),
@@ -231,6 +234,9 @@ int main(int argc, char **argv) {
       data = data * Counts(options.paths[i], labels[i]);
     else
       data = data + Counts(options.paths[i], labels[i]);
+
+  if(options.top > 0)
+    data.select_top(options.top);
 
   PoissonFactorAnalysis pfa(data.counts, options.num_factors, priors,
                             parameters, options.verbosity);

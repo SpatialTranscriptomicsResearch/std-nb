@@ -16,6 +16,7 @@ struct Counts {
   Counts operator+(const Counts &other) const;
   Counts operator*(const Counts &other) const;
   Counts &operator=(const Counts &other);
+  void select_top(size_t n);
 };
 
 void write_vector(
