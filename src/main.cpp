@@ -196,6 +196,9 @@ int main(int argc, char **argv) {
       argc, const_cast<const char **>(argv), options.verbosity, usage_info,
       cli_options, true, positional_options);
 
+  if(options.verbosity >= Verbosity::Verbose)
+    cout << exec_info.name_and_version() << endl;
+
   if (options.output == default_output_string) {
     options.output =
         generate_random_label(exec_info.program_name, 0, options.verbosity) +

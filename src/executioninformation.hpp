@@ -47,6 +47,7 @@ struct ExecutionInformation {
   std::string cmdline;
   std::string datetime;
   std::string directory;
+  std::string name_and_version() const;
 };
 
 std::string generate_random_label(const std::string &prefix,
