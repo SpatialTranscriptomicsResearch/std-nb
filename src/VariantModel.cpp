@@ -116,8 +116,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
 
     // TODO ensure correctness of odds handling
     for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        p[g][t] = prob_to_neg_odds(p[g][t]);
+      for (size_t t = 0; t < T; ++t) p[g][t] = prob_to_neg_odds(p[g][t]);
 
     // initialize R
     // r_k= 50/T*ones(T,1)
@@ -145,14 +144,16 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(r[g][t], priors.c0 * priors.r0, 1.0 / priors.c0);
-    if(std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
+    if (std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to "
+              "Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       l += log_beta(neg_odds_to_prob(p[g][t]), priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
-    if(std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to Beta-distributed p[g][" << t << "]." << endl;
+    if (std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to "
+              "Beta-distributed p[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
@@ -167,8 +168,9 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
         l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
-    if(std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to Poisson-distributed contributions[g][s][" << t << "]." << endl;
+    if (std::isnan(l))
+      cout << "Likelihood is NAN after adding the contribution due to "
+              "Poisson-distributed contributions[g][s][" << t << "]." << endl;
   }
 
   for (size_t g = 0; g < G; ++g) {
@@ -176,8 +178,9 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
     for (size_t t = 0; t < T; ++t) thetak[g] = theta[g][t];
     l += log_dirichlet(thetak, alpha);
   }
-    if(std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to Dirichlet-distributed theta." << endl;
+  if (std::isnan(l))
+    cout << "Likelihood is NAN after adding the contribution due to "
+            "Dirichlet-distributed theta." << endl;
 
   /*
   for (size_t g = 0; g < G; ++g)
@@ -200,7 +203,8 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
     for (size_t s = 0; s < S; ++s) {
       vector<double> rel_rate(T);
       double z = 0;
-      // NOTE: in principle, lambda has a factor of q[s], but as this would cancel, we do not multiply it in here
+      // NOTE: in principle, lambda has a factor of q[s].
+      // However, this would cancel. Thus, we do not multiply it in here.
       for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
       auto v = sample_multinomial<Int>(counts[g][s], rel_rate,
@@ -312,7 +316,8 @@ void VariantModel::sample_phi() {
 
 /** sample scaling factors */
 void VariantModel::sample_scaling() {
-  if (verbosity >= Verbosity::Verbose) cout << "Sampling scaling factors" << endl;
+  if (verbosity >= Verbosity::Verbose)
+    cout << "Sampling scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
     Int summed_contribution = 0;
 #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
@@ -345,7 +350,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   Timer timer;
   sample_contributions(counts);
-  if(timing and verbosity >= Verbosity::Info)
+  if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -353,7 +358,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   timer.tick();
   sample_phi();
-  if(timing and verbosity >= Verbosity::Info)
+  if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -369,7 +374,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   timer.tick();
   sample_theta();
-  if(timing and verbosity >= Verbosity::Info)
+  if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -377,7 +382,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   timer.tick();
   sample_scaling();
-  if(timing and verbosity >= Verbosity::Info)
+  if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -426,8 +431,8 @@ void VariantModel::check_model(const IMatrix &counts) const {
     for (size_t t = 0; t < T; ++t) {
       if (p[g][t] < 0)
         throw(runtime_error("P[" + to_string(g) + "][" + to_string(t) +
-                            "] is smaller zero: p=" +
-                            to_string(p[g][t]) + "."));
+                            "] is smaller zero: p=" + to_string(p[g][t]) +
+                            "."));
       if (p[g][t] == 0)
         throw(runtime_error("P is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
@@ -476,7 +481,8 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;
-    os << "There are " << phi_zeros << " zeros in Φ. This corresponds to " << (100.0 * phi_zeros / pfa.T / pfa.G) << "%." << endl;
+    os << "There are " << phi_zeros << " zeros in Φ. This corresponds to "
+       << (100.0 * phi_zeros / pfa.T / pfa.G) << "%." << endl;
 
     os << "Θ" << endl;
     for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
@@ -509,8 +515,8 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     for (size_t g = 0; g < pfa.G; ++g)
       for (size_t t = 0; t < pfa.T; ++t)
         if (pfa.r[g][t] == 0) r_zeros++;
-    os << "There are " << r_zeros << " zeros in r." << endl;
-    // os << Stats::summary<FactorAnalysis::Matrix, FactorAnalysis::Float>(pfa.r) << endl;
+    os << "There are " << r_zeros << " zeros in r. This corresponds to "
+       << (100.0 * r_zeros / pfa.G / pfa.T) << "%." << endl;
 
     os << "P" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
