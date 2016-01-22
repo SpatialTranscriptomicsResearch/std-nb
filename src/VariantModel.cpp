@@ -346,6 +346,7 @@ void VariantModel::sample_scaling() {
 
 void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   check_model(counts);
+
   Timer timer;
   sample_contributions(counts);
   if(timing and verbosity >= Verbosity::Info)
@@ -353,6 +354,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+
   timer.tick();
   sample_phi();
   if(timing and verbosity >= Verbosity::Info)
@@ -360,6 +362,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+
   timer.tick();
   sample_p_and_r();
   if(timing and verbosity >= Verbosity::Info)
@@ -367,13 +370,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
-  // timer.tick();
-  // sample_r();
-  // if(timing and verbosity >= Verbosity::Info)
-  //   cout << "This took " << timer.tock() << "μs." << endl;
-  // if (verbosity >= Verbosity::Everything)
-  //   cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  // check_model(counts);
+
   timer.tick();
   sample_theta();
   if(timing and verbosity >= Verbosity::Info)
