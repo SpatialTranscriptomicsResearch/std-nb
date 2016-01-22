@@ -108,16 +108,9 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
         if (false)
           p[g][t] = 0.5 * G * T;
         else
-          p[g][t] = sample_beta<Float>(1, 1);
-        /*
-          p[g][t] = sample_beta<Float>(priors.c * priors.epsilon,
-                                       priors.c * (1 - priors.epsilon));
-        */
-
-    // TODO ensure correctness of odds handling
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        p[g][t] = prob_to_neg_odds(p[g][t]);
+          // NOTE: gamma_distribution takes a shape and scale parameter
+          p[g][t] = gamma_distribution<Float>(
+              priors.c, 1 / priors.epsilon)(EntropySource::rng);
 
     // initialize R
     // r_k= 50/T*ones(T,1)
@@ -149,8 +142,8 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
       cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      l += log_beta(neg_odds_to_prob(p[g][t]), priors.c * priors.epsilon,
-                    priors.c * (1 - priors.epsilon));
+      // NOTE: log_gamma takes a shape and scale parameter
+      l += log_gamma(p[g][t], priors.c, 1 / priors.epsilon);
     if(std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to Beta-distributed p[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
@@ -237,11 +230,10 @@ void VariantModel::sample_p_and_r() {
     Float current_p = x.second;
     vector<Float> ps(S);
     for (size_t s = 0; s < S; ++s) ps[s] = z[s] / (current_p + z_sum);
-    return log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
-                   priors.c * (1 - priors.epsilon)) +
-        log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0)
-        +
-        log_negative_multinomial(counts, current_r, ps);
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    return log_gamma(current_p, priors.c, 1 / priors.epsilon) +
+           log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0) +
+           log_negative_multinomial(counts, current_r, ps);
   };
 
   auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
