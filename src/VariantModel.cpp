@@ -237,7 +237,7 @@ void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   auto compute_conditional =
       [&](Float x, size_t g, size_t t, Int counts, Float z) {
-    double l = log_beta(x / (x + 1), priors.c * priors.epsilon,
+    double l = log_beta(neg_odds_to_prob(x), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
     // TODO ensure correctness of odds handling
     l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
