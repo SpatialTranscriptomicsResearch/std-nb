@@ -15,33 +15,32 @@ using Tensor = boost::multi_array<Float, 3>;
 using ITensor = boost::multi_array<Int, 3>;
 
 struct Priors {
-  Priors(Float c_ = 1.0, Float epsilon_ = 0.01, Float c0_ = 1.0,
-         Float r0_ = 1.0, Float gamma_ = 1.0, Float alpha_ = 0.5)
-      : c(c_),
-        epsilon(epsilon_),
-        c0(c0_),
-        r0(r0_),
-        gamma(gamma_),
-        alpha(alpha_){};
+  Priors(Float c_ = 1, Float d_ = 1, Float e_ = 1, Float f_ = 2,
+         Float gamma_ = 1, Float alpha_ = 0.5)
+      : c(c_), d(d_), e(e_), f(f_), gamma(gamma_), alpha(alpha_){};
 
-  // priors for the beta distribution (22)
+  // priors for the gamma distribution of r[g][t]
+  // Float c0;
+  // Float r0;
   Float c;
-  Float epsilon;
+  Float d;
 
-  // priors for the gamma distribution (21)
-  Float c0;
-  Float r0;
+  // priors for the gamma distribution of p[g][t]
+  // Float c;
+  // Float epsilon;
+  Float e;
+  Float f;
 
   Float gamma;
   Float alpha;
 };
 
 struct Parameters {
-  /** Maximal number of propositions for Metropolis-Hastings sampling of r[g][t] */
+  /** Maximal number of propositions for Metropolis-Hastings sampling */
   double n_iter = 100;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
-  /** Standard deviation for log-normal proposition scaling in Metropolis-Hastings sampling of r[g][t] */
+  /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
 };
 

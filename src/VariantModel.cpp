@@ -53,15 +53,15 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
     // randomly initialize P
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
-        p[g][t] = sample_beta<Float>(priors.c * priors.epsilon,
-                                     priors.c * (1 - priors.epsilon));
+        p[g][t] = sample_beta<Float>(priors.e * priors.f,
+                                     priors.e * (1 - priors.f));
 
     // randomly initialize R
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         // NOTE: gamma_distribution takes a shape and scale parameter
         r[g][t] = gamma_distribution<Float>(
-            priors.c0 * priors.r0, 1.0 / priors.c0)(EntropySource::rng);
+            priors.c * priors.d, 1.0 / priors.c)(EntropySource::rng);
 
     // TODO adapt
     // randomly initialize Theta
@@ -110,7 +110,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
         else
           // NOTE: gamma_distribution takes a shape and scale parameter
           p[g][t] = gamma_distribution<Float>(
-              priors.c, 1 / priors.epsilon)(EntropySource::rng);
+              priors.e, 1 / priors.f)(EntropySource::rng);
 
     // initialize R
     // r_k= 50/T*ones(T,1)
@@ -137,14 +137,14 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r[g][t], priors.c0 * priors.r0, 1.0 / priors.c0);
+      l += log_gamma(r[g][t], priors.c * priors.d, 1.0 / priors.c);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(p[g][t], priors.c, 1 / priors.epsilon);
+      l += log_gamma(p[g][t], priors.e, 1 / priors.f);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Beta-distributed p[g][" << t << "]." << endl;
@@ -232,8 +232,8 @@ void VariantModel::sample_p_and_r() {
     Float current_r = x.first;
     Float current_p = x.second;
     // NOTE: gamma_distribution takes a shape and scale parameter
-    return log_gamma(current_p, priors.c, 1 / priors.epsilon) +
-           log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0) +
+    return log_gamma(current_p, priors.e, 1 / priors.f) +
+           log_gamma(current_r, priors.c * priors.d, 1.0 / priors.c) +
            // The next line is part of the negative binomial distribution
            // The other factors aren't needed as they don't depend on p[g][t],
            // and thus would cancel when computing the score ratio.
@@ -443,12 +443,11 @@ void VariantModel::check_model(const IMatrix &counts) const {
     }
 
   // check priors
-  if (priors.c0 == 0) throw(runtime_error("The prior c0 is zero."));
-  if (priors.r0 == 0) throw(runtime_error("The prior r0 is zero."));
-  if (priors.alpha == 0) throw(runtime_error("The prior r0 is zero."));
   if (priors.c == 0) throw(runtime_error("The prior c is zero."));
-  if (priors.epsilon == 0) throw(runtime_error("The prior epsilon is zero."));
-  if (priors.epsilon == 1) throw(runtime_error("The prior epsilon is unit."));
+  if (priors.d == 0) throw(runtime_error("The prior d is zero."));
+  if (priors.e == 0) throw(runtime_error("The prior c is zero."));
+  if (priors.f == 0) throw(runtime_error("The prior f is zero."));
+  if (priors.alpha == 0) throw(runtime_error("The prior alpha is zero."));
 }
 }
 
