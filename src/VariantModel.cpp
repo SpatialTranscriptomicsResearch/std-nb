@@ -232,8 +232,7 @@ void VariantModel::sample_theta() {
 /** sample p and r */
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p_and_r() {
-  if (verbosity >= Verbosity::Verbose)
-    cout << "Sampling P and R" << endl;
+  if (verbosity >= Verbosity::Verbose) cout << "Sampling P and R" << endl;
   auto compute_conditional =
       [&](const pair<Float, Float> &x, size_t g, size_t t,
           const vector<Int> &counts, Float z_sum, const vector<Float> &z) {
@@ -242,10 +241,9 @@ void VariantModel::sample_p_and_r() {
     vector<Float> ps(S);
     for (size_t s = 0; s < S; ++s) ps[s] = z[s] / (current_p + z_sum);
     return log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
-                   priors.c * (1 - priors.epsilon)) +
-        log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0)
-        +
-        log_negative_multinomial(counts, current_r, ps);
+                    priors.c * (1 - priors.epsilon)) +
+           log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0) +
+           log_negative_multinomial(counts, current_r, ps);
   };
 
   auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
@@ -258,16 +256,14 @@ void VariantModel::sample_p_and_r() {
   for (size_t t = 0; t < T; ++t) {
     Float z_sum = 0;
     vector<Float> z(S, 0);
-    for (size_t s = 0; s < S; ++s)
-      z_sum += z[s] = theta[s][t] * scaling[s];
+    for (size_t s = 0; s < S; ++s) z_sum += z[s] = theta[s][t] * scaling[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       vector<Int> counts(S, 0);
-      for (size_t s = 0; s < S; ++s)
-        counts[s] = contributions[g][s][t];
+      for (size_t s = 0; s < S; ++s) counts[s] = contributions[g][s][t];
       size_t thread_num = omp_get_thread_num();
       auto res = mh.sample(pair<Float, Float>(r[g][t], p[g][t]),
                            parameters.n_iter, EntropySource::rngs[thread_num],
@@ -290,7 +286,8 @@ void VariantModel::sample_phi() {
     for (size_t g = 0; g < G; ++g) {
       size_t thread_num = omp_get_thread_num();
       Int summed_contribution = 0;
-      for (size_t s = 0; s < S; ++s) summed_contribution += contributions[g][s][t];
+      for (size_t s = 0; s < S; ++s)
+        summed_contribution += contributions[g][s][t];
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
           r[g][t] + summed_contribution,
@@ -302,7 +299,8 @@ void VariantModel::sample_phi() {
              << "] = " << theta_t[t] << endl
              << "r[g][t] + sum = " << r[g][t] + summed_contribution << endl
              << "1.0 / (p[g][t] + theta_t[t]) = "
-             << 1.0 / (p[g][t] + theta_t[t]) << endl << "sum = " << summed_contribution << endl;
+             << 1.0 / (p[g][t] + theta_t[t]) << endl
+             << "sum = " << summed_contribution << endl;
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
           for (size_t tt = 0; tt < T; ++tt)
@@ -322,7 +320,8 @@ void VariantModel::sample_scaling() {
     Int summed_contribution = 0;
 #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) summed_contribution += contributions[g][s][t];
+      for (size_t t = 0; t < T; ++t)
+        summed_contribution += contributions[g][s][t];
 
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t) {
@@ -333,13 +332,14 @@ void VariantModel::sample_scaling() {
     }
 
     if (verbosity >= Verbosity::Debug)
-      cout << "summed_contribution=" << summed_contribution << " intensity_sum=" << intensity_sum
+      cout << "summed_contribution=" << summed_contribution
+           << " intensity_sum=" << intensity_sum
            << " prev scaling[" << s << "]=" << scaling[s];
 
     // NOTE: gamma_distribution takes a shape and scale parameter
     scaling[s] = gamma_distribution<Float>(
         scaling_prior_a + summed_contribution,
-        1.0/(scaling_prior_b + intensity_sum))(EntropySource::rng);
+        1.0 / (scaling_prior_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new scaling[" << s << "]=" << scaling[s] << endl;
   }
@@ -366,7 +366,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   timer.tick();
   sample_p_and_r();
-  if(timing and verbosity >= Verbosity::Info)
+  if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
@@ -529,7 +529,8 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     for (size_t g = 0; g < pfa.G; ++g)
       for (size_t t = 0; t < pfa.T; ++t)
         if (pfa.p[g][t] == 0) p_zeros++;
-    os << "There are " << p_zeros << " zeros in p. This corresponds to " << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
+    os << "There are " << p_zeros << " zeros in p. This corresponds to "
+       << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
 
     os << "Scaling factors" << endl;
     for (size_t s = 0; s < pfa.S; ++s)
