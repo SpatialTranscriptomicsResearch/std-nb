@@ -149,7 +149,6 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
       cout << "Likelihood is NAN after adding the contribution due to Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      // TODO ensure correctness of odds handling
       l += log_beta(neg_odds_to_prob(p[g][t]), priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon));
     if(std::isnan(l))
@@ -157,7 +156,6 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
-      // TODO ensure correctness of odds handling
       l += log_gamma(phi[g][t], r[g][t], p[g][t]);
       if (std::isnan(l))
         cout << "Likelihood is NAN after adding the contribution due to "
@@ -242,7 +240,6 @@ void VariantModel::sample_p_and_r() {
     return log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
                    priors.c * (1 - priors.epsilon)) +
         log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0)
-        // TODO ensure correctness of odds handling
         +
         log_negative_multinomial(counts, current_r, ps);
   };
@@ -293,7 +290,6 @@ void VariantModel::sample_phi() {
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi[g][t] = gamma_distribution<Float>(
           r[g][t] + summed_contribution,
-          // TODO ensure correctness of odds handling
           1.0 / (p[g][t] + theta_t[t]))(EntropySource::rngs[thread_num]);
       if (PHI_ZERO_WARNING and phi[g][t] == 0) {
         cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl << "r["
@@ -378,6 +374,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   if (verbosity >= Verbosity::Everything)
     cout << "Log-likelihood = " << log_likelihood(counts) << endl;
   check_model(counts);
+
   timer.tick();
   sample_scaling();
   if(timing and verbosity >= Verbosity::Info)
@@ -427,12 +424,10 @@ void VariantModel::check_model(const IMatrix &counts) const {
   // check that r and p are positive, and that p is < 1
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      // TODO ensure correctness of odds handling
       if (p[g][t] < 0)
         throw(runtime_error("P[" + to_string(g) + "][" + to_string(t) +
                             "] is smaller zero: p=" +
                             to_string(p[g][t]) + "."));
-      // TODO ensure correctness of odds handling
       if (p[g][t] == 0)
         throw(runtime_error("P is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
