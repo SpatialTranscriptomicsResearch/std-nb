@@ -15,7 +15,7 @@ using Tensor = boost::multi_array<Float, 3>;
 using ITensor = boost::multi_array<Int, 3>;
 
 struct Priors {
-  Priors(Float c_ = 1, Float d_ = 1, Float e_ = 1, Float f_ = 1,
+  Priors(Float c_ = 1, Float d_ = 1, Float e_ = 10, Float f_ = 1,
          Float gamma_ = 1, Float alpha_ = 0.5)
       : c(c_), d(d_), e(e_), f(f_), gamma(gamma_), alpha(alpha_){};
 
