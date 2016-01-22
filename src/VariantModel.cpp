@@ -236,17 +236,19 @@ void VariantModel::sample_theta() {
 void VariantModel::sample_p() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P" << endl;
   auto compute_conditional =
-      [&](Float x, size_t g, size_t t, Int counts, Float z) {
+      [&](Float x, size_t g, size_t t, Int count_sum, Float weight_sum) {
     double l = log_beta(neg_odds_to_prob(x), priors.c * priors.epsilon,
                         priors.c * (1 - priors.epsilon));
-    // TODO ensure correctness of odds handling
-    l += log_negative_binomial(counts, r[g][t], z, p[g][t]);
+    // The next line is part of the negative binomial distribution of p[g][t]
+    // The other factors are not needed as they don't depend on p[g][t],
+    // and thus would cancel when computing the score ratio.
+    l += r[g][t] * log(x) - (r[g][t] + count_sum) * log(x + weight_sum);
     return l;
   };
 
   for (size_t t = 0; t < T; ++t) {
-    Float z = 0;
-    for (size_t s = 0; s < S; ++s) z += theta[s][t] * scaling[s];
+    Float weight_sum = 0;
+    for (size_t s = 0; s < S; ++s) weight_sum += theta[s][t] * scaling[s];
     vector<MetropolisHastings> mhs;
 #pragma omp parallel if (DO_PARALLEL)
     {
@@ -259,12 +261,12 @@ void VariantModel::sample_p() {
       }
 #pragma omp for
       for (size_t g = 0; g < G; ++g) {
-        Int counts = 0;
-        for (size_t s = 0; s < S; ++s) counts += contributions[g][s][t];
+        Int count_sum = 0;
+        for (size_t s = 0; s < S; ++s) count_sum += contributions[g][s][t];
         size_t thread_num = omp_get_thread_num();
-        p[g][t] = mhs[thread_num].sample(p[g][t], parameters.n_iter,
-                                         EntropySource::rngs[thread_num],
-                                         compute_conditional, g, t, counts, z);
+        p[g][t] = mhs[thread_num].sample(
+            p[g][t], parameters.n_iter, EntropySource::rngs[thread_num],
+            compute_conditional, g, t, count_sum, weight_sum);
       }
     }
   }
