@@ -233,17 +233,19 @@ void VariantModel::sample_theta() {
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p_and_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P and R" << endl;
-  auto compute_conditional =
-      [&](const pair<Float, Float> &x, size_t g, size_t t,
-          const vector<Int> &counts, Float z_sum, const vector<Float> &z) {
+  auto compute_conditional = [&](const pair<Float, Float> &x, size_t g,
+                                 size_t t, Int count_sum, Float weight_sum) {
     Float current_r = x.first;
     Float current_p = x.second;
-    vector<Float> ps(S);
-    for (size_t s = 0; s < S; ++s) ps[s] = z[s] / (current_p + z_sum);
     return log_beta(neg_odds_to_prob(current_p), priors.c * priors.epsilon,
                     priors.c * (1 - priors.epsilon)) +
            log_gamma(current_r, priors.c0 * priors.r0, 1.0 / priors.c0) +
-           log_negative_multinomial(counts, current_r, ps);
+           // The next line is part of the negative binomial distribution
+           // The other factors aren't needed as they don't depend on p[g][t],
+           // and thus would cancel when computing the score ratio.
+           + current_r * log(current_p)
+           - (current_r + count_sum) * log(current_p + weight_sum)
+           + lgamma(current_r + count_sum) - lgamma(current_r);
   };
 
   auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
@@ -254,20 +256,20 @@ void VariantModel::sample_p_and_r() {
   };
 
   for (size_t t = 0; t < T; ++t) {
-    Float z_sum = 0;
-    vector<Float> z(S, 0);
-    for (size_t s = 0; s < S; ++s) z_sum += z[s] = theta[s][t] * scaling[s];
+    Float weight_sum = 0;
+    for (size_t s = 0; s < S; ++s) weight_sum += theta[s][t] * scaling[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
-      vector<Int> counts(S, 0);
-      for (size_t s = 0; s < S; ++s) counts[s] = contributions[g][s][t];
+      Int count_sum = 0;
+      for (size_t s = 0; s < S; ++s) count_sum += contributions[g][s][t];
       size_t thread_num = omp_get_thread_num();
-      auto res = mh.sample(pair<Float, Float>(r[g][t], p[g][t]),
-                           parameters.n_iter, EntropySource::rngs[thread_num],
-                           gen, compute_conditional, g, t, counts, z_sum, z);
+      auto res =
+          mh.sample(pair<Float, Float>(r[g][t], p[g][t]), parameters.n_iter,
+                    EntropySource::rngs[thread_num], gen, compute_conditional,
+                    g, t, count_sum, weight_sum);
       r[g][t] = res.first;
       p[g][t] = res.second;
     }
