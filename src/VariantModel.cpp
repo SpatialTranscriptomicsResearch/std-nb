@@ -19,6 +19,11 @@ T odds_to_prob(T x) {
 }
 
 template <typename T>
+T neg_odds_to_prob(T x) {
+  return 1 / (x + 1);
+}
+
+template <typename T>
 T prob_to_odds(T x) {
   return x / (1 - x);
 }
