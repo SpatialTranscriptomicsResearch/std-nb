@@ -223,24 +223,26 @@ void VariantModel::sample_theta() {
   }
 }
 
+double compute_conditional(const pair<Float, Float> &x, size_t g, size_t t,
+                           Int count_sum, Float weight_sum,
+                           const Priors &priors) {
+  const Float current_r = x.first;
+  const Float current_p = x.second;
+  // NOTE: gamma_distribution takes a shape and scale parameter
+  return log_gamma(current_p, priors.e, 1 / priors.f) +
+         log_gamma(current_r, priors.c * priors.d, 1.0 / priors.c) +
+         // The next line is part of the negative binomial distribution
+         // The other factors aren't needed as they don't depend on p[g][t],
+         // and thus would cancel when computing the score ratio.
+         +current_r * log(current_p) -
+         (current_r + count_sum) * log(current_p + weight_sum) +
+         lgamma(current_r + count_sum) - lgamma(current_r);
+}
+
 /** sample p and r */
 /* This is a simple Metropolis-Hastings sampling scheme */
 void VariantModel::sample_p_and_r() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling P and R" << endl;
-  auto compute_conditional = [&](const pair<Float, Float> &x, size_t g,
-                                 size_t t, Int count_sum, Float weight_sum) {
-    Float current_r = x.first;
-    Float current_p = x.second;
-    // NOTE: gamma_distribution takes a shape and scale parameter
-    return log_gamma(current_p, priors.e, 1 / priors.f) +
-           log_gamma(current_r, priors.c * priors.d, 1.0 / priors.c) +
-           // The next line is part of the negative binomial distribution
-           // The other factors aren't needed as they don't depend on p[g][t],
-           // and thus would cancel when computing the score ratio.
-           + current_r * log(current_p)
-           - (current_r + count_sum) * log(current_p + weight_sum)
-           + lgamma(current_r + count_sum) - lgamma(current_r);
-  };
 
   auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
     normal_distribution<double> rnorm;
@@ -263,7 +265,7 @@ void VariantModel::sample_p_and_r() {
       auto res =
           mh.sample(pair<Float, Float>(r[g][t], p[g][t]), parameters.n_iter,
                     EntropySource::rngs[thread_num], gen, compute_conditional,
-                    g, t, count_sum, weight_sum);
+                    g, t, count_sum, weight_sum, priors);
       r[g][t] = res.first;
       p[g][t] = res.second;
     }
