@@ -137,7 +137,7 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r[g][t], priors.c * priors.d, 1.0 / priors.c);
+      l += log_gamma(r[g][t], priors.c, 1.0 / priors.d);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Gamma-distributed r[g][" << t << "]." << endl;
@@ -230,7 +230,7 @@ double compute_conditional(const pair<Float, Float> &x, size_t g, size_t t,
   const Float current_p = x.second;
   // NOTE: gamma_distribution takes a shape and scale parameter
   return log_gamma(current_p, priors.e, 1 / priors.f) +
-         log_gamma(current_r, priors.c * priors.d, 1.0 / priors.c) +
+         log_gamma(current_r, priors.c, 1 / priors.d) +
          // The next line is part of the negative binomial distribution.
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
