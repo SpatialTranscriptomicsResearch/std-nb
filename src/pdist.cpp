@@ -23,8 +23,8 @@ double log_dirichlet(const vector<double> &p, const vector<double> &alpha) {
   return l;
 }
 
-double log_gamma(double x, double k, double theta) {
-  return (k - 1) * log(x) - x / theta - lgamma(k) - k * log(theta);
+double log_gamma(double x, double shape, double scale) {
+  return (shape - 1) * log(x) - x / scale - lgamma(shape) - shape * log(scale);
 }
 
 double log_beta(double x, double a, double b) {

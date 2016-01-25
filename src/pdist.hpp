@@ -42,8 +42,8 @@ double log_negative_multinomial(const std::vector<I> &x, F r,
 
 // Continuous probability distributions
 
-/** Gamma probability density function for x given a shape parameter k and a scale parameter theta */
-double log_gamma(double x, double k, double theta);
+/** Gamma probability density function for x given a shape and a scale parameter */
+double log_gamma(double x, double shape, double scale);
 /** Beta probability density function for x given shape parameters alpha and beta */
 double log_beta(double x, double alpha, double beta);
 /** Dirichlet probability density function for a probability distribution p given a vector of concentration aparameters alpha */
