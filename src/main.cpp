@@ -206,11 +206,12 @@ int main(int argc, char **argv) {
     options.output =
         generate_random_label(exec_info.program_name, 0, options.verbosity) +
         "/";
+  }
+  if(not options.output.empty() and *options.output.rbegin() == '/')
     if (not boost::filesystem::create_directory(options.output)) {
       cout << "Error creating output directory " << options.output << endl;
       exit(EXIT_FAILURE);
     }
-  }
 
   vector<string> labels;
   switch (options.labeling) {
