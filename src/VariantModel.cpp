@@ -231,9 +231,10 @@ double compute_conditional(const pair<Float, Float> &x, size_t g, size_t t,
   // NOTE: gamma_distribution takes a shape and scale parameter
   return log_gamma(current_p, priors.e, 1 / priors.f) +
          log_gamma(current_r, priors.c * priors.d, 1.0 / priors.c) +
-         // The next line is part of the negative binomial distribution
-         // The other factors aren't needed as they don't depend on p[g][t],
-         // and thus would cancel when computing the score ratio.
+         // The next line is part of the negative binomial distribution.
+         // The other factors aren't needed as they don't depend on either of
+         // r[g][t] and p[g][t], and thus would cancel when computing the score
+         // ratio.
          +current_r * log(current_p) -
          (current_r + count_sum) * log(current_p + weight_sum) +
          lgamma(current_r + count_sum) - lgamma(current_r);
