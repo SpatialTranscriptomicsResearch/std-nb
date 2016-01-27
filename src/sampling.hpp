@@ -55,4 +55,8 @@ std::vector<Y> sample_dirichlet(const std::vector<X> &a, std::mt19937 &rng=Entro
   return p;
 };
 
+size_t sample_poisson(double lambda, std::mt19937 &rng=EntropySource::rng);
+
+size_t sample_negative_binomial(double r, double p, std::mt19937 &rng=EntropySource::rng);
+
 #endif

@@ -68,8 +68,9 @@ void write_results(const FactorAnalysis::PoissonModel &pfa, const Counts &counts
   write_vector(pfa.p, prefix + "p.txt", factor_names);
 }
 
-
-void write_results(const FactorAnalysis::VariantModel &pfa, const Counts &counts, const string &prefix) {
+void write_results(const FactorAnalysis::VariantModel &pfa,
+                   const Counts &counts, const string &prefix,
+                   bool do_sample = false) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
@@ -78,6 +79,15 @@ void write_results(const FactorAnalysis::VariantModel &pfa, const Counts &counts
   write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
   write_vector(pfa.scaling, prefix + "scaling.txt", counts.col_names);
+  if (do_sample)
+    for (size_t g = 0; g < 1; g++)
+      for (size_t s = 0; s < pfa.S; ++s) {
+        cout << "SAMPLE\t" << counts.row_names[g] << "\t"
+             << counts.col_names[s];
+        for (auto x : pfa.sample_reads(g, s, 10000))
+          cout << "\t" << x;
+        cout << endl;
+      }
 }
 
 template <typename T>
@@ -103,7 +113,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_results(pfa, data, options.output);
+  write_results(pfa, data, options.output, true);
 }
 
 int main(int argc, char **argv) {

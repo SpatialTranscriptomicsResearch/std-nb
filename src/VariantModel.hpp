@@ -57,6 +57,8 @@ struct VariantModel {
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts, bool timing);
 
+  std::vector<Int> sample_reads(size_t g, size_t s, size_t n=1) const;
+
   /** check that parameter invariants are fulfilled */
   void check_model(const IMatrix &counts) const;
 };
