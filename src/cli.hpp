@@ -37,8 +37,9 @@
 boost::program_options::options_description gen_generic_options(
     std::string &config_path, size_t cols);
 
-ExecutionInformation process_cli_options(
+int process_cli_options(
     int argc, const char **argv, Verbosity &verbosity,
+    ExecutionInformation &exec_info,
     const std::string &usage_string,
     boost::program_options::options_description &cli_options,
     bool use_positional_options,

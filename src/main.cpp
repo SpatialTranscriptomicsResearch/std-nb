@@ -204,9 +204,12 @@ int main(int argc, char **argv) {
   po::positional_options_description positional_options;
   positional_options.add("file", -1);
 
-  ExecutionInformation exec_info = process_cli_options(
-      argc, const_cast<const char **>(argv), options.verbosity, usage_info,
-      cli_options, true, positional_options);
+  ExecutionInformation exec_info;
+  int ret_val = process_cli_options(argc, const_cast<const char **>(argv),
+                                    options.verbosity, exec_info, usage_info,
+                                    cli_options, true, positional_options);
+  if (ret_val != EXIT_SUCCESS)
+    exit(ret_val);
 
   if(options.verbosity >= Verbosity::Verbose)
     cout << exec_info.name_and_version() << endl;

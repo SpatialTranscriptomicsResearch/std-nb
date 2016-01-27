@@ -52,13 +52,14 @@ po::options_description gen_generic_options(string &config_path, size_t cols) {
   return generic_options;
 }
 
-ExecutionInformation process_cli_options(
+int process_cli_options(
     int argc, const char **argv, Verbosity &verbosity,
+    ExecutionInformation &exec_info,
     const string &usage_string, po::options_description &cli_options,
     bool use_positional_options,
     po::positional_options_description &positional_options) {
-  ExecutionInformation exec_info(argv[0], GIT_DESCRIPTION, GIT_BRANCH, argc,
-                                 argv);
+  exec_info
+      = ExecutionInformation(argv[0], GIT_DESCRIPTION, GIT_BRANCH, argc, argv);
 
   const size_t MIN_COLS = 60;
   const size_t MAX_COLS = 80;
@@ -81,66 +82,66 @@ ExecutionInformation process_cli_options(
     std::cout << "Error while parsing command line options:" << std::endl
               << "Option " << e.get_option_name() << " not known." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::ambiguous_option &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Option " << e.get_option_name() << " is ambiguous."
               << std::endl << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::multiple_values &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Option " << e.get_option_name()
               << " was specified multiple times." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::multiple_occurrences &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Option " << e.get_option_name()
               << " was specified multiple times." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::invalid_option_value &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "The value specified for option " << e.get_option_name()
               << " has an invalid format." << std::endl << default_error_msg
               << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::too_many_positional_options_error &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Too many positional options were specified." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::invalid_command_line_syntax &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Invalid command line syntax." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::invalid_command_line_style &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "There is a programming error related to command line style."
               << std::endl << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::reading_file &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "The config file can not be read." << std::endl
               << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::validation_error &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "Validation of option " << e.get_option_name() << " failed."
               << std::endl << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (po::error &e) {
     std::cout << "Error while parsing command line options:" << std::endl
               << "No further information as to the nature of this error is "
                  "available, please check your command line arguments."
               << std::endl << default_error_msg << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   } catch (exception &e) {
     std::cout << "An error occurred while parsing command line options."
               << std::endl << e.what() << std::endl << default_error_msg
               << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   if (vm.count("verbose")) verbosity = Verbosity::Verbose;
@@ -149,7 +150,7 @@ ExecutionInformation process_cli_options(
   if (vm.count("version") and not vm.count("help")) {
     std::cout << exec_info.name_and_version() << endl;
     if (verbosity >= Verbosity::Verbose) std::cout << GIT_SHA1 << std::endl;
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
   }
 
   if (vm.count("help")) {
@@ -184,7 +185,7 @@ ExecutionInformation process_cli_options(
         break;
     }
     */
-    exit(EXIT_SUCCESS);
+    return EXIT_SUCCESS;
   }
 
   try {
@@ -194,7 +195,7 @@ ExecutionInformation process_cli_options(
               << "The required option " << e.get_option_name()
               << " was not specified." << std::endl << default_error_msg
               << std::endl;
-    exit(EXIT_FAILURE);
+    return EXIT_FAILURE;
   }
 
   if (vm.count("config")) {
@@ -203,7 +204,7 @@ ExecutionInformation process_cli_options(
     if (!ifs) {
       std::cout << "Error: can not open config file: " << config_path
                 << std::endl << default_error_msg << std::endl;
-      exit(EXIT_FAILURE);
+      return EXIT_FAILURE;
     } else {
       try {
         store(parse_config_file(ifs, cli_options), vm);
@@ -212,22 +213,22 @@ ExecutionInformation process_cli_options(
                   << "Option " << e.get_option_name()
                   << " was specified multiple times." << std::endl
                   << default_error_msg << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       } catch (po::unknown_option &e) {
         std::cout << "Error while parsing config file:" << std::endl
                   << "Option " << e.get_option_name() << " not known."
                   << std::endl << default_error_msg << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       } catch (po::invalid_option_value &e) {
         std::cout << "Error while parsing config file:" << std::endl
                   << "The value specified for option " << e.get_option_name()
                   << " has an invalid format." << std::endl << default_error_msg
                   << std::endl;
-        exit(EXIT_FAILURE);
+        return EXIT_FAILURE;
       }
       notify(vm);
     }
   }
 
-  return exec_info;
+  return EXIT_SUCCESS;
 }
