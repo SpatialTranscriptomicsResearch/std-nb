@@ -208,8 +208,8 @@ int main(int argc, char **argv) {
   int ret_val = process_cli_options(argc, const_cast<const char **>(argv),
                                     options.verbosity, exec_info, usage_info,
                                     cli_options, true, positional_options);
-  if (ret_val != EXIT_SUCCESS)
-    exit(ret_val);
+  if (ret_val != PROCESSING_SUCCESSFUL)
+    return ret_val;
 
   if(options.verbosity >= Verbosity::Verbose)
     cout << exec_info.name_and_version() << endl;
@@ -222,7 +222,7 @@ int main(int argc, char **argv) {
   if(not options.output.empty() and *options.output.rbegin() == '/')
     if (not boost::filesystem::create_directory(options.output)) {
       cout << "Error creating output directory " << options.output << endl;
-      exit(EXIT_FAILURE);
+      return EXIT_FAILURE;
     }
 
   vector<string> labels;

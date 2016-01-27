@@ -37,10 +37,14 @@
 boost::program_options::options_description gen_generic_options(
     std::string &config_path, size_t cols);
 
+static const int PROCESSING_SUCCESSFUL = 2;
+
+/** Parse and process command line arguments.
+ * Return value is either EXIT_SUCCESS, EXIT_FAILURE, or PROCESSING_SUCCESSFUL.
+ */
 int process_cli_options(
     int argc, const char **argv, Verbosity &verbosity,
-    ExecutionInformation &exec_info,
-    const std::string &usage_string,
+    ExecutionInformation &exec_info, const std::string &usage_string,
     boost::program_options::options_description &cli_options,
     bool use_positional_options,
     boost::program_options::positional_options_description &positional_options);

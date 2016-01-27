@@ -230,5 +230,5 @@ int process_cli_options(
     }
   }
 
-  return EXIT_SUCCESS;
+  return PROCESSING_SUCCESSFUL;
 }
