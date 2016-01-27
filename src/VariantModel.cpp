@@ -10,8 +10,8 @@
 
 using namespace std;
 namespace FactorAnalysis {
-const Float scaling_prior_a = 1;
-const Float scaling_prior_b = 1;
+const Float spot_scaling_prior_a = 1;
+const Float spot_scaling_prior_b = 1;
 
 template <typename T>
 T odds_to_prob(T x) {
@@ -44,7 +44,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
-      scaling(boost::extents[S]),
+      spot_scaling(boost::extents[S]),
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
@@ -95,11 +95,11 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       for (size_t t = 0; t < T; ++t) theta[s][t] /= sum;
     }
 
-    // initialize scaling factors
+    // initialize spot scaling factors
     for (size_t s = 0; s < S; ++s)
       // NOTE: gamma_distribution takes a shape and scale parameter
-      scaling[s] = gamma_distribution<Float>(
-          scaling_prior_a, 1 / scaling_prior_b)(EntropySource::rng);
+      spot_scaling[s] = gamma_distribution<Float>(
+          spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
@@ -254,7 +254,7 @@ void VariantModel::sample_p_and_r() {
 
   for (size_t t = 0; t < T; ++t) {
     Float weight_sum = 0;
-    for (size_t s = 0; s < S; ++s) weight_sum += theta[s][t] * scaling[s];
+    for (size_t s = 0; s < S; ++s) weight_sum += theta[s][t] * spot_scaling[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -279,7 +279,7 @@ void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(boost::extents[T]);
   for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t] * scaling[s];
+    for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t] * spot_scaling[s];
   for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -311,10 +311,10 @@ void VariantModel::sample_phi() {
     }
 }
 
-/** sample scaling factors */
-void VariantModel::sample_scaling() {
+/** sample spot scaling factors */
+void VariantModel::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
-    cout << "Sampling scaling factors" << endl;
+    cout << "Sampling spot_scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
     Int summed_contribution = 0;
 #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
@@ -333,14 +333,14 @@ void VariantModel::sample_scaling() {
     if (verbosity >= Verbosity::Debug)
       cout << "summed_contribution=" << summed_contribution
            << " intensity_sum=" << intensity_sum
-           << " prev scaling[" << s << "]=" << scaling[s];
+           << " prev spot_scaling[" << s << "]=" << spot_scaling[s];
 
     // NOTE: gamma_distribution takes a shape and scale parameter
-    scaling[s] = gamma_distribution<Float>(
-        scaling_prior_a + summed_contribution,
-        1.0 / (scaling_prior_b + intensity_sum))(EntropySource::rng);
+    spot_scaling[s] = gamma_distribution<Float>(
+        spot_scaling_prior_a + summed_contribution,
+        1.0 / (spot_scaling_prior_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
-      cout << "new scaling[" << s << "]=" << scaling[s] << endl;
+      cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
 }
 
@@ -380,7 +380,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
   check_model(counts);
 
   timer.tick();
-  sample_scaling();
+  sample_spot_scaling();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
@@ -390,7 +390,7 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
   vector<Float> prods(T);
-  for (size_t t = 0; t < T; ++t) prods[t] = theta[s][t] * scaling[s];
+  for (size_t t = 0; t < T; ++t) prods[t] = theta[s][t] * spot_scaling[s];
 
   vector<Int> v(n, 0);
   for (size_t i = 0; i < n; ++i)
@@ -545,13 +545,13 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
 
     os << "Scaling factors" << endl;
     for (size_t s = 0; s < pfa.S; ++s)
-      os << (s > 0 ? "\t" : "") << pfa.scaling[s];
+      os << (s > 0 ? "\t" : "") << pfa.spot_scaling[s];
     os << endl;
-    size_t scaling_zeros = 0;
+    size_t spot_scaling_zeros = 0;
     for (size_t s = 0; s < pfa.S; ++s)
-      if (pfa.scaling[s] == 0) scaling_zeros++;
-    os << "There are " << scaling_zeros << " zeros in scaling." << endl;
-    os << Stats::summary(pfa.scaling) << endl;
+      if (pfa.spot_scaling[s] == 0) spot_scaling_zeros++;
+    os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
+    os << Stats::summary(pfa.spot_scaling) << endl;
   }
 
   return os;

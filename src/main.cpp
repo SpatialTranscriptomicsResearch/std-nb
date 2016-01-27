@@ -78,7 +78,7 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
   write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
-  write_vector(pfa.scaling, prefix + "scaling.txt", counts.col_names);
+  write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
   if (do_sample)
     for (size_t g = 0; g < 1; g++)
       for (size_t s = 0; s < pfa.S; ++s) {

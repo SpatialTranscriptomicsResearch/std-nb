@@ -25,7 +25,7 @@ struct VariantModel {
   Matrix theta;
 
   /** spot scaling vector */
-  Vector scaling;
+  Vector spot_scaling;
 
   /** shape parameter for the prior of the loading matrix */
   Matrix r;
@@ -51,13 +51,13 @@ struct VariantModel {
   /** sample theta */
   void sample_theta();
 
-  /** sample scaling factors */
-  void sample_scaling();
+  /** sample spot scaling factors */
+  void sample_spot_scaling();
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts, bool timing);
 
-  std::vector<Int> sample_reads(size_t g, size_t s, size_t n=1) const;
+  std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
 
   /** check that parameter invariants are fulfilled */
   void check_model(const IMatrix &counts) const;
