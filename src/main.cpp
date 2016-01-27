@@ -176,13 +176,13 @@ int main(int argc, char **argv) {
   prior_options.add_options()
     ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
      "Dirichlet prior alpha of the factor loading matrix.")
-    ("gamma_c", po::value(&priors.c)->default_value(priors.c),
+    ("hyper_c", po::value(&priors.c)->default_value(priors.c),
      "Gamma prior c.")
-    ("gamma_r", po::value(&priors.d)->default_value(priors.d),
+    ("hyper_d", po::value(&priors.d)->default_value(priors.d),
      "Gamma prior d.")
-    ("beta_c", po::value(&priors.e)->default_value(priors.e),
+    ("hyper_d", po::value(&priors.e)->default_value(priors.e),
      "Gamma prior e.")
-    ("beta_eps", po::value(&priors.f)->default_value(priors.f),
+    ("hyper_f", po::value(&priors.f)->default_value(priors.f),
      "Gamma prior f.")
     ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
      "Prior gamma.");
