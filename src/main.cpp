@@ -180,7 +180,7 @@ int main(int argc, char **argv) {
      "Gamma prior c.")
     ("hyper_d", po::value(&priors.d)->default_value(priors.d),
      "Gamma prior d.")
-    ("hyper_d", po::value(&priors.e)->default_value(priors.e),
+    ("hyper_e", po::value(&priors.e)->default_value(priors.e),
      "Gamma prior e.")
     ("hyper_f", po::value(&priors.f)->default_value(priors.f),
      "Gamma prior f.")
