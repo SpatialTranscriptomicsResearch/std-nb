@@ -18,7 +18,8 @@ IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
   using index = IMatrix::index;
   IMatrix A(boost::extents[s1][s2]);
   for (size_t i = 0; i < s1; ++i)
-    for (size_t j = 0; j < s2; ++j) A[i][j] = v[i][j];
+    for (size_t j = 0; j < s2; ++j)
+      A[i][j] = v[i][j];
   return A;
 }
 
@@ -77,7 +78,8 @@ template <typename T>
 unordered_map<T, size_t> generate_index_map(const vector<T> &v) {
   const size_t n = v.size();
   unordered_map<T, size_t> m;
-  for (size_t i = 0; i < n; ++i) m[v[i]] = i;
+  for (size_t i = 0; i < n; ++i)
+    m[v[i]] = i;
   return m;
 }
 
@@ -97,7 +99,8 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
   }
 
   vector<string> cnames = a.col_names;
-  for (auto &name : b.col_names) cnames.push_back(name);
+  for (auto &name : b.col_names)
+    cnames.push_back(name);
 
   auto m1 = generate_index_map(a.row_names);
   auto m2 = generate_index_map(b.row_names);
@@ -131,11 +134,11 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
   // prepare vector of spot -> experiment labels
   vector<size_t> exps = a.experiments;
   size_t max_label = 0;
-  for(auto x: exps)
-    if(x > max_label)
+  for (auto x : exps)
+    if (x > max_label)
       max_label = x;
   max_label++;
-  for(auto x: b.experiments)
+  for (auto x : b.experiments)
     exps.push_back(x + max_label + 1);
 
   return {rnames, cnames, cnt, exps};
@@ -155,26 +158,25 @@ void Counts::select_top(size_t n) {
   const size_t nrow = row_names.size();
   const size_t ncol = col_names.size();
 
-  for(size_t r = 0; r < nrow; ++r) {
+  for (size_t r = 0; r < nrow; ++r) {
     size_t sum = 0;
-    for(size_t c = 0; c < ncol; ++c)
+    for (size_t c = 0; c < ncol; ++c)
       sum += counts[r][c];
     rowsum_and_index.push_back(pair_t(sum, r));
   }
 
-  sort(begin(rowsum_and_index), end(rowsum_and_index), [](const pair_t &a, const pair_t &b) {
-      return a > b;
-      });
+  sort(begin(rowsum_and_index), end(rowsum_and_index),
+       [](const pair_t &a, const pair_t &b) { return a > b; });
 
   vector<string> new_row_names(n);
-  for(size_t i = 0; i < n; ++i)
+  for (size_t i = 0; i < n; ++i)
     new_row_names[i] = row_names[rowsum_and_index[i].second];
 
   auto extents = boost::extents[n][ncol];
   IMatrix new_counts(extents);
 
-  for(size_t r = 0; r < n; ++r)
-    for(size_t c = 0; c < ncol; ++c)
+  for (size_t r = 0; r < n; ++r)
+    for (size_t c = 0; c < ncol; ++c)
       new_counts[r][c] = counts[rowsum_and_index[r].second][c];
 
   row_names = new_row_names;
@@ -191,9 +193,9 @@ void write_vector(const Vector &v, const string &path,
 
   if (names_given) {
     if (names.size() != X)
-      throw(runtime_error("Error: length of names (" + to_string(names.size()) +
-                          ") does not match length of vector (" + to_string(X) +
-                          ")."));
+      throw(runtime_error("Error: length of names (" + to_string(names.size())
+                          + ") does not match length of vector (" + to_string(X)
+                          + ")."));
   }
 
   ofstream ofs(path);
@@ -214,25 +216,28 @@ void write_matrix(const Matrix &m, const string &path,
   if (row_names_given) {
     if (row_names.size() != X)
       throw(runtime_error(
-          "Error: length of row names (" + to_string(row_names.size()) +
-          ") does not match number of rows (" + to_string(X) + ")."));
+          "Error: length of row names (" + to_string(row_names.size())
+          + ") does not match number of rows (" + to_string(X) + ")."));
   }
 
   if (col_names_given) {
     if (col_names.size() != Y)
       throw(runtime_error(
-          "Error: length of col names (" + to_string(col_names.size()) +
-          ") does not match number of cols (" + to_string(Y) + ")."));
+          "Error: length of col names (" + to_string(col_names.size())
+          + ") does not match number of cols (" + to_string(Y) + ")."));
   }
 
   ofstream ofs(path);
   if (col_names_given) {
-    for (size_t y = 0; y < Y; ++y) ofs << "\t" << col_names[y];
+    for (size_t y = 0; y < Y; ++y)
+      ofs << "\t" << col_names[y];
     ofs << endl;
   }
   for (size_t x = 0; x < X; ++x) {
-    if (row_names_given) ofs << row_names[x] + "\t";
-    for (size_t y = 0; y < Y; ++y) ofs << (y != 0 ? "\t" : "") << m[x][y];
+    if (row_names_given)
+      ofs << row_names[x] + "\t";
+    for (size_t y = 0; y < Y; ++y)
+      ofs << (y != 0 ? "\t" : "") << m[x][y];
     ofs << endl;
   }
 }
