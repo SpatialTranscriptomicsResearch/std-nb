@@ -27,6 +27,9 @@ struct VariantModel {
   /** spot scaling vector */
   Vector spot_scaling;
 
+  /** experiment scaling vector */
+  Vector experiment_scaling;
+
   /** shape parameter for the prior of the loading matrix */
   Matrix r;
   /** scale parameter for the prior of the loading matrix */

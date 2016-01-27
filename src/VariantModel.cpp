@@ -12,6 +12,8 @@ using namespace std;
 namespace FactorAnalysis {
 const Float spot_scaling_prior_a = 1;
 const Float spot_scaling_prior_b = 1;
+const Float experiment_scaling_prior_a = 1;
+const Float experiment_scaling_prior_b = 1;
 
 template <typename T>
 T odds_to_prob(T x) {
@@ -45,6 +47,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
       spot_scaling(boost::extents[S]),
+      experiment_scaling(boost::extents[S]),
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
@@ -100,6 +103,10 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       // NOTE: gamma_distribution takes a shape and scale parameter
       spot_scaling[s] = gamma_distribution<Float>(
           spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
+
+    // initialize experiment scaling factors
+    for (size_t s = 0; s < S; ++s)
+      experiment_scaling[s] = 1;
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
@@ -254,7 +261,8 @@ void VariantModel::sample_p_and_r() {
 
   for (size_t t = 0; t < T; ++t) {
     Float weight_sum = 0;
-    for (size_t s = 0; s < S; ++s) weight_sum += theta[s][t] * spot_scaling[s];
+    for (size_t s = 0; s < S; ++s)
+      weight_sum += theta[s][t] * spot_scaling[s] * experiment_scaling[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -279,7 +287,8 @@ void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(boost::extents[T]);
   for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s) theta_t[t] += theta[s][t] * spot_scaling[s];
+    for (size_t s = 0; s < S; ++s)
+      theta_t[t] += theta[s][t] * spot_scaling[s] * experiment_scaling[s];
   for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -326,8 +335,9 @@ void VariantModel::sample_spot_scaling() {
     for (size_t t = 0; t < T; ++t) {
       Float x = 0;
 #pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g) x += phi[g][t];
-      intensity_sum += x * theta[s][t];
+      for (size_t g = 0; g < G; ++g)
+        x += phi[g][t];
+      intensity_sum += x * theta[s][t] * experiment_scaling[s];
     }
 
     if (verbosity >= Verbosity::Debug)
