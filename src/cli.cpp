@@ -37,7 +37,7 @@ using namespace std;
 
 namespace po = boost::program_options;
 
-static const string default_error_msg =
+const string default_error_msg =
     "Please inspect the command line help with -h or --help.";
 
 po::options_description gen_generic_options(string &config_path, size_t cols) {
@@ -60,8 +60,8 @@ ExecutionInformation process_cli_options(
   ExecutionInformation exec_info(argv[0], GIT_DESCRIPTION, GIT_BRANCH, argc,
                                  argv);
 
-  static const size_t MIN_COLS = 60;
-  static const size_t MAX_COLS = 80;
+  const size_t MIN_COLS = 60;
+  const size_t MAX_COLS = 80;
   size_t cols = get_terminal_width();
   if (cols < MIN_COLS) cols = MIN_COLS;
   if (cols > MAX_COLS) cols = MAX_COLS;
