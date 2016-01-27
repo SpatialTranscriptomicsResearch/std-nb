@@ -57,11 +57,12 @@ Counts::Counts(const string &path, const string &label, const string &separator)
     : row_names(),
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
-                                 col_names, label)) {}
+                                 col_names, label)),
+      experiments(counts.shape()[0], 0) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
-               const IMatrix &cnts)
-    : row_names(rnames), col_names(cnames), counts(cnts) {}
+               const IMatrix &cnts, const vector<size_t> &exps)
+    : row_names(rnames), col_names(cnames), counts(cnts), experiments(exps) {}
 
 Counts &Counts::operator=(const Counts &other) {
   row_names = other.row_names;
@@ -87,8 +88,8 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
   sort(begin(n2), end(n2));
   vector<string> rnames(n1.size() + n2.size());
   if (intersect) {
-    auto it =
-        set_intersection(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
+    auto it = set_intersection(begin(n1), end(n1), begin(n2), end(n2),
+                               begin(rnames));
     rnames.resize(it - begin(rnames));
   } else {
     auto it = set_union(begin(n1), end(n1), begin(n2), end(n2), begin(rnames));
@@ -126,7 +127,18 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
       row_idx++;
     }
   }
-  return {rnames, cnames, cnt};
+
+  // prepare vector of spot -> experiment labels
+  vector<size_t> exps = a.experiments;
+  size_t max_label = 0;
+  for(auto x: exps)
+    if(x > max_label)
+      max_label = x;
+  max_label++;
+  for(auto x: b.experiments)
+    exps.push_back(x + max_label + 1);
+
+  return {rnames, cnames, cnt, exps};
 }
 
 Counts Counts::operator*(const Counts &other) const {
