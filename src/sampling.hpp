@@ -4,20 +4,13 @@
 #include <vector>
 #include <random>
 #include <unistd.h>
+#include "entropy.hpp"
 
 struct RandomDistribution {
   static std::uniform_real_distribution<double> Uniform;
   // static std::uniform_int_distribution<size_t> Binary;
   // static std::uniform_int_distribution<size_t> Nucleotide;
   // static std::uniform_real_distribution<double> Probability;
-};
-
-struct EntropySource {
-  static void seed(size_t new_seed = std::random_device()()) {
-    rng.seed(new_seed);
-  }
-  static std::mt19937 rng;
-  static std::vector<std::mt19937> rngs;
 };
 
 template <class T>

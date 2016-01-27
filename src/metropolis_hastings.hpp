@@ -1,4 +1,5 @@
 #ifndef METROPOLIS_HASTINGS_HPP
+#define METROPOLIS_HASTINGS_HPP
 
 #include <random>
 #include <iostream>

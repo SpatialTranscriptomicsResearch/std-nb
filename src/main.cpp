@@ -118,7 +118,6 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
 
 int main(int argc, char **argv) {
   EntropySource::seed();
-  MCMC::EntropySource::seed();
 
   Options options;
 
