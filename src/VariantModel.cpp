@@ -389,13 +389,15 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
+  vector<Float> prods(T);
+  for (size_t t = 0; t < T; ++t) prods[t] = theta[s][t] * scaling[s];
+
   vector<Int> v(n, 0);
   for (size_t i = 0; i < n; ++i)
-    for (size_t t = 0; t < T; ++t) {
-      const double prod = theta[s][t] * scaling[s];
-      v[i] += sample_negative_binomial(r[g][t],
-                                       prod / (prod + (1 - p[g][t]) / p[g][t]), EntropySource::rng);
-    }
+    for (size_t t = 0; t < T; ++t)
+      v[i] += sample_negative_binomial(
+          r[g][t], prods[t] / (prods[t] + (1 - p[g][t]) / p[g][t]),
+          EntropySource::rng);
   return v;
 }
 
