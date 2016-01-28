@@ -377,11 +377,12 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
         intensity_sums[observed_counts.experiments[s]]
             += phi[g][t] * theta[s][t] * spot_scaling[s];
 
-  for (size_t e = 0; e < E; ++e)
-  // if (verbosity >= Verbosity::Debug)
-    cout << "summed_contribution=" << summed_contributions[e] << endl
-      << "intensity_sum=" << intensity_sums[e] << endl
-      << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e] << endl;
+  if (verbosity >= Verbosity::Debug)
+    for (size_t e = 0; e < E; ++e)
+      cout << "summed_contribution=" << summed_contributions[e] << endl
+           << "intensity_sum=" << intensity_sums[e] << endl
+           << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e]
+           << endl;
 
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
@@ -432,6 +433,14 @@ void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
 
   timer.tick();
   sample_spot_scaling();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
+  check_model(counts);
+
+  timer.tick();
+  sample_experiment_scaling(counts);
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
@@ -604,14 +613,7 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
     os << Stats::summary(pfa.spot_scaling) << endl;
 
-    os << "Spot experiment association, S = " << pfa.S << endl;
-    for (size_t s = 0; s < pfa.S; ++s)
-      os << (s > 0 ? "\t" : "") << pfa.observed_counts.experiments[s];
-    os << endl;
-    os << "Spot experiment association, length = " << pfa.observed_counts.experiments.size() << endl;
-    for (auto x: pfa.observed_counts.experiments)
-      os << "\t" << x;
-    os << endl;
+    os << "Spot experiment association" << endl;
     os << Stats::summary(pfa.observed_counts.experiments) << endl;
 
     os << "Experiment scaling factors" << endl;
