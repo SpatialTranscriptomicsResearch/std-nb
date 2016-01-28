@@ -377,30 +377,17 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
         intensity_sums[observed_counts.experiments[s]]
             += phi[g][t] * theta[s][t] * spot_scaling[s];
 
-  /*
-  for (size_t t = 0; t < T; ++t) {
-    Float intensity_sum = 0;
-    Float x = 0;
-    for (size_t s = 0; s < S; ++s)
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        x += phi[g][t];
-    intensity_sum += x * theta[s][t];
-  }
-  intensity_sum *= spot_scaling[s];
-  */
-
   for (size_t e = 0; e < E; ++e)
   // if (verbosity >= Verbosity::Debug)
-    cout << "summed_contribution=" << summed_contributions[e]
-      << " intensity_sum=" << intensity_sums[e] << " prev experiment_scaling["
-      << e << "]=" << experiment_scaling[e];
+    cout << "summed_contribution=" << summed_contributions[e] << endl
+      << "intensity_sum=" << intensity_sums[e] << endl
+      << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e] << endl;
 
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
         experiment_scaling_prior_a + summed_contributions[e],
-        1.0 / (experiment_scaling_prior_b + intensity_sums[3]))(
+        1.0 / (experiment_scaling_prior_b + intensity_sums[e]))(
         EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new experiment_scaling[" << e << "]=" << experiment_scaling[e]
@@ -617,9 +604,13 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
     os << Stats::summary(pfa.spot_scaling) << endl;
 
-    os << "Spot experiment association" << endl;
+    os << "Spot experiment association, S = " << pfa.S << endl;
     for (size_t s = 0; s < pfa.S; ++s)
       os << (s > 0 ? "\t" : "") << pfa.observed_counts.experiments[s];
+    os << endl;
+    os << "Spot experiment association, length = " << pfa.observed_counts.experiments.size() << endl;
+    for (auto x: pfa.observed_counts.experiments)
+      os << "\t" << x;
     os << endl;
     os << Stats::summary(pfa.observed_counts.experiments) << endl;
 
