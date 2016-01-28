@@ -4,7 +4,7 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -Wno-unused-local-typedefs -march=
 # Make it possible to #include generated header files for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
-ADD_LIBRARY(multiScoop SHARED aux.cpp executioninformation.cpp
+ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
   io.cpp metropolis_hastings.cpp FactorAnalysis.cpp PoissonModel.cpp
   VariantModel.cpp sampling.cpp terminal.cpp timer.cpp pdist.cpp)
 

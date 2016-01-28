@@ -5,6 +5,7 @@
 #include <vector>
 #include <boost/filesystem.hpp>
 #include "cli.hpp"
+#include "counts.hpp"
 #include "io.hpp"
 #include "aux.hpp"
 #include "montecarlo.hpp"
