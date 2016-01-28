@@ -15,3 +15,4 @@
   - posterior covariance matrix
   - posterior correlation matrix
   - deviance information criterion (DIC)
+* determine and direct acceptance rate of Metropolis-Hastings sampling
