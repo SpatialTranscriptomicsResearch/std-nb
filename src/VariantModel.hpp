@@ -1,6 +1,7 @@
 #ifndef VARIANTMODEL_HPP
 #define VARIANTMODEL_HPP
 
+#include "counts.hpp"
 #include "FactorAnalysis.hpp"
 #include "verbosity.hpp"
 
@@ -12,10 +13,16 @@ struct VariantModel {
   size_t S;
   /** number of factors */
   size_t T;
+  /** number of experiments */
+  size_t E;
 
   Priors priors;
   Parameters parameters;
 
+  /** observed count data */
+  Counts observed_counts;
+
+  /** hidden contributions to the count data due to the diffreent factors */
   ITensor contributions;
 
   /** factor loading matrix */
@@ -37,7 +44,7 @@ struct VariantModel {
 
   Verbosity verbosity;
 
-  VariantModel(const IMatrix &counts, const size_t T, const Priors &priors,
+  VariantModel(const Counts &counts, const size_t T, const Priors &priors,
                const Parameters &parameters, Verbosity verbosity);
 
   double log_likelihood(const IMatrix &counts) const;
@@ -58,7 +65,7 @@ struct VariantModel {
   void sample_spot_scaling();
 
   /** sample experiment scaling factors */
-  void sample_experiment_scaling();
+  void sample_experiment_scaling(const IMatrix &counts);
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts, bool timing);

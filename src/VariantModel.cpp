@@ -35,19 +35,21 @@ T prob_to_neg_odds(T x) {
   return (1 - x) / x;
 }
 
-VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
+VariantModel::VariantModel(const Counts &c, const size_t T_,
                            const Priors &priors_, const Parameters &parameters_,
                            Verbosity verbosity_)
-    : G(counts.shape()[0]),
-      S(counts.shape()[1]),
+    : G(c.counts.shape()[0]),
+      S(c.counts.shape()[1]),
       T(T_),
+      E(c.experiment_names.size()),
       priors(priors_),
       parameters(parameters_),
+      observed_counts(c),
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
       spot_scaling(boost::extents[S]),
-      experiment_scaling(boost::extents[S]),
+      experiment_scaling(boost::extents[E]),
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
@@ -105,8 +107,8 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
           spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
 
     // initialize experiment scaling factors
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling[s] = 1;
+    for (size_t e = 0; e < E; ++e)
+      experiment_scaling[e] = 1;
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
@@ -132,7 +134,7 @@ VariantModel::VariantModel(const IMatrix &counts, const size_t T_,
       double z = 0;
       for (size_t t = 0; t < T; ++t) z += prob[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) prob[t] /= z;
-      auto v = sample_multinomial<Int>(counts[g][s], prob);
+      auto v = sample_multinomial<Int>(c.counts[g][s], prob);
       for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
     }
 }
@@ -262,7 +264,7 @@ void VariantModel::sample_p_and_r() {
   for (size_t t = 0; t < T; ++t) {
     Float weight_sum = 0;
     for (size_t s = 0; s < S; ++s)
-      weight_sum += theta[s][t] * spot_scaling[s] * experiment_scaling[s];
+      weight_sum += theta[s][t] * spot_scaling[s] * experiment_scaling[observed_counts.experiments[s]];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -288,7 +290,7 @@ void VariantModel::sample_phi() {
   Vector theta_t(boost::extents[T]);
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s)
-      theta_t[t] += theta[s][t] * spot_scaling[s] * experiment_scaling[s];
+      theta_t[t] += theta[s][t] * spot_scaling[s] * experiment_scaling[observed_counts.experiments[s]];
   for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -339,7 +341,7 @@ void VariantModel::sample_spot_scaling() {
         x += phi[g][t];
       intensity_sum += x * theta[s][t];
     }
-    intensity_sum *= experiment_scaling[s];
+    intensity_sum *= experiment_scaling[observed_counts.experiments[s]];
 
     if (verbosity >= Verbosity::Debug)
       cout << "summed_contribution=" << summed_contribution
@@ -356,37 +358,53 @@ void VariantModel::sample_spot_scaling() {
 }
 
 /** sample experiment scaling factors */
-void VariantModel::sample_experiment_scaling() {
+void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
-  for (size_t s = 0; s < S; ++s) {
-    Int summed_contribution = 0;
-#pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
+  vector<Int> summed_contributions(E, 0);
+// #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t)
-        summed_contribution += contributions[g][s][t];
+        summed_contributions[observed_counts.experiments[s]]
+            += contributions[g][s][t];
 
+  vector<Int> intensity_sums(E, 0);
+// #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      for (size_t s = 0; s < S; ++s)
+        intensity_sums[observed_counts.experiments[s]]
+            += phi[g][t] * theta[s][t] * spot_scaling[s];
+
+  /*
+  for (size_t t = 0; t < T; ++t) {
     Float intensity_sum = 0;
-    for (size_t t = 0; t < T; ++t) {
-      Float x = 0;
+    Float x = 0;
+    for (size_t s = 0; s < S; ++s)
 #pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
         x += phi[g][t];
-      intensity_sum += x * theta[s][t];
-    }
-    intensity_sum *= spot_scaling[s];
+    intensity_sum += x * theta[s][t];
+  }
+  intensity_sum *= spot_scaling[s];
+  */
 
-    if (verbosity >= Verbosity::Debug)
-      cout << "summed_contribution=" << summed_contribution
-           << " intensity_sum=" << intensity_sum << " prev experiment_scaling["
-           << s << "]=" << spot_scaling[s];
+  for (size_t e = 0; e < E; ++e)
+  // if (verbosity >= Verbosity::Debug)
+    cout << "summed_contribution=" << summed_contributions[e]
+      << " intensity_sum=" << intensity_sums[e] << " prev experiment_scaling["
+      << e << "]=" << experiment_scaling[e];
 
+  for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
-    experiment_scaling[s] = gamma_distribution<Float>(
-        experiment_scaling_prior_a + summed_contribution,
-        1.0 / (experiment_scaling_prior_b + intensity_sum))(EntropySource::rng);
+    experiment_scaling[e] = gamma_distribution<Float>(
+        experiment_scaling_prior_a + summed_contributions[e],
+        1.0 / (experiment_scaling_prior_b + intensity_sums[3]))(
+        EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
-      cout << "new experiment_scaling[" << s << "]=" << spot_scaling[s] << endl;
+      cout << "new experiment_scaling[" << e << "]=" << experiment_scaling[e]
+           << endl;
   }
 }
 
@@ -589,7 +607,7 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     os << "There are " << p_zeros << " zeros in p. This corresponds to "
        << (100.0 * p_zeros / pfa.G / pfa.T) << "%." << endl;
 
-    os << "Scaling factors" << endl;
+    os << "Spot scaling factors" << endl;
     for (size_t s = 0; s < pfa.S; ++s)
       os << (s > 0 ? "\t" : "") << pfa.spot_scaling[s];
     os << endl;
@@ -598,6 +616,23 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       if (pfa.spot_scaling[s] == 0) spot_scaling_zeros++;
     os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
     os << Stats::summary(pfa.spot_scaling) << endl;
+
+    os << "Spot experiment association" << endl;
+    for (size_t s = 0; s < pfa.S; ++s)
+      os << (s > 0 ? "\t" : "") << pfa.observed_counts.experiments[s];
+    os << endl;
+    os << Stats::summary(pfa.observed_counts.experiments) << endl;
+
+    os << "Experiment scaling factors" << endl;
+    for (size_t e = 0; e < pfa.E; ++e)
+      os << (e > 0 ? "\t" : "") << pfa.experiment_scaling[e];
+    os << endl;
+    size_t experiment_scaling_zeros = 0;
+    for (size_t e = 0; e < pfa.E; ++e)
+      if (pfa.experiment_scaling[e] == 0) spot_scaling_zeros++;
+    os << "There are " << experiment_scaling_zeros << " zeros in experiment_scaling." << endl;
+    os << Stats::summary(pfa.experiment_scaling) << endl;
+
   }
 
   return os;

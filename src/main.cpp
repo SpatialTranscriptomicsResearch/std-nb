@@ -80,6 +80,7 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
   write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
+  write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   if (do_sample)
     for (size_t g = 0; g < 1; g++)
       for (size_t s = 0; s < pfa.S; ++s) {
@@ -260,13 +261,16 @@ int main(int argc, char **argv) {
   if(options.top > 0)
     data.select_top(options.top);
 
+  for(auto x: data.experiment_names)
+    cout << "exp: " << x << endl;
+
   if (options.original_model) {
     FactorAnalysis::PoissonModel pfa(data.counts, options.num_factors, priors,
                                      parameters, options.verbosity);
 
     perform_gibbs_sampling(data, pfa, options);
   } else {
-    FactorAnalysis::VariantModel pfa(data.counts, options.num_factors, priors,
+    FactorAnalysis::VariantModel pfa(data, options.num_factors, priors,
                                      parameters, options.verbosity);
 
     perform_gibbs_sampling(data, pfa, options);
