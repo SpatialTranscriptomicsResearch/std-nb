@@ -57,6 +57,9 @@ struct VariantModel {
   /** sample spot scaling factors */
   void sample_spot_scaling();
 
+  /** sample experiment scaling factors */
+  void sample_experiment_scaling();
+
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const IMatrix &counts, bool timing);
 

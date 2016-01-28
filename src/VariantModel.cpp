@@ -323,7 +323,7 @@ void VariantModel::sample_phi() {
 /** sample spot scaling factors */
 void VariantModel::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
-    cout << "Sampling spot_scaling factors" << endl;
+    cout << "Sampling spot scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
     Int summed_contribution = 0;
 #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
@@ -337,8 +337,9 @@ void VariantModel::sample_spot_scaling() {
 #pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
         x += phi[g][t];
-      intensity_sum += x * theta[s][t] * experiment_scaling[s];
+      intensity_sum += x * theta[s][t];
     }
+    intensity_sum *= experiment_scaling[s];
 
     if (verbosity >= Verbosity::Debug)
       cout << "summed_contribution=" << summed_contribution
@@ -351,6 +352,41 @@ void VariantModel::sample_spot_scaling() {
         1.0 / (spot_scaling_prior_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
+  }
+}
+
+/** sample experiment scaling factors */
+void VariantModel::sample_experiment_scaling() {
+  if (verbosity >= Verbosity::Verbose)
+    cout << "Sampling experiment scaling factors" << endl;
+  for (size_t s = 0; s < S; ++s) {
+    Int summed_contribution = 0;
+#pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        summed_contribution += contributions[g][s][t];
+
+    Float intensity_sum = 0;
+    for (size_t t = 0; t < T; ++t) {
+      Float x = 0;
+#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g)
+        x += phi[g][t];
+      intensity_sum += x * theta[s][t];
+    }
+    intensity_sum *= spot_scaling[s];
+
+    if (verbosity >= Verbosity::Debug)
+      cout << "summed_contribution=" << summed_contribution
+           << " intensity_sum=" << intensity_sum << " prev experiment_scaling["
+           << s << "]=" << spot_scaling[s];
+
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    experiment_scaling[s] = gamma_distribution<Float>(
+        experiment_scaling_prior_a + summed_contribution,
+        1.0 / (experiment_scaling_prior_b + intensity_sum))(EntropySource::rng);
+    if (verbosity >= Verbosity::Debug)
+      cout << "new experiment_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
 }
 
