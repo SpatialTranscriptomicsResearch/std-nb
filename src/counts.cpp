@@ -1,7 +1,6 @@
 #include <algorithm>
 #include <fstream>
 #include <exception>
-#include <iostream>
 #include <unordered_map>
 #include <boost/tokenizer.hpp>
 #include "compression.hpp"
@@ -150,17 +149,10 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
   for (auto x : b.experiments)
     exps.push_back(x + max_label);
 
-  for (auto x : a.experiment_names)
-    cout << "a exp: " << x << endl;
-  for (auto x : b.experiment_names)
-    cout << "b exp: " << x << endl;
   // prepare vector of spot -> experiment labels
   vector<string> exp_names = a.experiment_names;
   for (auto x : b.experiment_names)
     exp_names.push_back(x);
-
-  for (auto x : exp_names)
-    cout << "c exp: " << x << endl;
 
   return {rnames, cnames, cnt, exps, exp_names};
 }
