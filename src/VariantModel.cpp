@@ -369,7 +369,7 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
         summed_contributions[observed_counts.experiments[s]]
             += contributions[g][s][t];
 
-  vector<Int> intensity_sums(E, 0);
+  vector<Float> intensity_sums(E, 0);
 // #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
