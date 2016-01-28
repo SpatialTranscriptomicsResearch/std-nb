@@ -59,11 +59,17 @@ Counts::Counts(const string &path, const string &label, const string &separator)
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names, label)),
-      experiments(counts.shape()[0], 0) {}
+      experiments(counts.shape()[0], 0),
+      experiment_names(1, path) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
-               const IMatrix &cnts, const vector<size_t> &exps)
-    : row_names(rnames), col_names(cnames), counts(cnts), experiments(exps) {}
+               const IMatrix &cnts, const vector<size_t> &exps,
+               const vector<string> &exp_names)
+    : row_names(rnames),
+      col_names(cnames),
+      counts(cnts),
+      experiments(exps),
+      experiment_names(exp_names) {}
 
 Counts &Counts::operator=(const Counts &other) {
   row_names = other.row_names;
@@ -131,7 +137,7 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
     }
   }
 
-  // prepare vector of spot -> experiment labels
+  // prepare vector of spot -> experiment IDs
   vector<size_t> exps = a.experiments;
   size_t max_label = 0;
   for (auto x : exps)
@@ -141,7 +147,12 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
   for (auto x : b.experiments)
     exps.push_back(x + max_label + 1);
 
-  return {rnames, cnames, cnt, exps};
+  // prepare vector of spot -> experiment labels
+  vector<string> exp_names = a.experiment_names;
+  for (auto x : b.experiment_names)
+    exp_names.push_back(x);
+
+  return {rnames, cnames, cnt, exps, exp_names};
 }
 
 Counts Counts::operator*(const Counts &other) const {
