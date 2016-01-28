@@ -60,7 +60,7 @@ Counts::Counts(const string &path, const string &label, const string &separator)
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names, label)),
-      experiments(counts.shape()[0], 0),
+      experiments(counts.shape()[1], 0),
       experiment_names(1, path) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
