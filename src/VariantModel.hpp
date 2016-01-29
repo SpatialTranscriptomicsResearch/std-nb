@@ -22,7 +22,7 @@ struct VariantModel {
   /** observed count data */
   Counts observed_counts;
 
-  /** hidden contributions to the count data due to the diffreent factors */
+  /** hidden contributions to the count data due to the different factors */
   ITensor contributions;
 
   /** factor loading matrix */
