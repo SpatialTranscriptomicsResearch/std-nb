@@ -395,6 +395,10 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
       cout << "new experiment_scaling[" << e << "]=" << experiment_scaling[e]
            << endl;
   }
+
+  // copy the experiment scaling parameters into the spot-indexed vector
+  for (size_t s = 0; s < S; ++s)
+    experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
 
 void VariantModel::gibbs_sample(const Counts &data, bool timing) {
