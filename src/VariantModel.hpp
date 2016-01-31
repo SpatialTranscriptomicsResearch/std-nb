@@ -19,9 +19,6 @@ struct VariantModel {
   Priors priors;
   Parameters parameters;
 
-  /** observed count data */
-  Counts observed_counts;
-
   /** hidden contributions to the count data due to the different factors */
   ITensor contributions;
 
@@ -36,6 +33,7 @@ struct VariantModel {
 
   /** experiment scaling vector */
   Vector experiment_scaling;
+  Vector experiment_scaling_long;
 
   /** shape parameter for the prior of the loading matrix */
   Matrix r;
@@ -46,6 +44,13 @@ struct VariantModel {
 
   VariantModel(const Counts &counts, const size_t T, const Priors &priors,
                const Parameters &parameters, Verbosity verbosity);
+
+  VariantModel(const std::string &phi_path, const std::string &theta_path,
+               const std::string &spot_scaling_path,
+               const std::string &experiment_scaling_path,
+               const std::string &r_path, const std::string &p_path,
+               const Priors &priors, const Parameters &parameters,
+               Verbosity verbosity);
 
   double log_likelihood(const IMatrix &counts) const;
 
@@ -65,10 +70,10 @@ struct VariantModel {
   void sample_spot_scaling();
 
   /** sample experiment scaling factors */
-  void sample_experiment_scaling(const IMatrix &counts);
+  void sample_experiment_scaling(const Counts &data);
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(const IMatrix &counts, bool timing);
+  void gibbs_sample(const Counts &data, bool timing);
 
   std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
 

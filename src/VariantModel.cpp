@@ -1,5 +1,7 @@
 #include <omp.h>
 #include "VariantModel.hpp"
+#include "compression.hpp"
+#include "io.hpp"
 #include "metropolis_hastings.hpp"
 #include "pdist.hpp"
 #include "stats.hpp"
@@ -44,7 +46,6 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       E(c.experiment_names.size()),
       priors(priors_),
       parameters(parameters_),
-      observed_counts(c),
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
       theta(boost::extents[S][T]),
@@ -217,6 +218,33 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
   }
 }
 
+VariantModel::VariantModel(const string &phi_path, const string &theta_path,
+                           const string &spot_scaling_path,
+                           const string &experiment_scaling_path,
+                           const string &r_path, const string &p_path,
+                           const Priors &priors_, const Parameters &parameters_,
+                           Verbosity verbosity_)
+    : G(0),
+      S(0),
+      T(0),
+      E(0),
+      priors(priors_),
+      parameters(parameters_),
+      phi(parse_file<Matrix>(phi_path, read_matrix)),
+      theta(parse_file<Matrix>(theta_path, read_matrix)),
+      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
+      experiment_scaling(
+          parse_file<Vector>(experiment_scaling_path, read_vector)),
+      r(parse_file<Matrix>(r_path, read_matrix)),
+      p(parse_file<Matrix>(p_path, read_matrix)),
+      verbosity(verbosity_) {
+  G = phi.shape()[0];
+  S = theta.shape()[0];
+  T = phi.shape()[1];
+  E = experiment_scaling.shape()[0];
+  // contributions
+}
+
 /** sample theta */
 // NOTE this is proven to be correct
 void VariantModel::sample_theta() {
@@ -264,7 +292,7 @@ void VariantModel::sample_p_and_r() {
   for (size_t t = 0; t < T; ++t) {
     Float weight_sum = 0;
     for (size_t s = 0; s < S; ++s)
-      weight_sum += theta[s][t] * spot_scaling[s] * experiment_scaling[observed_counts.experiments[s]];
+      weight_sum += theta[s][t] * spot_scaling[s] * experiment_scaling_long[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -290,7 +318,8 @@ void VariantModel::sample_phi() {
   Vector theta_t(boost::extents[T]);
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s)
-      theta_t[t] += theta[s][t] * spot_scaling[s] * experiment_scaling[observed_counts.experiments[s]];
+      theta_t[t] += theta[s][t] * spot_scaling[s] * experiment_scaling_long[s];
+
   for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -341,7 +370,7 @@ void VariantModel::sample_spot_scaling() {
         x += phi[g][t];
       intensity_sum += x * theta[s][t];
     }
-    intensity_sum *= experiment_scaling[observed_counts.experiments[s]];
+    intensity_sum *= experiment_scaling_long[s];
 
     if (verbosity >= Verbosity::Debug)
       cout << "summed_contribution=" << summed_contribution
@@ -358,7 +387,7 @@ void VariantModel::sample_spot_scaling() {
 }
 
 /** sample experiment scaling factors */
-void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
+void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
   vector<Int> summed_contributions(E, 0);
@@ -366,7 +395,7 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t)
-        summed_contributions[observed_counts.experiments[s]]
+        summed_contributions[data.experiments[s]]
             += contributions[g][s][t];
 
   vector<Float> intensity_sums(E, 0);
@@ -374,7 +403,7 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
       for (size_t s = 0; s < S; ++s)
-        intensity_sums[observed_counts.experiments[s]]
+        intensity_sums[data.experiments[s]]
             += phi[g][t] * theta[s][t] * spot_scaling[s];
 
   if (verbosity >= Verbosity::Debug)
@@ -396,56 +425,56 @@ void VariantModel::sample_experiment_scaling(const IMatrix &counts) {
   }
 }
 
-void VariantModel::gibbs_sample(const IMatrix &counts, bool timing) {
-  check_model(counts);
+void VariantModel::gibbs_sample(const Counts &data, bool timing) {
+  check_model(data.counts);
 
   Timer timer;
-  sample_contributions(counts);
+  sample_contributions(data.counts);
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 
   timer.tick();
   sample_phi();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 
   timer.tick();
   sample_p_and_r();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 
   timer.tick();
   sample_theta();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 
   timer.tick();
   sample_spot_scaling();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 
   timer.tick();
-  sample_experiment_scaling(counts);
+  sample_experiment_scaling(data);
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(counts) << endl;
-  check_model(counts);
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
@@ -612,9 +641,6 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
       if (pfa.spot_scaling[s] == 0) spot_scaling_zeros++;
     os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
     os << Stats::summary(pfa.spot_scaling) << endl;
-
-    os << "Spot experiment association" << endl;
-    os << Stats::summary(pfa.observed_counts.experiments) << endl;
 
     os << "Experiment scaling factors" << endl;
     for (size_t e = 0; e < pfa.E; ++e)

@@ -67,3 +67,18 @@ void write_matrix(const Matrix &m, const string &path,
     ofs << endl;
   }
 }
+
+Matrix read_matrix(istream &os) {
+  // TODO write implementation
+  Matrix m;
+  return m;
+}
+
+Vector read_vector(istream &is) {
+  // TODO write implementation
+  string line;
+  while(getline(is, line)) {
+  }
+  Vector v;
+  return v;
+}

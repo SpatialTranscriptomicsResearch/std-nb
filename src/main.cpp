@@ -102,7 +102,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
-    pfa.gibbs_sample(data.counts, options.timing);
+    pfa.gibbs_sample(data, options.timing);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
     if (iteration % options.report_interval == 0) {

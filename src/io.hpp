@@ -2,6 +2,7 @@
 #define IO_HPP
 #include <string>
 #include <vector>
+#include <iostream>
 #include "FactorAnalysis.hpp"
 
 void write_vector(const FactorAnalysis::Vector &v, const std::string &path,
@@ -12,5 +13,8 @@ void write_matrix(const FactorAnalysis::Matrix &m, const std::string &path,
                   = std::vector<std::string>(),
                   const std::vector<std::string> &col_names
                   = std::vector<std::string>());
+
+FactorAnalysis::Matrix read_matrix(std::istream &os);
+FactorAnalysis::Vector read_vector(std::istream &os);
 
 #endif
