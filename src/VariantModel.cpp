@@ -54,79 +54,45 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
-  if (false) {
-    /*
-    // randomly initialize P
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        p[g][t] = sample_beta<Float>(priors.e * priors.f,
-                                     priors.e * (1 - priors.f));
+  // randomly initialize Phi
+  // Phi = zeros(T,S)+1/T;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) phi[g][t] = 1.0 / T / G;
 
-    // randomly initialize R
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        r[g][t] = gamma_distribution<Float>(
-            priors.c * priors.d, 1.0 / priors.c)(EntropySource::rng);
-
-    // TODO adapt
-    // randomly initialize Theta
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t) {
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        theta[s][t] = gamma_distribution<Float>(
-            r[t], p[t] / (1 - p[t]))(EntropySource::rng);
-      }
-
-    // TODO adapt
-    // randomly initialize Phi
-    for (size_t t = 0; t < T; ++t) {
-      auto phi_ = sample_dirichlet<Float>(vector<Float>(G, priors.alpha));
-      for (size_t g = 0; g < G; ++g) phi[g][t] = phi_[t];
-    }
-    */
-  } else {
-    // randomly initialize Phi
-    // Phi = zeros(T,S)+1/T;
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) phi[g][t] = 1.0 / T / G;
-
-    // initialize Theta
-    // Theta = rand(P,T);
-    // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
-    for (size_t s = 0; s < S; ++s) {
-      double sum = 0;
-      for (size_t t = 0; t < T; ++t)
-        sum += theta[s][t] = RandomDistribution::Uniform(EntropySource::rng);
-      for (size_t t = 0; t < T; ++t) theta[s][t] /= sum;
-    }
-
-    // initialize spot scaling factors
-    for (size_t s = 0; s < S; ++s)
-      // NOTE: gamma_distribution takes a shape and scale parameter
-      spot_scaling[s] = gamma_distribution<Float>(
-          spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
-
-    // initialize experiment scaling factors
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling[e] = 1;
-
-    // randomly initialize P
-    // p_k=ones(T,1)*0.5;
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        if (false)
-          p[g][t] = 0.5 * G * T;
-        else
-          // NOTE: gamma_distribution takes a shape and scale parameter
-          p[g][t] = gamma_distribution<Float>(
-              priors.e, 1 / priors.f)(EntropySource::rng);
-
-    // initialize R
-    // r_k= 50/T*ones(T,1)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) r[g][t] = 50.0 / G / T;
+  // initialize Theta
+  // Theta = rand(P,T);
+  // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
+  for (size_t s = 0; s < S; ++s) {
+    double sum = 0;
+    for (size_t t = 0; t < T; ++t)
+      sum += theta[s][t] = RandomDistribution::Uniform(EntropySource::rng);
+    for (size_t t = 0; t < T; ++t) theta[s][t] /= sum;
   }
+
+  // initialize spot scaling factors
+  for (size_t s = 0; s < S; ++s)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    spot_scaling[s] = gamma_distribution<Float>(
+        spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
+
+  // initialize experiment scaling factors
+  for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
+
+  // randomly initialize P
+  // p_k=ones(T,1)*0.5;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      if (false)
+        p[g][t] = 0.5 * G * T;
+      else
+        // NOTE: gamma_distribution takes a shape and scale parameter
+        p[g][t] = gamma_distribution<Float>(priors.e,
+                                            1 / priors.f)(EntropySource::rng);
+
+  // initialize R
+  // r_k= 50/T*ones(T,1)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) r[g][t] = 50.0 / G / T;
 
   // randomly initialize the contributions
   for (size_t g = 0; g < G; ++g)
@@ -138,6 +104,41 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       auto v = sample_multinomial<Int>(c.counts[g][s], prob);
       for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
     }
+}
+
+VariantModel::VariantModel(const string &phi_path, const string &theta_path,
+                           const string &spot_scaling_path,
+                           const string &experiment_scaling_path,
+                           const string &r_path, const string &p_path,
+                           const Priors &priors_, const Parameters &parameters_,
+                           Verbosity verbosity_)
+    : G(0),
+      S(0),
+      T(0),
+      E(0),
+      priors(priors_),
+      parameters(parameters_),
+      phi(parse_file<Matrix>(phi_path, read_matrix)),
+      theta(parse_file<Matrix>(theta_path, read_matrix)),
+      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
+      experiment_scaling(
+          parse_file<Vector>(experiment_scaling_path, read_vector)),
+      r(parse_file<Matrix>(r_path, read_matrix)),
+      p(parse_file<Matrix>(p_path, read_matrix)),
+      verbosity(verbosity_) {
+  G = phi.shape()[0];
+  S = theta.shape()[0];
+  T = phi.shape()[1];
+  E = experiment_scaling.shape()[0];
+
+  contributions.resize(boost::extents[G][S][T]);
+  // set contributions to 0, as we do not have data at this point
+  // NOTE: when data is available, before sampling any of the other parameters,
+  // it is necessary to first sample the contributions!
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      for (size_t t = 0; t < T; ++t)
+        contributions[g][s][t] = 0;
 }
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
@@ -217,33 +218,6 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
       for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
     }
   }
-}
-
-VariantModel::VariantModel(const string &phi_path, const string &theta_path,
-                           const string &spot_scaling_path,
-                           const string &experiment_scaling_path,
-                           const string &r_path, const string &p_path,
-                           const Priors &priors_, const Parameters &parameters_,
-                           Verbosity verbosity_)
-    : G(0),
-      S(0),
-      T(0),
-      E(0),
-      priors(priors_),
-      parameters(parameters_),
-      phi(parse_file<Matrix>(phi_path, read_matrix)),
-      theta(parse_file<Matrix>(theta_path, read_matrix)),
-      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
-      experiment_scaling(
-          parse_file<Vector>(experiment_scaling_path, read_vector)),
-      r(parse_file<Matrix>(r_path, read_matrix)),
-      p(parse_file<Matrix>(p_path, read_matrix)),
-      verbosity(verbosity_) {
-  G = phi.shape()[0];
-  S = theta.shape()[0];
-  T = phi.shape()[1];
-  E = experiment_scaling.shape()[0];
-  // contributions
 }
 
 /** sample theta */
