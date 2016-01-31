@@ -468,13 +468,15 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
     cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
   check_model(data.counts);
 
-  timer.tick();
-  sample_experiment_scaling(data);
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
+  if (E > 1) {
+    timer.tick();
+    sample_experiment_scaling(data);
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {

@@ -16,4 +16,4 @@
   - posterior correlation matrix
   - deviance information criterion (DIC)
 * determine and direct acceptance rate of Metropolis-Hastings sampling
-* don't use / or resample experiment scaling factors if there is only one experiment
+* don't use experiment scaling factors if there is only one experiment
