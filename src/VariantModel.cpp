@@ -199,7 +199,6 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 }
 
 /** sample count decomposition */
-// NOTE this is proven to be correct
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -221,7 +220,6 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
 }
 
 /** sample theta */
-// NOTE this is proven to be correct
 void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Θ" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -287,7 +285,6 @@ void VariantModel::sample_p_and_r() {
 }
 
 /** sample phi */
-// NOTE this is proven to be correct
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(boost::extents[T]);
