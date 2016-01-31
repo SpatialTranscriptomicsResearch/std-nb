@@ -207,8 +207,9 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
     for (size_t s = 0; s < S; ++s) {
       vector<double> rel_rate(T);
       double z = 0;
-      // NOTE: in principle, lambda has a factor of q[s].
-      // However, this would cancel. Thus, we do not multiply it in here.
+      // NOTE: in principle, lambda[g][s][t] is proportional to both
+      // spot_scaling[s] and experiment_scaling[s]. However, these terms would
+      // cancel. Thus, we do not multiply them in here.
       for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi[g][t] * theta[s][t];
       for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
       auto v = sample_multinomial<Int>(counts[g][s], rel_rate,
