@@ -465,7 +465,8 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
   vector<Float> prods(T);
-  for (size_t t = 0; t < T; ++t) prods[t] = theta[s][t] * spot_scaling[s];
+  for (size_t t = 0; t < T; ++t)
+    prods[t] = theta[s][t] * spot_scaling[s] * experiment_scaling_long[s];
 
   vector<Int> v(n, 0);
   for (size_t i = 0; i < n; ++i)
