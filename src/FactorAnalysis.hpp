@@ -3,17 +3,9 @@
 
 #include <cstdint>
 #include <vector>
-#include <boost/multi_array.hpp>
+#include "types.hpp"
 
 namespace FactorAnalysis {
-using Int = uint32_t;
-using Float = double;
-using Vector = boost::multi_array<Float, 1>;
-using Matrix = boost::multi_array<Float, 2>;
-using IMatrix = boost::multi_array<Int, 2>;
-using Tensor = boost::multi_array<Float, 3>;
-using ITensor = boost::multi_array<Int, 3>;
-
 struct Priors {
   Priors(Float c_ = 10, Float d_ = 10, Float e_ = 10, Float f_ = 10,
          Float gamma_ = 1, Float alpha_ = 0.5)
