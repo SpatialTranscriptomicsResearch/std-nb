@@ -472,7 +472,7 @@ vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
   for (size_t i = 0; i < n; ++i)
     for (size_t t = 0; t < T; ++t)
       v[i] += sample_negative_binomial(
-          r[g][t], prods[t] / (prods[t] + (1 - p[g][t]) / p[g][t]),
+          r[g][t], prods[t] / (prods[t] + p[g][t]),
           EntropySource::rng);
   return v;
 }
