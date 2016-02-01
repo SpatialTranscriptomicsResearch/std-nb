@@ -51,6 +51,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       theta(boost::extents[S][T]),
       spot_scaling(boost::extents[S]),
       experiment_scaling(boost::extents[E]),
+      experiment_scaling_long(boost::extents[S]),
       r(boost::extents[G][T]),
       p(boost::extents[G][T]),
       verbosity(verbosity_) {
@@ -77,6 +78,8 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // initialize experiment scaling factors
   for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
+  // copy the experiment scaling parameters into the spot-indexed vector
+  update_experiment_scaling_long(c);
 
   // randomly initialize P
   // p_k=ones(T,1)*0.5;
@@ -397,6 +400,11 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   }
 
   // copy the experiment scaling parameters into the spot-indexed vector
+  update_experiment_scaling_long(data);
+}
+
+/** copy the experiment scaling parameters into the spot-indexed vector */
+void VariantModel::update_experiment_scaling_long(const Counts &data) {
   for (size_t s = 0; s < S; ++s)
     experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
