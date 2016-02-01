@@ -81,8 +81,9 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
   write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
   write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
-  if (do_sample)
-    for (size_t g = 0; g < 1; g++)
+  if (do_sample) {
+    vector<size_t> to_sample = {0, pfa.G / 2, pfa.G - 1};
+    for(auto g: to_sample)
       for (size_t s = 0; s < pfa.S; ++s) {
         cout << "SAMPLE\t" << counts.row_names[g] << "\t"
              << counts.col_names[s];
@@ -90,6 +91,7 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
           cout << "\t" << x;
         cout << endl;
       }
+  }
 }
 
 template <typename T>
