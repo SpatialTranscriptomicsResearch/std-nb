@@ -7,7 +7,9 @@
 #include "io.hpp"
 
 using namespace std;
+using Int = FactorAnalysis::Int;
 using Matrix = FactorAnalysis::Matrix;
+using IMatrix = FactorAnalysis::IMatrix;
 using Vector = FactorAnalysis::Vector;
 
 void write_vector(const Vector &v, const string &path,
@@ -81,4 +83,46 @@ Vector read_vector(istream &is) {
   }
   Vector v;
   return v;
+}
+
+IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
+  const size_t s1 = v.size();
+  const size_t s2 = v[0].size();
+  using index = IMatrix::index;
+  IMatrix A(boost::extents[s1][s2]);
+  for (size_t i = 0; i < s1; ++i)
+    for (size_t j = 0; j < s2; ++j)
+      A[i][j] = v[i][j];
+  return A;
+}
+
+IMatrix read_counts(istream &ifs, const string &separator,
+                    vector<string> &row_names, vector<string> &col_names,
+                    const string &label) {
+  using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+  boost::char_separator<char> sep(separator.c_str());
+  vector<vector<Int>> m;
+
+  string line;
+
+  size_t col = 0;
+  getline(ifs, line);
+  tokenizer tok(line, sep);
+  for (auto token : tok)
+    if (col++ > 0)
+      col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+
+  while (getline(ifs, line)) {
+    tok = tokenizer(line, sep);
+    col = 0;
+    vector<Int> v;
+    for (auto token : tok)
+      if (col++ == 0)
+        row_names.push_back(token);
+      else
+        v.push_back(atoi(token.c_str()));
+    m.push_back(v);
+  }
+
+  return vec_of_vec_to_multi_array(m);
 }
