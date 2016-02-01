@@ -140,6 +140,8 @@ void Counts::select_top(size_t n) {
   sort(begin(rowsum_and_index), end(rowsum_and_index),
        [](const pair_t &a, const pair_t &b) { return a > b; });
 
+  n = min<size_t>(n, G);
+
   vector<string> new_row_names(n);
   for (size_t i = 0; i < n; ++i)
     new_row_names[i] = row_names[rowsum_and_index[i].second];
