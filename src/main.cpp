@@ -82,15 +82,36 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
   write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   if (do_sample) {
+    // sample the highest, the median, and the lowest genes' counts for all spots
     vector<size_t> to_sample = {0, pfa.G / 2, pfa.G - 1};
     for(auto g: to_sample)
       for (size_t s = 0; s < pfa.S; ++s) {
-        cout << "SAMPLE\t" << counts.row_names[g] << "\t"
+        cout << "SAMPLE ACROSS SPOTS\t" << counts.row_names[g] << "\t"
              << counts.col_names[s];
         for (auto x : pfa.sample_reads(g, s, 10000))
           cout << "\t" << x;
         cout << endl;
       }
+
+    // for spot with the highest number of reads, sample all genes' counts
+    FactorAnalysis::Int max_count = 0;
+    size_t max_idx = 0;
+    for (size_t s = 0; s < pfa.S; ++s) {
+      FactorAnalysis::Int count = 0;
+      for (size_t g = 0; g < pfa.G; ++g)
+        count += counts.counts[g][s];
+      if(count > max_count) {
+        max_count = count;
+        max_idx = s;
+      }
+    }
+    for (size_t g = 0; g < pfa.G; ++g) {
+      cout << "SAMPLE ACROSS GENES\t" << counts.row_names[g] << "\t"
+        << counts.col_names[max_idx];
+      for (auto x : pfa.sample_reads(g, max_idx, 10000))
+        cout << "\t" << x;
+      cout << endl;
+    }
   }
 }
 
