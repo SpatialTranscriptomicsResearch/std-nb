@@ -7,7 +7,7 @@
 
 namespace FactorAnalysis {
 struct Priors {
-  Priors(Float c_ = 10, Float d_ = 10, Float e_ = 10, Float f_ = 10,
+  Priors(Float c_ = 10, Float d_ = 10, Float e_ = 2, Float f_ = 2,
          Float gamma_ = 1, Float alpha_ = 0.5)
       : c(c_), d(d_), e(e_), f(f_), gamma(gamma_), alpha(alpha_){};
 
