@@ -164,7 +164,7 @@ IF(GIT_SHA1 STREQUAL "GITDIR-NOTFOUND")
   SET(GIT_BRANCH "release")
 ELSE()
   SET(GIT_BUILD 1)
-  git_describe(GIT_DESCRIPTION)
+  git_describe(GIT_DESCRIPTION --dirty)
   git_branch(GIT_BRANCH)
 ENDIF()
 
