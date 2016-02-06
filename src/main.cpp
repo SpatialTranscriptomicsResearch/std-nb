@@ -284,9 +284,6 @@ int main(int argc, char **argv) {
   if(options.top > 0)
     data.select_top(options.top);
 
-  for(auto x: data.experiment_names)
-    cout << "exp: " << x << endl;
-
   if (options.original_model) {
     FactorAnalysis::PoissonModel pfa(data.counts, options.num_factors, priors,
                                      parameters, options.verbosity);
