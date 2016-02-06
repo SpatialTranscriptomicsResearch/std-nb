@@ -12,10 +12,10 @@
 
 using namespace std;
 namespace FactorAnalysis {
-const Float spot_scaling_prior_a = 1;
-const Float spot_scaling_prior_b = 1;
-const Float experiment_scaling_prior_a = 1;
-const Float experiment_scaling_prior_b = 1;
+const Float spot_scaling_prior_a = 10;
+const Float spot_scaling_prior_b = 10;
+const Float experiment_scaling_prior_a = 10;
+const Float experiment_scaling_prior_b = 10;
 
 template <typename T>
 T odds_to_prob(T x) {
