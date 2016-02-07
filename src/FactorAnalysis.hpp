@@ -34,6 +34,8 @@ struct Parameters {
   double temperature = 1.0;
   /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
+  /** Whether to enforce the means of the scaling variables to be unity */
+  bool enforce_means = false;
 };
 
 Float digamma(Float x);

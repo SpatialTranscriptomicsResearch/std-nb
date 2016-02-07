@@ -195,6 +195,8 @@ int main(int argc, char **argv) {
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("timing", po::bool_switch(&options.timing),
      "Print out timing information.")
+    ("forcemean", po::bool_switch(&parameters.enforce_means),
+     "Enforce the mean scaling variables to be unity.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 

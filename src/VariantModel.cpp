@@ -359,6 +359,15 @@ void VariantModel::sample_spot_scaling() {
     if (verbosity >= Verbosity::Debug)
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
+
+  if(parameters.enforce_means) {
+    double z = 0;
+    for(size_t s = 0; s < S; ++s)
+      z += spot_scaling[s];
+    z /= S;
+    for(size_t s = 0; s < S; ++s)
+      spot_scaling[s] /= z;
+  }
 }
 
 /** sample experiment scaling factors */
@@ -401,6 +410,18 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
 
   // copy the experiment scaling parameters into the spot-indexed vector
   update_experiment_scaling_long(data);
+
+  if(parameters.enforce_means) {
+    double z = 0;
+    for(size_t s = 0; s < S; ++s)
+      z += experiment_scaling_long[s];
+    z /= S;
+    for(size_t s = 0; s < S; ++s)
+      experiment_scaling_long[s] /= z;
+
+    for(size_t e = 0; e < E; ++e)
+      experiment_scaling[e] /= z;
+  }
 }
 
 /** copy the experiment scaling parameters into the spot-indexed vector */
