@@ -126,3 +126,12 @@ st.multi = function(d,
     return(simil.break)
   }
 }
+
+st.viz.3d = function(x, ...) {
+  y = reform.data(x)
+  sym = c()
+  for(i in 1:length(x))
+    sym = c(sym, rep(letters[i], nrow(x[[i]])))
+  plot3d(y, ..., type='n')
+  text3d(y, col=make.color(y), text=sym)
+}
