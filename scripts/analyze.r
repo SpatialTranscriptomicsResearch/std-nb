@@ -66,7 +66,7 @@ st.order = function(d, plot=T) {
 
 st.top = function(d, path="./", ...) {
   if(!is.null(path))
-    pdf("factor-strength-barplot.pdf")
+    pdf(paste(path, "factor-strength-barplot.pdf", sep=""))
   d = st.order(d, plot=!is.null(path))
   if(!is.null(path))
     dev.off()
@@ -88,14 +88,14 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
-    pdf("theta-factors.pdf", width=w, height=h)
+    pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(d$theta)) {
       par(mfrow=c(nrows, ncols))
       for(name in names(theta))
         visualize(theta[[name]][,factor.name], coords=parse.coords(rownames(theta[[name]])), title=paste(name, "-", factor.name))
     }
     dev.off()
-    pdf("phi-top-genes.pdf", width=6, height=15)
+    pdf(paste(path, "phi-top-genes.pdf", sep=""), width=6, height=15)
     for(factor.name in colnames(d$phi)) {
       ge = d$phi[,factor.name]
       names(ge) = rownames(d$phi)
@@ -113,7 +113,7 @@ st.multi = function(d,
     simil.break = list()
 
     if(!is.null(path)) {
-      pdf("theta-factors-dimensionality-reduction.pdf", width=w, height=h)
+      pdf(paste(path, "theta-factors-dimensionality-reduction.pdf", sep=""), width=w, height=h)
       for(method in names(simil)) {
         simil.break[[method]] = break.data(simil[[method]])
         par(mfrow=c(nrows, ncols))
