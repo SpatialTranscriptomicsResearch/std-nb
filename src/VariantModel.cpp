@@ -375,6 +375,7 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
   vector<Int> summed_contributions(E, 0);
+// TODO parallelize
 // #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -383,6 +384,7 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
             += contributions[g][s][t];
 
   vector<Float> intensity_sums(E, 0);
+// TODO parallelize
 // #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
