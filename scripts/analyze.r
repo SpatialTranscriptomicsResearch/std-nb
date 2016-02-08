@@ -91,8 +91,16 @@ st.multi = function(d,
     pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(d$theta)) {
       par(mfrow=c(nrows, ncols))
+      cur.max = 0
       for(name in names(theta))
-        visualize(theta[[name]][,factor.name], coords=parse.coords(rownames(theta[[name]])), title=paste(name, "-", factor.name))
+        cur.max = max(cur.max, max(theta[[name]][,factor.name]))
+      for(name in names(theta)) {
+        cur = theta[[name]][,factor.name]
+        visualize(cur,
+                  coords=parse.coords(rownames(theta[[name]])),
+                  title=paste(name, "-", factor.name, ":", round(min(cur),3), "-", round(max(cur),3), "Sum =", round(sum(cur),3)),
+                  zlim=c(0,cur.max))
+      }
     }
     dev.off()
     pdf(paste(path, "phi-top-genes.pdf", sep=""), width=6, height=15)
