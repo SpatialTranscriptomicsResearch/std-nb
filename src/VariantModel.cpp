@@ -375,22 +375,24 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
   vector<Int> summed_contributions(E, 0);
-// TODO parallelize
-// #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
+  for (size_t s = 0; s < S; ++s) {
+    double x = 0;
+#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
-        summed_contributions[data.experiments[s]]
-            += contributions[g][s][t];
+        x += contributions[g][s][t];
+    summed_contributions[data.experiments[s]] += x;
+  }
 
   vector<Float> intensity_sums(E, 0);
-// TODO parallelize
-// #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      for (size_t s = 0; s < S; ++s)
-        intensity_sums[data.experiments[s]]
-            += phi[g][t] * theta[s][t] * spot_scaling[s];
+  for (size_t s = 0; s < S; ++s) {
+    double x = 0;
+#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        x += phi[g][t] * theta[s][t] * spot_scaling[s];
+    intensity_sums[data.experiments[s]] += x;
+  }
 
   if (verbosity >= Verbosity::Debug)
     for (size_t e = 0; e < E; ++e)
