@@ -154,7 +154,7 @@ st.multi = function(d,
                names(broken),
                pch=as.factor(names(broken)),
                bty='n')
-        simil.2d.break = broken
+        simil.2d.break[[method]] = broken
       }
       dev.off()
     }
