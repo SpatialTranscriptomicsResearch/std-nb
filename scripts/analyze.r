@@ -81,6 +81,7 @@ st.multi = function(d,
                     do.tsne=T,
                     do.mds=F,
                     do.pca=F,
+                    skip.factors=c(),
                     ncols=2) {
   theta = break.data(d$theta)
   n = length(theta)
@@ -117,7 +118,8 @@ st.multi = function(d,
   }
 
   if(dim.red) {
-    simil = dimensionality.reduction(d$theta, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
+    cur = d$theta[,setdiff(1:ncol(d$theta), skip.factors)]
+    simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
     simil.break = list()
 
     if(!is.null(path)) {
@@ -131,7 +133,34 @@ st.multi = function(d,
       }
       dev.off()
     }
-    return(simil.break)
+
+    simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
+    simil.2d.break = list()
+
+    if(!is.null(path)) {
+      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=h)
+      par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
+      for(method in names(simil.2d)) {
+        broken = break.data(simil.2d[[method]])
+        experiment = rep(names(broken), times=sapply(broken, nrow))
+        plot(simil.2d[[method]],
+             col=make.color(simil[[method]]),
+             pch=as.numeric(as.factor(experiment)),
+             main=method,
+             xlab="",
+             ylab=""
+             )
+        legend("topleft",
+               names(broken),
+               pch=as.factor(names(broken)),
+               bty='n')
+        simil.2d.break = broken
+      }
+      dev.off()
+    }
+
+
+    return(list(simil.2d.break, simil.3d.break=simil.break))
   }
 }
 
