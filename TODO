@@ -18,4 +18,3 @@
 * determine and direct acceptance rate of Metropolis-Hastings sampling
 * don't use experiment scaling factors if there is only one experiment
 * enforcing medians as alternative to means
-* parallelize experiment scaling sampling
