@@ -1,3 +1,5 @@
+source("~/code/st-analysis/analyze_spatial.r")
+
 library(grid)
 library(gridExtra)
 
@@ -125,11 +127,12 @@ st.multi = function(d,
     if(!is.null(path)) {
       pdf(paste(path, "theta-factors-dimensionality-reduction.pdf", sep=""), width=w, height=h)
       for(method in names(simil)) {
-        simil.break[[method]] = break.data(simil[[method]])
+        simil.break[[method]] = break.data(apply(simil[[method]], 2, uniformize))
         par(mfrow=c(nrows, ncols))
         for(name in names(simil.break[[method]]))
           dimensionality.reduction.plot(simil.break[[method]][[name]],
-                                        title=paste(name, "-", method))
+                                        title=paste(name, "-", method),
+                                        unif.fnc=identity)
       }
       dev.off()
     }
