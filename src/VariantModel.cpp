@@ -502,6 +502,40 @@ vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
   return v;
 }
 
+double VariantModel::posterior_expectation(size_t g, size_t s) const {
+  double x = 0;
+  for(size_t t = 0; t < T; ++t)
+    x += r[g][t] / p[g][t] * theta[s][t];
+  x *= spot_scaling[s] * experiment_scaling_long[s];
+  return x;
+}
+
+double VariantModel::posterior_variance(size_t g, size_t s) const {
+  double x = 0;
+  double prod_ = spot_scaling[s] * experiment_scaling_long[s];
+  for(size_t t = 0; t < T; ++t) {
+    double prod = theta[s][t] * prod_;
+    x += r[g][t] * prod / (prod + p[g][t]) / p[g][t] / p[g][t];
+  }
+  return x;
+}
+
+Matrix VariantModel::posterior_expectations() const {
+  Matrix m(boost::extents[G][S]);
+  for(size_t g = 0; g < G; ++g)
+    for(size_t s = 0; s < S; ++s)
+      m[g][s] = posterior_expectation(g, s);
+  return m;
+}
+
+Matrix VariantModel::posterior_variances() const {
+  Matrix m(boost::extents[G][S]);
+  for(size_t g = 0; g < G; ++g)
+    for(size_t s = 0; s < S; ++s)
+      m[g][s] = posterior_variance(g, s);
+  return m;
+}
+
 void VariantModel::check_model(const IMatrix &counts) const {
   return;
   // check that the contributions add up to the observations

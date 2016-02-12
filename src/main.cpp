@@ -71,6 +71,7 @@ void write_results(const FactorAnalysis::PoissonModel &pfa, const Counts &counts
 
 void write_results(const FactorAnalysis::VariantModel &pfa,
                    const Counts &counts, const string &prefix,
+                   bool mean_and_variance = false,
                    bool do_sample = false) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
@@ -81,6 +82,12 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
   write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
   write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
+  if (mean_and_variance) {
+    write_matrix(pfa.posterior_expectations(), prefix + "means.txt",
+                 counts.row_names, counts.col_names);
+    write_matrix(pfa.posterior_variances(), prefix + "variances.txt",
+                 counts.row_names, counts.col_names);
+  }
   if (do_sample) {
     // sample the highest, the median, and the lowest genes' counts for all spots
     vector<size_t> to_sample = {0, pfa.G / 2, pfa.G - 1};
@@ -138,7 +145,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_results(pfa, data, options.output, true);
+  write_results(pfa, data, options.output, true, true);
 }
 
 int main(int argc, char **argv) {
