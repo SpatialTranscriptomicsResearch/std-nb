@@ -77,6 +77,7 @@ st.top = function(d, path="./", ...) {
 }
 
 st.multi = function(d,
+                    break.data=TRUE,
                     path="./",
                     ngenes=50,
                     dim.red=T,
@@ -85,6 +86,9 @@ st.multi = function(d,
                     do.pca=F,
                     skip.factors=c(),
                     ncols=2) {
+  theta = d$theta
+  if(!break.data)
+    rownames(theta) = paste("A", rownames(theta))
   theta = break.data(d$theta)
   n = length(theta)
   nrows = ceiling(n / ncols)
