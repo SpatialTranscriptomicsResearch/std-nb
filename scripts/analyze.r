@@ -30,9 +30,16 @@ test.transforming = function(x) {
 }
 
 st.load.data = function(path.prefix="", path.suffix="") {
-  load.matrix = function(path.prefix, path) {
-    return(read.delim(paste(path.prefix, path, path.suffix, sep=""),
-                      header=T, row.names=1, sep="\t", check.names=F))
+  load.matrix = function(path.prefix,
+                         path) {
+    return(as.matrix(read.delim(paste(path.prefix,
+                                      path,
+                                      path.suffix,
+                                      sep=""),
+                                header=T,
+                                row.names=1,
+                                sep="\t",
+                                check.names=F)))
   }
   load.vec = function(path.prefix, path) {
     x = read.delim(paste(path.prefix, path, path.suffix, sep=""),
