@@ -93,17 +93,17 @@ st.multi = function(d,
                     do.pca=F,
                     skip.factors=c(),
                     ncols=2) {
-  theta = d$theta
+  dtheta = d$theta
   if(!break.data)
-    rownames(theta) = paste("A", rownames(theta))
-  theta = break.data(d$theta)
+    rownames(dtheta) = paste("A", rownames(dtheta))
+  theta = break.data(dtheta)
   n = length(theta)
   nrows = ceiling(n / ncols)
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
     pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
-    for(factor.name in colnames(d$theta)) {
+    for(factor.name in colnames(dtheta)) {
       par(mfrow=c(nrows, ncols))
       cur.max = 0
       for(name in names(theta))
@@ -131,7 +131,7 @@ st.multi = function(d,
   }
 
   if(dim.red) {
-    cur = d$theta[,setdiff(1:ncol(d$theta), skip.factors)]
+    cur = dtheta[,setdiff(1:ncol(dtheta), skip.factors)]
     simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
     simil.break = list()
 
