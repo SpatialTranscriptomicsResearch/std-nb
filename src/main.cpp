@@ -9,7 +9,6 @@
 #include "io.hpp"
 #include "aux.hpp"
 #include "montecarlo.hpp"
-#include "PoissonModel.hpp"
 #include "VariantModel.hpp"
 
 using namespace std;
@@ -35,7 +34,6 @@ struct Options {
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
-  bool original_model = false;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool timing = true;
@@ -57,16 +55,6 @@ istream &operator>>(istream &is, Options::Labeling &label) {
     throw std::runtime_error("Error: could not parse labeling '" + token +
                              "'.");
   return is;
-}
-
-void write_results(const FactorAnalysis::PoissonModel &pfa, const Counts &counts, const string &prefix) {
-  vector<string> factor_names;
-  for (size_t t = 1; t <= pfa.T; ++t)
-    factor_names.push_back("Factor " + to_string(t));
-  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
-  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
-  write_vector(pfa.r, prefix + "r.txt", factor_names);
-  write_vector(pfa.p, prefix + "p.txt", factor_names);
 }
 
 void write_results(const FactorAnalysis::VariantModel &pfa,
@@ -194,8 +182,6 @@ int main(int argc, char **argv) {
      "Compute and print the likelihood every time parameters are reported.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
-    ("original", po::bool_switch(&options.original_model),
-     "Use the original model.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("intersect", po::bool_switch(&options.intersect),
@@ -293,17 +279,10 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  if (options.original_model) {
-    FactorAnalysis::PoissonModel pfa(data.counts, options.num_factors, priors,
-                                     parameters, options.verbosity);
+  FactorAnalysis::VariantModel pfa(data, options.num_factors, priors,
+                                   parameters, options.verbosity);
 
-    perform_gibbs_sampling(data, pfa, options);
-  } else {
-    FactorAnalysis::VariantModel pfa(data, options.num_factors, priors,
-                                     parameters, options.verbosity);
-
-    perform_gibbs_sampling(data, pfa, options);
-  }
+  perform_gibbs_sampling(data, pfa, options);
 
   return EXIT_SUCCESS;
 }
