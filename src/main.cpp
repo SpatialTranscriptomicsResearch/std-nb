@@ -290,7 +290,7 @@ int main(int argc, char **argv) {
     else
       data = data + Counts(options.paths[i], labels[i]);
 
-  if(options.top > 0)
+  if (options.top > 0)
     data.select_top(options.top);
 
   if (options.original_model) {
