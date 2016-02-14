@@ -84,7 +84,7 @@ st.top = function(d, path="./", ...) {
 }
 
 st.multi = function(d,
-                    break.data=TRUE,
+                    single.experiment=FALSE,
                     path="./",
                     ngenes=50,
                     dim.red=T,
@@ -94,7 +94,7 @@ st.multi = function(d,
                     skip.factors=c(),
                     ncols=2) {
   dtheta = d$theta
-  if(!break.data)
+  if(single.experiment)
     rownames(dtheta) = paste("A", rownames(dtheta))
   theta = break.data(dtheta)
   n = length(theta)
