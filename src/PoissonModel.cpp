@@ -218,6 +218,7 @@ void PoissonModel::sample_r() {
       /** compute conditional posterior of r (or rather: a value proportional to
        * it) */
       auto compute_cond_posterior = [&](Float x) {
+        // NOTE: log_gamma takes a shape and scale parameter
         double log_posterior =
             log_gamma(x, priors.c * priors.d, 1 / priors.c);
         for (auto &y : count_spot_type)
@@ -225,11 +226,9 @@ void PoissonModel::sample_r() {
         return log_posterior;
       };
 
-      // NOTE: log_gamma takes a shape and scale parameter
       double log_posterior_current = compute_cond_posterior(rt);
 
       if (verbosity >= Verbosity::Debug) {
-        // NOTE: log_gamma takes a shape and scale parameter
         double log_posterior_prime = compute_cond_posterior(r_prime);
 
         cout << "R = " << rt << " R' = " << r_prime << endl
