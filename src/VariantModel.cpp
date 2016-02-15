@@ -116,16 +116,13 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // randomly initialize P
   for (size_t t = 0; t < T; ++t)
-    p_theta[t]
-        = sample_beta<Float>(priors.theta_p_1 * priors.theta_p_2,
-                             priors.theta_p_1 * (1 - priors.theta_p_2));
+    p_theta[t] = sample_beta<Float>(priors.theta_p_1, priors.theta_p_2);
 
   // randomly initialize R
   for (size_t t = 0; t < T; ++t)
     // NOTE: gamma_distribution takes a shape and scale parameter
-    r_theta[t]
-        = gamma_distribution<Float>(priors.theta_r_1 * priors.theta_r_2,
-                                    1 / priors.theta_r_1)(EntropySource::rng);
+    r_theta[t] = gamma_distribution<Float>(
+        priors.theta_r_1, 1 / priors.theta_r_2)(EntropySource::rng);
 }
 
 VariantModel::VariantModel(const string &phi_path, const string &theta_path,
@@ -295,11 +292,9 @@ double compute_conditional_theta(const pair<Float, Float> &x,
   const size_t S = count_sums.size();
   const Float current_r = x.first;
   const Float current_p = x.second;
-  double r = log_beta_odds(current_p, priors.theta_p_1 * priors.theta_p_2,
-                           priors.theta_p_1 * (1 - priors.theta_p_2)) +
+  double r = log_beta_odds(current_p, priors.theta_p_1, priors.theta_p_2) +
              // NOTE: gamma_distribution takes a shape and scale parameter
-             log_gamma(current_r, priors.theta_r_1 * priors.theta_r_2,
-                       1 / priors.theta_r_1) +
+             log_gamma(current_r, priors.theta_r_1, 1 / priors.theta_r_2) +
              S * (current_r * log(current_p) - lgamma(current_r));
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.

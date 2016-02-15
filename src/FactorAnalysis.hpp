@@ -9,7 +9,7 @@ namespace FactorAnalysis {
 struct Priors {
   Priors(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
          Float phi_p_2_ = 2, Float theta_r_1_ = 1, Float theta_r_2_ = 1,
-         Float theta_p_1_ = 1, Float theta_p_2_ = 0.05, Float gamma_ = 1,
+         Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95, Float gamma_ = 1,
          Float alpha_ = 0.5)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
