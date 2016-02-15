@@ -40,6 +40,12 @@ struct VariantModel {
   /** scale parameter for the prior of the loading matrix */
   Matrix p;
 
+  /** shape parameter for the prior of the loading matrix */
+  Vector r_theta;
+  /** scale parameter for the prior of the loading matrix */
+  Vector p_theta;
+
+
   Verbosity verbosity;
 
   VariantModel(const Counts &counts, const size_t T, const Priors &priors,
@@ -65,6 +71,12 @@ struct VariantModel {
 
   /** sample theta */
   void sample_theta();
+
+  /** sample r_theta */
+  void sample_r_theta();
+
+  /** sample p_theta */
+  void sample_p_theta();
 
   /** sample spot scaling factors */
   void sample_spot_scaling();
