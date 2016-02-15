@@ -97,8 +97,8 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         p[g][t] = 0.5 * G * T;
       else
         // NOTE: gamma_distribution takes a shape and scale parameter
-        p[g][t] = gamma_distribution<Float>(priors.e,
-                                            1 / priors.f)(EntropySource::rng);
+        p[g][t] = gamma_distribution<Float>(priors.phi_p_1,
+                                            1 / priors.phi_p_2)(EntropySource::rng);
 
   // initialize R
   // r_k= 50/T*ones(T,1)
@@ -180,14 +180,14 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r[g][t], priors.c, 1.0 / priors.d);
+      l += log_gamma(r[g][t], priors.phi_r_1, 1.0 / priors.phi_r_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(p[g][t], priors.e, 1 / priors.f);
+      l += log_gamma(p[g][t], priors.phi_p_1, 1 / priors.phi_p_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Beta-distributed p[g][" << t << "]." << endl;
@@ -358,9 +358,9 @@ double compute_conditional(const pair<Float, Float> &x, Int count_sum,
                            Float weight_sum, const Priors &priors) {
   const Float current_r = x.first;
   const Float current_p = x.second;
-  return log_beta_odds(current_p, priors.e, priors.f) +
+  return log_beta_odds(current_p, priors.phi_p_1, priors.phi_p_2) +
          // NOTE: gamma_distribution takes a shape and scale parameter
-         log_gamma(current_r, priors.c, 1 / priors.d) +
+         log_gamma(current_r, priors.phi_r_1, 1 / priors.phi_r_2) +
          // The next line is part of the negative binomial distribution.
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
@@ -719,10 +719,10 @@ void VariantModel::check_model(const IMatrix &counts) const {
     }
 
   // check priors
-  if (priors.c == 0) throw(runtime_error("The prior c is zero."));
-  if (priors.d == 0) throw(runtime_error("The prior d is zero."));
-  if (priors.e == 0) throw(runtime_error("The prior c is zero."));
-  if (priors.f == 0) throw(runtime_error("The prior f is zero."));
+  if (priors.phi_r_1 == 0) throw(runtime_error("The prior phi_r_1 is zero."));
+  if (priors.phi_r_2 == 0) throw(runtime_error("The prior phi_r_2 is zero."));
+  if (priors.phi_p_1 == 0) throw(runtime_error("The prior phi_p_1 is zero."));
+  if (priors.phi_p_2 == 0) throw(runtime_error("The prior phi_p_2 is zero."));
   if (priors.alpha == 0) throw(runtime_error("The prior alpha is zero."));
 }
 }

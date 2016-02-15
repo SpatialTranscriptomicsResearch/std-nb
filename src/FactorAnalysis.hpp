@@ -7,21 +7,26 @@
 
 namespace FactorAnalysis {
 struct Priors {
-  Priors(Float c_ = 10, Float d_ = 10, Float e_ = 2, Float f_ = 2,
-         Float gamma_ = 1, Float alpha_ = 0.5)
-      : c(c_), d(d_), e(e_), f(f_), gamma(gamma_), alpha(alpha_){};
+  Priors(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
+         Float phi_p_2_ = 2, Float gamma_ = 1, Float alpha_ = 0.5)
+      : phi_r_1(phi_r_1_),
+        phi_r_2(phi_r_2_),
+        phi_p_1(phi_p_1_),
+        phi_p_2(phi_p_2_),
+        gamma(gamma_),
+        alpha(alpha_){};
 
   // priors for the gamma distribution of r[g][t]
   // Float c0;
   // Float r0;
-  Float c;
-  Float d;
+  Float phi_r_1;
+  Float phi_r_2;
 
   // priors for the gamma distribution of p[g][t]
   // Float c;
   // Float epsilon;
-  Float e;
-  Float f;
+  Float phi_p_1;
+  Float phi_p_2;
 
   Float gamma;
   Float alpha;
