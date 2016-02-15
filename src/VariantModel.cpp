@@ -553,30 +553,6 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
   check_model(data.counts);
 
   timer.tick();
-  sample_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_p_and_r_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_p_and_r();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
   sample_spot_scaling();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
@@ -595,7 +571,31 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
   }
 
   timer.tick();
+  sample_p_and_r();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
+  sample_p_and_r_theta();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
   sample_phi();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
+  sample_theta();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
