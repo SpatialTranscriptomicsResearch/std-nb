@@ -438,9 +438,69 @@ void VariantModel::sample_r_theta() {
   }
 }
 
-double compute_conditional(const pair<Float, Float> &x, size_t g, size_t t,
-                           Int count_sum, Float weight_sum,
-                           const Priors &priors) {
+double compute_conditional_theta(const pair<Float, Float> &x,
+                                 const vector<Int> &count_sums,
+                                 const vector<Float> &weight_sums,
+                                 const Priors &priors) {
+  const size_t S = count_sums.size();
+  const Float current_r = x.first;
+  const Float current_p = x.second;
+  double r = log_beta_odds(current_p, hyper_parameter_e * hyper_parameter_f,
+                           hyper_parameter_e * (1 - hyper_parameter_f)) +
+             // NOTE: gamma_distribution takes a shape and scale parameter
+             log_gamma(current_r, hyper_parameter_c * hyper_parameter_d,
+                       1 / hyper_parameter_c) +
+             S * (current_r * log(current_p) - lgamma(current_r));
+  for (size_t s = 0; s < S; ++s)
+    // The next line is part of the negative binomial distribution.
+    // The other factors aren't needed as they don't depend on either of
+    // r[g][t] and p[g][t], and thus would cancel when computing the score
+    // ratio.
+    r += lgamma(current_r + count_sums[s]) -
+         (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
+  return r;
+}
+
+/** sample p_theta and r_theta */
+/* This is a simple Metropolis-Hastings sampling scheme */
+void VariantModel::sample_p_and_r_theta() {
+  if (verbosity >= Verbosity::Verbose)
+    cout << "Sampling P_theta and R_theta" << endl;
+
+  auto gen = [&](const pair<Float, Float> &x, mt19937 &rng) {
+    normal_distribution<double> rnorm;
+    const double f1 = exp(rnorm(rng));
+    const double f2 = exp(rnorm(rng));
+    return pair<Float, Float>(f1 * x.first, f2 * x.second);
+  };
+
+  for (size_t t = 0; t < T; ++t) {
+    Float weight_sum = 0;
+#pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g) weight_sum += phi[g][t];
+    // weight_sum *= spot_scaling[s] * experiment_scaling_long[s];
+    MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
+                          verbosity);
+
+    vector<Int> count_sums(S, 0);
+    vector<Float> weight_sums(S, 0);
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t s = 0; s < S; ++s) {
+      weight_sums[s] = weight_sum * spot_scaling[s] * experiment_scaling_long[s];
+      for (size_t g = 0; g < G; ++g) count_sums[s] += contributions[g][s][t];
+    }
+    size_t thread_num = omp_get_thread_num();
+    auto res = mh.sample(
+        pair<Float, Float>(r_theta[t], prob_to_neg_odds(p_theta[t])),
+        parameters.n_iter, EntropySource::rngs[thread_num], gen,
+        compute_conditional_theta, count_sums, weight_sums, priors);
+    r_theta[t] = res.first;
+    p_theta[t] = neg_odds_to_prob(res.second);
+  }
+}
+
+double compute_conditional(const pair<Float, Float> &x, Int count_sum,
+                           Float weight_sum, const Priors &priors) {
   const Float current_r = x.first;
   const Float current_p = x.second;
   return log_beta_odds(current_p, priors.e, priors.f) +
@@ -450,9 +510,9 @@ double compute_conditional(const pair<Float, Float> &x, size_t g, size_t t,
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
          // ratio.
-         + current_r * log(current_p)
-         - (current_r + count_sum) * log(current_p + weight_sum)
-         + lgamma(current_r + count_sum) - lgamma(current_r);
+         +current_r * log(current_p) -
+         (current_r + count_sum) * log(current_p + weight_sum) +
+         lgamma(current_r + count_sum) - lgamma(current_r);
 }
 
 /** sample p and r */
@@ -482,7 +542,7 @@ void VariantModel::sample_p_and_r() {
       auto res =
           mh.sample(pair<Float, Float>(r[g][t], p[g][t]), parameters.n_iter,
                     EntropySource::rngs[thread_num], gen, compute_conditional,
-                    g, t, count_sum, weight_sum, priors);
+                    count_sum, weight_sum, priors);
       r[g][t] = res.first;
       p[g][t] = res.second;
     }
@@ -656,15 +716,7 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
   check_model(data.counts);
 
   timer.tick();
-  sample_p_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_r_theta();
+  sample_p_and_r_theta();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
