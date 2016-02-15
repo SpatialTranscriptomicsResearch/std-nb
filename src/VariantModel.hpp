@@ -75,12 +75,6 @@ struct VariantModel {
   /** sample p_theta and r_theta */
   void sample_p_and_r_theta();
 
-  /** sample r_theta */
-  void sample_r_theta();
-
-  /** sample p_theta */
-  void sample_p_theta();
-
   /** sample spot scaling factors */
   void sample_spot_scaling();
 
