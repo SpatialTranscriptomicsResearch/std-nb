@@ -72,6 +72,9 @@ struct VariantModel {
   /** sample theta */
   void sample_theta();
 
+  /** sample p_theta and r_theta */
+  void sample_p_and_r_theta();
+
   /** sample r_theta */
   void sample_r_theta();
 

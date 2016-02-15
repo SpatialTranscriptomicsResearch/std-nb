@@ -94,11 +94,15 @@ st.multi = function(d,
                     skip.factors=c(),
                     ncols=2) {
   dtheta = d$theta
-  if(single.experiment)
+  if(single.experiment == TRUE)
     rownames(dtheta) = paste("A", rownames(dtheta))
   theta = break.data(dtheta)
   n = length(theta)
   nrows = ceiling(n / ncols)
+  if(single.experiment == TRUE) {
+    nrows = 1
+    ncols = 1
+  }
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
