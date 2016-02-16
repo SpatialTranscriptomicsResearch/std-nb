@@ -116,7 +116,8 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // randomly initialize P
   for (size_t t = 0; t < T; ++t)
-    p_theta[t] = sample_beta<Float>(priors.theta_p_1, priors.theta_p_2);
+    p_theta[t] = prob_to_neg_odds(
+        sample_beta<Float>(priors.theta_p_1, priors.theta_p_2));
 
   // randomly initialize R
   for (size_t t = 0; t < T; ++t)
@@ -269,7 +270,7 @@ void VariantModel::sample_theta() {
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta[s][t] = gamma_distribution<Float>(
           r_theta[t] + summed_contribution,
-          1.0 / ((1 - p_theta[t]) / p_theta[t] + intensity_sum))(
+          1.0 / (p_theta[t] + intensity_sum))(
           EntropySource::rng);
       if (verbosity >= Verbosity::Debug)
         cout << "new theta[" << s << "][" << t << "]=" << theta[s][t] << endl;
@@ -336,11 +337,11 @@ void VariantModel::sample_p_and_r_theta() {
     }
     size_t thread_num = omp_get_thread_num();
     auto res = mh.sample(
-        pair<Float, Float>(r_theta[t], prob_to_neg_odds(p_theta[t])),
+        pair<Float, Float>(r_theta[t], p_theta[t]),
         parameters.n_iter, EntropySource::rngs[thread_num], gen,
         compute_conditional_theta, count_sums, weight_sums, priors);
     r_theta[t] = res.first;
-    p_theta[t] = neg_odds_to_prob(res.second);
+    p_theta[t] = res.second;
   }
 }
 
