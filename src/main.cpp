@@ -205,13 +205,13 @@ int main(int argc, char **argv) {
     ("phi_p_2", po::value(&priors.phi_p_2)->default_value(priors.phi_p_2),
      "Gamma prior 2 of p[g][t].")
     ("theta_r_1", po::value(&priors.theta_r_1)->default_value(priors.theta_r_1),
-     "Gamma prior 1 of r[g][t].")
+     "Gamma prior 1 of r[t].")
     ("theta_r_2", po::value(&priors.theta_r_2)->default_value(priors.theta_r_2),
-     "Gamma prior 2 of r[g][t].")
+     "Gamma prior 2 of r[t].")
     ("theta_p_1", po::value(&priors.theta_p_1)->default_value(priors.theta_p_1),
-     "Gamma prior 1 of p[g][t].")
+     "Gamma prior 1 of p[t].")
     ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2),
-     "Gamma prior 2 of p[g][t].")
+     "Gamma prior 2 of p[t].")
 
     ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
      "Prior gamma.");
