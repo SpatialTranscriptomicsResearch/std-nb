@@ -78,7 +78,18 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   }
   if (do_sample) {
     // sample the highest, the median, and the lowest genes' counts for all spots
-    vector<size_t> to_sample = {0, pfa.G / 2, pfa.G - 1};
+    vector<size_t> counts_per_gene(pfa.G, 0);
+    for (size_t g = 0; g < pfa.G; ++g)
+      for (size_t s = 0; s < pfa.S; ++s)
+        counts_per_gene[g] += counts.counts[g][s];
+    vector<pair<size_t,size_t>> v;
+    for (size_t g = 0; g < pfa.G; ++g)
+      v.push_back(pair<size_t,size_t>(counts_per_gene[g], g));
+    sort(begin(v), end(v));
+    vector<size_t> to_sample;
+    to_sample.push_back(v.rbegin()->second);
+    to_sample.push_back((v.begin()+pfa.G/2)->second);
+    to_sample.push_back(v.begin()->second);
     for(auto g: to_sample)
       for (size_t s = 0; s < pfa.S; ++s) {
         cout << "SAMPLE ACROSS SPOTS\t" << counts.row_names[g] << "\t"
