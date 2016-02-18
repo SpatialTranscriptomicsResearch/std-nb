@@ -80,7 +80,7 @@ st.top = function(d, path="./", ...) {
   if(!is.null(path))
     dev.off()
 
-  return(st.multi(d, path, ...))
+  return(st.multi(d, path=path, ...))
 }
 
 st.multi = function(d,

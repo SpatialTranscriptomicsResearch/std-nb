@@ -38,11 +38,13 @@ struct VariantModel {
   /** shape parameter for the prior of the loading matrix */
   Matrix r;
   /** scale parameter for the prior of the loading matrix */
+  /* Stored as negative-odds */
   Matrix p;
 
-  /** shape parameter for the prior of the loading matrix */
+  /** shape parameter for the prior of the mixing matrix */
   Vector r_theta;
-  /** scale parameter for the prior of the loading matrix */
+  /** scale parameter for the prior of the mixing matrix */
+  /* Stored as negative-odds */
   Vector p_theta;
 
 

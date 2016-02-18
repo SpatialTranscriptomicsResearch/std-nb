@@ -207,14 +207,23 @@ int main(int argc, char **argv) {
   prior_options.add_options()
     ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
      "Dirichlet prior alpha of the factor loading matrix.")
-    ("hyper_c", po::value(&priors.c)->default_value(priors.c),
-     "Gamma prior c.")
-    ("hyper_d", po::value(&priors.d)->default_value(priors.d),
-     "Gamma prior d.")
-    ("hyper_e", po::value(&priors.e)->default_value(priors.e),
-     "Gamma prior e.")
-    ("hyper_f", po::value(&priors.f)->default_value(priors.f),
-     "Gamma prior f.")
+    ("phi_r_1", po::value(&priors.phi_r_1)->default_value(priors.phi_r_1),
+     "Gamma prior 1 of r[g][t].")
+    ("phi_r_2", po::value(&priors.phi_r_2)->default_value(priors.phi_r_2),
+     "Gamma prior 2 of r[g][t].")
+    ("phi_p_1", po::value(&priors.phi_p_1)->default_value(priors.phi_p_1),
+     "Gamma prior 1 of p[g][t].")
+    ("phi_p_2", po::value(&priors.phi_p_2)->default_value(priors.phi_p_2),
+     "Gamma prior 2 of p[g][t].")
+    ("theta_r_1", po::value(&priors.theta_r_1)->default_value(priors.theta_r_1),
+     "Gamma prior 1 of r[t].")
+    ("theta_r_2", po::value(&priors.theta_r_2)->default_value(priors.theta_r_2),
+     "Gamma prior 2 of r[t].")
+    ("theta_p_1", po::value(&priors.theta_p_1)->default_value(priors.theta_p_1),
+     "Gamma prior 1 of p[t].")
+    ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2),
+     "Gamma prior 2 of p[t].")
+
     ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
      "Prior gamma.");
 

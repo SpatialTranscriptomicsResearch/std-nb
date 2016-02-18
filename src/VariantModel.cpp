@@ -18,11 +18,6 @@ const Float spot_scaling_prior_b = 10;
 const Float experiment_scaling_prior_a = 10;
 const Float experiment_scaling_prior_b = 10;
 
-const Float hyper_parameter_c = 1; // c_0
-const Float hyper_parameter_d = 1; // r_0
-const Float hyper_parameter_e = 1; // c
-const Float hyper_parameter_f = 0.05; // epsilon
-
 template <typename T>
 T odds_to_prob(T x) {
   return x / (x + 1);
@@ -97,8 +92,8 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         p[g][t] = 0.5 * G * T;
       else
         // NOTE: gamma_distribution takes a shape and scale parameter
-        p[g][t] = gamma_distribution<Float>(priors.e,
-                                            1 / priors.f)(EntropySource::rng);
+        p[g][t] = gamma_distribution<Float>(priors.phi_p_1,
+                                            1 / priors.phi_p_2)(EntropySource::rng);
 
   // initialize R
   // r_k= 50/T*ones(T,1)
@@ -121,16 +116,14 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // randomly initialize P
   for (size_t t = 0; t < T; ++t)
-    p_theta[t]
-        = sample_beta<Float>(hyper_parameter_e * hyper_parameter_f,
-                             hyper_parameter_e * (1 - hyper_parameter_f));
+    p_theta[t] = prob_to_neg_odds(
+        sample_beta<Float>(priors.theta_p_1, priors.theta_p_2));
 
   // randomly initialize R
   for (size_t t = 0; t < T; ++t)
     // NOTE: gamma_distribution takes a shape and scale parameter
-    r_theta[t]
-        = gamma_distribution<Float>(hyper_parameter_c * hyper_parameter_d,
-                                    1 / hyper_parameter_c)(EntropySource::rng);
+    r_theta[t] = gamma_distribution<Float>(
+        priors.theta_r_1, 1 / priors.theta_r_2)(EntropySource::rng);
 }
 
 VariantModel::VariantModel(const string &phi_path, const string &theta_path,
@@ -180,14 +173,14 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r[g][t], priors.c, 1.0 / priors.d);
+      l += log_gamma(r[g][t], priors.phi_r_1, 1.0 / priors.phi_r_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Gamma-distributed r[g][" << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(p[g][t], priors.e, 1 / priors.f);
+      l += log_gamma(p[g][t], priors.phi_p_1, 1 / priors.phi_p_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Beta-distributed p[g][" << t << "]." << endl;
@@ -277,7 +270,7 @@ void VariantModel::sample_theta() {
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta[s][t] = gamma_distribution<Float>(
           r_theta[t] + summed_contribution,
-          1.0 / ((1 - p_theta[t]) / p_theta[t] + intensity_sum))(
+          1.0 / (p_theta[t] + intensity_sum))(
           EntropySource::rng);
       if (verbosity >= Verbosity::Debug)
         cout << "new theta[" << s << "][" << t << "]=" << theta[s][t] << endl;
@@ -300,11 +293,9 @@ double compute_conditional_theta(const pair<Float, Float> &x,
   const size_t S = count_sums.size();
   const Float current_r = x.first;
   const Float current_p = x.second;
-  double r = log_beta_odds(current_p, hyper_parameter_e * hyper_parameter_f,
-                           hyper_parameter_e * (1 - hyper_parameter_f)) +
+  double r = log_beta_odds(current_p, priors.theta_p_1, priors.theta_p_2) +
              // NOTE: gamma_distribution takes a shape and scale parameter
-             log_gamma(current_r, hyper_parameter_c * hyper_parameter_d,
-                       1 / hyper_parameter_c) +
+             log_gamma(current_r, priors.theta_r_1, 1 / priors.theta_r_2) +
              S * (current_r * log(current_p) - lgamma(current_r));
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
@@ -346,11 +337,11 @@ void VariantModel::sample_p_and_r_theta() {
     }
     size_t thread_num = omp_get_thread_num();
     auto res = mh.sample(
-        pair<Float, Float>(r_theta[t], prob_to_neg_odds(p_theta[t])),
+        pair<Float, Float>(r_theta[t], p_theta[t]),
         parameters.n_iter, EntropySource::rngs[thread_num], gen,
         compute_conditional_theta, count_sums, weight_sums, priors);
     r_theta[t] = res.first;
-    p_theta[t] = neg_odds_to_prob(res.second);
+    p_theta[t] = res.second;
   }
 }
 
@@ -358,9 +349,9 @@ double compute_conditional(const pair<Float, Float> &x, Int count_sum,
                            Float weight_sum, const Priors &priors) {
   const Float current_r = x.first;
   const Float current_p = x.second;
-  return log_beta_odds(current_p, priors.e, priors.f) +
+  return log_beta_odds(current_p, priors.phi_p_1, priors.phi_p_2) +
          // NOTE: gamma_distribution takes a shape and scale parameter
-         log_gamma(current_r, priors.c, 1 / priors.d) +
+         log_gamma(current_r, priors.phi_r_1, 1 / priors.phi_r_2) +
          // The next line is part of the negative binomial distribution.
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
@@ -563,30 +554,6 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
   check_model(data.counts);
 
   timer.tick();
-  sample_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_p_and_r_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_p_and_r();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
   sample_spot_scaling();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
@@ -605,7 +572,31 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
   }
 
   timer.tick();
+  sample_p_and_r();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
+  sample_p_and_r_theta();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
   sample_phi();
+  if (timing and verbosity >= Verbosity::Info)
+    cout << "This took " << timer.tock() << "μs." << endl;
+  if (verbosity >= Verbosity::Everything)
+    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+  check_model(data.counts);
+
+  timer.tick();
+  sample_theta();
   if (timing and verbosity >= Verbosity::Info)
     cout << "This took " << timer.tock() << "μs." << endl;
   if (verbosity >= Verbosity::Everything)
@@ -719,10 +710,10 @@ void VariantModel::check_model(const IMatrix &counts) const {
     }
 
   // check priors
-  if (priors.c == 0) throw(runtime_error("The prior c is zero."));
-  if (priors.d == 0) throw(runtime_error("The prior d is zero."));
-  if (priors.e == 0) throw(runtime_error("The prior c is zero."));
-  if (priors.f == 0) throw(runtime_error("The prior f is zero."));
+  if (priors.phi_r_1 == 0) throw(runtime_error("The prior phi_r_1 is zero."));
+  if (priors.phi_r_2 == 0) throw(runtime_error("The prior phi_r_2 is zero."));
+  if (priors.phi_p_1 == 0) throw(runtime_error("The prior phi_p_1 is zero."));
+  if (priors.phi_p_2 == 0) throw(runtime_error("The prior phi_p_2 is zero."));
   if (priors.alpha == 0) throw(runtime_error("The prior alpha is zero."));
 }
 }
