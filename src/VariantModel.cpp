@@ -282,14 +282,16 @@ void VariantModel::sample_theta() {
         cout << "new theta[" << s << "][" << t << "]=" << theta[s][t] << endl;
     }
 
-    if (parameters.enforce_means and enforce_mean_theta) {
+  }
+  if (parameters.enforce_means and enforce_mean_theta)
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t s = 0; s < S; ++s) {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
         z += theta[s][t];
       for (size_t t = 0; t < T; ++t)
         theta[s][t] /= z;
     }
-  }
 }
 
 double compute_conditional_theta(const pair<Float, Float> &x,
@@ -441,8 +443,10 @@ void VariantModel::sample_phi() {
   if (parameters.enforce_means and enforce_mean_phi)
     for (size_t t = 0; t < T; ++t) {
       double z = 0;
+#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
         z += phi[g][t];
+#pragma omp parallel for if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
         phi[g][t] = phi[g][t] / z * phi_scaling;
     }
@@ -484,9 +488,11 @@ void VariantModel::sample_spot_scaling() {
 
   if (parameters.enforce_means and enforce_mean_spot_scaling) {
     double z = 0;
+#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
       z += spot_scaling[s];
     z /= S;
+#pragma omp parallel for if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
       spot_scaling[s] /= z;
   }
@@ -523,6 +529,7 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
            << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e]
            << endl;
 
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
@@ -539,9 +546,11 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
 
   if (parameters.enforce_means and enforce_mean_experiment_scaling) {
     double z = 0;
+#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
       z += experiment_scaling_long[s];
     z /= S;
+#pragma omp parallel for if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
       experiment_scaling_long[s] /= z;
 
