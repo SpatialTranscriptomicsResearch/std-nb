@@ -18,6 +18,12 @@ const Float spot_scaling_prior_b = 10;
 const Float experiment_scaling_prior_a = 10;
 const Float experiment_scaling_prior_b = 10;
 
+const bool enforce_mean_theta = false;
+const bool enforce_mean_phi = true;
+const bool enforce_mean_spot_scaling = true;
+const bool enforce_mean_experiment_scaling = true;
+const Float phi_scaling = 1.0;
+
 template <typename T>
 T odds_to_prob(T x) {
   return x / (x + 1);
@@ -276,7 +282,7 @@ void VariantModel::sample_theta() {
         cout << "new theta[" << s << "][" << t << "]=" << theta[s][t] << endl;
     }
 
-    if (parameters.enforce_means) {
+    if (parameters.enforce_means and enforce_mean_theta) {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
         z += theta[s][t];
@@ -432,6 +438,14 @@ void VariantModel::sample_phi() {
         // exit(EXIT_FAILURE);
       }
     }
+  if (parameters.enforce_means and enforce_mean_phi)
+    for (size_t t = 0; t < T; ++t) {
+      double z = 0;
+      for (size_t g = 0; g < G; ++g)
+        z += phi[g][t];
+      for (size_t g = 0; g < G; ++g)
+        phi[g][t] = phi[g][t] / z * phi_scaling;
+    }
 }
 
 /** sample spot scaling factors */
@@ -468,7 +482,7 @@ void VariantModel::sample_spot_scaling() {
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
 
-  if(parameters.enforce_means) {
+  if (parameters.enforce_means and enforce_mean_spot_scaling) {
     double z = 0;
     for(size_t s = 0; s < S; ++s)
       z += spot_scaling[s];
@@ -523,7 +537,7 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   // copy the experiment scaling parameters into the spot-indexed vector
   update_experiment_scaling_long(data);
 
-  if(parameters.enforce_means) {
+  if (parameters.enforce_means and enforce_mean_experiment_scaling) {
     double z = 0;
     for(size_t s = 0; s < S; ++s)
       z += experiment_scaling_long[s];
