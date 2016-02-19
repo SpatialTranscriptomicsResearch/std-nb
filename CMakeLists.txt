@@ -57,6 +57,10 @@ INCLUDE(CPack)
 
 SET(MULTISCOOPIBP_VERSION "${CPACK_PACKAGE_VERSION_MAJOR}.${CPACK_PACKAGE_VERSION_MINOR}.${CPACK_PACKAGE_VERSION_PATCH}")
 
+IF(EXISTS "${CMAKE_SOURCE_DIR}/local_configuration.cmake")
+  INCLUDE("${CMAKE_SOURCE_DIR}/local_configuration.cmake")
+ENDIF()
+
 
 # Check for C++11 features of the compiler
 INCLUDE(CheckCXX11Features)
