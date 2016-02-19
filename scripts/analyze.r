@@ -85,6 +85,7 @@ st.top = function(d, path="./", ...) {
 
 st.multi = function(d,
                     single.experiment=FALSE,
+                    simple.title=F,
                     path="./",
                     ngenes=50,
                     dim.red=T,
@@ -114,9 +115,14 @@ st.multi = function(d,
         cur.max = max(cur.max, max(theta[[name]][,factor.name]))
       for(name in names(theta)) {
         cur = theta[[name]][,factor.name]
+        title.text = paste(name, "-", factor.name)
+        if(!simple.title)
+          title.text = paste(name, "-", factor.name, ":",
+                             round(min(cur),3), "-", round(max(cur),3),
+                             "Sum =", round(sum(cur),3))
         visualize(cur,
                   coords=parse.coords(rownames(theta[[name]])),
-                  title=paste(name, "-", factor.name, ":", round(min(cur),3), "-", round(max(cur),3), "Sum =", round(sum(cur),3)),
+                  title=title.text,
                   zlim=c(0,cur.max))
       }
     }
