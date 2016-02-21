@@ -240,9 +240,14 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of p[t].")
     ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2),
      "Gamma prior 2 of p[t].")
-
-    ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
-     "Prior gamma.");
+    ("spot_1", po::value(&priors.spot_a)->default_value(priors.spot_a),
+     "Gamma prior 1 of the spot scaling parameter.")
+    ("spot_2", po::value(&priors.spot_b)->default_value(priors.spot_b),
+     "Gamma prior 2 of the spot scaling parameter.")
+    ("exp_1", po::value(&priors.experiment_a)->default_value(priors.experiment_a),
+     "Gamma prior 1 of the experiment scaling parameter.")
+    ("exp_2", po::value(&priors.experiment_b)->default_value(priors.experiment_b),
+     "Gamma prior 2 of the experiment scaling parameter.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),

@@ -132,9 +132,7 @@ int main(int argc, char **argv) {
     ("phi_p_1", po::value(&priors.phi_p_1)->default_value(priors.phi_p_1),
      "Gamma prior 1 of p[g][t].")
     ("phi_p_2", po::value(&priors.phi_p_2)->default_value(priors.phi_p_2),
-     "Gamma prior 2 of p[g][t].")
-    ("gamma", po::value(&priors.gamma)->default_value(priors.gamma),
-     "Prior gamma.");
+     "Gamma prior 2 of p[g][t].");
 
   cli_options.add(generic_options)
       .add(required_options)

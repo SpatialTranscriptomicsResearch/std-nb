@@ -9,8 +9,9 @@ namespace FactorAnalysis {
 struct Priors {
   Priors(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
          Float phi_p_2_ = 2, Float theta_r_1_ = 1, Float theta_r_2_ = 1,
-         Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95, Float gamma_ = 1,
-         Float alpha_ = 0.5)
+         Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95, Float spot_a_ = 10,
+         Float spot_b_ = 10, Float experiment_a_ = 10, Float experiment_b_ = 10,
+         Float gamma_ = 1, Float alpha_ = 0.5)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
         phi_p_1(phi_p_1_),
@@ -19,7 +20,10 @@ struct Priors {
         theta_r_2(theta_r_2_),
         theta_p_1(theta_p_1_),
         theta_p_2(theta_p_2_),
-        gamma(gamma_),
+        spot_a(spot_a_),
+        spot_b(spot_b_),
+        experiment_a(experiment_a_),
+        experiment_b(experiment_b_),
         alpha(alpha_){};
 
   // priors for the gamma distribution of r[g][t]
@@ -42,7 +46,11 @@ struct Priors {
   Float theta_p_1;
   Float theta_p_2;
 
-  Float gamma;
+  Float spot_a;
+  Float spot_b;
+  Float experiment_a;
+  Float experiment_b;
+
   Float alpha;
 };
 

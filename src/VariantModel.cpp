@@ -13,11 +13,6 @@
 
 using namespace std;
 namespace FactorAnalysis {
-const Float spot_scaling_prior_a = 10;
-const Float spot_scaling_prior_b = 10;
-const Float experiment_scaling_prior_a = 10;
-const Float experiment_scaling_prior_b = 10;
-
 const Float phi_scaling = 1.0;
 
 template <typename T>
@@ -79,7 +74,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
   for (size_t s = 0; s < S; ++s)
     // NOTE: gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = gamma_distribution<Float>(
-        spot_scaling_prior_a, 1 / spot_scaling_prior_b)(EntropySource::rng);
+        priors.spot_a, 1 / priors.spot_b)(EntropySource::rng);
 
   // initialize experiment scaling factors
   for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
@@ -478,8 +473,8 @@ void VariantModel::sample_spot_scaling() {
 
     // NOTE: gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = gamma_distribution<Float>(
-        spot_scaling_prior_a + summed_contribution,
-        1.0 / (spot_scaling_prior_b + intensity_sum))(EntropySource::rng);
+        priors.spot_a + summed_contribution,
+        1.0 / (priors.spot_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
@@ -532,8 +527,8 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
-        experiment_scaling_prior_a + summed_contributions[e],
-        1.0 / (experiment_scaling_prior_b + intensity_sums[e]))(
+        priors.experiment_a + summed_contributions[e],
+        1.0 / (priors.experiment_b + intensity_sums[e]))(
         EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new experiment_scaling[" << e << "]=" << experiment_scaling[e]
