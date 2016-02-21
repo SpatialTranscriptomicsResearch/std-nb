@@ -57,6 +57,24 @@ istream &operator>>(istream &is, Options::Labeling &label) {
   return is;
 }
 
+ostream &operator<<(ostream &os, const Options::Labeling &label) {
+  switch (label) {
+    case Options::Labeling::Auto:
+      os << "auto";
+      break;
+    case Options::Labeling::None:
+      os << "none";
+      break;
+    case Options::Labeling::Path:
+      os << "path";
+      break;
+    case Options::Labeling::Alpha:
+      os << "alpha";
+      break;
+  }
+  return os;
+}
+
 void write_results(const FactorAnalysis::VariantModel &pfa,
                    const Counts &counts, const string &prefix,
                    bool mean_and_variance = false,
