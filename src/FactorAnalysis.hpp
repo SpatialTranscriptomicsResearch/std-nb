@@ -53,9 +53,43 @@ struct Parameters {
   double temperature = 1.0;
   /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
-  /** Whether to enforce the means of the scaling variables to be unity */
-  bool enforce_means = false;
+  /** For which random variables should we enforce the means? */
+  enum class ForceMean {
+    None = 0,
+    Theta = 1,
+    Phi = 2,
+    Spot = 4,
+    Experiment = 8
+  };
+  ForceMean enforce_mean;
 };
+
+inline constexpr Parameters::ForceMean operator&(Parameters::ForceMean x,
+                                                 Parameters::ForceMean y) {
+  return static_cast<Parameters::ForceMean>(static_cast<int>(x) &
+                                            static_cast<int>(y));
+}
+
+inline constexpr Parameters::ForceMean operator|(Parameters::ForceMean x,
+                                                 Parameters::ForceMean y) {
+  return static_cast<Parameters::ForceMean>(static_cast<int>(x) |
+                                            static_cast<int>(y));
+}
+
+inline Parameters::ForceMean &operator&=(Parameters::ForceMean &x,
+                                         Parameters::ForceMean y) {
+  x = x & y;
+  return x;
+}
+
+inline Parameters::ForceMean &operator|=(Parameters::ForceMean &x,
+                                         Parameters::ForceMean y) {
+  x = x | y;
+  return x;
+}
+
+std::istream &operator>>(std::istream &is, Parameters::ForceMean &force);
+std::ostream &operator<<(std::ostream &os, const Parameters::ForceMean &force);
 
 Float digamma(Float x);
 Float trigamma(Float x);

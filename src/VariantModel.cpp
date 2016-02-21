@@ -18,10 +18,6 @@ const Float spot_scaling_prior_b = 10;
 const Float experiment_scaling_prior_a = 10;
 const Float experiment_scaling_prior_b = 10;
 
-const bool enforce_mean_theta = false;
-const bool enforce_mean_phi = true;
-const bool enforce_mean_spot_scaling = true;
-const bool enforce_mean_experiment_scaling = true;
 const Float phi_scaling = 1.0;
 
 template <typename T>
@@ -283,7 +279,8 @@ void VariantModel::sample_theta() {
     }
 
   }
-  if (parameters.enforce_means and enforce_mean_theta)
+  if ((parameters.enforce_mean & Parameters::ForceMean::Theta) !=
+      Parameters::ForceMean::None)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s) {
       double z = 0;
@@ -440,7 +437,8 @@ void VariantModel::sample_phi() {
         // exit(EXIT_FAILURE);
       }
     }
-  if (parameters.enforce_means and enforce_mean_phi)
+  if ((parameters.enforce_mean & Parameters::ForceMean::Phi) !=
+      Parameters::ForceMean::None)
     for (size_t t = 0; t < T; ++t) {
       double z = 0;
 #pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
@@ -486,7 +484,8 @@ void VariantModel::sample_spot_scaling() {
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
 
-  if (parameters.enforce_means and enforce_mean_spot_scaling) {
+  if ((parameters.enforce_mean & Parameters::ForceMean::Spot) !=
+      Parameters::ForceMean::None) {
     double z = 0;
 #pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
@@ -544,7 +543,8 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   // copy the experiment scaling parameters into the spot-indexed vector
   update_experiment_scaling_long(data);
 
-  if (parameters.enforce_means and enforce_mean_experiment_scaling) {
+  if ((parameters.enforce_mean & Parameters::ForceMean::Experiment) !=
+      Parameters::ForceMean::None) {
     double z = 0;
 #pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
     for(size_t s = 0; s < S; ++s)
