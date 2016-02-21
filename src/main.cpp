@@ -43,13 +43,13 @@ struct Options {
 istream &operator>>(istream &is, Options::Labeling &label) {
   string token;
   is >> token;
-  if (to_lower(token) == "auto")
+  if (token == "auto")
     label = Options::Labeling::Auto;
-  else if (to_lower(token) == "none")
+  else if (token == "none")
     label = Options::Labeling::None;
-  else if (to_lower(token) == "path")
+  else if (token == "path")
     label = Options::Labeling::Path;
-  else if (to_lower(token) == "alpha")
+  else if (token == "alpha")
     label = Options::Labeling::Alpha;
   else
     throw std::runtime_error("Error: could not parse labeling '" + token +
