@@ -26,6 +26,7 @@ vector<string> gen_alpha_labels() {
 const vector<string> alphabetic_labels = gen_alpha_labels();
 
 struct Options {
+  enum class ForceMean { None = 0, Theta = 1, Phi = 2, Spot = 4, Experiment = 8 };
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> paths;
   Verbosity verbosity = Verbosity::Info;
@@ -38,7 +39,78 @@ struct Options {
   bool compute_likelihood = false;
   bool timing = true;
   size_t top = 0;
+  ForceMean enforce_mean;
 };
+
+inline constexpr Options::ForceMean operator&(Options::ForceMean x,
+                                              Options::ForceMean y) {
+  return static_cast<Options::ForceMean>(static_cast<int>(x) &
+                                         static_cast<int>(y));
+}
+
+inline constexpr Options::ForceMean operator|(Options::ForceMean x,
+                                              Options::ForceMean y) {
+  return static_cast<Options::ForceMean>(static_cast<int>(x) |
+                                         static_cast<int>(y));
+}
+
+inline Options::ForceMean &operator&=(Options::ForceMean &x,
+                                      Options::ForceMean y) {
+  x = x & y;
+  return x;
+}
+
+inline Options::ForceMean &operator|=(Options::ForceMean &x,
+                                      Options::ForceMean y) {
+  x = x | y;
+  return x;
+}
+
+istream &operator>>(istream &is, Options::ForceMean &force) {
+  string token;
+  is >> token;
+  token = to_lower(token);
+  if (token == "theta")
+    force |= Options::ForceMean::Theta;
+  else if (token == "phi")
+    force |= Options::ForceMean::Phi;
+  else if (token == "spot")
+    force |= Options::ForceMean::Spot;
+  else if (token == "experiment")
+    force |= Options::ForceMean::Experiment;
+  else if (token == "default")
+    force |= Options::ForceMean::Theta | Options::ForceMean::Phi |
+             Options::ForceMean::Spot | Options::ForceMean::Experiment;
+  else
+    throw std::runtime_error("Error: could not parse mean forcing options'" +
+                             token + "'.");
+  return is;
+}
+
+ostream &operator<<(ostream &os, const Options::ForceMean &force) {
+  if (force == Options::ForceMean::None)
+    os << "None";
+  else {
+    bool first;
+    if ((force & Options::ForceMean::Theta) != Options::ForceMean::None) {
+      os << (first ? "" : "|") << "Theta";
+      first = false;
+    }
+    if ((force & Options::ForceMean::Phi) != Options::ForceMean::None) {
+      os << (first ? "" : "|") << "Phi";
+      first = false;
+    }
+    if ((force & Options::ForceMean::Spot) != Options::ForceMean::None) {
+      os << (first ? "" : "|") << "Spot";
+      first = false;
+    }
+    if ((force & Options::ForceMean::Experiment) != Options::ForceMean::None) {
+      os << (first ? "" : "|") << "Experiment";
+      first = false;
+    }
+  }
+  return os;
+}
 
 istream &operator>>(istream &is, Options::Labeling &label) {
   string token;
