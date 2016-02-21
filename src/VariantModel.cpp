@@ -296,10 +296,11 @@ double compute_conditional_theta(const pair<Float, Float> &x,
              // NOTE: gamma_distribution takes a shape and scale parameter
              log_gamma(current_r, priors.theta_r_1, 1 / priors.theta_r_2) +
              S * (current_r * log(current_p) - lgamma(current_r));
+#pragma omp parallel for reduction(+ : r) if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
     // The other factors aren't needed as they don't depend on either of
-    // r[g][t] and p[g][t], and thus would cancel when computing the score
+    // r[t] and p[t], and thus would cancel when computing the score
     // ratio.
     r += lgamma(current_r + count_sums[s]) -
          (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
