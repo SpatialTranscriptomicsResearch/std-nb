@@ -217,7 +217,7 @@ int main(int argc, char **argv) {
     ("timing", po::bool_switch(&options.timing),
      "Print out timing information.")
     ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
-     "Enforce means of random variables to be unity. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment' Default is: 'theta,phi,experiment'.")
+     "Enforce means of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment' Default is: 'theta,phi,experiment'.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
@@ -236,9 +236,9 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of r[t].")
     ("theta_r_2", po::value(&priors.theta_r_2)->default_value(priors.theta_r_2),
      "Gamma prior 2 of r[t].")
-    ("theta_p_1", po::value(&priors.theta_p_1)->default_value(priors.theta_p_1),
+    ("theta_p_1", po::value(&priors.theta_p_1)->default_value(priors.theta_p_1, to_string(round(priors.theta_p_1 * 100) / 100)),
      "Gamma prior 1 of p[t].")
-    ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2),
+    ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2, to_string(round(priors.theta_p_2 * 100) / 100)),
      "Gamma prior 2 of p[t].")
     ("spot_1", po::value(&priors.spot_a)->default_value(priors.spot_a),
      "Gamma prior 1 of the spot scaling parameter.")
