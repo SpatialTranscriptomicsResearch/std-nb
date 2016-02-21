@@ -216,7 +216,7 @@ int main(int argc, char **argv) {
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("timing", po::bool_switch(&options.timing),
      "Print out timing information.")
-    ("forcemean", po::value(&parameters.enforce_mean),
+    ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
      "Enforce means of random variables to be unity. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment' Default is: 'theta,phi,experiment'.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
