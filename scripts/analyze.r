@@ -85,6 +85,7 @@ st.top = function(d, path="./", ...) {
 
 st.multi = function(d,
                     single.experiment=FALSE,
+                    common.scale=T,
                     simple.title=F,
                     path="./",
                     ngenes=50,
@@ -120,10 +121,15 @@ st.multi = function(d,
           title.text = paste(name, "-", factor.name, ":",
                              round(min(cur),3), "-", round(max(cur),3),
                              "Sum =", round(sum(cur),3))
-        visualize(cur,
-                  coords=parse.coords(rownames(theta[[name]])),
-                  title=title.text,
-                  zlim=c(0,cur.max))
+        if(common.scale)
+          visualize(cur,
+                    coords=parse.coords(rownames(theta[[name]])),
+                    title=title.text,
+                    zlim=c(0,cur.max))
+        else
+          visualize(cur,
+                    coords=parse.coords(rownames(theta[[name]])),
+                    title=title.text)
       }
     }
     dev.off()
