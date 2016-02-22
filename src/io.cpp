@@ -105,16 +105,14 @@ IMatrix read_counts(istream &ifs, const string &separator,
 
   string line;
 
-  size_t col = 0;
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    if (col++ > 0)
-      col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+    col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
-    col = 0;
+    size_t col = 0;
     vector<Int> v;
     for (auto token : tok)
       if (col++ == 0)
@@ -124,5 +122,18 @@ IMatrix read_counts(istream &ifs, const string &separator,
     m.push_back(v);
   }
 
-  return vec_of_vec_to_multi_array(m);
+  auto matrix = vec_of_vec_to_multi_array(m);
+
+  auto shape = matrix.shape();
+  size_t ncol = shape[1];
+
+  if (ncol == col_names.size())
+    return matrix;
+  else if (ncol == col_names.size() - 1) {
+    vector<string> new_col_names(begin(col_names) + 1, end(col_names));
+    col_names = new_col_names;
+    return matrix;
+  } else
+    throw std::runtime_error(
+        "Mismatch between number of columns and number of column labels.");
 }
