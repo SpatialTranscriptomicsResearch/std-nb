@@ -4,6 +4,7 @@
 #include <string>
 #include <vector>
 #include <boost/filesystem.hpp>
+#include "aux.hpp"
 #include "cli.hpp"
 #include "counts.hpp"
 #include "io.hpp"
@@ -42,6 +43,7 @@ struct Options {
 istream &operator>>(istream &is, Options::Labeling &label) {
   string token;
   is >> token;
+  token = to_lower(token);
   if (token == "auto")
     label = Options::Labeling::Auto;
   else if (token == "none")
