@@ -23,3 +23,4 @@
   - the NM conditional posterior
   - the Poisson conditional posterior
 * rename Priors to Hyperparameters
+* uncouple simulation from Gibbs sampling
