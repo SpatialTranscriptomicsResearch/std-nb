@@ -641,6 +641,15 @@ double VariantModel::posterior_expectation(size_t g, size_t s) const {
   return x;
 }
 
+double VariantModel::posterior_expectation_poisson(size_t g, size_t s) const {
+  double x = 0;
+  for(size_t t = 0; t < T; ++t)
+    x += phi[g][t] * theta[s][t];
+  x *= spot_scaling[s] * experiment_scaling_long[s];
+  return x;
+}
+
+
 double VariantModel::posterior_variance(size_t g, size_t s) const {
   double x = 0;
   double prod_ = spot_scaling[s] * experiment_scaling_long[s];
@@ -656,6 +665,14 @@ Matrix VariantModel::posterior_expectations() const {
   for(size_t g = 0; g < G; ++g)
     for(size_t s = 0; s < S; ++s)
       m[g][s] = posterior_expectation(g, s);
+  return m;
+}
+
+Matrix VariantModel::posterior_expectations_poisson() const {
+  Matrix m(boost::extents[G][S]);
+  for(size_t g = 0; g < G; ++g)
+    for(size_t s = 0; s < S; ++s)
+      m[g][s] = posterior_expectation_poisson(g, s);
   return m;
 }
 

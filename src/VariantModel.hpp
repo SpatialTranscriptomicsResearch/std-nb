@@ -89,8 +89,10 @@ struct VariantModel {
   std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
 
   double posterior_expectation(size_t g, size_t s) const;
+  double posterior_expectation_poisson(size_t g, size_t s) const;
   double posterior_variance(size_t g, size_t s) const;
   Matrix posterior_expectations() const;
+  Matrix posterior_expectations_poisson() const;
   Matrix posterior_variances() const;
 
   /** check that parameter invariants are fulfilled */

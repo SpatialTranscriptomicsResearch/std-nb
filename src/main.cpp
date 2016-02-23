@@ -92,6 +92,8 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
   if (mean_and_variance) {
     write_matrix(pfa.posterior_expectations(), prefix + "means.txt",
                  counts.row_names, counts.col_names);
+    write_matrix(pfa.posterior_expectations_poisson(), prefix + "means_poisson.txt",
+                 counts.row_names, counts.col_names);
     write_matrix(pfa.posterior_variances(), prefix + "variances.txt",
                  counts.row_names, counts.col_names);
   }
