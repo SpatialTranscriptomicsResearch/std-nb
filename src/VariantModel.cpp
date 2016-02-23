@@ -36,13 +36,13 @@ T prob_to_neg_odds(T x) {
 }
 
 VariantModel::VariantModel(const Counts &c, const size_t T_,
-                           const Priors &priors_, const Parameters &parameters_,
-                           Verbosity verbosity_)
+                           const Hyperparameters &hyperparameters_,
+                           const Parameters &parameters_, Verbosity verbosity_)
     : G(c.counts.shape()[0]),
       S(c.counts.shape()[1]),
       T(T_),
       E(c.experiment_names.size()),
-      priors(priors_),
+      hyperparameters(hyperparameters_),
       parameters(parameters_),
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
@@ -74,10 +74,11 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
   for (size_t s = 0; s < S; ++s)
     // NOTE: gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = gamma_distribution<Float>(
-        priors.spot_a, 1 / priors.spot_b)(EntropySource::rng);
+        hyperparameters.spot_a, 1 / hyperparameters.spot_b)(EntropySource::rng);
 
   // initialize experiment scaling factors
-  for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
+  for (size_t e = 0; e < E; ++e)
+    experiment_scaling[e] = 1;
   // copy the experiment scaling parameters into the spot-indexed vector
   update_experiment_scaling_long(c);
 
@@ -89,8 +90,9 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         p[g][t] = 0.5 * G * T;
       else
         // NOTE: gamma_distribution takes a shape and scale parameter
-        p[g][t] = gamma_distribution<Float>(priors.phi_p_1,
-                                            1 / priors.phi_p_2)(EntropySource::rng);
+        p[g][t] = gamma_distribution<Float>(
+            hyperparameters.phi_p_1,
+            1 / hyperparameters.phi_p_2)(EntropySource::rng);
 
   // initialize R
   // r_k= 50/T*ones(T,1)
@@ -113,27 +115,28 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // randomly initialize P
   for (size_t t = 0; t < T; ++t)
-    p_theta[t] = prob_to_neg_odds(
-        sample_beta<Float>(priors.theta_p_1, priors.theta_p_2));
+    p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
+        hyperparameters.theta_p_1, hyperparameters.theta_p_2));
 
   // randomly initialize R
   for (size_t t = 0; t < T; ++t)
     // NOTE: gamma_distribution takes a shape and scale parameter
     r_theta[t] = gamma_distribution<Float>(
-        priors.theta_r_1, 1 / priors.theta_r_2)(EntropySource::rng);
+        hyperparameters.theta_r_1,
+        1 / hyperparameters.theta_r_2)(EntropySource::rng);
 }
 
 VariantModel::VariantModel(const string &phi_path, const string &theta_path,
                            const string &spot_scaling_path,
                            const string &experiment_scaling_path,
                            const string &r_path, const string &p_path,
-                           const Priors &priors_, const Parameters &parameters_,
-                           Verbosity verbosity_)
+                           const Hyperparameters &hyperparameters_,
+                           const Parameters &parameters_, Verbosity verbosity_)
     : G(0),
       S(0),
       T(0),
       E(0),
-      priors(priors_),
+      hyperparameters(hyperparameters_),
       parameters(parameters_),
       phi(parse_file<Matrix>(phi_path, read_matrix)),
       theta(parse_file<Matrix>(theta_path, read_matrix)),
@@ -165,31 +168,35 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;
-  vector<double> alpha(G, priors.alpha);
+  vector<double> alpha(G, hyperparameters.alpha);
   for (size_t t = 0; t < T; ++t) {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r[g][t], priors.phi_r_1, 1.0 / priors.phi_r_2);
+      l += log_gamma(r[g][t], hyperparameters.phi_r_1,
+                     1.0 / hyperparameters.phi_r_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
-              "Gamma-distributed r[g][" << t << "]." << endl;
+              "Gamma-distributed r[g]["
+           << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(p[g][t], priors.phi_p_1, 1 / priors.phi_p_2);
+      l += log_gamma(p[g][t], hyperparameters.phi_p_1,
+                     1 / hyperparameters.phi_p_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
-              "Beta-distributed p[g][" << t << "]." << endl;
+              "Beta-distributed p[g]["
+           << t << "]." << endl;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       // NOTE: log_gamma takes a shape and scale parameter
       l += log_gamma(phi[g][t], r[g][t], p[g][t]);
       if (std::isnan(l))
         cout << "Likelihood is NAN after adding the contribution due to "
-                "Gamma-distributed phi[" << g << "][" << t
-             << "]; phi=" << phi[g][t] << " r=" << r[g][t] << " p=" << p[g][t]
-             << endl;
+                "Gamma-distributed phi["
+             << g << "][" << t << "]; phi=" << phi[g][t] << " r=" << r[g][t]
+             << " p=" << p[g][t] << endl;
     }
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
@@ -197,17 +204,20 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
         l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
-              "Poisson-distributed contributions[g][s][" << t << "]." << endl;
+              "Poisson-distributed contributions[g][s]["
+           << t << "]." << endl;
   }
 
   for (size_t g = 0; g < G; ++g) {
     vector<double> thetak(G, 0);
-    for (size_t t = 0; t < T; ++t) thetak[g] = theta[g][t];
+    for (size_t t = 0; t < T; ++t)
+      thetak[g] = theta[g][t];
     l += log_dirichlet(thetak, alpha);
   }
   if (std::isnan(l))
     cout << "Likelihood is NAN after adding the contribution due to "
-            "Dirichlet-distributed theta." << endl;
+            "Dirichlet-distributed theta."
+         << endl;
 
   /*
   for (size_t g = 0; g < G; ++g)
@@ -288,22 +298,24 @@ void VariantModel::sample_theta() {
 double compute_conditional_theta(const pair<Float, Float> &x,
                                  const vector<Int> &count_sums,
                                  const vector<Float> &weight_sums,
-                                 const Priors &priors) {
+                                 const Hyperparameters &hyperparameters) {
   const size_t S = count_sums.size();
   const Float current_r = x.first;
   const Float current_p = x.second;
-  double r = log_beta_odds(current_p, priors.theta_p_1, priors.theta_p_2) +
+  double r = log_beta_odds(current_p, hyperparameters.theta_p_1,
+                           hyperparameters.theta_p_2)
              // NOTE: gamma_distribution takes a shape and scale parameter
-             log_gamma(current_r, priors.theta_r_1, 1 / priors.theta_r_2) +
-             S * (current_r * log(current_p) - lgamma(current_r));
+             + log_gamma(current_r, hyperparameters.theta_r_1,
+                         1 / hyperparameters.theta_r_2)
+             + S * (current_r * log(current_p) - lgamma(current_r));
 #pragma omp parallel for reduction(+ : r) if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
     // The other factors aren't needed as they don't depend on either of
     // r[t] and p[t], and thus would cancel when computing the score
     // ratio.
-    r += lgamma(current_r + count_sums[s]) -
-         (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
+    r += lgamma(current_r + count_sums[s])
+         - (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
   return r;
 }
 
@@ -336,29 +348,32 @@ void VariantModel::sample_p_and_r_theta() {
       for (size_t g = 0; g < G; ++g) count_sums[s] += contributions[g][s][t];
     }
     size_t thread_num = omp_get_thread_num();
-    auto res = mh.sample(
-        pair<Float, Float>(r_theta[t], p_theta[t]),
-        parameters.n_iter, EntropySource::rngs[thread_num], gen,
-        compute_conditional_theta, count_sums, weight_sums, priors);
+    auto res = mh.sample(pair<Float, Float>(r_theta[t], p_theta[t]),
+                         parameters.n_iter, EntropySource::rngs[thread_num],
+                         gen, compute_conditional_theta, count_sums,
+                         weight_sums, hyperparameters);
     r_theta[t] = res.first;
     p_theta[t] = res.second;
   }
 }
 
 double compute_conditional(const pair<Float, Float> &x, Int count_sum,
-                           Float weight_sum, const Priors &priors) {
+                           Float weight_sum,
+                           const Hyperparameters &hyperparameters) {
   const Float current_r = x.first;
   const Float current_p = x.second;
-  return log_beta_odds(current_p, priors.phi_p_1, priors.phi_p_2) +
+  return log_beta_odds(current_p, hyperparameters.phi_p_1,
+                       hyperparameters.phi_p_2)
          // NOTE: gamma_distribution takes a shape and scale parameter
-         log_gamma(current_r, priors.phi_r_1, 1 / priors.phi_r_2) +
-         // The next line is part of the negative binomial distribution.
+         + log_gamma(current_r, hyperparameters.phi_r_1,
+                     1 / hyperparameters.phi_r_2)
+         // The next lines are part of the negative binomial distribution.
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
          // ratio.
-         +current_r * log(current_p) -
-         (current_r + count_sum) * log(current_p + weight_sum) +
-         lgamma(current_r + count_sum) - lgamma(current_r);
+         + current_r * log(current_p)
+         - (current_r + count_sum) * log(current_p + weight_sum)
+         + lgamma(current_r + count_sum) - lgamma(current_r);
 }
 
 /** sample p and r */
@@ -383,12 +398,13 @@ void VariantModel::sample_p_and_r() {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       Int count_sum = 0;
-      for (size_t s = 0; s < S; ++s) count_sum += contributions[g][s][t];
+      for (size_t s = 0; s < S; ++s)
+        count_sum += contributions[g][s][t];
       size_t thread_num = omp_get_thread_num();
-      auto res =
-          mh.sample(pair<Float, Float>(r[g][t], p[g][t]), parameters.n_iter,
-                    EntropySource::rngs[thread_num], gen, compute_conditional,
-                    count_sum, weight_sum, priors);
+      auto res
+          = mh.sample(pair<Float, Float>(r[g][t], p[g][t]), parameters.n_iter,
+                      EntropySource::rngs[thread_num], gen, compute_conditional,
+                      count_sum, weight_sum, hyperparameters);
       r[g][t] = res.first;
       p[g][t] = res.second;
     }
@@ -472,8 +488,8 @@ void VariantModel::sample_spot_scaling() {
 
     // NOTE: gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = gamma_distribution<Float>(
-        priors.spot_a + summed_contribution,
-        1.0 / (priors.spot_b + intensity_sum))(EntropySource::rng);
+        hyperparameters.spot_a + summed_contribution,
+        1.0 / (hyperparameters.spot_b + intensity_sum))(EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
   }
@@ -525,8 +541,8 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
-        priors.experiment_a + summed_contributions[e],
-        1.0 / (priors.experiment_b + intensity_sums[e]))(
+        hyperparameters.experiment_a + summed_contributions[e],
+        1.0 / (hyperparameters.experiment_b + intensity_sums[e]))(
         EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
       cout << "new experiment_scaling[" << e << "]=" << experiment_scaling[e]
@@ -741,12 +757,17 @@ void VariantModel::check_model(const IMatrix &counts) const {
                             " in factor " + to_string(t) + "."));
     }
 
-  // check priors
-  if (priors.phi_r_1 == 0) throw(runtime_error("The prior phi_r_1 is zero."));
-  if (priors.phi_r_2 == 0) throw(runtime_error("The prior phi_r_2 is zero."));
-  if (priors.phi_p_1 == 0) throw(runtime_error("The prior phi_p_1 is zero."));
-  if (priors.phi_p_2 == 0) throw(runtime_error("The prior phi_p_2 is zero."));
-  if (priors.alpha == 0) throw(runtime_error("The prior alpha is zero."));
+  // check hyperparameters
+  if (hyperparameters.phi_r_1 == 0)
+    throw(runtime_error("The prior phi_r_1 is zero."));
+  if (hyperparameters.phi_r_2 == 0)
+    throw(runtime_error("The prior phi_r_2 is zero."));
+  if (hyperparameters.phi_p_1 == 0)
+    throw(runtime_error("The prior phi_p_1 is zero."));
+  if (hyperparameters.phi_p_2 == 0)
+    throw(runtime_error("The prior phi_p_2 is zero."));
+  if (hyperparameters.alpha == 0)
+    throw(runtime_error("The prior alpha is zero."));
 }
 }
 

@@ -16,7 +16,7 @@ struct VariantModel {
   /** number of experiments */
   size_t E;
 
-  Priors priors;
+  Hyperparameters hyperparameters;
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
@@ -50,15 +50,16 @@ struct VariantModel {
 
   Verbosity verbosity;
 
-  VariantModel(const Counts &counts, const size_t T, const Priors &priors,
+  VariantModel(const Counts &counts, const size_t T,
+               const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
   VariantModel(const std::string &phi_path, const std::string &theta_path,
                const std::string &spot_scaling_path,
                const std::string &experiment_scaling_path,
                const std::string &r_path, const std::string &p_path,
-               const Priors &priors, const Parameters &parameters,
-               Verbosity verbosity);
+               const Hyperparameters &hyperparameters,
+               const Parameters &parameters, Verbosity verbosity);
 
   double log_likelihood(const IMatrix &counts) const;
 

@@ -11,12 +11,12 @@
 using namespace std;
 namespace FactorAnalysis {
 PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
-                           const Priors &priors_, const Parameters &parameters_,
+                           const Hyperparameters &hyperparameters_, const Parameters &parameters_,
                            Verbosity verbosity_)
     : G(counts.shape()[0]),
       S(counts.shape()[1]),
       T(T_),
-      priors(priors_),
+      hyperparameters(hyperparameters_),
       parameters(parameters_),
       contributions(boost::extents[G][S][T]),
       phi(boost::extents[G][T]),
@@ -27,14 +27,14 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
   if (false) {
     // randomly initialize P
     for (size_t t = 0; t < T; ++t)
-      p[t] = sample_beta<Float>(priors.phi_p_1 * priors.phi_p_2,
-                                priors.phi_p_1 * (1 - priors.phi_p_2));
+      p[t] = sample_beta<Float>(hyperparameters.phi_p_1 * hyperparameters.phi_p_2,
+                                hyperparameters.phi_p_1 * (1 - hyperparameters.phi_p_2));
 
     // randomly initialize R
     for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
-      r[t] = gamma_distribution<Float>(priors.phi_r_1 * priors.phi_r_2,
-                                       1.0 / priors.phi_r_1)(EntropySource::rng);
+      r[t] = gamma_distribution<Float>(hyperparameters.phi_r_1 * hyperparameters.phi_r_2,
+                                       1.0 / hyperparameters.phi_r_1)(EntropySource::rng);
 
     // randomly initialize Theta
     for (size_t s = 0; s < S; ++s)
@@ -46,7 +46,7 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
 
     // randomly initialize Phi
     for (size_t t = 0; t < T; ++t) {
-      auto phi_ = sample_dirichlet<Float>(vector<Float>(G, priors.alpha));
+      auto phi_ = sample_dirichlet<Float>(vector<Float>(G, hyperparameters.alpha));
       for (size_t g = 0; g < G; ++g) phi[g][t] = phi_[t];
     }
   } else {
@@ -88,15 +88,15 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
 
 double PoissonModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;
-  vector<double> alpha(G, priors.alpha);
+  vector<double> alpha(G, hyperparameters.alpha);
   for (size_t t = 0; t < T; ++t) {
     vector<double> phik(G, 0);
     for (size_t g = 0; g < G; ++g) phik[g] = phi[g][t];
     l += log_dirichlet(phik, alpha);
     // NOTE: log_gamma takes a shape and scale parameter
-    l += log_gamma(r[t], priors.phi_r_1 * priors.phi_r_2, 1.0 / priors.phi_r_1);
-    l += log_beta(p[t], priors.phi_p_1 * priors.phi_p_2,
-                  priors.phi_p_1 * (1 - priors.phi_p_2));
+    l += log_gamma(r[t], hyperparameters.phi_r_1 * hyperparameters.phi_r_2, 1.0 / hyperparameters.phi_r_1);
+    l += log_beta(p[t], hyperparameters.phi_p_1 * hyperparameters.phi_p_2,
+                  hyperparameters.phi_p_1 * (1 - hyperparameters.phi_p_2));
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       // NOTE: log_gamma takes a shape and scale parameter
@@ -136,7 +136,7 @@ void PoissonModel::sample_contributions(const IMatrix &counts) {
 void PoissonModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   for (size_t t = 0; t < T; ++t) {
-    vector<double> a(G, priors.alpha);
+    vector<double> a(G, hyperparameters.alpha);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s) a[g] += contributions[g][s][t];
@@ -153,8 +153,8 @@ void PoissonModel::sample_p() {
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
-    p[t] = sample_beta<Float>(priors.phi_p_1 * priors.phi_p_2 + sum,
-                              priors.phi_p_1 * (1 - priors.phi_p_2) + S * r[t]);
+    p[t] = sample_beta<Float>(hyperparameters.phi_p_1 * hyperparameters.phi_p_2 + sum,
+                              hyperparameters.phi_p_1 * (1 - hyperparameters.phi_p_2) + S * r[t]);
   }
 }
 
@@ -174,16 +174,16 @@ void PoissonModel::sample_r() {
     if (sum == 0) {
       // NOTE: gamma_distribution takes a shape and scale parameter
       r[t] = gamma_distribution<Float>(
-          priors.phi_r_1 * priors.phi_r_2,
-          1 / (priors.phi_r_1 - S * log(1 - p[t])))(EntropySource::rng);
+          hyperparameters.phi_r_1 * hyperparameters.phi_r_2,
+          1 / (hyperparameters.phi_r_1 - S * log(1 - p[t])))(EntropySource::rng);
     } else {
       if (verbosity >= Verbosity::Debug) cout << "Sum counts = " << sum << endl;
       // TODO: check sampling of R when sum != 0
-      const Float alpha = priors.phi_r_1 * priors.phi_r_2;
+      const Float alpha = hyperparameters.phi_r_1 * hyperparameters.phi_r_2;
       // TODO: determine which of the following two is the right one to use
-      // const Float beta = 1 / priors.phi_r_1;
+      // const Float beta = 1 / hyperparameters.phi_r_1;
       // NOTE: likely it is the latter definition here that is correct
-      const Float beta = priors.phi_r_1;
+      const Float beta = hyperparameters.phi_r_1;
       const Float rt = r[t];
       const Float pt = p[t];
       const Float rt2 = square(rt);
@@ -220,7 +220,7 @@ void PoissonModel::sample_r() {
       auto compute_cond_posterior = [&](Float x) {
         // NOTE: log_gamma takes a shape and scale parameter
         double log_posterior =
-            log_gamma(x, priors.phi_r_1 * priors.phi_r_2, 1 / priors.phi_r_1);
+            log_gamma(x, hyperparameters.phi_r_1 * hyperparameters.phi_r_2, 1 / hyperparameters.phi_r_1);
         for (auto &y : count_spot_type)
           log_posterior += log_negative_binomial(y, x, pt);
         return log_posterior;
@@ -382,13 +382,13 @@ void PoissonModel::check_model(const IMatrix &counts) const {
       throw(runtime_error("R is zero in factor " + to_string(t) + "."));
   }
 
-  // check priors
-  if (priors.phi_r_1 == 0) throw(runtime_error("The prior phi_r_1 is zero."));
-  if (priors.phi_r_2 == 0) throw(runtime_error("The prior phi_r_2 is zero."));
-  if (priors.phi_p_1 == 0) throw(runtime_error("The prior phi_p_1 is zero."));
-  if (priors.phi_p_2 == 0) throw(runtime_error("The prior phi_p_2 is zero."));
-  if (priors.phi_p_2 == 1) throw(runtime_error("The prior phi_p_2 is unit."));
-  if (priors.alpha == 0) throw(runtime_error("The prior alpha is zero."));
+  // check hyperparameters
+  if (hyperparameters.phi_r_1 == 0) throw(runtime_error("The prior phi_r_1 is zero."));
+  if (hyperparameters.phi_r_2 == 0) throw(runtime_error("The prior phi_r_2 is zero."));
+  if (hyperparameters.phi_p_1 == 0) throw(runtime_error("The prior phi_p_1 is zero."));
+  if (hyperparameters.phi_p_2 == 0) throw(runtime_error("The prior phi_p_2 is zero."));
+  if (hyperparameters.phi_p_2 == 1) throw(runtime_error("The prior phi_p_2 is unit."));
+  if (hyperparameters.alpha == 0) throw(runtime_error("The prior alpha is zero."));
 }
 }
 

@@ -73,7 +73,7 @@ int main(int argc, char **argv) {
 
   Options options;
 
-  FactorAnalysis::Priors priors;
+  FactorAnalysis::Hyperparameters hyperparameters;
   FactorAnalysis::Parameters parameters;
 
   string config_path;
@@ -123,15 +123,15 @@ int main(int argc, char **argv) {
      "Print out timing information.");
 
   prior_options.add_options()
-    ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
+    ("alpha", po::value(&hyperparameters.alpha)->default_value(hyperparameters.alpha),
      "Dirichlet prior alpha of the factor loading matrix.")
-    ("phi_r_1", po::value(&priors.phi_r_1)->default_value(priors.phi_r_1),
+    ("phi_r_1", po::value(&hyperparameters.phi_r_1)->default_value(hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
-    ("phi_r_2", po::value(&priors.phi_r_2)->default_value(priors.phi_r_2),
+    ("phi_r_2", po::value(&hyperparameters.phi_r_2)->default_value(hyperparameters.phi_r_2),
      "Gamma prior 2 of r[g][t].")
-    ("phi_p_1", po::value(&priors.phi_p_1)->default_value(priors.phi_p_1),
+    ("phi_p_1", po::value(&hyperparameters.phi_p_1)->default_value(hyperparameters.phi_p_1),
      "Gamma prior 1 of p[g][t].")
-    ("phi_p_2", po::value(&priors.phi_p_2)->default_value(priors.phi_p_2),
+    ("phi_p_2", po::value(&hyperparameters.phi_p_2)->default_value(hyperparameters.phi_p_2),
      "Gamma prior 2 of p[g][t].");
 
   cli_options.add(generic_options)
@@ -166,7 +166,7 @@ int main(int argc, char **argv) {
   FactorAnalysis::VariantModel pfa(
       options.paths.phi, options.paths.theta, options.paths.spot_scaling,
       options.paths.experiment_scaling, options.paths.r,
-      options.paths.p, priors, parameters, options.verbosity);
+      options.paths.p, hyperparameters, parameters, options.verbosity);
 
   // TODO
 

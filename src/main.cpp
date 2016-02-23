@@ -173,7 +173,7 @@ int main(int argc, char **argv) {
 
   Options options;
 
-  FactorAnalysis::Priors priors;
+  FactorAnalysis::Hyperparameters hyperparameters;
   FactorAnalysis::Parameters parameters;
 
   string config_path;
@@ -226,31 +226,31 @@ int main(int argc, char **argv) {
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
   hyperparameter_options.add_options()
-    ("alpha", po::value(&priors.alpha)->default_value(priors.alpha),
+    ("alpha", po::value(&hyperparameters.alpha)->default_value(hyperparameters.alpha),
      "Dirichlet prior alpha of the factor loading matrix.")
-    ("phi_r_1", po::value(&priors.phi_r_1)->default_value(priors.phi_r_1),
+    ("phi_r_1", po::value(&hyperparameters.phi_r_1)->default_value(hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
-    ("phi_r_2", po::value(&priors.phi_r_2)->default_value(priors.phi_r_2),
+    ("phi_r_2", po::value(&hyperparameters.phi_r_2)->default_value(hyperparameters.phi_r_2),
      "Gamma prior 2 of r[g][t].")
-    ("phi_p_1", po::value(&priors.phi_p_1)->default_value(priors.phi_p_1),
+    ("phi_p_1", po::value(&hyperparameters.phi_p_1)->default_value(hyperparameters.phi_p_1),
      "Beta prior 1 of p[g][t].")
-    ("phi_p_2", po::value(&priors.phi_p_2)->default_value(priors.phi_p_2),
+    ("phi_p_2", po::value(&hyperparameters.phi_p_2)->default_value(hyperparameters.phi_p_2),
      "Beta prior 2 of p[g][t].")
-    ("theta_r_1", po::value(&priors.theta_r_1)->default_value(priors.theta_r_1),
+    ("theta_r_1", po::value(&hyperparameters.theta_r_1)->default_value(hyperparameters.theta_r_1),
      "Gamma prior 1 of r[t].")
-    ("theta_r_2", po::value(&priors.theta_r_2)->default_value(priors.theta_r_2),
+    ("theta_r_2", po::value(&hyperparameters.theta_r_2)->default_value(hyperparameters.theta_r_2),
      "Gamma prior 2 of r[t].")
-    ("theta_p_1", po::value(&priors.theta_p_1)->default_value(priors.theta_p_1, to_string(round(priors.theta_p_1 * 100) / 100)),
+    ("theta_p_1", po::value(&hyperparameters.theta_p_1)->default_value(hyperparameters.theta_p_1, to_string(round(hyperparameters.theta_p_1 * 100) / 100)),
      "Beta prior 1 of p[t].")
-    ("theta_p_2", po::value(&priors.theta_p_2)->default_value(priors.theta_p_2, to_string(round(priors.theta_p_2 * 100) / 100)),
+    ("theta_p_2", po::value(&hyperparameters.theta_p_2)->default_value(hyperparameters.theta_p_2, to_string(round(hyperparameters.theta_p_2 * 100) / 100)),
      "Beta prior 2 of p[t].")
-    ("spot_1", po::value(&priors.spot_a)->default_value(priors.spot_a),
+    ("spot_1", po::value(&hyperparameters.spot_a)->default_value(hyperparameters.spot_a),
      "Gamma prior 1 of the spot scaling parameter.")
-    ("spot_2", po::value(&priors.spot_b)->default_value(priors.spot_b),
+    ("spot_2", po::value(&hyperparameters.spot_b)->default_value(hyperparameters.spot_b),
      "Gamma prior 2 of the spot scaling parameter.")
-    ("exp_1", po::value(&priors.experiment_a)->default_value(priors.experiment_a),
+    ("exp_1", po::value(&hyperparameters.experiment_a)->default_value(hyperparameters.experiment_a),
      "Gamma prior 1 of the experiment scaling parameter.")
-    ("exp_2", po::value(&priors.experiment_b)->default_value(priors.experiment_b),
+    ("exp_2", po::value(&hyperparameters.experiment_b)->default_value(hyperparameters.experiment_b),
      "Gamma prior 2 of the experiment scaling parameter.");
 
   inference_options.add_options()
@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  FactorAnalysis::VariantModel pfa(data, options.num_factors, priors,
+  FactorAnalysis::VariantModel pfa(data, options.num_factors, hyperparameters,
                                    parameters, options.verbosity);
 
   perform_gibbs_sampling(data, pfa, options);

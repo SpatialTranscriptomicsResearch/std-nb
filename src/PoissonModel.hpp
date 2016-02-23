@@ -13,7 +13,7 @@ struct PoissonModel {
   /** number of factors */
   size_t T;
 
-  Priors priors;
+  Hyperparameters hyperparameters;
   Parameters parameters;
 
   ITensor contributions;
@@ -31,7 +31,7 @@ struct PoissonModel {
 
   Verbosity verbosity;
 
-  PoissonModel(const IMatrix &counts, const size_t T, const Priors &priors,
+  PoissonModel(const IMatrix &counts, const size_t T, const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
   double log_likelihood(const IMatrix &counts) const;
