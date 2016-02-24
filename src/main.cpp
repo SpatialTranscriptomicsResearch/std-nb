@@ -165,7 +165,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_results(pfa, data, options.output, true, true);
+  write_results(pfa, data, options.output, true, false);
 }
 
 int main(int argc, char **argv) {
