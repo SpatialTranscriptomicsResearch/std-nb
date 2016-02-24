@@ -90,7 +90,7 @@ struct Parameters {
   double temperature = 1.0;
   /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
-  ForceMean enforce_mean = ForceMean::Phi | ForceMean::Spot | ForceMean::Experiment;
+  ForceMean enforce_mean = ForceMean::Spot | ForceMean::Experiment;
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);
