@@ -73,10 +73,28 @@ st.order = function(d, plot=T) {
   return(e)
 }
 
-st.top = function(d, path="./", ...) {
+st.normalize.phi = function(d, scale.factor=1e6) {
+  sf = colSums(d$phi)
+  d$phi = t(t(d$phi) / sf) * scale.factor
+  d$theta = t(t(d$theta) * sf) / scale.factor
+  return(d)
+}
+
+st.normalize.theta = function(d) {
+  d$theta = prop.table(d$theta,1)
+  return(d)
+}
+
+
+st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
   if(!is.null(path))
     pdf(paste(path, "factor-strength-barplot.pdf", sep=""))
+  if(normalize.phi)
+    d = st.normalize.phi(d)
+  if(normalize.theta)
+    d = st.normalize.theta(d)
   d = st.order(d, plot=!is.null(path))
+
   if(!is.null(path))
     dev.off()
 
