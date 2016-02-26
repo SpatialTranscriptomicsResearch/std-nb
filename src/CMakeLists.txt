@@ -13,8 +13,7 @@ ADD_EXECUTABLE(simulate-reads simulate.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)
 SET_TARGET_PROPERTIES(multiScoop-bin PROPERTIES OUTPUT_NAME multiScoop)
 
-TARGET_LINK_LIBRARIES(multiScoop-bin
-  multiScoop
+TARGET_LINK_LIBRARIES(multiScoop
   m
   -L${Boost_LIBRARY_DIRS}
   ${Boost_FILESYSTEM_LIBRARY}
@@ -22,25 +21,12 @@ TARGET_LINK_LIBRARIES(multiScoop-bin
   ${Boost_REGEX_LIBRARY}
   ${Boost_IOSTREAMS_LIBRARY}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY})
+  ${Boost_DATE_TIME_LIBRARY}
+  )
 
-TARGET_LINK_LIBRARIES(simulate-reads
-  multiScoop
-  m
-  -L${Boost_LIBRARY_DIRS}
-  ${Boost_FILESYSTEM_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
-  ${Boost_REGEX_LIBRARY}
-  ${Boost_IOSTREAMS_LIBRARY}
-  ${Boost_PROGRAM_OPTIONS_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY})
-
-TARGET_LINK_LIBRARIES(test_sampling
-  multiScoop
-  ${Boost_FILESYSTEM_LIBRARY}
-  ${Boost_SYSTEM_LIBRARY}
-  ${Boost_IOSTREAMS_LIBRARY}
-  ${Boost_DATE_TIME_LIBRARY})
+TARGET_LINK_LIBRARIES(multiScoop-bin multiScoop)
+TARGET_LINK_LIBRARIES(simulate-reads multiScoop)
+TARGET_LINK_LIBRARIES(test_sampling multiScoop)
 
 IF(GOOGLEPERFTOOLS_FOUND)
   TARGET_LINK_LIBRARIES(multiScoop-bin ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
