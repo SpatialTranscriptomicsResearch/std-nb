@@ -10,6 +10,7 @@
 
 #define DO_PARALLEL 1
 #define PHI_ZERO_WARNING false
+#define debug_omp false
 
 using namespace std;
 namespace FactorAnalysis {
@@ -236,6 +237,8 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     size_t thread_num = omp_get_thread_num();
+    if (debug_omp)
+      cout << "contrib: thread_num = " << thread_num << endl;
     for (size_t s = 0; s < S; ++s) {
       vector<double> rel_rate(T);
       double z = 0;
@@ -348,6 +351,8 @@ void VariantModel::sample_p_and_r_theta() {
       for (size_t g = 0; g < G; ++g) count_sums[s] += contributions(g, s, t);
     }
     size_t thread_num = omp_get_thread_num();
+    if (debug_omp)
+      cout << "p r theta: thread_num = " << thread_num << endl;
     auto res = mh.sample(pair<Float, Float>(r_theta[t], p_theta[t]),
                          parameters.n_iter, EntropySource::rngs[thread_num],
                          gen, compute_conditional_theta, count_sums,
@@ -401,6 +406,8 @@ void VariantModel::sample_p_and_r() {
       for (size_t s = 0; s < S; ++s)
         count_sum += contributions(g, s, t);
       size_t thread_num = omp_get_thread_num();
+      if (debug_omp)
+        cout << "p r: thread_num = " << thread_num << endl;
       auto res
           = mh.sample(pair<Float, Float>(r(g, t), p(g, t)), parameters.n_iter,
                       EntropySource::rngs[thread_num], gen, compute_conditional,
@@ -423,6 +430,8 @@ void VariantModel::sample_phi() {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       size_t thread_num = omp_get_thread_num();
+      if (debug_omp)
+        cout << "phi: thread_num = " << thread_num << endl;
       Int summed_contribution = 0;
       for (size_t s = 0; s < S; ++s)
         summed_contribution += contributions(g, s, t);
