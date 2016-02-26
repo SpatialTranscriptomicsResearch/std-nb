@@ -150,19 +150,20 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
       r_theta(parse_file<Matrix>(r_theta_path, read_matrix)),
       p_theta(parse_file<Matrix>(p_theta_path, read_matrix)),
       verbosity(verbosity_) {
-  G = phi.shape()[0];
-  S = theta.shape()[0];
-  T = phi.shape()[1];
-  E = experiment_scaling.shape()[0];
+  G = phi.n_rows;
+  S = theta.n_rows;
+  T = phi.n_cols;
+  E = experiment_scaling.size();
 
-  contributions.resize(boost::extents[G][S][T]);
+  // TODO make sure the contribution cube's dimensions are ok!
+  // contributions.resize(boost::extents(G, S, T));
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
   // it is necessary to first sample the contributions!
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t)
-        contributions[g][s][t] = 0;
+        contributions(g, s, t) = 0;
 
   cout << "Load constructor not supported. Exiting." << endl;
   exit(-1);
