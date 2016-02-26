@@ -7,11 +7,11 @@
 namespace FactorAnalysis {
 struct PoissonModel {
   /** number of genes */
-  size_t G;
+  const size_t G;
   /** number of samples */
-  size_t S;
+  const size_t S;
   /** number of factors */
-  size_t T;
+  const size_t T;
 
   Hyperparameters hyperparameters;
   Parameters parameters;

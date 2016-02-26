@@ -102,7 +102,7 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
     vector<size_t> counts_per_gene(pfa.G, 0);
     for (size_t g = 0; g < pfa.G; ++g)
       for (size_t s = 0; s < pfa.S; ++s)
-        counts_per_gene[g] += counts.counts[g][s];
+        counts_per_gene[g] += counts.counts(g, s);
     vector<pair<size_t,size_t>> v;
     for (size_t g = 0; g < pfa.G; ++g)
       v.push_back(pair<size_t,size_t>(counts_per_gene[g], g));
@@ -126,7 +126,7 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
     for (size_t s = 0; s < pfa.S; ++s) {
       FactorAnalysis::Int count = 0;
       for (size_t g = 0; g < pfa.G; ++g)
-        count += counts.counts[g][s];
+        count += counts.counts(g, s);
       if(count > max_count) {
         max_count = count;
         max_idx = s;

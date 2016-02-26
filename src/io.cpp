@@ -14,8 +14,7 @@ using Vector = FactorAnalysis::Vector;
 
 void write_vector(const Vector &v, const string &path,
                   const vector<string> &names) {
-  auto shape = v.shape();
-  size_t X = shape[0];
+  size_t X = v.n_rows;
 
   bool names_given = not names.empty();
 
@@ -34,9 +33,8 @@ void write_vector(const Vector &v, const string &path,
 void write_matrix(const Matrix &m, const string &path,
                   const vector<string> &row_names,
                   const vector<string> &col_names) {
-  auto shape = m.shape();
-  size_t X = shape[0];
-  size_t Y = shape[1];
+  size_t X = m.n_rows;
+  size_t Y = m.n_cols;
 
   bool row_names_given = not row_names.empty();
   bool col_names_given = not col_names.empty();
@@ -65,7 +63,7 @@ void write_matrix(const Matrix &m, const string &path,
     if (row_names_given)
       ofs << row_names[x] + "\t";
     for (size_t y = 0; y < Y; ++y)
-      ofs << (y != 0 ? "\t" : "") << m[x][y];
+      ofs << (y != 0 ? "\t" : "") << m(x, y);
     ofs << endl;
   }
 }
@@ -88,11 +86,10 @@ Vector read_vector(istream &is) {
 IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
   const size_t s1 = v.size();
   const size_t s2 = v[0].size();
-  using index = IMatrix::index;
-  IMatrix A(boost::extents[s1][s2]);
+  IMatrix A(s1, s2);
   for (size_t i = 0; i < s1; ++i)
     for (size_t j = 0; j < s2; ++j)
-      A[i][j] = v[i][j];
+      A(i, j) = v[i][j];
   return A;
 }
 
@@ -124,8 +121,7 @@ IMatrix read_counts(istream &ifs, const string &separator,
 
   auto matrix = vec_of_vec_to_multi_array(m);
 
-  auto shape = matrix.shape();
-  size_t ncol = shape[1];
+  size_t ncol = matrix.n_cols;
 
   if (ncol == col_names.size())
     return matrix;

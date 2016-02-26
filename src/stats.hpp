@@ -40,7 +40,7 @@ std::vector<T> get_percentiles(const V &v,
                                = {0.0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}) {
   auto sorted = v;
   {  // sort the data
-    std::sort(begin(sorted), end(sorted));
+    std::sort(sorted.begin(), sorted.end());
   }
   {  // sort and uniquify the percentiles
     std::sort(begin(percentiles), end(percentiles));

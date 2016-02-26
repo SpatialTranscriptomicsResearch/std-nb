@@ -13,16 +13,16 @@ namespace FactorAnalysis {
 PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
                            const Hyperparameters &hyperparameters_, const Parameters &parameters_,
                            Verbosity verbosity_)
-    : G(counts.shape()[0]),
-      S(counts.shape()[1]),
+    : G(counts.n_rows),
+      S(counts.n_cols),
       T(T_),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions(boost::extents[G][S][T]),
-      phi(boost::extents[G][T]),
-      theta(boost::extents[S][T]),
-      r(boost::extents[T]),
-      p(boost::extents[T]),
+      contributions(G, S, T),
+      phi(G, T),
+      theta(S, T),
+      r(T),
+      p(T),
       verbosity(verbosity_) {
   if (false) {
     // randomly initialize P
@@ -40,14 +40,14 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t) {
         // NOTE: gamma_distribution takes a shape and scale parameter
-        theta[s][t] = gamma_distribution<Float>(
+        theta(s, t) = gamma_distribution<Float>(
             r[t], p[t] / (1 - p[t]))(EntropySource::rng);
       }
 
     // randomly initialize Phi
     for (size_t t = 0; t < T; ++t) {
       auto phi_ = sample_dirichlet<Float>(vector<Float>(G, hyperparameters.alpha));
-      for (size_t g = 0; g < G; ++g) phi[g][t] = phi_[t];
+      for (size_t g = 0; g < G; ++g) phi(g, t) = phi_[t];
     }
   } else {
     // randomly initialize Phi
@@ -56,14 +56,14 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
     for (size_t t = 0; t < T; ++t) {
       double sum = 0;
       for (size_t g = 0; g < G; ++g)
-        sum += phi[g][t] = RandomDistribution::Uniform(EntropySource::rng);
-      for (size_t g = 0; g < G; ++g) phi[g][t] /= sum;
+        sum += phi(g, t) = RandomDistribution::Uniform(EntropySource::rng);
+      for (size_t g = 0; g < G; ++g) phi(g, t) /= sum;
     }
 
     // initialize Theta
     // Theta = zeros(T,S)+1/T;
     for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t) theta[s][t] = 1.0 / T;
+      for (size_t t = 0; t < T; ++t) theta(s, t) = 1.0 / T;
 
     // randomly initialize P
     // p_k=ones(T,1)*0.5;
@@ -79,10 +79,10 @@ PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,
     for (size_t s = 0; s < S; ++s) {
       vector<double> prob(T);
       double z = 0;
-      for (size_t t = 0; t < T; ++t) z += prob[t] = phi[g][t] * theta[s][t];
+      for (size_t t = 0; t < T; ++t) z += prob[t] = phi(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t) prob[t] /= z;
-      auto v = sample_multinomial<Int>(counts[g][s], prob);
-      for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
+      auto v = sample_multinomial<Int>(counts(g, s), prob);
+      for (size_t t = 0; t < T; ++t) contributions(g, s, t) = v[t];
     }
 }
 
@@ -91,7 +91,7 @@ double PoissonModel::log_likelihood(const IMatrix &counts) const {
   vector<double> alpha(G, hyperparameters.alpha);
   for (size_t t = 0; t < T; ++t) {
     vector<double> phik(G, 0);
-    for (size_t g = 0; g < G; ++g) phik[g] = phi[g][t];
+    for (size_t g = 0; g < G; ++g) phik[g] = phi(g, t);
     l += log_dirichlet(phik, alpha);
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(r[t], hyperparameters.phi_r_1 * hyperparameters.phi_r_2, 1.0 / hyperparameters.phi_r_1);
@@ -100,11 +100,11 @@ double PoissonModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(theta[s][t], r[t], p[t] / (1 - p[t]));
+      l += log_gamma(theta(s, t), r[t], p[t] / (1 - p[t]));
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
-        l += log_poisson(contributions[g][s][t], phi[g][t] * theta[s][t]);
+        l += log_poisson(contributions(g, s, t), phi(g, t) * theta(s, t));
   }
   /*
   for (size_t g = 0; g < G; ++g)
@@ -125,10 +125,10 @@ void PoissonModel::sample_contributions(const IMatrix &counts) {
     for (size_t s = 0; s < S; ++s) {
       vector<double> rel_rate(T);
       double z = 0;
-      for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi[g][t] * theta[s][t];
+      for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
-      auto v = sample_multinomial<Int>(counts[g][s], rel_rate);
-      for (size_t t = 0; t < T; ++t) contributions[g][s][t] = v[t];
+      auto v = sample_multinomial<Int>(counts(g, s), rel_rate);
+      for (size_t t = 0; t < T; ++t) contributions(g, s, t) = v[t];
     }
 }
 
@@ -139,9 +139,9 @@ void PoissonModel::sample_phi() {
     vector<double> a(G, hyperparameters.alpha);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s) a[g] += contributions[g][s][t];
+      for (size_t s = 0; s < S; ++s) a[g] += contributions(g, s, t);
     auto phi_k = sample_dirichlet<Float>(a);
-    for (size_t g = 0; g < G; ++g) phi[g][t] = phi_k[g];
+    for (size_t g = 0; g < G; ++g) phi(g, t) = phi_k[g];
   }
 }
 
@@ -152,7 +152,7 @@ void PoissonModel::sample_p() {
     Int sum = 0;
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s) sum += contributions[g][s][t];
+      for (size_t s = 0; s < S; ++s) sum += contributions(g, s, t);
     p[t] = sample_beta<Float>(hyperparameters.phi_p_1 * hyperparameters.phi_p_2 + sum,
                               hyperparameters.phi_p_1 * (1 - hyperparameters.phi_p_2) + S * r[t]);
   }
@@ -167,7 +167,7 @@ void PoissonModel::sample_r() {
     for (size_t s = 0; s < S; ++s) {
       Int sum_spot = 0;
 #pragma omp parallel for reduction(+ : sum_spot) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g) sum_spot += contributions[g][s][t];
+      for (size_t g = 0; g < G; ++g) sum_spot += contributions(g, s, t);
       sum += sum_spot;
       count_spot_type[s] = sum_spot;
     }
@@ -294,9 +294,9 @@ void PoissonModel::sample_theta() {
     for (size_t s = 0; s < S; ++s) {
       Int sum = 0;
 #pragma omp parallel for reduction(+ : sum) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g) sum += contributions[g][s][t];
+      for (size_t g = 0; g < G; ++g) sum += contributions(g, s, t);
       // NOTE: gamma_distribution takes a shape and scale parameter
-      theta[s][t] =
+      theta(s, t) =
           gamma_distribution<Float>(r[t] + sum, p[t])(EntropySource::rng);
     }
 }
@@ -339,8 +339,8 @@ void PoissonModel::check_model(const IMatrix &counts) const {
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       Int z = 0;
-      for (size_t t = 0; t < T; ++t) z += contributions[g][s][t];
-      if (z != counts[g][s])
+      for (size_t t = 0; t < T; ++t) z += contributions(g, s, t);
+      if (z != counts(g, s))
         throw(runtime_error(
             "Contributions do not add up to observations for gene " +
             to_string(g) + " in spot " + to_string(s) + "."));
@@ -349,10 +349,10 @@ void PoissonModel::check_model(const IMatrix &counts) const {
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      if (phi[g][t] == 0)
+      if (phi(g, t) == 0)
         throw(runtime_error("Phi is zero for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
-      if (phi[g][t] < 0)
+      if (phi(g, t) < 0)
         throw(runtime_error("Phi is negative for gene " + to_string(g) +
                             " in factor " + to_string(t) + "."));
     }
@@ -360,10 +360,10 @@ void PoissonModel::check_model(const IMatrix &counts) const {
   // check that theta is positive
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t) {
-      if (theta[s][t] == 0)
+      if (theta(s, t) == 0)
         throw(runtime_error("Theta is zero for spot " + to_string(s) +
                             " in factor " + to_string(t) + "."));
-      if (theta[s][t] < 0)
+      if (theta(s, t) < 0)
         throw(runtime_error("Theta is negative for spot " + to_string(s) +
                             " in factor " + to_string(t) + "."));
     }
@@ -402,14 +402,14 @@ ostream &operator<<(ostream &os, const FactorAnalysis::PoissonModel &pfa) {
     os << "Φ" << endl;
     for (size_t g = 0; g < min<size_t>(pfa.G, 10); ++g) {
       for (size_t t = 0; t < pfa.T; ++t)
-        os << (t > 0 ? "\t" : "") << pfa.phi[g][t];
+        os << (t > 0 ? "\t" : "") << pfa.phi(g, t);
       os << endl;
     }
 
     os << "Φ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
-      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi[g][t];
+      for (size_t g = 0; g < pfa.G; ++g) sum += pfa.phi(g, t);
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;
@@ -417,14 +417,14 @@ ostream &operator<<(ostream &os, const FactorAnalysis::PoissonModel &pfa) {
     os << "Θ" << endl;
     for (size_t s = 0; s < min<size_t>(pfa.S, 10); ++s) {
       for (size_t t = 0; t < pfa.T; ++t)
-        os << (t > 0 ? "\t" : "") << pfa.theta[s][t];
+        os << (t > 0 ? "\t" : "") << pfa.theta(s, t);
       os << endl;
     }
 
     os << "Θ factor sums" << endl;
     for (size_t t = 0; t < pfa.T; ++t) {
       double sum = 0;
-      for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta[s][t];
+      for (size_t s = 0; s < pfa.S; ++s) sum += pfa.theta(s, t);
       os << (t > 0 ? "\t" : "") << sum;
     }
     os << endl;

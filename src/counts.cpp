@@ -18,7 +18,7 @@ Counts::Counts(const string &path, const string &label, const string &separator)
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names, label)),
-      experiments(counts.shape()[1], 0),
+      experiments(counts.n_cols, 0),
       experiment_names(1, path) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
@@ -33,8 +33,6 @@ Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
 Counts &Counts::operator=(const Counts &other) {
   row_names = other.row_names;
   col_names = other.col_names;
-  auto shape = other.counts.shape();
-  counts.resize(boost::extents[shape[0]][shape[1]]);
   experiments = other.experiments;
   experiment_names = other.experiment_names;
   counts = other.counts;
@@ -77,14 +75,14 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
 
   const size_t ncol1 = a.col_names.size();
 
-  IMatrix cnt(boost::extents[nrow][ncol]);
+  IMatrix cnt(nrow, ncol);
   size_t col_idx = 0;
   for (; col_idx < ncol1; ++col_idx) {
     size_t row_idx = 0;
     for (auto &name : rnames) {
       auto iter = m1.find(name);
       if (iter != end(m1))
-        cnt[row_idx][col_idx] = a.counts[iter->second][col_idx];
+        cnt(row_idx, col_idx) = a.counts(iter->second, col_idx);
       row_idx++;
     }
   }
@@ -93,7 +91,7 @@ Counts combine_counts(const Counts &a, const Counts &b, bool intersect) {
     for (auto &name : rnames) {
       auto iter = m2.find(name);
       if (iter != end(m2))
-        cnt[row_idx][col_idx] = b.counts[iter->second][col_idx - ncol1];
+        cnt(row_idx, col_idx) = b.counts(iter->second, col_idx - ncol1);
       row_idx++;
     }
   }
@@ -133,7 +131,7 @@ void Counts::select_top(size_t n) {
   for (size_t r = 0; r < nrow; ++r) {
     size_t sum = 0;
     for (size_t c = 0; c < ncol; ++c)
-      sum += counts[r][c];
+      sum += counts(r, c);
     rowsum_and_index.push_back(pair_t(sum, r));
   }
 
@@ -146,14 +144,12 @@ void Counts::select_top(size_t n) {
   for (size_t i = 0; i < n; ++i)
     new_row_names[i] = row_names[rowsum_and_index[i].second];
 
-  auto extents = boost::extents[n][ncol];
-  IMatrix new_counts(extents);
+  IMatrix new_counts(n, ncol);
 
   for (size_t r = 0; r < n; ++r)
     for (size_t c = 0; c < ncol; ++c)
-      new_counts[r][c] = counts[rowsum_and_index[r].second][c];
+      new_counts(r, c) = counts(rowsum_and_index[r].second, c);
 
   row_names = new_row_names;
-  counts.resize(extents);
   counts = new_counts;
 }
