@@ -58,6 +58,11 @@ struct VariantModel {
                const std::string &spot_scaling_path,
                const std::string &experiment_scaling_path,
                const std::string &r_path, const std::string &p_path,
+               const std::string &r_theta_path, const std::string &p_theta_path,
+               const Hyperparameters &hyperparameters,
+               const Parameters &parameters, Verbosity verbosity);
+
+  VariantModel(const std::string &path_prefix, const std::string &path_suffix,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 

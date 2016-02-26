@@ -131,6 +131,7 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
                            const string &spot_scaling_path,
                            const string &experiment_scaling_path,
                            const string &r_path, const string &p_path,
+                           const string &r_theta_path, const string &p_theta_path,
                            const Hyperparameters &hyperparameters_,
                            const Parameters &parameters_, Verbosity verbosity_)
     : G(0),
@@ -146,8 +147,8 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
           parse_file<Vector>(experiment_scaling_path, read_vector)),
       r(parse_file<Matrix>(r_path, read_matrix)),
       p(parse_file<Matrix>(p_path, read_matrix)),
-      // r_theta(parse_file<Vector>(r_path, read_matrix)),
-      // p_theta(parse_file<Vector>(p_path, read_matrix)),
+      r_theta(parse_file<Matrix>(r_theta_path, read_matrix)),
+      p_theta(parse_file<Matrix>(p_theta_path, read_matrix)),
       verbosity(verbosity_) {
   G = phi.shape()[0];
   S = theta.shape()[0];
@@ -166,6 +167,17 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
   cout << "Load constructor not supported. Exiting." << endl;
   exit(-1);
 }
+
+VariantModel::VariantModel(const std::string &prefix, const std::string &suffix,
+                           const Hyperparameters &hyperparameters_,
+                           const Parameters &parameters_, Verbosity verbosity_)
+    : VariantModel(prefix + "phi.txt" + suffix, prefix + "theta.txt" + suffix,
+                   prefix + "spot_scaling.txt" + suffix,
+                   prefix + "experiment_scaling.txt" + suffix,
+                   prefix + "p.txt" + suffix, prefix + "r.txt" + suffix,
+                   prefix + "p_theta.txt" + suffix,
+                   prefix + "r_theta.txt" + suffix, hyperparameters_,
+                   parameters_, verbosity_) {}
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;
