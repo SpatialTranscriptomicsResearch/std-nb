@@ -12,6 +12,9 @@
 #define PHI_ZERO_WARNING false
 #define debug_omp false
 
+#define DEFAULT_SEPARATOR "\t"
+#define DEFAULT_LABEL ""
+
 using namespace std;
 namespace FactorAnalysis {
 const Float phi_scaling = 1.0;
@@ -150,16 +153,16 @@ VariantModel::VariantModel(
       hyperparameters(hyperparameters_),
       parameters(parameters_),
       contributions(G, S, T),
-      phi(parse_file<Matrix>(phi_path, read_matrix)),
-      theta(parse_file<Matrix>(theta_path, read_matrix)),
+      phi(parse_file<Matrix>(phi_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      theta(parse_file<Matrix>(theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
       experiment_scaling(
           parse_file<Vector>(experiment_scaling_path, read_vector)),
       experiment_scaling_long(S),
-      r(parse_file<Matrix>(r_path, read_matrix)),
-      p(parse_file<Matrix>(p_path, read_matrix)),
-      r_theta(parse_file<Matrix>(r_theta_path, read_matrix)),
-      p_theta(parse_file<Matrix>(p_theta_path, read_matrix)),
+      r(parse_file<Matrix>(r_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      p(parse_file<Matrix>(p_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      r_theta(parse_file<Matrix>(r_theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      p_theta(parse_file<Matrix>(p_theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       verbosity(verbosity_) {
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
@@ -179,9 +182,9 @@ VariantModel::VariantModel(const Counts &counts, const std::string &prefix,
     : VariantModel(
           counts, prefix + "phi.txt" + suffix, prefix + "theta.txt" + suffix,
           prefix + "spot_scaling.txt" + suffix,
-          prefix + "experiment_scaling.txt" + suffix, prefix + "p.txt" + suffix,
-          prefix + "r.txt" + suffix, prefix + "p_theta.txt" + suffix,
-          prefix + "r_theta.txt" + suffix, hyperparameters_, parameters_,
+          prefix + "experiment_scaling.txt" + suffix, prefix + "r.txt" + suffix,
+          prefix + "p.txt" + suffix, prefix + "r_theta.txt" + suffix,
+          prefix + "p_theta.txt" + suffix, hyperparameters_, parameters_,
           verbosity_) {}
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
@@ -795,7 +798,6 @@ void VariantModel::check_model(const IMatrix &counts) const {
   if (hyperparameters.alpha == 0)
     throw(runtime_error("The prior alpha is zero."));
 }
-}
 
 ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
   os << "Variant Poisson Factor Analysis "
@@ -916,4 +918,5 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
   os << Stats::summary(pfa.p_theta) << endl;
 
   return os;
+}
 }

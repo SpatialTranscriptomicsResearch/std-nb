@@ -109,9 +109,9 @@ struct VariantModel {
  private:
   void update_experiment_scaling_long(const Counts &data);
 };
-}
 
 std::ostream &operator<<(std::ostream &os,
                          const FactorAnalysis::VariantModel &pfa);
+}
 
 #endif
