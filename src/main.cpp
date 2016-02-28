@@ -123,8 +123,7 @@ void simulate(const FactorAnalysis::VariantModel &pfa, const Counts &counts) {
 
 void write_results(const FactorAnalysis::VariantModel &pfa,
                    const Counts &counts, const string &prefix,
-                   bool mean_and_variance = false,
-                   bool do_sample = false) {
+                   bool mean_and_variance = false) {
   vector<string> factor_names;
   for (size_t t = 1; t <= pfa.T; ++t)
     factor_names.push_back("Factor " + to_string(t));
@@ -169,7 +168,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_results(pfa, data, options.output, true, false);
+  write_results(pfa, data, options.output, true);
 }
 
 int main(int argc, char **argv) {
