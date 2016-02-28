@@ -27,7 +27,7 @@ const vector<string> alphabetic_labels = gen_alpha_labels();
 
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
-  vector<string> paths;
+  vector<string> tsv_paths;
   Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
@@ -76,30 +76,7 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-void write_results(const FactorAnalysis::VariantModel &pfa,
-                   const Counts &counts, const string &prefix,
-                   bool mean_and_variance = false,
-                   bool do_sample = false) {
-  vector<string> factor_names;
-  for (size_t t = 1; t <= pfa.T; ++t)
-    factor_names.push_back("Factor " + to_string(t));
-  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
-  write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
-  write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
-  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
-  write_vector(pfa.r_theta, prefix + "r_theta.txt", factor_names);
-  write_vector(pfa.p_theta, prefix + "p_theta.txt", factor_names);
-  write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
-  write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
-  if (mean_and_variance) {
-    write_matrix(pfa.posterior_expectations(), prefix + "means.txt",
-                 counts.row_names, counts.col_names);
-    write_matrix(pfa.posterior_expectations_poisson(), prefix + "means_poisson.txt",
-                 counts.row_names, counts.col_names);
-    write_matrix(pfa.posterior_variances(), prefix + "variances.txt",
-                 counts.row_names, counts.col_names);
-  }
-  if (do_sample) {
+void simulate(const FactorAnalysis::VariantModel &pfa, const Counts &counts) {
     // sample the highest, the median, and the lowest genes' counts for all spots
     vector<size_t> counts_per_gene(pfa.G, 0);
     for (size_t g = 0; g < pfa.G; ++g)
@@ -141,6 +118,30 @@ void write_results(const FactorAnalysis::VariantModel &pfa,
         cout << "\t" << x;
       cout << endl;
     }
+}
+
+void write_results(const FactorAnalysis::VariantModel &pfa,
+                   const Counts &counts, const string &prefix,
+                   bool mean_and_variance = false,
+                   bool do_sample = false) {
+  vector<string> factor_names;
+  for (size_t t = 1; t <= pfa.T; ++t)
+    factor_names.push_back("Factor " + to_string(t));
+  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
+  write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
+  write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
+  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
+  write_vector(pfa.r_theta, prefix + "r_theta.txt", factor_names);
+  write_vector(pfa.p_theta, prefix + "p_theta.txt", factor_names);
+  write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
+  write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
+  if (mean_and_variance) {
+    write_matrix(pfa.posterior_expectations(), prefix + "means.txt",
+                 counts.row_names, counts.col_names);
+    write_matrix(pfa.posterior_expectations_poisson(), prefix + "means_poisson.txt",
+                 counts.row_names, counts.col_names);
+    write_matrix(pfa.posterior_variances(), prefix + "variances.txt",
+                 counts.row_names, counts.col_names);
   }
 }
 
@@ -200,7 +201,7 @@ int main(int argc, char **argv) {
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
-    ("file,f", po::value(&options.paths)->required(),
+    ("file,f", po::value(&options.tsv_paths)->required(),
      "Path to a count matrix file, can be given multiple times. "
      "Format: tab-separated, including a header line, "
      "and row names in the first column of each row.");
@@ -296,33 +297,33 @@ int main(int argc, char **argv) {
   vector<string> labels;
   switch (options.labeling) {
     case Options::Labeling::None:
-      labels = vector<string>(options.paths.size(), "");
+      labels = vector<string>(options.tsv_paths.size(), "");
       break;
     case Options::Labeling::Path:
-      labels = options.paths;
+      labels = options.tsv_paths;
       break;
     case Options::Labeling::Alpha:
       labels = alphabetic_labels;
       break;
     case Options::Labeling::Auto:
-      if (options.paths.size() > 1)
+      if (options.tsv_paths.size() > 1)
         labels = alphabetic_labels;
       else
-        labels = vector<string>(options.paths.size(), "");
+        labels = vector<string>(options.tsv_paths.size(), "");
       break;
   }
 
-  if (labels.size() < options.paths.size()) {
+  if (labels.size() < options.tsv_paths.size()) {
     cout << "Warning: too few labels available! Using paths as labels." << endl;
-    labels = options.paths;
+    labels = options.tsv_paths;
   }
 
-  Counts data(options.paths[0], labels[0]);
-  for (size_t i = 1; i < options.paths.size(); ++i)
+  Counts data(options.tsv_paths[0], labels[0]);
+  for (size_t i = 1; i < options.tsv_paths.size(); ++i)
     if (options.intersect)
-      data = data * Counts(options.paths[i], labels[i]);
+      data = data * Counts(options.tsv_paths[i], labels[i]);
     else
-      data = data + Counts(options.paths[i], labels[i]);
+      data = data + Counts(options.tsv_paths[i], labels[i]);
 
   if (options.top > 0)
     data.select_top(options.top);
