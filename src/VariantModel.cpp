@@ -127,36 +127,40 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         1 / hyperparameters.theta_r_2)(EntropySource::rng);
 }
 
-VariantModel::VariantModel(const string &phi_path, const string &theta_path,
-                           const string &spot_scaling_path,
-                           const string &experiment_scaling_path,
-                           const string &r_path, const string &p_path,
-                           const string &r_theta_path, const string &p_theta_path,
-                           const Hyperparameters &hyperparameters_,
-                           const Parameters &parameters_, Verbosity verbosity_)
-    : G(0),
-      S(0),
-      T(0),
-      E(0),
+size_t num_lines(const string &path) {
+  int number_of_lines = 0;
+  string line;
+  ifstream ifs(path);
+
+  while (getline(ifs, line))
+    ++number_of_lines;
+  return number_of_lines;
+}
+
+VariantModel::VariantModel(
+    const Counts &c, const string &phi_path, const string &theta_path,
+    const string &spot_scaling_path, const string &experiment_scaling_path,
+    const string &r_path, const string &p_path, const string &r_theta_path,
+    const string &p_theta_path, const Hyperparameters &hyperparameters_,
+    const Parameters &parameters_, Verbosity verbosity_)
+    : G(c.counts.n_rows),
+      S(c.counts.n_cols),
+      T(num_lines(r_theta_path)),
+      E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
+      contributions(G, S, T),
       phi(parse_file<Matrix>(phi_path, read_matrix)),
       theta(parse_file<Matrix>(theta_path, read_matrix)),
       spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
       experiment_scaling(
           parse_file<Vector>(experiment_scaling_path, read_vector)),
+      experiment_scaling_long(T),
       r(parse_file<Matrix>(r_path, read_matrix)),
       p(parse_file<Matrix>(p_path, read_matrix)),
       r_theta(parse_file<Matrix>(r_theta_path, read_matrix)),
       p_theta(parse_file<Matrix>(p_theta_path, read_matrix)),
       verbosity(verbosity_) {
-  G = phi.n_rows;
-  S = theta.n_rows;
-  T = phi.n_cols;
-  E = experiment_scaling.size();
-
-  // TODO make sure the contribution cube's dimensions are ok!
-  // contributions.resize(boost::extents(G, S, T));
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
   // it is necessary to first sample the contributions!
@@ -165,20 +169,20 @@ VariantModel::VariantModel(const string &phi_path, const string &theta_path,
       for (size_t t = 0; t < T; ++t)
         contributions(g, s, t) = 0;
 
-  cout << "Load constructor not supported. Exiting." << endl;
-  exit(-1);
+  update_experiment_scaling_long(c);
 }
 
-VariantModel::VariantModel(const std::string &prefix, const std::string &suffix,
+VariantModel::VariantModel(const Counts &counts, const std::string &prefix,
+                           const std::string &suffix,
                            const Hyperparameters &hyperparameters_,
                            const Parameters &parameters_, Verbosity verbosity_)
-    : VariantModel(prefix + "phi.txt" + suffix, prefix + "theta.txt" + suffix,
-                   prefix + "spot_scaling.txt" + suffix,
-                   prefix + "experiment_scaling.txt" + suffix,
-                   prefix + "p.txt" + suffix, prefix + "r.txt" + suffix,
-                   prefix + "p_theta.txt" + suffix,
-                   prefix + "r_theta.txt" + suffix, hyperparameters_,
-                   parameters_, verbosity_) {}
+    : VariantModel(
+          counts, prefix + "phi.txt" + suffix, prefix + "theta.txt" + suffix,
+          prefix + "spot_scaling.txt" + suffix,
+          prefix + "experiment_scaling.txt" + suffix, prefix + "p.txt" + suffix,
+          prefix + "r.txt" + suffix, prefix + "p_theta.txt" + suffix,
+          prefix + "r_theta.txt" + suffix, hyperparameters_, parameters_,
+          verbosity_) {}
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;

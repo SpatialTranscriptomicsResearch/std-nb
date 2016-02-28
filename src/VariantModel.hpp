@@ -8,13 +8,13 @@
 namespace FactorAnalysis {
 struct VariantModel {
   /** number of genes */
-  size_t G;
+  const size_t G;
   /** number of samples */
-  size_t S;
+  const size_t S;
   /** number of factors */
-  size_t T;
+  const size_t T;
   /** number of experiments */
-  size_t E;
+  const size_t E;
 
   Hyperparameters hyperparameters;
   Parameters parameters;
@@ -54,7 +54,8 @@ struct VariantModel {
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
-  VariantModel(const std::string &phi_path, const std::string &theta_path,
+  VariantModel(const Counts &counts, const std::string &phi_path,
+               const std::string &theta_path,
                const std::string &spot_scaling_path,
                const std::string &experiment_scaling_path,
                const std::string &r_path, const std::string &p_path,
@@ -62,7 +63,8 @@ struct VariantModel {
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
-  VariantModel(const std::string &path_prefix, const std::string &path_suffix,
+  VariantModel(const Counts &counts, const std::string &path_prefix,
+               const std::string &path_suffix,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
