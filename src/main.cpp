@@ -28,6 +28,7 @@ const vector<string> alphabetic_labels = gen_alpha_labels();
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
+  string simulate_path = "";
   Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
@@ -207,6 +208,8 @@ int main(int argc, char **argv) {
      "and row names in the first column of each row.");
 
   basic_options.add_options()
+    ("simulate,s", po::value(&options.simulate_path),
+     "Prefix to a set of parameter files. ")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
@@ -328,10 +331,17 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  FactorAnalysis::VariantModel pfa(data, options.num_factors, hyperparameters,
-                                   parameters, options.verbosity);
+  if (options.simulate_path != "") {
+    FactorAnalysis::VariantModel pfa(data, options.simulate_path, "", hyperparameters,
+                                     parameters, options.verbosity);
 
-  perform_gibbs_sampling(data, pfa, options);
+    simulate(pfa, data);
+  } else {
+    FactorAnalysis::VariantModel pfa(data, options.num_factors, hyperparameters,
+                                     parameters, options.verbosity);
+
+    perform_gibbs_sampling(data, pfa, options);
+  }
 
   return EXIT_SUCCESS;
 }
