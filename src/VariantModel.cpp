@@ -173,6 +173,9 @@ VariantModel::VariantModel(
         contributions(g, s, t) = 0;
 
   update_experiment_scaling_long(c);
+
+  if (verbosity >= Verbosity::Debug)
+    cout << *this << endl;
 }
 
 VariantModel::VariantModel(const Counts &counts, const std::string &prefix,
