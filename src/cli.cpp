@@ -27,17 +27,17 @@
  * =====================================================================================
  */
 
+#include "cli.hpp"
+#include <git_config.hpp>
 #include <iostream>
 #include <fstream>
 #include "terminal.hpp"
-#include <git_config.hpp>
-#include "cli.hpp"
 
 using namespace std;
 
 namespace po = boost::program_options;
 
-const string default_error_msg =
+const std::string default_error_msg =
     "Please inspect the command line help with -h or --help.";
 
 po::options_description gen_generic_options(string &config_path, size_t cols) {
@@ -55,9 +55,10 @@ po::options_description gen_generic_options(string &config_path, size_t cols) {
 int process_cli_options(
     int argc, const char **argv, Verbosity &verbosity,
     ExecutionInformation &exec_info,
-    const string &usage_string, po::options_description &cli_options,
+    const std::string &usage_string, boost::program_options::options_description &cli_options,
     bool use_positional_options,
-    po::positional_options_description &positional_options) {
+    boost::program_options::positional_options_description &positional_options) {
+  namespace po = boost::program_options;
   exec_info
       = ExecutionInformation(argv[0], GIT_DESCRIPTION, GIT_BRANCH, argc, argv);
 
@@ -137,7 +138,7 @@ int process_cli_options(
                  "available, please check your command line arguments."
               << std::endl << default_error_msg << std::endl;
     return EXIT_FAILURE;
-  } catch (exception &e) {
+  } catch (std::exception &e) {
     std::cout << "An error occurred while parsing command line options."
               << std::endl << e.what() << std::endl << default_error_msg
               << std::endl;
@@ -148,7 +149,7 @@ int process_cli_options(
   if (vm.count("noisy")) verbosity = Verbosity::Debug;
 
   if (vm.count("version") and not vm.count("help")) {
-    std::cout << exec_info.name_and_version() << endl;
+    std::cout << exec_info.name_and_version() << std::endl;
     if (verbosity >= Verbosity::Verbose) std::cout << GIT_SHA1 << std::endl;
     return EXIT_SUCCESS;
   }
@@ -199,8 +200,8 @@ int process_cli_options(
   }
 
   if (vm.count("config")) {
-    string config_path = vm["config"].as<string>();
-    ifstream ifs(config_path.c_str());
+    std::string config_path = vm["config"].as<std::string>();
+    std::ifstream ifs(config_path.c_str());
     if (!ifs) {
       std::cout << "Error: can not open config file: " << config_path
                 << std::endl << default_error_msg << std::endl;
