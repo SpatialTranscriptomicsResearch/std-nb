@@ -155,7 +155,7 @@ VariantModel::VariantModel(
       spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
       experiment_scaling(
           parse_file<Vector>(experiment_scaling_path, read_vector)),
-      experiment_scaling_long(T),
+      experiment_scaling_long(S),
       r(parse_file<Matrix>(r_path, read_matrix)),
       p(parse_file<Matrix>(p_path, read_matrix)),
       r_theta(parse_file<Matrix>(r_theta_path, read_matrix)),
