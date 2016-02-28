@@ -9,7 +9,6 @@ ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
   VariantModel.cpp sampling.cpp terminal.cpp timer.cpp pdist.cpp)
 
 ADD_EXECUTABLE(multiScoop-bin main.cpp cli.cpp entropy.cpp)
-ADD_EXECUTABLE(simulate-reads simulate.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)
 SET_TARGET_PROPERTIES(multiScoop-bin PROPERTIES OUTPUT_NAME multiScoop)
 
@@ -26,7 +25,6 @@ TARGET_LINK_LIBRARIES(multiScoop
   )
 
 TARGET_LINK_LIBRARIES(multiScoop-bin multiScoop)
-TARGET_LINK_LIBRARIES(simulate-reads multiScoop)
 TARGET_LINK_LIBRARIES(test_sampling multiScoop)
 
 IF(GOOGLEPERFTOOLS_FOUND)
