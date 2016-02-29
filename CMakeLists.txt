@@ -138,7 +138,12 @@ IF(Boost_FOUND)
 ENDIF()
 
 FIND_PACKAGE(Armadillo REQUIRED)
-INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
+IF(ARMADILLO_FOUND)
+  MESSAGE(STATUS "Enabled: Armadillo support")
+  INCLUDE_DIRECTORIES(${ARMADILLO_INCLUDE_DIRS})
+ELSE()
+  MESSAGE(FATAL_ERROR "Armadillo not found. Please retrieve it from http://arma.sourceforge.net/.")
+ENDIF()
 
 FIND_PACKAGE(OpenMP)
 IF(OPENMP_FOUND)
