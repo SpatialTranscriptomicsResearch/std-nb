@@ -18,4 +18,3 @@
   - the NB conditional posterior
   - the NM conditional posterior
   - the Poisson conditional posterior
-* uncouple simulation from Gibbs sampling
