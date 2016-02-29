@@ -191,8 +191,9 @@ st.multi = function(d,
       for(method in names(simil.2d)) {
         broken = break.data(simil.2d[[method]])
         experiment = rep(names(broken), times=sapply(broken, nrow))
+        nc = min(3, ncol(simil.2d[[method]]))
         plot(simil.2d[[method]],
-             col=make.color(simil[[method]]),
+             col=make.color(simil[[method]][,1:nc]),
              pch=as.numeric(as.factor(experiment)),
              main=method,
              xlab="",
