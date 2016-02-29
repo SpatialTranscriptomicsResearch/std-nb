@@ -85,7 +85,7 @@ function(git_describe _var)
 
   #message(STATUS "Arguments to execute_process: ${ARGN}")
 
-  execute_process(COMMAND "${GIT_EXECUTABLE}" describe ${hash} ${ARGN}
+  execute_process(COMMAND "${GIT_EXECUTABLE}" describe ${ARGN}
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
     RESULT_VARIABLE res
     OUTPUT_VARIABLE out

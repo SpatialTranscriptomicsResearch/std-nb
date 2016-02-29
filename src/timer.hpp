@@ -1,5 +1,5 @@
 /* =====================================================================================
- * Copyright (c) 2011, Jonas Maaskola
+ * Copyright (c) 2012, Jonas Maaskola
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -16,37 +16,36 @@
  *
  * =====================================================================================
  *
- *       Filename:  main.cpp
+ *       Filename:  timer.hpp
  *
- *    Description:  Executable for the HMM package
+ *    Description:  Some timing routines.
  *
- *        Created:  Thu Aug 4 22:12:31 2011 +0200
+ *        Created:  05/30/2012 06:42:25 PM
  *
  *         Author:  Jonas Maaskola <jonas@maaskola.de>
  *
  * =====================================================================================
  */
 
-#ifndef CLI_HPP
-#define CLI_HPP
+#ifndef TIMER_HPP
+#define TIMER_HPP
 
-#include <string>
-#include <boost/program_options.hpp>
-#include "executioninformation.hpp"
+#include <ctime>
+#include <sys/time.h>
 
-boost::program_options::options_description gen_generic_options(
-    std::string &config_path, size_t cols);
+class Timer {
+private:
+  struct timeval start;
 
-static const int PROCESSING_SUCCESSFUL = 2;
+public:
+  /** Initialize and start timer. */
+  Timer();
 
-/** Parse and process command line arguments.
- * Return value is either EXIT_SUCCESS, EXIT_FAILURE, or PROCESSING_SUCCESSFUL.
- */
-int process_cli_options(
-    int argc, const char **argv, Verbosity &verbosity,
-    ExecutionInformation &exec_info, const std::string &usage_string,
-    boost::program_options::options_description &cli_options,
-    bool use_positional_options,
-    boost::program_options::positional_options_description &positional_options);
+  /** (Re-)Start the timer. */
+  void tick();
 
-#endif
+  /** Time in micro seconds since tick(). */
+  double tock() const;
+};
+
+#endif /* ----- #ifndef TIMER_HPP  ----- */

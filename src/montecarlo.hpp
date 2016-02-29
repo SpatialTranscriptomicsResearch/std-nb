@@ -36,25 +36,11 @@
 #include <vector>
 #include <cmath>
 #include "verbosity.hpp"
+#include "entropy.hpp"
 #include "sampling.hpp"
 // #include "../random_distributions.hpp"
 
 namespace MCMC {
-struct EntropySource {
-  static void seed(size_t new_seed = std::random_device()()) {
-    rng.seed(new_seed);
-  }
-
-private:
-  static std::mt19937 rng;
-  template <typename>
-  friend struct MonteCarlo;
-  template <typename>
-  friend struct Evaluator;
-  template <typename>
-  friend struct Generator;
-};
-
 inline double boltzdist(double dG, double T) { return exp(-dG / T); };
 
 template <class T>

@@ -39,6 +39,11 @@ ExecutionInformation::ExecutionInformation(const string &name,
   datetime = datetime.substr(0, datetime.size() - 1);
 }
 
+string ExecutionInformation::name_and_version() const {
+  return program_name + " " + program_version
+                      + " [" + git_branch + " branch]";
+}
+
 string generate_random_label(const string &prefix, size_t n_rnd_char,
                              Verbosity verbosity) {
   random_device rng;

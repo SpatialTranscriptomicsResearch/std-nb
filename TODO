@@ -2,6 +2,19 @@
 * collect log-likelihoods and write to file
 * dump log to file in output prefix
 * use something like libmagic to figure out file types
-* write out version information into log
-* option to only use the top n genes
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
+* compute covariance of spots across cell type contributiones during MCMC and accumulate statistics -> clustering of spots
+* perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
+* way to freeze the scaling factors
+* computing means etc. on chain statistics:
+  - point estimates: mean, standard deviation, percentiles
+  - interval estimates: equal-tail and highest posterior density (HPD) intervals
+  - posterior covariance matrix
+  - posterior correlation matrix
+  - deviance information criterion (DIC)
+* determine and direct acceptance rate of Metropolis-Hastings sampling
+* enforcing medians as alternative to means
+* write out predicted means and variances, based on
+  - the NB conditional posterior
+  - the NM conditional posterior
+  - the Poisson conditional posterior

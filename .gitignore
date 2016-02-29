@@ -1,2 +1,6 @@
 build
 *.swp
+*~
+data/
+results/
+local_configuration.cmake

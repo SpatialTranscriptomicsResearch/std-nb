@@ -23,20 +23,29 @@ double log_dirichlet(const vector<double> &p, const vector<double> &alpha) {
   return l;
 }
 
-double log_gamma(double x, double k, double theta) {
-  return (k - 1) * log(x) - x / theta - lgamma(k) - k * log(theta);
+double log_gamma(double x, double shape, double scale) {
+  return (shape - 1) * log(x) - x / scale - lgamma(shape) - shape * log(scale);
 }
 
-double log_beta(double x, double a, double b) {
-  double y = (a - 1) * log(x) + (b - 1) * log(1 - x);
-  double z = lgamma(a + b) - lgamma(a) - lgamma(b);
+double log_beta(double p, double a, double b) {
+  double x = (a - 1) * log(p) + (b - 1) * log(1 - p);
+  double y = lgamma(a + b) - lgamma(a) - lgamma(b);
   /*
-  cout << "x=" << x << " a=" << a << " b=" << b << " y=" << y << " z=" << z
-            << " y+z=" << y + z << endl;
+  cout << "p=" << p << " a=" << a << " b=" << b << " x=" << x << " y=" << y
+            << " x+y=" << x + y << endl;
   */
-  return y + z;
+  return x + y;
 }
 
-double log_negative_binomial(double x, double r, double p) {
+double log_beta_odds(double x, double a, double b) {
+  return  lgamma(a + b) - lgamma(a) - lgamma(b) + (a-1) * log(x) - (a+b+2) * log(1+x);
+}
+
+double log_negative_binomial(size_t x, double r, double p) {
   return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * log(p) + r * log(1-p);
+}
+
+double log_negative_binomial(size_t x, double r, double p1, double p2) {
+  double logp = log(p1 + p2);
+  return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * (log(p1) - logp) + r * (log(p2) - logp);
 }
