@@ -29,7 +29,7 @@ test.transforming = function(x) {
   return(all(x == reform.data(break.data(x))))
 }
 
-st.load.data = function(path.prefix="", path.suffix="") {
+st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
   load.matrix = function(path.prefix,
                          path) {
     return(as.matrix(read.delim(paste(path.prefix,
@@ -53,6 +53,10 @@ st.load.data = function(path.prefix="", path.suffix="") {
   d$theta = load.matrix(path.prefix, "theta.txt")
   d$r = load.matrix(path.prefix, "r.txt")
   d$p = load.matrix(path.prefix, "p.txt")
+  if(load.means) {
+    d$means = load.matrix(path.prefix, "means.txt")
+    d$means.poisson = load.matrix(path.prefix, "means_poisson.txt")
+  }
   d$spotscale = load.vec(path.prefix, "spot_scaling.txt")
   d$expscale = load.vec(path.prefix, "experiment_scaling.txt")
   return(d)
