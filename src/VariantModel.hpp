@@ -50,21 +50,16 @@ struct VariantModel {
 
   Verbosity verbosity;
 
+  struct Paths {
+    Paths(const std::string &prefix, const std::string &suffix = "");
+    std::string phi, theta, spot, experiment, r_phi, p_phi, r_theta, p_theta;
+  };
+
   VariantModel(const Counts &counts, const size_t T,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
-  VariantModel(const Counts &counts, const std::string &phi_path,
-               const std::string &theta_path,
-               const std::string &spot_scaling_path,
-               const std::string &experiment_scaling_path,
-               const std::string &r_path, const std::string &p_path,
-               const std::string &r_theta_path, const std::string &p_theta_path,
-               const Hyperparameters &hyperparameters,
-               const Parameters &parameters, Verbosity verbosity);
-
-  VariantModel(const Counts &counts, const std::string &path_prefix,
-               const std::string &path_suffix,
+  VariantModel(const Counts &counts, const Paths &paths,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 

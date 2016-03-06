@@ -39,6 +39,16 @@ T prob_to_neg_odds(T x) {
   return (1 - x) / x;
 }
 
+VariantModel::Paths::Paths(const std::string &prefix, const std::string &suffix)
+    : phi(prefix + "phi.txt" + suffix),
+      theta(prefix + "theta.txt" + suffix),
+      spot(prefix + "spot_scaling.txt" + suffix),
+      experiment(prefix + "experiment_scaling.txt" + suffix),
+      r_phi(prefix + "r.txt" + suffix),
+      p_phi(prefix + "p.txt" + suffix),
+      r_theta(prefix + "r_theta.txt" + suffix),
+      p_theta(prefix + "p_theta.txt" + suffix){};
+
 VariantModel::VariantModel(const Counts &c, const size_t T_,
                            const Hyperparameters &hyperparameters_,
                            const Parameters &parameters_, Verbosity verbosity_)
@@ -140,29 +150,25 @@ size_t num_lines(const string &path) {
   return number_of_lines;
 }
 
-VariantModel::VariantModel(
-    const Counts &c, const string &phi_path, const string &theta_path,
-    const string &spot_scaling_path, const string &experiment_scaling_path,
-    const string &r_path, const string &p_path, const string &r_theta_path,
-    const string &p_theta_path, const Hyperparameters &hyperparameters_,
-    const Parameters &parameters_, Verbosity verbosity_)
+VariantModel::VariantModel(const Counts &c, const Paths &paths,
+                           const Hyperparameters &hyperparameters_,
+                           const Parameters &parameters_, Verbosity verbosity_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
-      T(num_lines(r_theta_path)),
+      T(num_lines(paths.r_theta)),
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
       contributions(G, S, T),
-      phi(parse_file<Matrix>(phi_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      theta(parse_file<Matrix>(theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector, DEFAULT_SEPARATOR)),
-      experiment_scaling(
-          parse_file<Vector>(experiment_scaling_path, read_vector, DEFAULT_SEPARATOR)),
+      phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
+      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S),
-      r(parse_file<Matrix>(r_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      p(parse_file<Matrix>(p_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      r_theta(parse_file<Vector>(r_theta_path, read_vector, DEFAULT_SEPARATOR)),
-      p_theta(parse_file<Vector>(p_theta_path, read_vector, DEFAULT_SEPARATOR)),
+      r(parse_file<Matrix>(paths.r_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      p(parse_file<Matrix>(paths.p_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      r_theta(parse_file<Vector>(paths.r_theta, read_vector, DEFAULT_SEPARATOR)),
+      p_theta(parse_file<Vector>(paths.p_theta, read_vector, DEFAULT_SEPARATOR)),
       verbosity(verbosity_) {
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
@@ -177,18 +183,6 @@ VariantModel::VariantModel(
   if (verbosity >= Verbosity::Debug)
     cout << *this << endl;
 }
-
-VariantModel::VariantModel(const Counts &counts, const std::string &prefix,
-                           const std::string &suffix,
-                           const Hyperparameters &hyperparameters_,
-                           const Parameters &parameters_, Verbosity verbosity_)
-    : VariantModel(
-          counts, prefix + "phi.txt" + suffix, prefix + "theta.txt" + suffix,
-          prefix + "spot_scaling.txt" + suffix,
-          prefix + "experiment_scaling.txt" + suffix, prefix + "r.txt" + suffix,
-          prefix + "p.txt" + suffix, prefix + "r_theta.txt" + suffix,
-          prefix + "p_theta.txt" + suffix, hyperparameters_, parameters_,
-          verbosity_) {}
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
   double l = 0;
@@ -281,7 +275,7 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    size_t thread_num = omp_get_thread_num();
+    const size_t thread_num = omp_get_thread_num();
     if (debug_omp)
       cout << "contrib: thread_num = " << thread_num << endl;
     for (size_t s = 0; s < S; ++s) {
@@ -304,7 +298,7 @@ void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling Θ" << endl;
   for (size_t s = 0; s < S; ++s) {
-    Float scale = spot_scaling[s] * experiment_scaling_long[s];
+    const Float scale = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t) {
       Int summed_contribution = 0;
 #pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
@@ -695,6 +689,8 @@ vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
     prods[t] = theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
 
   vector<Int> v(n, 0);
+// TODO parallelize
+// #pragma omp parallel for if (DO_PARALLEL)
   for (size_t i = 0; i < n; ++i)
     for (size_t t = 0; t < T; ++t)
       v[i] += sample_negative_binomial(
