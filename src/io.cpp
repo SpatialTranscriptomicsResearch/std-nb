@@ -14,7 +14,7 @@ using IMatrix = FactorAnalysis::IMatrix;
 using Vector = FactorAnalysis::Vector;
 
 void write_vector(const Vector &v, const string &path,
-                  const vector<string> &names) {
+                  const vector<string> &names, const string &separator) {
   size_t X = v.n_rows;
 
   bool names_given = not names.empty();
@@ -28,12 +28,13 @@ void write_vector(const Vector &v, const string &path,
 
   ofstream ofs(path);
   for (size_t x = 0; x < X; ++x)
-    ofs << (names_given ? names[x] + "\t" : "") << v[x] << endl;
+    ofs << (names_given ? names[x] + separator : "") << v[x] << endl;
 }
 
 void write_matrix(const Matrix &m, const string &path,
                   const vector<string> &row_names,
-                  const vector<string> &col_names) {
+                  const vector<string> &col_names,
+                  const string &separator) {
   size_t X = m.n_rows;
   size_t Y = m.n_cols;
 
@@ -57,14 +58,14 @@ void write_matrix(const Matrix &m, const string &path,
   ofstream ofs(path);
   if (col_names_given) {
     for (size_t y = 0; y < Y; ++y)
-      ofs << "\t" << col_names[y];
+      ofs << separator << col_names[y];
     ofs << endl;
   }
   for (size_t x = 0; x < X; ++x) {
     if (row_names_given)
-      ofs << row_names[x] + "\t";
+      ofs << row_names[x] + separator;
     for (size_t y = 0; y < Y; ++y)
-      ofs << (y != 0 ? "\t" : "") << m(x, y);
+      ofs << (y != 0 ? separator : "") << m(x, y);
     ofs << endl;
   }
 }
@@ -76,12 +77,12 @@ Matrix read_matrix(istream &is, const string &separator, const string &label) {
   return m;
 }
 
-Vector read_vector(istream &is) {
+Vector read_vector(istream &is, const string &separator) {
   // TODO improve / factor / simplify implementation
   string line;
   vector<Float> v;
   while(getline(is, line)) {
-    auto here = line.find("\t");
+    auto here = line.find(separator);
     if(here != string::npos) {
       line = line.substr(here+1);
       v.push_back(atof(line.c_str()));

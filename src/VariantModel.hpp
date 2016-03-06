@@ -68,6 +68,9 @@ struct VariantModel {
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
+  void store(const Counts &counts, const std::string &prefix,
+                   bool mean_and_variance = false) const;
+
   double log_likelihood(const IMatrix &counts) const;
 
   /** sample count decomposition */

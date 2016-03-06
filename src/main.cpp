@@ -121,30 +121,6 @@ void simulate(const FactorAnalysis::VariantModel &pfa, const Counts &counts) {
     }
 }
 
-void write_results(const FactorAnalysis::VariantModel &pfa,
-                   const Counts &counts, const string &prefix,
-                   bool mean_and_variance = false) {
-  vector<string> factor_names;
-  for (size_t t = 1; t <= pfa.T; ++t)
-    factor_names.push_back("Factor " + to_string(t));
-  write_matrix(pfa.phi, prefix + "phi.txt", counts.row_names, factor_names);
-  write_matrix(pfa.r, prefix + "r.txt", counts.row_names, factor_names);
-  write_matrix(pfa.p, prefix + "p.txt", counts.row_names, factor_names);
-  write_matrix(pfa.theta, prefix + "theta.txt", counts.col_names, factor_names);
-  write_vector(pfa.r_theta, prefix + "r_theta.txt", factor_names);
-  write_vector(pfa.p_theta, prefix + "p_theta.txt", factor_names);
-  write_vector(pfa.spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
-  write_vector(pfa.experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
-  if (mean_and_variance) {
-    write_matrix(pfa.posterior_expectations(), prefix + "means.txt",
-                 counts.row_names, counts.col_names);
-    write_matrix(pfa.posterior_expectations_poisson(), prefix + "means_poisson.txt",
-                 counts.row_names, counts.col_names);
-    write_matrix(pfa.posterior_variances(), prefix + "variances.txt",
-                 counts.row_names, counts.col_names);
-  }
-}
-
 template <typename T>
 void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
@@ -161,14 +137,13 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (iteration % options.report_interval == 0) {
       if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
         cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
-      write_results(pfa, data,
-                    options.output + "iter" + to_string(iteration) + "_");
+      pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
     }
   }
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
          << endl;
-  write_results(pfa, data, options.output, true);
+  pfa.store(data, options.output, true);
 }
 
 int main(int argc, char **argv) {

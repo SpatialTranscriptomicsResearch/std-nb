@@ -155,14 +155,14 @@ VariantModel::VariantModel(
       contributions(G, S, T),
       phi(parse_file<Matrix>(phi_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector)),
+      spot_scaling(parse_file<Vector>(spot_scaling_path, read_vector, DEFAULT_SEPARATOR)),
       experiment_scaling(
-          parse_file<Vector>(experiment_scaling_path, read_vector)),
+          parse_file<Vector>(experiment_scaling_path, read_vector, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S),
       r(parse_file<Matrix>(r_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       p(parse_file<Matrix>(p_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      r_theta(parse_file<Matrix>(r_theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      p_theta(parse_file<Matrix>(p_theta_path, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      r_theta(parse_file<Vector>(r_theta_path, read_vector, DEFAULT_SEPARATOR)),
+      p_theta(parse_file<Vector>(p_theta_path, read_vector, DEFAULT_SEPARATOR)),
       verbosity(verbosity_) {
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
@@ -254,6 +254,28 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
   return l;
 }
 
+void VariantModel::store(const Counts &counts, const string &prefix,
+                   bool mean_and_variance) const {
+  vector<string> factor_names;
+  for (size_t t = 1; t <= T; ++t)
+    factor_names.push_back("Factor " + to_string(t));
+  write_matrix(phi, prefix + "phi.txt", counts.row_names, factor_names);
+  write_matrix(r, prefix + "r.txt", counts.row_names, factor_names);
+  write_matrix(p, prefix + "p.txt", counts.row_names, factor_names);
+  write_matrix(theta, prefix + "theta.txt", counts.col_names, factor_names);
+  write_vector(r_theta, prefix + "r_theta.txt", factor_names);
+  write_vector(p_theta, prefix + "p_theta.txt", factor_names);
+  write_vector(spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
+  write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
+  if (mean_and_variance) {
+    write_matrix(posterior_expectations(), prefix + "means.txt",
+                 counts.row_names, counts.col_names);
+    write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt",
+                 counts.row_names, counts.col_names);
+    write_matrix(posterior_variances(), prefix + "variances.txt",
+                 counts.row_names, counts.col_names);
+  }
+}
 /** sample count decomposition */
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
