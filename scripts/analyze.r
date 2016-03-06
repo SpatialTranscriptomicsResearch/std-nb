@@ -51,8 +51,10 @@ st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
   d = list()
   d$phi = load.matrix(path.prefix, "phi.txt")
   d$theta = load.matrix(path.prefix, "theta.txt")
-  d$r = load.matrix(path.prefix, "r.txt")
-  d$p = load.matrix(path.prefix, "p.txt")
+  d$phi.r = load.matrix(path.prefix, "r.txt")
+  d$phi.p = load.matrix(path.prefix, "p.txt")
+  d$theta.r = load.vec(path.prefix, "r_theta.txt")
+  d$theta.p = load.vec(path.prefix, "p_theta.txt")
   if(load.means) {
     d$means = load.matrix(path.prefix, "means.txt")
     d$means.poisson = load.matrix(path.prefix, "means_poisson.txt")
@@ -72,8 +74,10 @@ st.order = function(d, plot=T) {
   }
   e$theta = e$theta[,o]
   e$phi = e$phi[,o]
-  e$p = e$p[,o]
-  e$r = e$r[,o]
+  e$phi.p = e$phi.p[,o]
+  e$phi.r = e$phi.r[,o]
+  e$theta.p = e$theta.p[o]
+  e$theta.r = e$theta.r[o]
   return(e)
 }
 
@@ -88,7 +92,6 @@ st.normalize.theta = function(d) {
   d$theta = prop.table(d$theta,1)
   return(d)
 }
-
 
 st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
   if(!is.null(path))
