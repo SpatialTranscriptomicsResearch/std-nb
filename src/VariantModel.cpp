@@ -58,9 +58,9 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions_gene_type(G, T),
-      contributions_spot_type(S, T),
-      contributions_spot(S),
+      contributions_gene_type(G, T, arma::fill::zeros),
+      contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_spot(S, arma::fill::zeros),
       phi(G, T),
       theta(S, T),
       spot_scaling(S),
@@ -164,9 +164,9 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions_gene_type(G, T),
-      contributions_spot_type(S, T),
-      contributions_spot(S),
+      contributions_gene_type(G, T, arma::fill::zeros),
+      contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_spot(S, arma::fill::zeros),
       phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
@@ -180,10 +180,6 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
   // it is necessary to first sample the contributions!
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t)
-        contributions(g, s, t) = 0;
 
   update_experiment_scaling_long(c);
 
@@ -284,12 +280,12 @@ void VariantModel::store(const Counts &counts, const string &prefix,
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling contributions" << endl;
-  contributions_gene_type = Matrix(G, T);
-  contributions_spot_type = Matrix(S, T);
+  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
+  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
   {
-    Matrix contrib_gene_type(G, T);
-    Matrix contrib_spot_type(S, T);
+    Matrix contrib_gene_type(G, T, arma::fill::zeros);
+    Matrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
