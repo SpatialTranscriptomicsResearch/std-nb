@@ -10,7 +10,6 @@
 
 #define DO_PARALLEL 1
 #define PHI_ZERO_WARNING false
-#define debug_omp false
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
@@ -395,7 +394,6 @@ void VariantModel::sample_p_and_r_theta() {
     Float weight_sum = 0;
 #pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) weight_sum += phi(g, t);
-    // weight_sum *= spot_scaling[s] * experiment_scaling_long[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -406,13 +404,10 @@ void VariantModel::sample_p_and_r_theta() {
       count_sums[s] = contributions_spot_type(s, t);
       weight_sums[s] = weight_sum * spot_scaling[s] * experiment_scaling_long[s];
     }
-    size_t thread_num = omp_get_thread_num();
-    if (debug_omp)
-      cout << "p r theta: thread_num = " << thread_num << endl;
     auto res = mh.sample(pair<Float, Float>(r_theta[t], p_theta[t]),
-                         parameters.n_iter, EntropySource::rngs[thread_num],
-                         gen, compute_conditional_theta, count_sums,
-                         weight_sums, hyperparameters);
+                         parameters.n_iter, EntropySource::rng, gen,
+                         compute_conditional_theta, count_sums, weight_sums,
+                         hyperparameters);
     r_theta[t] = res.first;
     p_theta[t] = res.second;
   }
@@ -459,9 +454,7 @@ void VariantModel::sample_p_and_r() {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
       const Int count_sum = contributions_gene_type(g, t);
-      size_t thread_num = omp_get_thread_num();
-      if (debug_omp)
-        cout << "p r: thread_num = " << thread_num << endl;
+      const size_t thread_num = omp_get_thread_num();
       auto res
           = mh.sample(pair<Float, Float>(r(g, t), p(g, t)), parameters.n_iter,
                       EntropySource::rngs[thread_num], gen, compute_conditional,
@@ -476,9 +469,11 @@ void VariantModel::sample_p_and_r() {
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(T);
-  for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s)
-      theta_t[t] += theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+  for (size_t s = 0; s < S; ++s) {
+    const Float prod = spot_scaling[s] * experiment_scaling_long[s];
+    for (size_t t = 0; t < T; ++t)
+      theta_t[t] += theta(s, t) * prod;
+  }
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
