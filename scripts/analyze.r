@@ -93,6 +93,16 @@ st.normalize.theta = function(d) {
   return(d)
 }
 
+st.fake.names = function(n) {
+  sq = ceiling(sqrt(n))
+  print(sq)
+  names = c()
+  for(i in 1:sq)
+    for(j in 1:sq)
+      names = c(names, paste(i,j, sep="x"))
+  return(names[1:n])
+}
+
 st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
   if(!is.null(path))
     pdf(paste(path, "factor-strength-barplot.pdf", sep=""))
