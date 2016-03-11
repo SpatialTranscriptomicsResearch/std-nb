@@ -72,8 +72,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       verbosity(verbosity_) {
   // randomly initialize Phi
   // Phi = zeros(T,S)+1/T;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) phi(g, t) = 1.0 / T / G;
+  phi.fill(1.0 / T / G);
 
   // initialize Theta
   // Theta = rand(P,T);
@@ -111,8 +110,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   // initialize R
   // r_k= 50/T*ones(T,1)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) r(g, t) = 50.0 / G / T;
+  r.fill(50.0 / G / T);
 
   // randomly initialize the contributions
   for (size_t g = 0; g < G; ++g)
