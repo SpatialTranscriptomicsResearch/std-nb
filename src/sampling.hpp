@@ -21,9 +21,9 @@ std::vector<T> sample_multinomial(size_t n, const std::vector<double> &p, std::m
   for (size_t k = 0; k < K; ++k) {
     const double current_p = std::min(1.0, p[k] / (1 - cum_prob));
     n -= x[k] = std::binomial_distribution<T>(n, current_p)(rng);
-    cum_prob += p[k];
-    if(cum_prob >= 1)
+    if(n == 0)
       break;
+    cum_prob += p[k];
   }
   return x;
 }
