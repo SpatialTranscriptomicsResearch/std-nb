@@ -132,9 +132,16 @@ st.multi = function(d,
                     skip.factors=c(),
                     ncols=2) {
   dtheta = d$theta
-  if(single.experiment == TRUE)
+  dspotscale = d$spotscale
+  dexpscale = d$expscale
+  if(single.experiment == TRUE) {
     rownames(dtheta) = paste("A", rownames(dtheta))
+    names(dspotscale) = paste("A", names(dspotscale))
+    names(dexpscale) = paste("A", names(dexpscale))
+  }
   theta = break.data(dtheta)
+  spotscale = break.data(t(t(dspotscale)))
+  expscale = break.data(t(t(dexpscale)))
   n = length(theta)
   nrows = ceiling(n / ncols)
   if(single.experiment == TRUE) {
@@ -144,6 +151,23 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
+    pdf(paste(path, "spot-scaling.pdf", sep=""), width=w, height=h)
+    par(mfrow=c(nrows, ncols))
+    cur.max = d$spotscale
+    for(name in names(spotscale)) {
+      cur = spotscale[[name]][,1]
+      title.text = paste(name, "- Spot Scaling")
+      if(!simple.title)
+        title.text = paste(name, "- Spot Scaling:",
+                           round(min(cur),3), "-", round(max(cur),3),
+                           "Sum =", round(sum(cur),3))
+      if(common.scale)
+        visualize(cur, title=title.text, zlim=c(0,cur.max))
+      else
+        visualize(cur, title=title.text)
+    }
+    dev.off()
+
     pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(dtheta)) {
       par(mfrow=c(nrows, ncols))
