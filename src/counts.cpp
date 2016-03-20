@@ -7,6 +7,8 @@
 #include "counts.hpp"
 #include "io.hpp"
 
+const bool counts_debugging = false;
+
 using namespace std;
 using Int = FactorAnalysis::Int;
 using IMatrix = FactorAnalysis::IMatrix;
@@ -19,7 +21,20 @@ Counts::Counts(const string &path, const string &label, const string &separator)
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names, label)),
       experiments(counts.n_cols, 0),
-      experiment_names(1, path) {}
+      experiment_names(1, path) {
+  if (counts_debugging) {
+    const size_t n = 10;
+    for (size_t j = 0; j < min<size_t>(n, counts.n_cols); ++j)
+      cout << "\t" << col_names[j];
+    cout << endl;
+    for (size_t i = 0; i < min<size_t>(n, counts.n_rows); ++i) {
+      cout << row_names[i];
+      for (size_t j = 0; j < min<size_t>(n, counts.n_cols); ++j)
+        cout << "\t" << counts(i, j);
+      cout << endl;
+    }
+  }
+}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const IMatrix &cnts, const vector<size_t> &exps,
