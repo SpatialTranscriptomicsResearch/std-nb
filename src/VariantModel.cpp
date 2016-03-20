@@ -128,6 +128,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         contributions_spot_type(s, t) += v[t];
       }
       contributions_spot(s) += c.counts(g, s);
+      contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
 
   // randomly initialize P
@@ -165,6 +166,7 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_spot(S, arma::fill::zeros),
+      contributions_experiment(E, arma::fill::zeros),
       phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
@@ -561,9 +563,6 @@ void VariantModel::sample_spot_scaling() {
 void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
-  vector<Int> summed_contributions(E, 0);
-  for (size_t s = 0; s < S; ++s)
-    summed_contributions[data.experiments[s]] += contributions_spot(s);
 
   vector<Float> intensity_sums(E, 0);
   for (size_t s = 0; s < S; ++s) {
@@ -577,16 +576,15 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
 
   if (verbosity >= Verbosity::Debug)
     for (size_t e = 0; e < E; ++e)
-      cout << "summed_contribution=" << summed_contributions[e] << endl
+      cout << "contributions_experiment[" << e << "]=" << contributions_experiment[e] << endl
            << "intensity_sum=" << intensity_sums[e] << endl
            << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e]
            << endl;
 
-#pragma omp parallel for if (DO_PARALLEL)
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
-        hyperparameters.experiment_a + summed_contributions[e],
+        hyperparameters.experiment_a + contributions_experiment(e),
         1.0 / (hyperparameters.experiment_b + intensity_sums[e]))(
         EntropySource::rng);
     if (verbosity >= Verbosity::Debug)

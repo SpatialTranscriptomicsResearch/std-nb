@@ -21,7 +21,7 @@ struct VariantModel {
 
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
-  Vector contributions_spot;
+  Vector contributions_spot, contributions_experiment;
 
   /** factor loading matrix */
   Matrix phi;
