@@ -11,6 +11,7 @@ break.data = function(x) {
   y = split(as.data.frame(x),split.on.label(rownames(x))[,1])
   for(name in names(y))
     rownames(y[[name]]) = gsub(paste(name, ""), "", rownames(y[[name]]))
+  y = lapply(y, as.matrix)
   return(y)
 }
 
@@ -157,14 +158,9 @@ st.multi = function(d,
                              round(min(cur),3), "-", round(max(cur),3),
                              "Sum =", round(sum(cur),3))
         if(common.scale)
-          visualize(cur,
-                    coords=parse.coords(rownames(theta[[name]])),
-                    title=title.text,
-                    zlim=c(0,cur.max))
+          visualize(cur, title=title.text, zlim=c(0,cur.max))
         else
-          visualize(cur,
-                    coords=parse.coords(rownames(theta[[name]])),
-                    title=title.text)
+          visualize(cur, title=title.text)
       }
     }
     dev.off()
