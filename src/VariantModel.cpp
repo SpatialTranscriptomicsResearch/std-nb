@@ -89,18 +89,6 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
     for (size_t t = 0; t < T; ++t) theta(s, t) /= sum;
   }
 
-  // initialize spot scaling factors
-  for (size_t s = 0; s < S; ++s)
-    // NOTE: gamma_distribution takes a shape and scale parameter
-    spot_scaling[s] = gamma_distribution<Float>(
-        hyperparameters.spot_a, 1 / hyperparameters.spot_b)(EntropySource::rng);
-
-  // initialize experiment scaling factors
-  for (size_t e = 0; e < E; ++e)
-    experiment_scaling[e] = 1;
-  // copy the experiment scaling parameters into the spot-indexed vector
-  update_experiment_scaling_long(c);
-
   // randomly initialize P
   // p_k=ones(T,1)*0.5;
   if(verbosity >= Verbosity::Debug)
@@ -143,6 +131,45 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       contributions_spot(s) += c.counts(g, s);
       contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
+
+  // initialize experiment scaling factors
+  {
+    if(verbosity >= Verbosity::Debug)
+      cout << "initializing experiment scaling." << endl;
+    for (size_t s = 0; s < S; ++s)
+      experiment_scaling(c.experiments[s]) += contributions_spot(s);
+    Float z = 0;
+    for (size_t e = 0; e < E; ++e)
+      z += experiment_scaling(e);
+    z /= E;
+    for (size_t e = 0; e < E; ++e)
+      experiment_scaling(e) /= z;
+    // copy the experiment scaling parameters into the spot-indexed vector
+    update_experiment_scaling_long(c);
+  }
+
+  // initialize spot scaling factors
+  {
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing spot scaling." << endl;
+    Float z = 0;
+    for (size_t s = 0; s < S; ++s) {
+      if (verbosity >= Verbosity::Debug)
+        cout << "z = " << z << " spot_scaling(s) = " << spot_scaling(s)
+             << " contributions_spot(s) = " << contributions_spot(s)
+             << " experiment_scaling_long(s) = " << experiment_scaling_long(s);
+      z += spot_scaling(s) = contributions_spot(s) / experiment_scaling_long(s);
+      if (verbosity >= Verbosity::Debug)
+        cout << " spot_scaling(s) = " << spot_scaling(s) << endl;
+    }
+    if (verbosity >= Verbosity::Debug)
+      cout << "z = " << z << endl;
+    z /= S;
+    if (verbosity >= Verbosity::Debug)
+      cout << "z = " << z << endl;
+    for (size_t s = 0; s < S; ++s)
+      spot_scaling(s) /= z;
+  }
 
   // randomly initialize P
   if(verbosity >= Verbosity::Debug)
