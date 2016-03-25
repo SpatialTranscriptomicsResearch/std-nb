@@ -133,6 +133,10 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
     }
 
   // initialize experiment scaling factors
+  for (size_t e = 0; e < E; ++e)
+    experiment_scaling[e] = 1;
+  update_experiment_scaling_long(c);
+  if (false)
   {
     if(verbosity >= Verbosity::Debug)
       cout << "initializing experiment scaling." << endl;
@@ -679,7 +683,7 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
     cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
   check_model(data.counts);
 
-  if (E > 1) {
+  if (E > 1 and false) {
     timer.tick();
     sample_experiment_scaling(data);
     if (timing and verbosity >= Verbosity::Info)
