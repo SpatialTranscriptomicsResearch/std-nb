@@ -104,7 +104,7 @@ st.fake.names = function(n) {
   return(names[1:n])
 }
 
-st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
+st.top = function(d, normalize.phi=T, normalize.theta=T, path="./", ...) {
   if(!is.null(path))
     pdf(paste(path, "factor-strength-barplot.pdf", sep=""))
   if(normalize.phi)
@@ -153,7 +153,7 @@ st.multi = function(d,
   if(!is.null(path)) {
     pdf(paste(path, "spot-scaling.pdf", sep=""), width=w, height=h)
     par(mfrow=c(nrows, ncols))
-    cur.max = d$spotscale
+    cur.max = max(d$spotscale)
     for(name in names(spotscale)) {
       cur = spotscale[[name]][,1]
       title.text = paste(name, "- Spot Scaling")
@@ -223,7 +223,7 @@ st.multi = function(d,
     simil.2d.break = list()
 
     if(!is.null(path)) {
-      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=h)
+      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
       par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
       for(method in names(simil.2d)) {
         broken = break.data(simil.2d[[method]])
