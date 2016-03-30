@@ -90,7 +90,9 @@ st.normalize.phi = function(d, scale.factor=1e6) {
 }
 
 st.normalize.theta = function(d) {
+  rs = rowSums(d$theta)
   d$theta = prop.table(d$theta,1)
+  d$spotscale = d$spotscale * rs
   return(d)
 }
 
