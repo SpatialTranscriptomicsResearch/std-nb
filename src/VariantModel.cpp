@@ -10,7 +10,6 @@
 
 #define DO_PARALLEL 1
 #define PHI_ZERO_WARNING false
-#define debug_omp false
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
@@ -58,7 +57,10 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions(G, S, T),
+      contributions_gene_type(G, T, arma::fill::zeros),
+      contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_spot(S, arma::fill::zeros),
+      contributions_experiment(E, arma::fill::zeros),
       phi(G, T),
       theta(S, T),
       spot_scaling(S),
@@ -70,13 +72,16 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       p_theta(T),
       verbosity(verbosity_) {
   // randomly initialize Phi
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing phi." << endl;
   // Phi = zeros(T,S)+1/T;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) phi(g, t) = 1.0 / T / G;
+  phi.fill(1.0 / T / G);
 
   // initialize Theta
   // Theta = rand(P,T);
   // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing theta." << endl;
   for (size_t s = 0; s < S; ++s) {
     double sum = 0;
     for (size_t t = 0; t < T; ++t)
@@ -84,21 +89,13 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
     for (size_t t = 0; t < T; ++t) theta(s, t) /= sum;
   }
 
-  // initialize spot scaling factors
-  for (size_t s = 0; s < S; ++s)
-    // NOTE: gamma_distribution takes a shape and scale parameter
-    spot_scaling[s] = gamma_distribution<Float>(
-        hyperparameters.spot_a, 1 / hyperparameters.spot_b)(EntropySource::rng);
-
-  // initialize experiment scaling factors
-  for (size_t e = 0; e < E; ++e)
-    experiment_scaling[e] = 1;
-  // copy the experiment scaling parameters into the spot-indexed vector
-  update_experiment_scaling_long(c);
-
   // randomly initialize P
   // p_k=ones(T,1)*0.5;
-  for (size_t g = 0; g < G; ++g)
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing p of phi." << endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g) {
+    const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < T; ++t)
       if (false)
         p(g, t) = 0.5 * G * T;
@@ -106,14 +103,18 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
         // NOTE: gamma_distribution takes a shape and scale parameter
         p(g, t) = gamma_distribution<Float>(
             hyperparameters.phi_p_1,
-            1 / hyperparameters.phi_p_2)(EntropySource::rng);
+            1 / hyperparameters.phi_p_2)(EntropySource::rngs[thread_num]);
+  }
 
   // initialize R
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing r of phi." << endl;
   // r_k= 50/T*ones(T,1)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) r(g, t) = 50.0 / G / T;
+  r.fill(50.0 / G / T);
 
   // randomly initialize the contributions
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing contributions." << endl;
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       vector<double> prob(T);
@@ -123,16 +124,65 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       for (size_t t = 0; t < T; ++t)
         prob[t] /= z;
       auto v = sample_multinomial<Int>(c.counts(g, s), prob);
-      for (size_t t = 0; t < T; ++t)
-        contributions(g, s, t) = v[t];
+      for (size_t t = 0; t < T; ++t) {
+        contributions_gene_type(g, t) += v[t];
+        contributions_spot_type(s, t) += v[t];
+      }
+      contributions_spot(s) += c.counts(g, s);
+      contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
 
+  if (parameters.activate_experiment_scaling) {
+    // initialize experiment scaling factors
+    for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
+    update_experiment_scaling_long(c);
+    if (parameters.activate_experiment_scaling) {
+      if (verbosity >= Verbosity::Debug)
+        cout << "initializing experiment scaling." << endl;
+      for (size_t s = 0; s < S; ++s)
+        experiment_scaling(c.experiments[s]) += contributions_spot(s);
+      Float z = 0;
+      for (size_t e = 0; e < E; ++e) z += experiment_scaling(e);
+      z /= E;
+      for (size_t e = 0; e < E; ++e) experiment_scaling(e) /= z;
+      // copy the experiment scaling parameters into the spot-indexed vector
+      update_experiment_scaling_long(c);
+    }
+  }
+
+  // initialize spot scaling factors
+  {
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing spot scaling." << endl;
+    Float z = 0;
+    for (size_t s = 0; s < S; ++s) {
+      if (verbosity >= Verbosity::Debug)
+        cout << "z = " << z << " spot_scaling(s) = " << spot_scaling(s)
+             << " contributions_spot(s) = " << contributions_spot(s)
+             << " experiment_scaling_long(s) = " << experiment_scaling_long(s);
+      z += spot_scaling(s) = contributions_spot(s) / experiment_scaling_long(s);
+      if (verbosity >= Verbosity::Debug)
+        cout << " spot_scaling(s) = " << spot_scaling(s) << endl;
+    }
+    if (verbosity >= Verbosity::Debug)
+      cout << "z = " << z << endl;
+    z /= S;
+    if (verbosity >= Verbosity::Debug)
+      cout << "z = " << z << endl;
+    for (size_t s = 0; s < S; ++s)
+      spot_scaling(s) /= z;
+  }
+
   // randomly initialize P
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing p of theta." << endl;
   for (size_t t = 0; t < T; ++t)
     p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
         hyperparameters.theta_p_1, hyperparameters.theta_p_2));
 
   // randomly initialize R
+  if(verbosity >= Verbosity::Debug)
+    cout << "initializing r of theta." << endl;
   for (size_t t = 0; t < T; ++t)
     // NOTE: gamma_distribution takes a shape and scale parameter
     r_theta[t] = gamma_distribution<Float>(
@@ -159,7 +209,10 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions(G, S, T),
+      contributions_gene_type(G, T, arma::fill::zeros),
+      contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_spot(S, arma::fill::zeros),
+      contributions_experiment(E, arma::fill::zeros),
       phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
@@ -173,10 +226,6 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
   // set contributions to 0, as we do not have data at this point
   // NOTE: when data is available, before sampling any of the other parameters,
   // it is necessary to first sample the contributions!
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t)
-        contributions(g, s, t) = 0;
 
   update_experiment_scaling_long(c);
 
@@ -219,7 +268,9 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
-        l += log_poisson(contributions(g, s, t), phi(g, t) * theta(s, t));
+        // l += log_poisson(contributions(g, s, t), phi(g, t) * theta(s, t));
+        // TODO fix
+        exit(-1);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Poisson-distributed contributions[g][s]["
@@ -270,25 +321,41 @@ void VariantModel::store(const Counts &counts, const string &prefix,
                  counts.row_names, counts.col_names);
   }
 }
+
 /** sample count decomposition */
 void VariantModel::sample_contributions(const IMatrix &counts) {
-  if (verbosity >= Verbosity::Verbose) cout << "Sampling contributions" << endl;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
+  if (verbosity >= Verbosity::Verbose)
+    cout << "Sampling contributions" << endl;
+  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
+  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    Matrix contrib_gene_type(G, T, arma::fill::zeros);
+    Matrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
-    if (debug_omp)
-      cout << "contrib: thread_num = " << thread_num << endl;
-    for (size_t s = 0; s < S; ++s) {
-      vector<double> rel_rate(T);
-      double z = 0;
-      // NOTE: in principle, lambda[g][s][t] is proportional to both
-      // spot_scaling[s] and experiment_scaling[s]. However, these terms would
-      // cancel. Thus, we do not multiply them in here.
-      for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi(g, t) * theta(s, t);
-      for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
-      auto v = sample_multinomial<Int>(counts(g, s), rel_rate,
-                                       EntropySource::rngs[thread_num]);
-      for (size_t t = 0; t < T; ++t) contributions(g, s, t) = v[t];
+#pragma omp for
+    for (size_t g = 0; g < G; ++g)
+      for (size_t s = 0; s < S; ++s) {
+        vector<double> rel_rate(T);
+        double z = 0;
+        // NOTE: in principle, lambda[g][s][t] is proportional to both
+        // spot_scaling[s] and experiment_scaling[s]. However, these terms would
+        // cancel. Thus, we do not multiply them in here.
+        for (size_t t = 0; t < T; ++t)
+          z += rel_rate[t] = phi(g, t) * theta(s, t);
+        for (size_t t = 0; t < T; ++t)
+          rel_rate[t] /= z;
+        auto v = sample_multinomial<Int>(counts(g, s), rel_rate,
+                                         EntropySource::rngs[thread_num]);
+        for (size_t t = 0; t < T; ++t) {
+          contrib_gene_type(g, t) += v[t];
+          contrib_spot_type(s, t) += v[t];
+        }
+      }
+#pragma omp critical
+    {
+      contributions_gene_type += contrib_gene_type;
+      contributions_spot_type += contrib_spot_type;
     }
   }
 }
@@ -300,11 +367,7 @@ void VariantModel::sample_theta() {
   for (size_t s = 0; s < S; ++s) {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t) {
-      Int summed_contribution = 0;
-#pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        summed_contribution += contributions(g, s, t);
-
+      const Int summed_contribution = contributions_spot_type(s, t);
       Float intensity_sum = 0;
 #pragma omp parallel for reduction(+ : intensity_sum) if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
@@ -378,7 +441,6 @@ void VariantModel::sample_p_and_r_theta() {
     Float weight_sum = 0;
 #pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) weight_sum += phi(g, t);
-    // weight_sum *= spot_scaling[s] * experiment_scaling_long[s];
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -386,16 +448,13 @@ void VariantModel::sample_p_and_r_theta() {
     vector<Float> weight_sums(S, 0);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s) {
+      count_sums[s] = contributions_spot_type(s, t);
       weight_sums[s] = weight_sum * spot_scaling[s] * experiment_scaling_long[s];
-      for (size_t g = 0; g < G; ++g) count_sums[s] += contributions(g, s, t);
     }
-    size_t thread_num = omp_get_thread_num();
-    if (debug_omp)
-      cout << "p r theta: thread_num = " << thread_num << endl;
     auto res = mh.sample(pair<Float, Float>(r_theta[t], p_theta[t]),
-                         parameters.n_iter, EntropySource::rngs[thread_num],
-                         gen, compute_conditional_theta, count_sums,
-                         weight_sums, hyperparameters);
+                         parameters.n_iter, EntropySource::rng, gen,
+                         compute_conditional_theta, count_sums, weight_sums,
+                         hyperparameters);
     r_theta[t] = res.first;
     p_theta[t] = res.second;
   }
@@ -441,12 +500,8 @@ void VariantModel::sample_p_and_r() {
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
-      Int count_sum = 0;
-      for (size_t s = 0; s < S; ++s)
-        count_sum += contributions(g, s, t);
-      size_t thread_num = omp_get_thread_num();
-      if (debug_omp)
-        cout << "p r: thread_num = " << thread_num << endl;
+      const Int count_sum = contributions_gene_type(g, t);
+      const size_t thread_num = omp_get_thread_num();
       auto res
           = mh.sample(pair<Float, Float>(r(g, t), p(g, t)), parameters.n_iter,
                       EntropySource::rngs[thread_num], gen, compute_conditional,
@@ -461,41 +516,41 @@ void VariantModel::sample_p_and_r() {
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(T);
-  for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s)
-      theta_t[t] += theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+  for (size_t s = 0; s < S; ++s) {
+    const Float prod = spot_scaling[s] * experiment_scaling_long[s];
+    for (size_t t = 0; t < T; ++t)
+      theta_t[t] += theta(s, t) * prod;
+  }
 
-  for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
-      size_t thread_num = omp_get_thread_num();
-      if (debug_omp)
-        cout << "phi: thread_num = " << thread_num << endl;
-      Int summed_contribution = 0;
-      for (size_t s = 0; s < S; ++s)
-        summed_contribution += contributions(g, s, t);
+  for (size_t g = 0; g < G; ++g) {
+    const size_t thread_num = omp_get_thread_num();
+    for (size_t t = 0; t < T; ++t) {
+      const Int summed_contribution = contributions_gene_type(g, t);
       // NOTE: gamma_distribution takes a shape and scale parameter
       phi(g, t) = gamma_distribution<Float>(
           r(g, t) + summed_contribution,
           1.0 / (p(g, t) + theta_t[t]))(EntropySource::rngs[thread_num]);
       if (PHI_ZERO_WARNING and phi(g, t) == 0) {
-        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl << "r["
-             << g << "][" << t << "] = " << r(g, t) << endl << "p[" << g << "]["
-             << t << "] = " << p(g, t) << endl << "theta_t[" << t
-             << "] = " << theta_t[t] << endl
+        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
+             << "r[" << g << "][" << t << "] = " << r(g, t) << endl
+             << "p[" << g << "][" << t << "] = " << p(g, t) << endl
+             << "theta_t[" << t << "] = " << theta_t[t] << endl
              << "r(g, t) + sum = " << r(g, t) + summed_contribution << endl
              << "1.0 / (p(g, t) + theta_t[t]) = "
              << 1.0 / (p(g, t) + theta_t[t]) << endl
              << "sum = " << summed_contribution << endl;
+        /*
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
           for (size_t tt = 0; tt < T; ++tt)
             for (size_t s = 0; s < S; ++s) sum2 += contributions(g, s, tt);
           cout << "sum2 = " << sum2 << endl;
-        }
+        }  */
         // exit(EXIT_FAILURE);
       }
     }
+  }
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
     for (size_t t = 0; t < T; ++t) {
       double z = 0;
@@ -513,11 +568,7 @@ void VariantModel::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling spot scaling factors" << endl;
   for (size_t s = 0; s < S; ++s) {
-    Int summed_contribution = 0;
-#pragma omp parallel for reduction(+ : summed_contribution) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        summed_contribution += contributions(g, s, t);
+    const Int summed_contribution = contributions_spot(s);
 
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t) {
@@ -558,15 +609,6 @@ void VariantModel::sample_spot_scaling() {
 void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
-  vector<Int> summed_contributions(E, 0);
-  for (size_t s = 0; s < S; ++s) {
-    double x = 0;
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        x += contributions(g, s, t);
-    summed_contributions[data.experiments[s]] += x;
-  }
 
   vector<Float> intensity_sums(E, 0);
   for (size_t s = 0; s < S; ++s) {
@@ -580,16 +622,15 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
 
   if (verbosity >= Verbosity::Debug)
     for (size_t e = 0; e < E; ++e)
-      cout << "summed_contribution=" << summed_contributions[e] << endl
+      cout << "contributions_experiment[" << e << "]=" << contributions_experiment[e] << endl
            << "intensity_sum=" << intensity_sums[e] << endl
            << "prev experiment_scaling[" << e << "]=" << experiment_scaling[e]
            << endl;
 
-#pragma omp parallel for if (DO_PARALLEL)
   for (size_t e = 0; e < E; ++e) {
     // NOTE: gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = gamma_distribution<Float>(
-        hyperparameters.experiment_a + summed_contributions[e],
+        hyperparameters.experiment_a + contributions_experiment(e),
         1.0 / (hyperparameters.experiment_b + intensity_sums[e]))(
         EntropySource::rng);
     if (verbosity >= Verbosity::Debug)
@@ -640,7 +681,7 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
     cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
   check_model(data.counts);
 
-  if (E > 1) {
+  if (E > 1 and parameters.activate_experiment_scaling) {
     timer.tick();
     sample_experiment_scaling(data);
     if (timing and verbosity >= Verbosity::Info)
@@ -753,6 +794,7 @@ Matrix VariantModel::posterior_variances() const {
 void VariantModel::check_model(const IMatrix &counts) const {
   return;
   // check that the contributions add up to the observations
+  /*
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       Int z = 0;
@@ -762,6 +804,7 @@ void VariantModel::check_model(const IMatrix &counts) const {
             "Contributions do not add up to observations for gene " +
             to_string(g) + " in spot " + to_string(s) + "."));
     }
+  */
 
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)

@@ -15,6 +15,21 @@ struct RandomDistribution {
 
 template <class T>
 std::vector<T> sample_multinomial(size_t n, const std::vector<double> &p, std::mt19937 &rng=EntropySource::rng) {
+  const size_t K = p.size();
+  std::vector<T> x(K, 0);
+  double cum_prob = 0;
+  for (size_t k = 0; k < K; ++k) {
+    const double current_p = std::min(1.0, p[k] / (1 - cum_prob));
+    n -= x[k] = std::binomial_distribution<T>(n, current_p)(rng);
+    if(n == 0)
+      break;
+    cum_prob += p[k];
+  }
+  return x;
+}
+
+template <class T>
+std::vector<T> sample_multinomial_slow(size_t n, const std::vector<double> &p, std::mt19937 &rng=EntropySource::rng) {
   // TODO could also use std::discrete_distribution
   // TODO re-order p in decreasing order
   const size_t k = p.size();

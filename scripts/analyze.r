@@ -11,6 +11,7 @@ break.data = function(x) {
   y = split(as.data.frame(x),split.on.label(rownames(x))[,1])
   for(name in names(y))
     rownames(y[[name]]) = gsub(paste(name, ""), "", rownames(y[[name]]))
+  y = lapply(y, as.matrix)
   return(y)
 }
 
@@ -95,7 +96,17 @@ st.normalize.theta = function(d) {
   return(d)
 }
 
-st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
+st.fake.names = function(n) {
+  sq = ceiling(sqrt(n))
+  print(sq)
+  names = c()
+  for(i in 1:sq)
+    for(j in 1:sq)
+      names = c(names, paste(i,j, sep="x"))
+  return(names[1:n])
+}
+
+st.top = function(d, normalize.phi=T, normalize.theta=T, path="./", ...) {
   if(!is.null(path))
     pdf(paste(path, "factor-strength-barplot.pdf", sep=""))
   if(normalize.phi)
@@ -103,6 +114,9 @@ st.top = function(d, normalize.phi=F, normalize.theta=F, path="./", ...) {
   if(normalize.theta)
     d = st.normalize.theta(d)
   d = st.order(d, plot=!is.null(path))
+
+  d$enrMean = d$phi / apply(d$phi, 1, mean)
+  d$enrMedian = d$phi / apply(d$phi, 1, median)
 
   if(!is.null(path))
     dev.off()
@@ -123,9 +137,16 @@ st.multi = function(d,
                     skip.factors=c(),
                     ncols=2) {
   dtheta = d$theta
-  if(single.experiment == TRUE)
+  dspotscale = d$spotscale
+  dexpscale = d$expscale
+  if(single.experiment == TRUE) {
     rownames(dtheta) = paste("A", rownames(dtheta))
+    names(dspotscale) = paste("A", names(dspotscale))
+    names(dexpscale) = paste("A", names(dexpscale))
+  }
   theta = break.data(dtheta)
+  spotscale = break.data(t(t(dspotscale)))
+  expscale = break.data(t(t(dexpscale)))
   n = length(theta)
   nrows = ceiling(n / ncols)
   if(single.experiment == TRUE) {
@@ -135,6 +156,23 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
+    pdf(paste(path, "spot-scaling.pdf", sep=""), width=w, height=h)
+    par(mfrow=c(nrows, ncols))
+    cur.max = max(d$spotscale)
+    for(name in names(spotscale)) {
+      cur = spotscale[[name]][,1]
+      title.text = paste(name, "- Spot Scaling")
+      if(!simple.title)
+        title.text = paste(name, "- Spot Scaling:",
+                           round(min(cur),3), "-", round(max(cur),3),
+                           "Sum =", round(sum(cur),3))
+      if(common.scale)
+        visualize(cur, title=title.text, zlim=c(0,cur.max))
+      else
+        visualize(cur, title=title.text)
+    }
+    dev.off()
+
     pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(dtheta)) {
       par(mfrow=c(nrows, ncols))
@@ -149,14 +187,9 @@ st.multi = function(d,
                              round(min(cur),3), "-", round(max(cur),3),
                              "Sum =", round(sum(cur),3))
         if(common.scale)
-          visualize(cur,
-                    coords=parse.coords(rownames(theta[[name]])),
-                    title=title.text,
-                    zlim=c(0,cur.max))
+          visualize(cur, title=title.text, zlim=c(0,cur.max))
         else
-          visualize(cur,
-                    coords=parse.coords(rownames(theta[[name]])),
-                    title=title.text)
+          visualize(cur, title=title.text)
       }
     }
     dev.off()
@@ -169,6 +202,28 @@ st.multi = function(d,
       ge = ge[o]
       grid.newpage()
       grid.table(ge, rows=names(ge), cols=factor.name)
+    }
+    dev.off()
+    pdf(paste(path, "phi-top-genes-enrMean.pdf", sep=""), width=6, height=15)
+    for(factor.name in colnames(d$enrMean)) {
+      ge = d$enrMean[,factor.name]
+      names(ge) = rownames(d$enrMean)
+      o = order(ge, decreasing=T)
+      o = o[1:ngenes]
+      ge = ge[o]
+      grid.newpage()
+      grid.table(log2(ge), rows=names(ge), cols=factor.name)
+    }
+    dev.off()
+    pdf(paste(path, "phi-top-genes-enrMedian.pdf", sep=""), width=6, height=15)
+    for(factor.name in colnames(d$enrMedian)) {
+      ge = d$enrMedian[,factor.name]
+      names(ge) = rownames(d$enrMedian)
+      o = order(ge, decreasing=T)
+      o = o[1:ngenes]
+      ge = ge[o]
+      grid.newpage()
+      grid.table(log2(ge), rows=names(ge), cols=factor.name)
     }
     dev.off()
   }
@@ -195,7 +250,7 @@ st.multi = function(d,
     simil.2d.break = list()
 
     if(!is.null(path)) {
-      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=h)
+      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
       par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
       for(method in names(simil.2d)) {
         broken = break.data(simil.2d[[method]])

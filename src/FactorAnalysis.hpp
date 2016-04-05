@@ -91,6 +91,7 @@ struct Parameters {
   /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
   ForceMean enforce_mean = ForceMean::Spot | ForceMean::Experiment;
+  bool activate_experiment_scaling = false;
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);
