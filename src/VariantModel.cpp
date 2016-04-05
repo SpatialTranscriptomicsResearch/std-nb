@@ -949,16 +949,19 @@ ostream &operator<<(ostream &os, const FactorAnalysis::VariantModel &pfa) {
     os << "There are " << spot_scaling_zeros << " zeros in spot_scaling." << endl;
     os << Stats::summary(pfa.spot_scaling) << endl;
 
-    os << "Experiment scaling factors" << endl;
-    for (size_t e = 0; e < pfa.E; ++e)
-      os << (e > 0 ? "\t" : "") << pfa.experiment_scaling[e];
-    os << endl;
-    size_t experiment_scaling_zeros = 0;
-    for (size_t e = 0; e < pfa.E; ++e)
-      if (pfa.experiment_scaling[e] == 0) spot_scaling_zeros++;
-    os << "There are " << experiment_scaling_zeros << " zeros in experiment_scaling." << endl;
-    os << Stats::summary(pfa.experiment_scaling) << endl;
-
+    if (pfa.parameters.activate_experiment_scaling) {
+      os << "Experiment scaling factors" << endl;
+      for (size_t e = 0; e < pfa.E; ++e)
+        os << (e > 0 ? "\t" : "") << pfa.experiment_scaling[e];
+      os << endl;
+      size_t experiment_scaling_zeros = 0;
+      for (size_t e = 0; e < pfa.E; ++e)
+        if (pfa.experiment_scaling[e] == 0)
+          spot_scaling_zeros++;
+      os << "There are " << experiment_scaling_zeros
+         << " zeros in experiment_scaling." << endl;
+      os << Stats::summary(pfa.experiment_scaling) << endl;
+    }
   }
 
   os << "R_theta factors" << endl;
