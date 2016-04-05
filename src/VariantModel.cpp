@@ -304,21 +304,23 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   vector<string> factor_names;
   for (size_t t = 1; t <= T; ++t)
     factor_names.push_back("Factor " + to_string(t));
-  write_matrix(phi, prefix + "phi.txt", counts.row_names, factor_names);
-  write_matrix(r, prefix + "r.txt", counts.row_names, factor_names);
-  write_matrix(p, prefix + "p.txt", counts.row_names, factor_names);
-  write_matrix(theta, prefix + "theta.txt", counts.col_names, factor_names);
+  auto &gene_names = counts.row_names;
+  auto &spot_names = counts.col_names;
+  write_matrix(phi, prefix + "phi.txt", gene_names, factor_names);
+  write_matrix(r, prefix + "r.txt", gene_names, factor_names);
+  write_matrix(p, prefix + "p.txt", gene_names, factor_names);
+  write_matrix(theta, prefix + "theta.txt", spot_names, factor_names);
   write_vector(r_theta, prefix + "r_theta.txt", factor_names);
   write_vector(p_theta, prefix + "p_theta.txt", factor_names);
-  write_vector(spot_scaling, prefix + "spot_scaling.txt", counts.col_names);
+  write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
   write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   if (mean_and_variance) {
     write_matrix(posterior_expectations(), prefix + "means.txt",
-                 counts.row_names, counts.col_names);
+                 gene_names, spot_names);
     write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt",
-                 counts.row_names, counts.col_names);
+                 gene_names, spot_names);
     write_matrix(posterior_variances(), prefix + "variances.txt",
-                 counts.row_names, counts.col_names);
+                 gene_names, spot_names);
   }
 }
 
