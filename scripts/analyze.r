@@ -113,6 +113,9 @@ st.top = function(d, normalize.phi=T, normalize.theta=T, path="./", ...) {
     d = st.normalize.theta(d)
   d = st.order(d, plot=!is.null(path))
 
+  d$enrMean = d$phi / apply(d$phi, 1, mean)
+  d$enrMedian = d$phi / apply(d$phi, 1, median)
+
   if(!is.null(path))
     dev.off()
 
@@ -197,6 +200,28 @@ st.multi = function(d,
       ge = ge[o]
       grid.newpage()
       grid.table(ge, rows=names(ge), cols=factor.name)
+    }
+    dev.off()
+    pdf(paste(path, "phi-top-genes-enrMean.pdf", sep=""), width=6, height=15)
+    for(factor.name in colnames(d$enrMean)) {
+      ge = d$enrMean[,factor.name]
+      names(ge) = rownames(d$enrMean)
+      o = order(ge, decreasing=T)
+      o = o[1:ngenes]
+      ge = ge[o]
+      grid.newpage()
+      grid.table(log2(ge), rows=names(ge), cols=factor.name)
+    }
+    dev.off()
+    pdf(paste(path, "phi-top-genes-enrMedian.pdf", sep=""), width=6, height=15)
+    for(factor.name in colnames(d$enrMedian)) {
+      ge = d$enrMedian[,factor.name]
+      names(ge) = rownames(d$enrMedian)
+      o = order(ge, decreasing=T)
+      o = o[1:ngenes]
+      ge = ge[o]
+      grid.newpage()
+      grid.table(log2(ge), rows=names(ge), cols=factor.name)
     }
     dev.off()
   }
