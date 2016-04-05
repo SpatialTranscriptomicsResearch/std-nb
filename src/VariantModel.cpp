@@ -132,24 +132,22 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
 
-  // initialize experiment scaling factors
-  for (size_t e = 0; e < E; ++e)
-    experiment_scaling[e] = 1;
-  update_experiment_scaling_long(c);
-  if (false)
-  {
-    if(verbosity >= Verbosity::Debug)
-      cout << "initializing experiment scaling." << endl;
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling(c.experiments[s]) += contributions_spot(s);
-    Float z = 0;
-    for (size_t e = 0; e < E; ++e)
-      z += experiment_scaling(e);
-    z /= E;
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling(e) /= z;
-    // copy the experiment scaling parameters into the spot-indexed vector
+  if (parameters.activate_experiment_scaling) {
+    // initialize experiment scaling factors
+    for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
     update_experiment_scaling_long(c);
+    if (parameters.activate_experiment_scaling) {
+      if (verbosity >= Verbosity::Debug)
+        cout << "initializing experiment scaling." << endl;
+      for (size_t s = 0; s < S; ++s)
+        experiment_scaling(c.experiments[s]) += contributions_spot(s);
+      Float z = 0;
+      for (size_t e = 0; e < E; ++e) z += experiment_scaling(e);
+      z /= E;
+      for (size_t e = 0; e < E; ++e) experiment_scaling(e) /= z;
+      // copy the experiment scaling parameters into the spot-indexed vector
+      update_experiment_scaling_long(c);
+    }
   }
 
   // initialize spot scaling factors
@@ -683,7 +681,7 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
     cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
   check_model(data.counts);
 
-  if (E > 1 and false) {
+  if (E > 1 and parameters.activate_experiment_scaling) {
     timer.tick();
     sample_experiment_scaling(data);
     if (timing and verbosity >= Verbosity::Info)
