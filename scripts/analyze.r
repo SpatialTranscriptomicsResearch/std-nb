@@ -124,6 +124,27 @@ st.top = function(d, normalize.phi=T, normalize.theta=T, path="./", ...) {
   return(st.multi(d, path=path, ...))
 }
 
+st.skip.samples = function(d, samples) {
+  broken = break.data(d$theta)
+  print(paste("Not these",samples))
+  these = setdiff(names(broken), samples)
+  print(paste("But these",these))
+  res = list()
+  for(this in these)
+    res[[this]] = broken[[this]]
+  these.spots = rownames(reform.data(res))
+  e = d
+  print(head(these.spots))
+  print(head(rownames(d$theta)))
+  print(head(names(d$spotscale)))
+  print(length(these.spots))
+  print(length(rownames(d$theta)))
+  print(length(names(d$spotscale)))
+  e$theta = e$theta[these.spots,]
+  e$spotscale = e$spotscale[these.spots]
+  return(e)
+}
+
 st.multi = function(d,
                     single.experiment=FALSE,
                     common.scale=T,
@@ -135,6 +156,7 @@ st.multi = function(d,
                     do.mds=F,
                     do.pca=F,
                     skip.factors=c(),
+                    skip.samples=c(),
                     ncols=2) {
   dtheta = d$theta
   dspotscale = d$spotscale
@@ -230,6 +252,8 @@ st.multi = function(d,
 
   if(dim.red) {
     cur = dtheta[,setdiff(1:ncol(dtheta), skip.factors)]
+    for(re in skip.samples)
+      cur = cur[grep(re, rownames(cur), invert=T),]
     simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
     simil.break = list()
 
