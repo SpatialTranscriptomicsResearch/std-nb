@@ -1,0 +1,20 @@
+#!/usr/bin/env ruby
+
+require 'pathname'
+
+files = "phi.txt r.txt p.txt theta.txt r_theta.txt p_theta.txt spot_scaling.txt experiment_scaling.txt".split(" ")
+
+ARGV.each{|path|
+  pn = Pathname.new(path)
+  archive_path = "archive.tar.bz2"
+  file_paths = []
+  if pn.directory?
+    file_paths = files.map{|file| pn + file}
+    archive_path = pn + archive_path
+  else
+    file_paths = files.map{|file| path + file}.map{|p| Pathname.new(p)}
+    archive_path = Pathname.new(path + archive_path)
+  end
+  cmd = "tar cf #{archive_path} #{file_paths.join(" ")}"
+  puts cmd
+}
