@@ -63,9 +63,9 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       contributions_experiment(E, arma::fill::zeros),
       phi(G, T),
       theta(S, T),
-      spot_scaling(S),
-      experiment_scaling(E),
-      experiment_scaling_long(S),
+      spot_scaling(S, arma::fill::ones),
+      experiment_scaling(E, arma::fill::ones),
+      experiment_scaling_long(S, arma::fill::ones),
       r(G, T),
       p(G, T),
       r_theta(T),
@@ -134,8 +134,6 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
 
   if (parameters.activate_experiment_scaling) {
     // initialize experiment scaling factors
-    for (size_t e = 0; e < E; ++e) experiment_scaling[e] = 1;
-    update_experiment_scaling_long(c);
     if (parameters.activate_experiment_scaling) {
       if (verbosity >= Verbosity::Debug)
         cout << "initializing experiment scaling." << endl;
