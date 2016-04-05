@@ -202,7 +202,7 @@ int main(int argc, char **argv) {
      "Print out timing information.")
     ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
      "Enforce means of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
-    ("expscale", po::value(&parameters.activate_experiment_scaling)->default_value(parameters.activate_experiment_scaling),
+    ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
      "Activate usage of the experiment scaling variables.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
