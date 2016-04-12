@@ -364,15 +364,18 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
 void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling Θ" << endl;
+
+  vector<Float> intensities(T, 0);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t)
+    for (size_t g = 0; g < G; ++g)
+      intensities[t] += phi(g, t);
+
   for (size_t s = 0; s < S; ++s) {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t) {
       const Int summed_contribution = contributions_spot_type(s, t);
-      Float intensity_sum = 0;
-#pragma omp parallel for reduction(+ : intensity_sum) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        intensity_sum += phi(g, t);
-      intensity_sum *= scale;
+      const Float intensity_sum = intensities[t] * scale;
 
       if (verbosity >= Verbosity::Debug)
         cout << "summed_contribution=" << summed_contribution
