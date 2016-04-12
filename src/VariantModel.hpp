@@ -2,6 +2,7 @@
 #define VARIANTMODEL_HPP
 
 #include "counts.hpp"
+#include "entropy.hpp"
 #include "FactorAnalysis.hpp"
 #include "verbosity.hpp"
 
@@ -71,15 +72,20 @@ struct VariantModel {
 
   /** sample count decomposition */
   void sample_contributions(const IMatrix &counts);
+  void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
+                                RNG &rng, Matrix &contrib_gene_type,
+                                Matrix &contrib_spot_type);
 
   /** sample phi */
   void sample_phi();
+  Float sample_phi_sub(size_t g, size_t t, Float theta_t, RNG &rng) const;
 
   /** sample p and r */
   void sample_p_and_r();
 
   /** sample theta */
   void sample_theta();
+  Float sample_theta_sub(size_t s, size_t t, Float scale) const;
 
   /** sample p_theta and r_theta */
   void sample_p_and_r_theta();

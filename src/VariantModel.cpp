@@ -322,6 +322,24 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   }
 }
 
+void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
+                                        size_t s, RNG &rng,
+                                        Matrix &contrib_gene_type,
+                                        Matrix &contrib_spot_type) {
+  vector<double> rel_rate(T);
+  double z = 0;
+  // NOTE: in principle, lambda[g][s][t] is proportional to both
+  // spot_scaling[s] and experiment_scaling[s]. However, these terms would
+  // cancel. Thus, we do not multiply them in here.
+  for (size_t t = 0; t < T; ++t) z += rel_rate[t] = phi(g, t) * theta(s, t);
+  for (size_t t = 0; t < T; ++t) rel_rate[t] /= z;
+  auto v = sample_multinomial<Int>(counts(g, s), rel_rate, rng);
+  for (size_t t = 0; t < T; ++t) {
+    contrib_gene_type(g, t) += v[t];
+    contrib_spot_type(s, t) += v[t];
+  }
+}
+
 /** sample count decomposition */
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
@@ -335,23 +353,8 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s) {
-        vector<double> rel_rate(T);
-        double z = 0;
-        // NOTE: in principle, lambda[g][s][t] is proportional to both
-        // spot_scaling[s] and experiment_scaling[s]. However, these terms would
-        // cancel. Thus, we do not multiply them in here.
-        for (size_t t = 0; t < T; ++t)
-          z += rel_rate[t] = phi(g, t) * theta(s, t);
-        for (size_t t = 0; t < T; ++t)
-          rel_rate[t] /= z;
-        auto v = sample_multinomial<Int>(counts(g, s), rel_rate,
-                                         EntropySource::rngs[thread_num]);
-        for (size_t t = 0; t < T; ++t) {
-          contrib_gene_type(g, t) += v[t];
-          contrib_spot_type(s, t) += v[t];
-        }
-      }
+      for (size_t s = 0; s < S; ++s)
+        sample_contributions_sub(counts, g, s, EntropySource::rngs[thread_num], contrib_gene_type, contrib_spot_type);
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
@@ -360,11 +363,30 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
   }
 }
 
+Float VariantModel::sample_theta_sub(size_t s, size_t t, Float scale) const {
+  const Int summed_contribution = contributions_spot_type(s, t);
+  Float intensity_sum = 0;
+#pragma omp parallel for reduction(+ : intensity_sum) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g) intensity_sum += phi(g, t);
+  intensity_sum *= scale;
+
+  /*
+  if (verbosity >= Verbosity::Debug)
+    cout << "summed_contribution=" << summed_contribution
+         << " intensity_sum=" << intensity_sum << " prev theta[" << s << "]["
+         << t << "]=" << theta(s, t);
+  */
+
+  // NOTE: gamma_distribution takes a shape and scale parameter
+  return gamma_distribution<Float>(
+      r_theta[t] + summed_contribution,
+      1.0 / (p_theta[t] + intensity_sum))(EntropySource::rng);
+}
+
 /** sample theta */
 void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling Θ" << endl;
-
   vector<Float> intensities(T, 0);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
@@ -515,6 +537,13 @@ void VariantModel::sample_p_and_r() {
   }
 }
 
+Float VariantModel::sample_phi_sub(size_t g, size_t t, Float theta_t,
+                                   RNG &rng) const {
+  // NOTE: gamma_distribution takes a shape and scale parameter
+  return gamma_distribution<Float>(r(g, t) + contributions_gene_type(g, t),
+                                   1.0 / (p(g, t) + theta_t))(rng);
+}
+
 /** sample phi */
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
@@ -529,20 +558,16 @@ void VariantModel::sample_phi() {
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < T; ++t) {
-      const Int summed_contribution = contributions_gene_type(g, t);
-      // NOTE: gamma_distribution takes a shape and scale parameter
-      phi(g, t) = gamma_distribution<Float>(
-          r(g, t) + summed_contribution,
-          1.0 / (p(g, t) + theta_t[t]))(EntropySource::rngs[thread_num]);
+      phi(g, t) = sample_phi_sub(g, t, theta_t[t], EntropySource::rngs[thread_num]);
       if (PHI_ZERO_WARNING and phi(g, t) == 0) {
         cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
              << "r[" << g << "][" << t << "] = " << r(g, t) << endl
              << "p[" << g << "][" << t << "] = " << p(g, t) << endl
              << "theta_t[" << t << "] = " << theta_t[t] << endl
-             << "r(g, t) + sum = " << r(g, t) + summed_contribution << endl
+             << "r(g, t) + sum = " << r(g, t) + contributions_gene_type(g, t) << endl
              << "1.0 / (p(g, t) + theta_t[t]) = "
              << 1.0 / (p(g, t) + theta_t[t]) << endl
-             << "sum = " << summed_contribution << endl;
+             << "sum = " << contributions_gene_type(g, t) << endl;
         /*
         if (verbosity >= Verbosity::Debug) {
           Int sum2 = 0;
