@@ -381,17 +381,12 @@ void VariantModel::sample_theta() {
 
   for (size_t s = 0; s < S; ++s) {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];
-    for (size_t t = 0; t < T; ++t) {
-      const Int summed_contribution = contributions_spot_type(s, t);
-      const Float intensity_sum = intensities[t] * scale;
-
+    for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta(s, t) = gamma_distribution<Float>(
-          r_theta[t] + summed_contribution,
-          1.0 / (p_theta[t] + intensity_sum))(
+          r_theta[t] + contributions_spot_type(s, t),
+          1.0 / (p_theta[t] + intensities[t] * scale))(
           EntropySource::rng);
-    }
-
   }
   if ((parameters.enforce_mean & ForceMean::Theta) != ForceMean::None)
 #pragma omp parallel for if (DO_PARALLEL)
