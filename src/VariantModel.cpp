@@ -9,7 +9,6 @@
 #include "timer.hpp"
 
 #define DO_PARALLEL 1
-#define PHI_ZERO_WARNING false
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
@@ -532,27 +531,8 @@ void VariantModel::sample_phi() {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
-    for (size_t t = 0; t < T; ++t) {
+    for (size_t t = 0; t < T; ++t)
       phi(g, t) = sample_phi_sub(g, t, theta_t[t], EntropySource::rngs[thread_num]);
-      if (PHI_ZERO_WARNING and phi(g, t) == 0) {
-        cout << "Warning: phi[" << g << "][" << t << "] = 0!" << endl
-             << "r[" << g << "][" << t << "] = " << r(g, t) << endl
-             << "p[" << g << "][" << t << "] = " << p(g, t) << endl
-             << "theta_t[" << t << "] = " << theta_t[t] << endl
-             << "r(g, t) + sum = " << r(g, t) + contributions_gene_type(g, t) << endl
-             << "1.0 / (p(g, t) + theta_t[t]) = "
-             << 1.0 / (p(g, t) + theta_t[t]) << endl
-             << "sum = " << contributions_gene_type(g, t) << endl;
-        /*
-        if (verbosity >= Verbosity::Debug) {
-          Int sum2 = 0;
-          for (size_t tt = 0; tt < T; ++tt)
-            for (size_t s = 0; s < S; ++s) sum2 += contributions(g, s, tt);
-          cout << "sum2 = " << sum2 << endl;
-        }  */
-        // exit(EXIT_FAILURE);
-      }
-    }
   }
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
     for (size_t t = 0; t < T; ++t) {
