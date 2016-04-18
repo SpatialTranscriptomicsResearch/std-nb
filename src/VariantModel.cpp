@@ -379,6 +379,7 @@ void VariantModel::sample_theta() {
     cout << "Sampling Θ" << endl;
   const vector<Float> intensities = compute_intensities_gene_type();
 
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t)
