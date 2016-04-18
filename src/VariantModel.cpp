@@ -379,18 +379,11 @@ void VariantModel::sample_theta() {
       const Int summed_contribution = contributions_spot_type(s, t);
       const Float intensity_sum = intensities[t] * scale;
 
-      if (verbosity >= Verbosity::Debug)
-        cout << "summed_contribution=" << summed_contribution
-             << " intensity_sum=" << intensity_sum << " prev theta[" << s
-             << "][" << t << "]=" << theta(s, t);
-
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta(s, t) = gamma_distribution<Float>(
           r_theta[t] + summed_contribution,
           1.0 / (p_theta[t] + intensity_sum))(
           EntropySource::rng);
-      if (verbosity >= Verbosity::Debug)
-        cout << "new theta[" << s << "][" << t << "]=" << theta(s, t) << endl;
     }
 
   }
