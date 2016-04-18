@@ -363,15 +363,21 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
   }
 }
 
-/** sample theta */
-void VariantModel::sample_theta() {
-  if (verbosity >= Verbosity::Verbose)
-    cout << "Sampling Θ" << endl;
+vector<Float> VariantModel::compute_intensities_gene_type() const {
   vector<Float> intensities(T, 0);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
       intensities[t] += phi(g, t);
+  return intensities;
+}
+
+
+/** sample theta */
+void VariantModel::sample_theta() {
+  if (verbosity >= Verbosity::Verbose)
+    cout << "Sampling Θ" << endl;
+  const vector<Float> intensities = compute_intensities_gene_type();
 
   for (size_t s = 0; s < S; ++s) {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];

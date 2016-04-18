@@ -84,6 +84,7 @@ struct VariantModel {
   void sample_p_and_r();
 
   /** sample theta */
+  std::vector<Float> compute_intensities_gene_type() const;
   void sample_theta();
 
   /** sample p_theta and r_theta */
