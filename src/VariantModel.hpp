@@ -85,7 +85,6 @@ struct VariantModel {
 
   /** sample theta */
   void sample_theta();
-  Float sample_theta_sub(size_t s, size_t t, Float scale) const;
 
   /** sample p_theta and r_theta */
   void sample_p_and_r_theta();

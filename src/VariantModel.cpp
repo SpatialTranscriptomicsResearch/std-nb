@@ -363,26 +363,6 @@ void VariantModel::sample_contributions(const IMatrix &counts) {
   }
 }
 
-Float VariantModel::sample_theta_sub(size_t s, size_t t, Float scale) const {
-  const Int summed_contribution = contributions_spot_type(s, t);
-  Float intensity_sum = 0;
-#pragma omp parallel for reduction(+ : intensity_sum) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) intensity_sum += phi(g, t);
-  intensity_sum *= scale;
-
-  /*
-  if (verbosity >= Verbosity::Debug)
-    cout << "summed_contribution=" << summed_contribution
-         << " intensity_sum=" << intensity_sum << " prev theta[" << s << "]["
-         << t << "]=" << theta(s, t);
-  */
-
-  // NOTE: gamma_distribution takes a shape and scale parameter
-  return gamma_distribution<Float>(
-      r_theta[t] + summed_contribution,
-      1.0 / (p_theta[t] + intensity_sum))(EntropySource::rng);
-}
-
 /** sample theta */
 void VariantModel::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
