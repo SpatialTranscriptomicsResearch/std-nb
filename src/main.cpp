@@ -129,6 +129,8 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
+    if (iteration > 10)
+      pfa.parameters.enforce_mean = FactorAnalysis::ForceMean::None;
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
     pfa.gibbs_sample(data, options.timing);
