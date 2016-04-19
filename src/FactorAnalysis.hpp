@@ -90,7 +90,13 @@ struct Parameters {
   double temperature = 1.0;
   /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
   double prop_sd = 0.5;
+  /** Whether to enforce certain means or sums */
   ForceMean enforce_mean = ForceMean::Spot | ForceMean::Experiment;
+  /** How long to enforce certain means or sums
+   * 0 means forever
+   * anything else is the given number of iterations
+   */
+  size_t enforce_iter = 0;
   bool activate_experiment_scaling = false;
 };
 

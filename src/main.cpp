@@ -129,7 +129,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
-    if (iteration > 10)
+    if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = FactorAnalysis::ForceMean::None;
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
@@ -203,7 +203,9 @@ int main(int argc, char **argv) {
     ("timing", po::bool_switch(&options.timing),
      "Print out timing information.")
     ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
-     "Enforce means of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
+     "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
+    ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
+     "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
      "Activate usage of the experiment scaling variables.")
     ("label", po::value(&options.labeling),
