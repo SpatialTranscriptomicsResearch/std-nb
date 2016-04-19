@@ -28,7 +28,7 @@ void write_vector(const Vector &v, const string &path,
 
   ofstream ofs(path);
   for (size_t x = 0; x < X; ++x)
-    ofs << (names_given ? names[x] + separator : "") << v[x] << endl;
+    ofs << (names_given ? names[x] + separator : "") << v[x] << '\n';
 }
 
 void write_matrix(const Matrix &m, const string &path,
@@ -59,14 +59,14 @@ void write_matrix(const Matrix &m, const string &path,
   if (col_names_given) {
     for (size_t y = 0; y < Y; ++y)
       ofs << separator << col_names[y];
-    ofs << endl;
+    ofs << '\n';
   }
   for (size_t x = 0; x < X; ++x) {
     if (row_names_given)
       ofs << row_names[x] + separator;
     for (size_t y = 0; y < Y; ++y)
       ofs << (y != 0 ? separator : "") << m(x, y);
-    ofs << endl;
+    ofs << '\n';
   }
 }
 
