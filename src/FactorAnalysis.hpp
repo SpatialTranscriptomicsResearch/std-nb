@@ -96,7 +96,7 @@ struct Parameters {
    * 0 means forever
    * anything else is the given number of iterations
    */
-  size_t enforce_iter = 0;
+  size_t enforce_iter = 10;
   bool activate_experiment_scaling = false;
 };
 
