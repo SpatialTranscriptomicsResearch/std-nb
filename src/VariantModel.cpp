@@ -521,7 +521,7 @@ Float VariantModel::sample_phi_sub(size_t g, size_t t, Float theta_t,
 /** sample phi */
 void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
-  Vector theta_t(T);
+  Vector theta_t(T, arma::fill::zeros);
   for (size_t s = 0; s < S; ++s) {
     const Float prod = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t)
