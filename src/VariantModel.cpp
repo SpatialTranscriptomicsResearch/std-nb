@@ -550,30 +550,35 @@ void VariantModel::sample_phi() {
 void VariantModel::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling spot scaling factors" << endl;
+  Vector phi_marginal(T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t)
+    for (size_t g = 0; g < G; ++g)
+      phi_marginal(t) += phi(g, t);
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     const Int summed_contribution = contributions_spot(s);
 
     Float intensity_sum = 0;
-    for (size_t t = 0; t < T; ++t) {
-      Float x = 0;
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        x += phi(g, t);
-      intensity_sum += x * theta(s, t);
-    }
+    for (size_t t = 0; t < T; ++t)
+      intensity_sum += phi_marginal(t) * theta(s, t);
     intensity_sum *= experiment_scaling_long[s];
 
+    /*
     if (verbosity >= Verbosity::Debug)
       cout << "summed_contribution=" << summed_contribution
            << " intensity_sum=" << intensity_sum
            << " prev spot_scaling[" << s << "]=" << spot_scaling[s];
+    */
 
     // NOTE: gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = gamma_distribution<Float>(
         hyperparameters.spot_a + summed_contribution,
         1.0 / (hyperparameters.spot_b + intensity_sum))(EntropySource::rng);
+    /*
     if (verbosity >= Verbosity::Debug)
       cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] << endl;
+    */
   }
 
   if ((parameters.enforce_mean & ForceMean::Spot) != ForceMean::None) {
