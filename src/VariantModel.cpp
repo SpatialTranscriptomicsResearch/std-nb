@@ -598,13 +598,19 @@ void VariantModel::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling experiment scaling factors" << endl;
 
+  Vector phi_marginal(T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t)
+    for (size_t g = 0; g < G; ++g)
+      phi_marginal(t) += phi(g, t);
   vector<Float> intensity_sums(E, 0);
+  // TODO: improve parallelism
   for (size_t s = 0; s < S; ++s) {
     double x = 0;
 #pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        x += phi(g, t) * theta(s, t) * spot_scaling[s];
+    for (size_t t = 0; t < T; ++t)
+      x += phi_marginal(t) * theta(s, t);
+    x *= spot_scaling[s];
     intensity_sums[data.experiments[s]] += x;
   }
 
