@@ -15,6 +15,6 @@ ARGV.each{|path|
     file_paths = files.map{|file| path + file}.map{|p| Pathname.new(p)}
     archive_path = Pathname.new(path + archive_path)
   end
-  cmd = "tar cf #{archive_path} #{file_paths.join(" ")}"
+  cmd = "tar cjf #{archive_path} #{file_paths.join(" ")}"
   puts cmd
 }
