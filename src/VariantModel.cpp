@@ -311,6 +311,9 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_vector(p_theta, prefix + "p_theta.txt", factor_names);
   write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
   write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
+  write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
+  // TODO: should we also write out contributions_spot and contributions_experiment?
   if (mean_and_variance) {
     write_matrix(posterior_expectations(), prefix + "means.txt",
                  gene_names, spot_names);
