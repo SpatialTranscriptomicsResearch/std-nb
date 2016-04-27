@@ -99,10 +99,9 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       if (false)
         p(g, t) = 0.5 * G * T;
       else
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        p(g, t) = prob_to_neg_odds(gamma_distribution<Float>(
-            hyperparameters.phi_p_1,
-            1 / hyperparameters.phi_p_2)(EntropySource::rngs[thread_num]));
+        p(g, t) = prob_to_neg_odds(sample_beta<Float>(
+            hyperparameters.phi_p_1, 1 / hyperparameters.phi_p_2,
+            EntropySource::rngs[thread_num]));
   }
 
   // initialize R
