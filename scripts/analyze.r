@@ -278,7 +278,7 @@ st.multi = function(d,
       dev.off()
     }
 
-    simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
+    simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
     simil.2d.break = list()
 
     if(!is.null(path)) {
