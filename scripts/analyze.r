@@ -157,7 +157,7 @@ st.multi = function(d,
                     do.pca=F,
                     skip.factors=c(),
                     skip.samples=c(),
-                    ncols=2) {
+                    ncols=2, ...) {
   dtheta = d$theta
   dspotscale = d$spotscale
   dexpscale = d$expscale
@@ -262,7 +262,7 @@ st.multi = function(d,
     cur = dtheta[,setdiff(1:ncol(dtheta), skip.factors)]
     for(re in skip.samples)
       cur = cur[grep(re, rownames(cur), invert=T),]
-    simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds)
+    simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
     simil.break = list()
 
     if(!is.null(path)) {
