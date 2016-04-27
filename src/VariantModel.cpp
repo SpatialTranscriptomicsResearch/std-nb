@@ -231,6 +231,7 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
 }
 
 double VariantModel::log_likelihood(const IMatrix &counts) const {
+  // TODO this function is currently incorrect
   double l = 0;
   vector<double> alpha(G, hyperparameters.alpha);
   for (size_t t = 0; t < T; ++t) {
@@ -246,8 +247,8 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(p(g, t), hyperparameters.phi_p_1,
-                     1 / hyperparameters.phi_p_2);
+      l += log_beta_neg_odds(p(g, t), hyperparameters.phi_p_1,
+                             1 / hyperparameters.phi_p_2);
     if (std::isnan(l))
       cout << "Likelihood is NAN after adding the contribution due to "
               "Beta-distributed p[g]["
