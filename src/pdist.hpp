@@ -48,6 +48,8 @@ double log_gamma(double x, double shape, double scale);
 double log_beta(double p, double alpha, double beta);
 /** Beta probability density function for odds x=p/(1-p) given shape parameters alpha and beta */
 double log_beta_odds(double x, double alpha, double beta);
+/** Beta probability density function for odds x=(1-p)/p given shape parameters alpha and beta */
+double log_beta_neg_odds(double x, double alpha, double beta);
 /** Dirichlet probability density function for a probability distribution p given a vector of concentration aparameters alpha */
 double log_dirichlet(const std::vector<double> &p,
                      const std::vector<double> &alpha);

@@ -409,8 +409,8 @@ double compute_conditional_theta(const pair<Float, Float> &x,
   const size_t S = count_sums.size();
   const Float current_r = x.first;
   const Float current_p = x.second;
-  double r = log_beta_odds(current_p, hyperparameters.theta_p_1,
-                           hyperparameters.theta_p_2)
+  double r = log_beta_neg_odds(current_p, hyperparameters.theta_p_1,
+                               hyperparameters.theta_p_2)
              // NOTE: gamma_distribution takes a shape and scale parameter
              + log_gamma(current_r, hyperparameters.theta_r_1,
                          1 / hyperparameters.theta_r_2)
@@ -467,8 +467,8 @@ double compute_conditional(const pair<Float, Float> &x, Int count_sum,
                            const Hyperparameters &hyperparameters) {
   const Float current_r = x.first;
   const Float current_p = x.second;
-  return log_beta_odds(current_p, hyperparameters.phi_p_1,
-                       hyperparameters.phi_p_2)
+  return log_beta_neg_odds(current_p, hyperparameters.phi_p_1,
+                           hyperparameters.phi_p_2)
          // NOTE: gamma_distribution takes a shape and scale parameter
          + log_gamma(current_r, hyperparameters.phi_r_1,
                      1 / hyperparameters.phi_r_2)
