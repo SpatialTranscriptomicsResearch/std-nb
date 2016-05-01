@@ -157,6 +157,7 @@ st.multi = function(d,
                     do.pca=F,
                     skip.factors=c(),
                     skip.samples=c(),
+                    center.theta=F,
                     ncols=2, ...) {
   dtheta = d$theta
   dspotscale = d$spotscale
@@ -167,6 +168,9 @@ st.multi = function(d,
     names(dexpscale) = paste("A", names(dexpscale))
   }
   theta = break.data(dtheta)
+  if (center.theta) {
+    dtheta = reform.data(lapply(theta, function(x) scale(x, center=T, scale=F)))
+  }
   spotscale = break.data(t(t(dspotscale)))
   expscale = break.data(t(t(dexpscale)))
   n = length(theta)
