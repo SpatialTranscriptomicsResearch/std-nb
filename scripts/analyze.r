@@ -246,7 +246,7 @@ st.multi = function(d,
       o = o[1:ngenes]
       ge = ge[o]
       grid.newpage()
-      grid.table(ge, rows=names(ge), cols=factor.name)
+      grid.table(round(ge), rows=names(ge), cols=factor.name)
     }
     dev.off()
     pdf(paste(path, "phi-top-genes-enrMean.pdf", sep=""), width=6, height=15)
@@ -257,7 +257,7 @@ st.multi = function(d,
       o = o[1:ngenes]
       ge = ge[o]
       grid.newpage()
-      grid.table(log2(ge), rows=names(ge), cols=factor.name)
+      grid.table(round(log2(ge),3), rows=names(ge), cols=factor.name)
     }
     dev.off()
     pdf(paste(path, "phi-top-genes-enrMedian.pdf", sep=""), width=6, height=15)
@@ -268,7 +268,7 @@ st.multi = function(d,
       o = o[1:ngenes]
       ge = ge[o]
       grid.newpage()
-      grid.table(log2(ge), rows=names(ge), cols=factor.name)
+      grid.table(round(log2(ge),3), rows=names(ge), cols=factor.name)
     }
     dev.off()
   }
