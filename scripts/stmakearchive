@@ -2,19 +2,32 @@
 
 require 'pathname'
 
-files = "phi.txt r.txt p.txt theta.txt r_theta.txt p_theta.txt spot_scaling.txt experiment_scaling.txt".split(" ")
+files = "phi.txt r.txt p.txt theta.txt r_theta.txt p_theta.txt spot_scaling.txt experiment_scaling.txt contributions_gene_type.txt contributions_spot_type.txt".split(" ")
 
-ARGV.each{|path|
-  pn = Pathname.new(path)
+ARGV.each{|prefix|
+  pn = Pathname.new(prefix)
   archive_path = "archive.tar.bz2"
-  file_paths = []
+  paths = []
   if pn.directory?
-    file_paths = files.map{|file| pn + file}
+    paths = files.map{|file| pn + file}
     archive_path = pn + archive_path
   else
-    file_paths = files.map{|file| path + file}.map{|p| Pathname.new(p)}
-    archive_path = Pathname.new(path + archive_path)
+    paths = files.map{|file| prefix + file}.map{|p| Pathname.new(p)}
+    archive_path = Pathname.new(prefix + archive_path)
   end
-  cmd = "tar cjf #{archive_path} #{file_paths.join(" ")}"
+  present_paths = []
+  paths.each{|path|
+    if File.exist?(path)
+      present_paths << path
+    else
+      zipped_path = path + ".gz"
+      if File.exist?(zipped_path)
+        present_paths << zipped_path
+      else
+        $stderr.puts "Warning: Found neither #{path} nor #{zipped_path}."
+      end
+    end
+  }
+  cmd = "tar cjf #{archive_path} #{present_paths.join(" ")}"
   puts cmd
 }
