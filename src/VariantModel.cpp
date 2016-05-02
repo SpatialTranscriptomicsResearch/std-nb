@@ -70,45 +70,70 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       r_theta(T),
       p_theta(T),
       verbosity(verbosity_) {
-  // randomly initialize Phi
-  if(verbosity >= Verbosity::Debug)
-    cout << "initializing phi." << endl;
-  // Phi = zeros(T,S)+1/T;
-  phi.fill(1.0 / T / G);
-
-  // initialize Theta
-  // Theta = rand(P,T);
-  // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
-  if(verbosity >= Verbosity::Debug)
-    cout << "initializing theta." << endl;
-  for (size_t s = 0; s < S; ++s) {
-    double sum = 0;
-    for (size_t t = 0; t < T; ++t)
-      sum += theta(s, t) = RandomDistribution::Uniform(EntropySource::rng);
-    for (size_t t = 0; t < T; ++t) theta(s, t) /= sum;
-  }
-
   // randomly initialize P
   // p_k=ones(T,1)*0.5;
-  if(verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Debug)
     cout << "initializing p of phi." << endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < T; ++t)
-      if (false)
-        p(g, t) = 0.5 * G * T;
-      else
-        p(g, t) = prob_to_neg_odds(sample_beta<Float>(
-            hyperparameters.phi_p_1, 1 / hyperparameters.phi_p_2,
-            EntropySource::rngs[thread_num]));
+      p(g, t) = prob_to_neg_odds(
+          sample_beta<Float>(hyperparameters.phi_p_1, hyperparameters.phi_p_2,
+                             EntropySource::rngs[thread_num]));
   }
 
   // initialize R
-  if(verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Debug)
     cout << "initializing r of phi." << endl;
-  // r_k= 50/T*ones(T,1)
-  r.fill(50.0 / G / T);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g) {
+    const size_t thread_num = omp_get_thread_num();
+    for (size_t t = 0; t < T; ++t)
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      r(g, t) = gamma_distribution<Float>(
+          hyperparameters.phi_r_1,
+          1 / hyperparameters.phi_r_2)(EntropySource::rngs[thread_num]);
+  }
+
+  // randomly initialize Phi
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing phi." << endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g) {
+    const size_t thread_num = omp_get_thread_num();
+    for (size_t t = 0; t < T; ++t)
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      phi(g, t) = gamma_distribution<Float>(
+          r(g, t), 1 / p(g, t))(EntropySource::rngs[thread_num]);
+  }
+
+  // randomly initialize P
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing p of theta." << endl;
+  for (size_t t = 0; t < T; ++t)
+    p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
+        hyperparameters.theta_p_1, hyperparameters.theta_p_2));
+
+  // randomly initialize R
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing r of theta." << endl;
+  for (size_t t = 0; t < T; ++t)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    r_theta[t] = gamma_distribution<Float>(
+        hyperparameters.theta_r_1,
+        1 / hyperparameters.theta_r_2)(EntropySource::rng);
+
+  // initialize Theta
+  // Theta = rand(P,T);
+  // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing theta." << endl;
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t)
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      theta(s, t) = gamma_distribution<Float>(
+          r_theta(t), 1 / p_theta(t))(EntropySource::rng);
 
   // randomly initialize the contributions
   if(verbosity >= Verbosity::Debug)
@@ -168,22 +193,6 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
     for (size_t s = 0; s < S; ++s)
       spot_scaling(s) /= z;
   }
-
-  // randomly initialize P
-  if(verbosity >= Verbosity::Debug)
-    cout << "initializing p of theta." << endl;
-  for (size_t t = 0; t < T; ++t)
-    p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
-        hyperparameters.theta_p_1, hyperparameters.theta_p_2));
-
-  // randomly initialize R
-  if(verbosity >= Verbosity::Debug)
-    cout << "initializing r of theta." << endl;
-  for (size_t t = 0; t < T; ++t)
-    // NOTE: gamma_distribution takes a shape and scale parameter
-    r_theta[t] = gamma_distribution<Float>(
-        hyperparameters.theta_r_1,
-        1 / hyperparameters.theta_r_2)(EntropySource::rng);
 }
 
 size_t num_lines(const string &path) {

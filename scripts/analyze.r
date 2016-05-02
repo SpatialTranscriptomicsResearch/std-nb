@@ -141,6 +141,8 @@ st.skip.samples = function(d, samples) {
   print(length(rownames(d$theta)))
   print(length(names(d$spotscale)))
   e$theta = e$theta[these.spots,]
+  e$theta.r = e$theta.r[these.spots,]
+  e$theta.p = e$theta.p[these.spots,]
   e$spotscale = e$spotscale[these.spots]
   return(e)
 }
