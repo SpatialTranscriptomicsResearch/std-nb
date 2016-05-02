@@ -147,6 +147,18 @@ st.skip.samples = function(d, samples) {
   return(e)
 }
 
+dimensionality.reduction.plot.multiple = function(simil, name, ...) {
+  simil.break = list()
+  for(method in names(simil)) {
+    simil.break[[method]] = break.data(apply(simil[[method]], 2, uniformize))
+    for(name in names(simil.break[[method]]))
+      dimensionality.reduction.plot(simil.break[[method]][[name]],
+                                    title=paste(name, "-", method),
+                                    unif.fnc=identity)
+  }
+  return(simil.break)
+}
+
 st.multi = function(d,
                     single.experiment=FALSE,
                     common.scale=T,
@@ -170,9 +182,6 @@ st.multi = function(d,
     names(dexpscale) = paste("A", names(dexpscale))
   }
   theta = break.data(dtheta)
-  if (center.theta) {
-    dtheta = reform.data(lapply(theta, function(x) scale(x, center=T, scale=F)))
-  }
   spotscale = break.data(t(t(dspotscale)))
   expscale = break.data(t(t(dexpscale)))
   n = length(theta)
@@ -269,19 +278,25 @@ st.multi = function(d,
     for(re in skip.samples)
       cur = cur[grep(re, rownames(cur), invert=T),]
     simil = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
-    simil.break = list()
-
     if(!is.null(path)) {
       pdf(paste(path, "theta-factors-dimensionality-reduction.pdf", sep=""), width=w, height=h)
-      for(method in names(simil)) {
-        simil.break[[method]] = break.data(apply(simil[[method]], 2, uniformize))
-        par(mfrow=c(nrows, ncols))
-        for(name in names(simil.break[[method]]))
-          dimensionality.reduction.plot(simil.break[[method]][[name]],
-                                        title=paste(name, "-", method),
-                                        unif.fnc=identity)
-      }
+      par(mfrow=c(nrows, ncols))
+      simil.break = dimensionality.reduction.plot.multiple(simil, name=name, ...)
       dev.off()
+    }
+    if(center.theta) {
+      dtheta2 = reform.data(lapply(theta, function(x) scale(x, center=T, scale=F)))
+      cur = dtheta2[,setdiff(1:ncol(dtheta2), skip.factors)]
+      for(re in skip.samples)
+        cur = cur[grep(re, rownames(cur), invert=T),]
+
+      simil.centered = dimensionality.reduction(cur, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
+      if(!is.null(path)) {
+        pdf(paste(path, "theta-factors-centered-dimensionality-reduction.pdf", sep=""), width=w, height=h)
+        par(mfrow=c(nrows, ncols))
+        simil.centered.break = dimensionality.reduction.plot.multiple(simil.centered, name=name, ...)
+        dev.off()
+      }
     }
 
     simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
