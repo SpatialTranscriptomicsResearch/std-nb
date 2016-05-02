@@ -112,8 +112,11 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
   if (verbosity >= Verbosity::Debug)
     cout << "initializing p of theta." << endl;
   for (size_t t = 0; t < T; ++t)
-    p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
-        hyperparameters.theta_p_1, hyperparameters.theta_p_2));
+    if (false) // TODO make this CLI-switchable
+      p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
+          hyperparameters.theta_p_1, hyperparameters.theta_p_2));
+    else
+      p_theta[t] = 1;
 
   // randomly initialize R
   if (verbosity >= Verbosity::Debug)
