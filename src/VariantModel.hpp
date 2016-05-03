@@ -54,13 +54,17 @@ inline bool flagged(GibbsSample x) {
 
 struct VariantModel {
   /** number of genes */
-  const size_t G;
+  size_t G;
+  // const size_t G;
   /** number of samples */
-  const size_t S;
+  size_t S;
+  // const size_t S;
   /** number of factors */
-  const size_t T;
+  size_t T;
+  // const size_t T;
   /** number of experiments */
-  const size_t E;
+  size_t E;
+  // const size_t E;
 
   Hyperparameters hyperparameters;
   Parameters parameters;
@@ -117,6 +121,8 @@ struct VariantModel {
                    bool mean_and_variance = false) const;
 
   double log_likelihood(const IMatrix &counts) const;
+  double log_likelihood_factor(const IMatrix &counts, size_t t) const;
+  double log_likelihood_poisson_counts(const IMatrix &counts) const;
 
   /** sample count decomposition */
   void sample_contributions(const IMatrix &counts);

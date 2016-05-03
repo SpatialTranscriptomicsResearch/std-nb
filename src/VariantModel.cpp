@@ -241,70 +241,64 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
     cout << *this << endl;
 }
 
-double VariantModel::log_likelihood(const IMatrix &counts) const {
-  // TODO this function is currently incorrect
+// TODO ensure no NaNs or infinities are generated
+double VariantModel::log_likelihood_factor(const IMatrix &counts, size_t t) const {
   double l = 0;
-  vector<double> alpha(G, hyperparameters.alpha);
-  for (size_t t = 0; t < T; ++t) {
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(r(g, t), hyperparameters.phi_r_1,
-                     1.0 / hyperparameters.phi_r_2);
-    if (std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to "
-              "Gamma-distributed r[g]["
-           << t << "]." << endl;
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      // NOTE: log_gamma takes a shape and scale parameter
-      l += log_beta_neg_odds(p(g, t), hyperparameters.phi_p_1,
-                             1 / hyperparameters.phi_p_2);
-    if (std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to "
-              "Beta-distributed p[g]["
-           << t << "]." << endl;
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
-      // NOTE: log_gamma takes a shape and scale parameter
-      l += log_gamma(phi(g, t), r(g, t), p(g, t));
-      if (std::isnan(l))
-        cout << "Likelihood is NAN after adding the contribution due to "
-                "Gamma-distributed phi["
-             << g << "][" << t << "]; phi=" << phi(g, t) << " r=" << r(g, t)
-             << " p=" << p(g, t) << endl;
-    }
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s)
-        // l += log_poisson(contributions(g, s, t), phi(g, t) * theta(s, t));
-        // TODO fix
-        exit(-1);
-    if (std::isnan(l))
-      cout << "Likelihood is NAN after adding the contribution due to "
-              "Poisson-distributed contributions[g][s]["
-           << t << "]." << endl;
-  }
 
-  for (size_t g = 0; g < G; ++g) {
-    vector<double> thetak(G, 0);
-    for (size_t t = 0; t < T; ++t)
-      thetak[g] = theta(g, t);
-    l += log_dirichlet(thetak, alpha);
-  }
-  if (std::isnan(l))
-    cout << "Likelihood is NAN after adding the contribution due to "
-            "Dirichlet-distributed theta."
-         << endl;
-
-  /*
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double rate = 0;
-      for (size_t t = 0; t < T; ++t) rate += phi(g, t) * theta(s, t);
-      l += log_poisson(counts(g, s), rate);
-    }
-    */
+    // NOTE: log_gamma takes a shape and scale parameter
+    l += log_gamma(phi(g, t), r(g, t), 1.0 / p(g, t));
+
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    // NOTE: log_gamma takes a shape and scale parameter
+    l += log_gamma(r(g, t), hyperparameters.phi_r_1,
+        1.0 / hyperparameters.phi_r_2);
+
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    l += log_beta_neg_odds(p(g, t), hyperparameters.phi_p_1,
+        hyperparameters.phi_p_2);
+
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    // NOTE: log_gamma takes a shape and scale parameter
+    l += log_gamma(theta(t, t), r_theta(t), 1.0 / p_theta(t));
+
+  // NOTE: log_gamma takes a shape and scale parameter
+  l += log_gamma(r_theta(t), hyperparameters.theta_r_1,
+      1.0 / hyperparameters.theta_r_2);
+
+  l += log_beta_neg_odds(p_theta(t), hyperparameters.theta_p_1,
+      hyperparameters.theta_p_2);
+
+  return l;
+}
+
+double VariantModel::log_likelihood_poisson_counts(const IMatrix &counts) const {
+  double l = 0;
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      l += log_poisson(counts(g, s), lambda_gene_spot(g, s));
+  return l;
+}
+
+double VariantModel::log_likelihood(const IMatrix &counts) const {
+  double l = 0;
+  for(size_t t = 0; t < T; ++t)
+    l += log_likelihood_factor(counts, t);
+
+  for(size_t s = 0; s < S; ++s)
+    l += log_gamma(spot_scaling(s), hyperparameters.spot_a,
+        1.0 / hyperparameters.spot_b);
+  for(size_t e = 0; e < E; ++e)
+    l += log_gamma(experiment_scaling(e), hyperparameters.experiment_a,
+        1.0 / hyperparameters.experiment_b);
+
+  l += log_likelihood_poisson_counts(counts);
+
   return l;
 }
 
@@ -775,6 +769,10 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
          << "." << endl;
   VariantModel previous(*this);
 
+  double ll_previous = log_likelihood_factor(data.counts, t1)
+                     + log_likelihood_factor(data.counts, t2)
+                     + log_likelihood_poisson_counts(data.counts);
+
   Counts sub_counts = data;
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
@@ -786,7 +784,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  const bool show_timing = true;
+  const bool show_timing = false;
   VariantModel sub_model(sub_counts, 1, hyperparameters, parameters, verbosity);
   for (size_t s = 0; s < S; ++s) {
     sub_model.spot_scaling[s] = spot_scaling[s];
@@ -856,7 +854,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
   // randomly initialize P
   if (verbosity >= Verbosity::Debug)
     cout << "initializing p of theta." << endl;
-  if (false)  // TODO make this CLI-switchable
+  if (true)  // TODO make this CLI-switchable
     p_theta[t2] = prob_to_neg_odds(sample_beta<Float>(
         hyperparameters.theta_p_1, hyperparameters.theta_p_2));
   else
@@ -879,6 +877,18 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     // NOTE: gamma_distribution takes a shape and scale parameter
     theta(s, t2) = gamma_distribution<Float>(
         r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
+
+  double ll_updated = log_likelihood_factor(data.counts, t1)
+                    + log_likelihood_factor(data.counts, t2)
+                    + log_likelihood_poisson_counts(data.counts);
+
+  cout << "ll_previous = " << ll_previous << endl
+    << "ll_updated = " << ll_updated << endl;
+  if(ll_updated < ll_previous) {
+    *this = previous;
+    cout << "ll_REJECT" << endl;
+  } else
+    cout << "ll_ACCEPT" << endl;
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
