@@ -60,6 +60,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_spot(S, arma::fill::zeros),
       contributions_experiment(E, arma::fill::zeros),
+      lambda_gene_spot(G, S, arma::fill::zeros),
       phi(G, T),
       theta(S, T),
       spot_scaling(S, arma::fill::ones),
@@ -139,16 +140,15 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
           r_theta(t), 1 / p_theta(t))(EntropySource::rng);
 
   // randomly initialize the contributions
-  if(verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::Debug)
     cout << "initializing contributions." << endl;
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       vector<double> prob(T);
-      double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += prob[t] = phi(g, t) * theta(s, t);
+        lambda_gene_spot(g, s) += prob[t] = phi(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
-        prob[t] /= z;
+        prob[t] /= lambda_gene_spot(g, s);
       auto v = sample_multinomial<Int>(c.counts(g, s), prob);
       for (size_t t = 0; t < T; ++t) {
         contributions_gene_type(g, t) += v[t];
@@ -352,6 +352,7 @@ void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
     contrib_gene_type(g, t) += v[t];
     contrib_spot_type(s, t) += v[t];
   }
+  lambda_gene_spot(g, s) = z;
 }
 
 /** sample count decomposition */
@@ -671,28 +672,13 @@ void VariantModel::update_experiment_scaling_long(const Counts &data) {
     experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
 
-void VariantModel::gibbs_sample(const Counts &data, bool timing) {
+void VariantModel::gibbs_sample(const Counts &data, GibbsSample which,
+                                bool timing) {
   check_model(data.counts);
 
   Timer timer;
-  sample_contributions(data.counts);
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  timer.tick();
-  sample_spot_scaling();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
-
-  if (E > 1 and parameters.activate_experiment_scaling) {
-    timer.tick();
-    sample_experiment_scaling(data);
+  if (flagged(which & GibbsSample::contributions)) {
+    sample_contributions(data.counts);
     if (timing and verbosity >= Verbosity::Info)
       cout << "This took " << timer.tock() << "μs." << endl;
     if (verbosity >= Verbosity::Everything)
@@ -700,37 +686,199 @@ void VariantModel::gibbs_sample(const Counts &data, bool timing) {
     check_model(data.counts);
   }
 
-  timer.tick();
-  sample_p_and_r();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
+  if (flagged(which & GibbsSample::spot_scaling)) {
+    timer.tick();
+    sample_spot_scaling();
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
 
-  timer.tick();
-  sample_p_and_r_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
+  if (flagged(which & GibbsSample::experiment_scaling)) {
+    if (E > 1 and parameters.activate_experiment_scaling) {
+      timer.tick();
+      sample_experiment_scaling(data);
+      if (timing and verbosity >= Verbosity::Info)
+        cout << "This took " << timer.tock() << "μs." << endl;
+      if (verbosity >= Verbosity::Everything)
+        cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+      check_model(data.counts);
+    }
+  }
 
-  timer.tick();
-  sample_phi();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
+  if (flagged(which & (GibbsSample::phi_r | GibbsSample::phi_p))) {
+    timer.tick();
+    sample_p_and_r();
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
 
-  timer.tick();
-  sample_theta();
-  if (timing and verbosity >= Verbosity::Info)
-    cout << "This took " << timer.tock() << "μs." << endl;
-  if (verbosity >= Verbosity::Everything)
-    cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-  check_model(data.counts);
+  if (flagged(which & (GibbsSample::theta_r | GibbsSample::theta_p))) {
+    timer.tick();
+    sample_p_and_r_theta();
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
+
+  if (flagged(which & GibbsSample::phi)) {
+    timer.tick();
+    sample_phi();
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
+
+  if (flagged(which & GibbsSample::theta)) {
+    timer.tick();
+    sample_theta();
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
+
+  if (flagged(which & GibbsSample::merge)) {
+    timer.tick();
+    sample_merge(data, which);
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
+}
+
+void VariantModel::sample_merge(const Counts &data, GibbsSample which) {
+  if (T <= 2)
+    return;
+  size_t t1 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
+  size_t t2 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
+  while (t1 == t2)
+    t2 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
+  sample_merge(data, t1, t2, which);
+}
+
+void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which) {
+  if (verbosity >= Verbosity::Info)
+    cout << "Performing a merge step. Merging types " << t1 << " and " << t2
+         << "." << endl;
+  VariantModel previous(*this);
+
+  Counts sub_counts = data;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
+      sub_counts.counts(g, s) = std::binomial_distribution<Int>(
+          data.counts(g, s),
+          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
+      // remove effect of current parameters
+      lambda_gene_spot(g, s) -= lambda;
+    }
+
+  const bool show_timing = true;
+  VariantModel sub_model(sub_counts, 1, hyperparameters, parameters, verbosity);
+  for (size_t s = 0; s < S; ++s) {
+    sub_model.spot_scaling[s] = spot_scaling[s];
+    sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
+  }
+  for (size_t e = 0; e < E; ++e)
+    sub_model.experiment_scaling[e] = experiment_scaling[e];
+
+  // keep spot and experiment scaling fixed
+  // don't recurse into either merge or sample steps
+  which = which
+          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
+              | GibbsSample::merge | GibbsSample::split);
+  for (size_t i = 0; i < 20; ++i)
+    sub_model.gibbs_sample(sub_counts, which, show_timing);
+
+  cout << "bla" << endl;
+  for (size_t g = 0; g < G; ++g) {
+    phi(g, t1) = sub_model.phi(g, 0);
+    r(g, t1) = sub_model.r(g, 0);
+    p(g, t1) = sub_model.p(g, 0);
+    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, 0);
+  }
+
+  cout << "blub" << endl;
+  for (size_t s = 0; s < S; ++s) {
+    theta(s, t1) = sub_model.theta(s, 0);
+    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, 0);
+  }
+  r_theta(t1) = sub_model.r_theta(0);
+  p_theta(t1) = sub_model.p_theta( 0);
+  cout << "check" << endl;
+
+  // TODO update lambda_gene_spot
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      // add effect of updated parameters
+      lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
+
+  // TODO: reinitialize t2's contributions
+  for (size_t g = 0; g < G; ++g)
+    p(g, t2) = prob_to_neg_odds(
+        sample_beta<Float>(hyperparameters.phi_p_1, hyperparameters.phi_p_2,
+                           EntropySource::rngs[omp_get_thread_num()]));
+
+  cout << "foo" << endl;
+  // initialize R
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing r of phi." << endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    r(g, t2) = gamma_distribution<Float>(
+        hyperparameters.phi_r_1,
+        1 / hyperparameters.phi_r_2)(EntropySource::rngs[omp_get_thread_num()]);
+
+  cout << "bar" << endl;
+  // randomly initialize Phi
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing phi." << endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    phi(g, t2) = gamma_distribution<Float>(
+        r(g, t2), 1 / p(g, t2))(EntropySource::rngs[omp_get_thread_num()]);
+
+  // randomly initialize P
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing p of theta." << endl;
+  if (false)  // TODO make this CLI-switchable
+    p_theta[t2] = prob_to_neg_odds(sample_beta<Float>(
+        hyperparameters.theta_p_1, hyperparameters.theta_p_2));
+  else
+    p_theta[t2] = 1;
+
+  // randomly initialize R
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing r of theta." << endl;
+  // NOTE: gamma_distribution takes a shape and scale parameter
+  r_theta[t2] = gamma_distribution<Float>(
+      hyperparameters.theta_r_1,
+      1 / hyperparameters.theta_r_2)(EntropySource::rng);
+
+  // initialize Theta
+  // Theta = rand(P,T);
+  // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
+  if (verbosity >= Verbosity::Debug)
+    cout << "initializing theta." << endl;
+  for (size_t s = 0; s < S; ++s)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    theta(s, t2) = gamma_distribution<Float>(
+        r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {

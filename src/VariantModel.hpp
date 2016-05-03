@@ -7,6 +7,51 @@
 #include "verbosity.hpp"
 
 namespace FactorAnalysis {
+
+enum class GibbsSample {
+  empty = 0,
+  contributions = 1 << 0,
+  phi = 1 << 1,
+  phi_r = 1 << 2,
+  phi_p = 1 << 3,
+  theta = 1 << 4,
+  theta_r = 1 << 5,
+  theta_p = 1 << 6,
+  spot_scaling = 1 << 7,
+  experiment_scaling = 1 << 8,
+  merge = 1 << 9,
+  split = 1 << 10
+};
+
+inline constexpr GibbsSample operator&(GibbsSample a, GibbsSample b) {
+  return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
+}
+
+inline constexpr GibbsSample operator|(GibbsSample a, GibbsSample b) {
+  return static_cast<GibbsSample>(static_cast<int>(a) | static_cast<int>(b));
+}
+
+inline constexpr GibbsSample operator^(GibbsSample a, GibbsSample b) {
+  return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
+}
+
+inline constexpr GibbsSample
+operator~(GibbsSample a) {
+  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 11) - 1));
+}
+
+inline constexpr GibbsSample DefaultGibbs() {
+  return GibbsSample::contributions | GibbsSample::phi | GibbsSample::phi_r
+         | GibbsSample::phi_p | GibbsSample::theta | GibbsSample::theta_r
+         | GibbsSample::theta_p | GibbsSample::spot_scaling
+         | GibbsSample::experiment_scaling | GibbsSample::merge
+         | GibbsSample::split;
+}
+
+inline bool flagged(GibbsSample x) {
+  return (GibbsSample::empty | x) != GibbsSample::empty;
+}
+
 struct VariantModel {
   /** number of genes */
   const size_t G;
@@ -23,6 +68,9 @@ struct VariantModel {
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_spot, contributions_experiment;
+
+  /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
+  Matrix lambda_gene_spot;
 
   /** factor loading matrix */
   Matrix phi;
@@ -97,7 +145,12 @@ struct VariantModel {
   void sample_experiment_scaling(const Counts &data);
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(const Counts &data, bool timing);
+  void gibbs_sample(const Counts &data, GibbsSample which, bool timing);
+
+  void sample_merge(const Counts &data, GibbsSample which);
+  void sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which);
+  void sample_split(const Counts &data, GibbsSample which);
+  void sample_split_merge(const Counts &data, GibbsSample which);
 
   std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
 
