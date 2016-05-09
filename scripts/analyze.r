@@ -220,8 +220,6 @@ st.multi = function(d,
     }
     dev.off()
 
-
-
     marg = as.matrix(as.data.frame(lapply(theta, colSums)))
     pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
     heatmap(marg, main="Factor activities across samples")
