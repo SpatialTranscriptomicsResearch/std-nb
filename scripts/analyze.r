@@ -161,7 +161,6 @@ dimensionality.reduction.plot.multiple = function(simil, name, ...) {
 
 st.multi = function(d,
                     single.experiment=FALSE,
-                    common.scale=T,
                     simple.title=F,
                     path="./",
                     ngenes=50,
@@ -193,7 +192,7 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
-    pdf(paste(path, "spot-scaling.pdf", sep=""), width=w, height=h)
+    pdf(paste(path, "spot-scaling-individual-scale.pdf", sep=""), width=w, height=h)
     par(mfrow=c(nrows, ncols))
     cur.max = max(d$spotscale)
     for(name in names(spotscale)) {
@@ -203,12 +202,25 @@ st.multi = function(d,
         title.text = paste(name, "- Spot Scaling:",
                            round(min(cur),3), "-", round(max(cur),3),
                            "Sum =", round(sum(cur),3))
-      if(common.scale)
-        visualize(cur, title=title.text, zlim=c(0,cur.max))
-      else
-        visualize(cur, title=title.text)
+      visualize(cur, title=title.text)
     }
     dev.off()
+
+    pdf(paste(path, "spot-scaling-common-scale.pdf", sep=""), width=w, height=h)
+    par(mfrow=c(nrows, ncols))
+    cur.max = max(d$spotscale)
+    for(name in names(spotscale)) {
+      cur = spotscale[[name]][,1]
+      title.text = paste(name, "- Spot Scaling")
+      if(!simple.title)
+        title.text = paste(name, "- Spot Scaling:",
+                           round(min(cur),3), "-", round(max(cur),3),
+                           "Sum =", round(sum(cur),3))
+      visualize(cur, title=title.text, zlim=c(0,cur.max))
+    }
+    dev.off()
+
+
 
     marg = as.matrix(as.data.frame(lapply(theta, colSums)))
     pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
@@ -218,7 +230,7 @@ st.multi = function(d,
     heatmap(t(log(marg+1)), main="Factor log-activities within samples")
     dev.off()
 
-    pdf(paste(path, "theta-factors.pdf", sep=""), width=w, height=h)
+    pdf(paste(path, "theta-factors-individual-scale.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(dtheta)) {
       par(mfrow=c(nrows, ncols))
       cur.max = 0
@@ -231,13 +243,29 @@ st.multi = function(d,
           title.text = paste(name, "-", factor.name, ":",
                              round(min(cur),3), "-", round(max(cur),3),
                              "Sum =", round(sum(cur),3))
-        if(common.scale)
-          visualize(cur, title=title.text, zlim=c(0,cur.max))
-        else
-          visualize(cur, title=title.text)
+        visualize(cur, title=title.text)
       }
     }
     dev.off()
+
+    pdf(paste(path, "theta-factors-common-scale.pdf", sep=""), width=w, height=h)
+    for(factor.name in colnames(dtheta)) {
+      par(mfrow=c(nrows, ncols))
+      cur.max = 0
+      for(name in names(theta))
+        cur.max = max(cur.max, max(theta[[name]][,factor.name]))
+      for(name in names(theta)) {
+        cur = theta[[name]][,factor.name]
+        title.text = paste(name, "-", factor.name)
+        if(!simple.title)
+          title.text = paste(name, "-", factor.name, ":",
+                             round(min(cur),3), "-", round(max(cur),3),
+                             "Sum =", round(sum(cur),3))
+        visualize(cur, title=title.text, zlim=c(0,cur.max))
+      }
+    }
+    dev.off()
+
     pdf(paste(path, "phi-top-genes.pdf", sep=""), width=6, height=15)
     for(factor.name in colnames(d$phi)) {
       ge = d$phi[,factor.name]
