@@ -153,10 +153,14 @@ struct VariantModel {
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(const Counts &data, GibbsSample which, bool timing);
 
-  void sample_merge(const Counts &data, GibbsSample which);
-  void sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which);
-  void sample_split(const Counts &data, GibbsSample which);
   void sample_split_merge(const Counts &data, GibbsSample which);
+  void sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which);
+  void sample_split(const Counts &data, size_t t, GibbsSample which);
+  // void sample_split_merge(const Counts &data, GibbsSample which);
+
+  VariantModel run_submodel(size_t t, size_t n, const Counts &counts, GibbsSample which);
+
+  size_t find_weakest_factor() const;
 
   std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
 

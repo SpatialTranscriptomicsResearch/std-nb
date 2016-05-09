@@ -8,6 +8,7 @@
 #include "stats.hpp"
 #include "timer.hpp"
 
+const size_t num_sub_gibbs = 100;
 #define DO_PARALLEL 1
 
 #define DEFAULT_SEPARATOR "\t"
@@ -15,6 +16,25 @@
 
 using namespace std;
 namespace FactorAnalysis {
+
+bool gibbs_test(Float nextG , Float G, Verbosity verbosity, Float temperature=50) {
+  double dG = nextG - G;
+  double r = RandomDistribution::Uniform(EntropySource::rng);
+  double p = std::min<double>(1.0, MCMC::boltzdist(-dG, temperature));
+  if (verbosity >= Verbosity::Verbose)
+    std::cerr << "T = " << temperature << " nextG = " << nextG << " G = " << G
+      << " dG = " << dG << " p = " << p << " r = " << r << std::endl;
+  if (std::isnan(nextG) == 0 and (dG > 0 or r <= p)) {
+    if (verbosity >= Verbosity::Verbose)
+      std::cerr << "Accepted!" << std::endl;
+    return true;
+  } else {
+    if (verbosity >= Verbosity::Verbose)
+      std::cerr << "Rejected!" << std::endl;
+    return false;
+  }
+}
+
 const Float phi_scaling = 1.0;
 
 template <typename T>
@@ -250,29 +270,56 @@ double VariantModel::log_likelihood_factor(const IMatrix &counts, size_t t) cons
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(phi(g, t), r(g, t), 1.0 / p(g, t));
 
+  cout << "ll_phi = " << l << endl;
+
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(r(g, t), hyperparameters.phi_r_1,
         1.0 / hyperparameters.phi_r_2);
 
+  cout << "ll_phi_r = " << l << endl;
+
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     l += log_beta_neg_odds(p(g, t), hyperparameters.phi_p_1,
         hyperparameters.phi_p_2);
 
+  cout << "ll_phi_p = " << l << endl;
+
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
+  for (size_t s = 0; s < S; ++s) {
     // NOTE: log_gamma takes a shape and scale parameter
-    l += log_gamma(theta(t, t), r_theta(t), 1.0 / p_theta(t));
+    auto cur = log_gamma(theta(s, t), r_theta(t), 1.0 / p_theta(t));
+    if (false and cur > 0)
+      cout << "ll_cur > 0 for (s,t) = (" + to_string(s) + ", " + to_string(t) + "): " + to_string(cur)
+        + " theta = " + to_string(theta(s,t))
+        + " r = " + to_string(r_theta(t))
+        + " p = " + to_string(p_theta(t))
+        + " (r - 1) * log(theta) = " + to_string((r_theta(t)- 1) * log(theta(s,t)))
+        + " - theta / 1/p = " + to_string(- theta(s,t) / 1/p_theta(t))
+        + " - lgamma(r) = " + to_string(- lgamma(r_theta(t)))
+        + " - r * log(1/p) = " + to_string(- r_theta(t) * log(1/p_theta(t)))
+        + "\n" << flush;
+    l += cur;
+  }
+
+  cout << "ll_theta = " << l << endl;
 
   // NOTE: log_gamma takes a shape and scale parameter
   l += log_gamma(r_theta(t), hyperparameters.theta_r_1,
       1.0 / hyperparameters.theta_r_2);
 
+  cout << "ll_theta_r = " << l << endl;
+
   l += log_beta_neg_odds(p_theta(t), hyperparameters.theta_p_1,
       hyperparameters.theta_p_2);
 
+  cout << "ll_theta_p = " << l << endl;
+
+  if(std::isnan(l) or std::isinf(l))
+    cout << "Warning: log likelihoood contribution of factor " << t << " = " << l << endl;
+  cout << "ll_X = " << l << endl;
   return l;
 }
 
@@ -280,8 +327,16 @@ double VariantModel::log_likelihood_poisson_counts(const IMatrix &counts) const 
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      l += log_poisson(counts(g, s), lambda_gene_spot(g, s));
+    for (size_t s = 0; s < S; ++s) {
+      auto cur = log_poisson(counts(g, s), lambda_gene_spot(g, s));
+      if(std::isinf(cur) or std::isnan(cur))
+        cout << "ll poisson(g=" + to_string(g)
+          + ",s=" + to_string(s) + ") = " + to_string(cur)
+          + " counts = " + to_string(counts(g,s))
+          + " lambda = " + to_string(lambda_gene_spot(g,s))
+          + "\n" << flush;
+      l += cur;
+    }
   return l;
 }
 
@@ -393,10 +448,12 @@ void VariantModel::sample_theta() {
     const Float scale = spot_scaling[s] * experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
-      theta(s, t) = gamma_distribution<Float>(
+      theta(s, t) = std::max<Float>(
+        std::numeric_limits<Float>::denorm_min(),
+        gamma_distribution<Float>(
           r_theta[t] + contributions_spot_type(s, t),
           1.0 / (p_theta[t] + intensities[t] * scale))(
-          EntropySource::rng);
+          EntropySource::rng));
   }
   if ((parameters.enforce_mean & ForceMean::Theta) != ForceMean::None)
 #pragma omp parallel for if (DO_PARALLEL)
@@ -680,6 +737,18 @@ void VariantModel::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
+  if (flagged(which & GibbsSample::merge)) {
+    // NOTE: this has to be done right after the Gibbs step for the contributions
+    // because otherwise the lambda_gene_spot variables are not correct
+    timer.tick();
+    sample_split_merge(data, which);
+    if (timing and verbosity >= Verbosity::Info)
+      cout << "This took " << timer.tock() << "μs." << endl;
+    if (verbosity >= Verbosity::Everything)
+      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
+    check_model(data.counts);
+  }
+
   if (flagged(which & GibbsSample::spot_scaling)) {
     timer.tick();
     sample_spot_scaling();
@@ -742,25 +811,133 @@ void VariantModel::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::merge)) {
-    timer.tick();
-    sample_merge(data, which);
-    if (timing and verbosity >= Verbosity::Info)
-      cout << "This took " << timer.tock() << "μs." << endl;
-    if (verbosity >= Verbosity::Everything)
-      cout << "Log-likelihood = " << log_likelihood(data.counts) << endl;
-    check_model(data.counts);
-  }
 }
 
-void VariantModel::sample_merge(const Counts &data, GibbsSample which) {
-  if (T <= 2)
+void VariantModel::sample_split_merge(const Counts &data, GibbsSample which) {
+  if (T < 2)
     return;
-  size_t t1 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
-  size_t t2 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
-  while (t1 == t2)
-    t2 = std::uniform_int_distribution<Int>(0, T - 1)(EntropySource::rng);
-  sample_merge(data, t1, t2, which);
+
+  size_t s1 = std::uniform_int_distribution<Int>(0, S - 1)(EntropySource::rng);
+  size_t s2 = std::uniform_int_distribution<Int>(0, S - 1)(EntropySource::rng);
+
+  vector<Float> p1(T), p2(T);
+  for (size_t t = 0; t < T; ++t) {
+    p1[t] = theta(s1, t);
+    p2[t] = theta(s2, t);
+  }
+
+  size_t t1
+      = std::discrete_distribution<Int>(begin(p1), end(p1))(EntropySource::rng);
+  size_t t2
+      = std::discrete_distribution<Int>(begin(p2), end(p2))(EntropySource::rng);
+
+  if (t1 != t2)
+    sample_merge(data, t1, t2, which);
+  else
+    sample_split(data, t1, which);
+}
+
+size_t VariantModel::find_weakest_factor() const {
+  vector<Float> x (T, 0);
+  cout << "Factor strengths: ";
+  for(size_t t = 0; t < T; ++t) {
+    Float y = 0;
+    for(size_t g = 0; g < G; ++g)
+      y += phi(g, t);
+    for(size_t s = 0; s < S; ++s)
+      x[t] += y * theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+    cout << " " << x[t];
+  }
+  cout << endl;
+  return std::distance(begin(x), min_element(begin(x), end(x)));
+}
+
+VariantModel VariantModel::run_submodel(size_t t, size_t n, const Counts &counts, GibbsSample which) {
+  const bool show_timing = false;
+  VariantModel sub_model(counts, t, hyperparameters, parameters, Verbosity::Info);
+  for (size_t s = 0; s < S; ++s) {
+    sub_model.spot_scaling[s] = spot_scaling[s];
+    sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
+  }
+  for (size_t e = 0; e < E; ++e)
+    sub_model.experiment_scaling[e] = experiment_scaling[e];
+
+  // keep spot and experiment scaling fixed
+  // don't recurse into either merge or sample steps
+  which = which
+          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
+              | GibbsSample::merge | GibbsSample::split);
+  for (size_t i = 0; i < n; ++i)
+    sub_model.gibbs_sample(counts, which, show_timing);
+  return sub_model;
+}
+
+void VariantModel::sample_split(const Counts &data, size_t t1, GibbsSample which) {
+  size_t t2 = find_weakest_factor();
+  if (verbosity >= Verbosity::Info)
+    cout << "Performing a split step. Splitting " << t1 << " and " << t2
+         << "." << endl;
+  VariantModel previous(*this);
+
+  double ll_previous = log_likelihood_factor(data.counts, t1)
+                     + log_likelihood_factor(data.counts, t2)
+                     + log_likelihood_poisson_counts(data.counts);
+
+  Counts sub_counts = data;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
+      sub_counts.counts(g, s) = std::binomial_distribution<Int>(
+          data.counts(g, s),
+          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
+      // remove effect of current parameters
+      lambda_gene_spot(g, s) -= lambda;
+    }
+
+  VariantModel sub_model = run_submodel(2, num_sub_gibbs, sub_counts, which);
+
+  for (size_t g = 0; g < G; ++g) {
+    phi(g, t1) = sub_model.phi(g, 0);
+    phi(g, t2) = sub_model.phi(g, 1);
+    r(g, t1) = sub_model.r(g, 0);
+    r(g, t2) = sub_model.r(g, 1);
+    p(g, t1) = sub_model.p(g, 0);
+    p(g, t2) = sub_model.p(g, 1);
+    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, 0);
+    contributions_gene_type(g, t2) = sub_model.contributions_gene_type(g, 1);
+  }
+
+  for (size_t s = 0; s < S; ++s) {
+    theta(s, t1) = sub_model.theta(s, 0);
+    theta(s, t2) = sub_model.theta(s, 1);
+    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, 0);
+    contributions_spot_type(s, t2) = sub_model.contributions_spot_type(s, 1);
+  }
+  r_theta(t1) = sub_model.r_theta(0);
+  r_theta(t2) = sub_model.r_theta(1);
+  p_theta(t1) = sub_model.p_theta(0);
+  p_theta(t2) = sub_model.p_theta(1);
+
+  // TODO update lambda_gene_spot
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      // add effect of updated parameters
+      lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
+
+  double ll_updated = log_likelihood_factor(data.counts, t1)
+                    + log_likelihood_factor(data.counts, t2)
+                    + log_likelihood_poisson_counts(data.counts);
+
+  auto bla = sub_model.find_weakest_factor();
+  bla = bla *2;
+  cout << "ll_split_previous = " << ll_previous << endl
+    << "ll_split_updated = " << ll_updated << endl;
+  if(gibbs_test(ll_updated, ll_previous, verbosity)) {
+    cout << "ll_split_ACCEPT" << endl;
+  } else {
+    *this = previous;
+    cout << "ll_split_REJECT" << endl;
+  }
 }
 
 void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which) {
@@ -784,24 +961,8 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  const bool show_timing = false;
-  VariantModel sub_model(sub_counts, 1, hyperparameters, parameters, verbosity);
-  for (size_t s = 0; s < S; ++s) {
-    sub_model.spot_scaling[s] = spot_scaling[s];
-    sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
-  }
-  for (size_t e = 0; e < E; ++e)
-    sub_model.experiment_scaling[e] = experiment_scaling[e];
+  VariantModel sub_model = run_submodel(1, num_sub_gibbs, sub_counts, which);
 
-  // keep spot and experiment scaling fixed
-  // don't recurse into either merge or sample steps
-  which = which
-          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
-              | GibbsSample::merge | GibbsSample::split);
-  for (size_t i = 0; i < 20; ++i)
-    sub_model.gibbs_sample(sub_counts, which, show_timing);
-
-  cout << "bla" << endl;
   for (size_t g = 0; g < G; ++g) {
     phi(g, t1) = sub_model.phi(g, 0);
     r(g, t1) = sub_model.r(g, 0);
@@ -809,14 +970,12 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, 0);
   }
 
-  cout << "blub" << endl;
   for (size_t s = 0; s < S; ++s) {
     theta(s, t1) = sub_model.theta(s, 0);
     contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, 0);
   }
   r_theta(t1) = sub_model.r_theta(0);
   p_theta(t1) = sub_model.p_theta( 0);
-  cout << "check" << endl;
 
   // TODO update lambda_gene_spot
   for (size_t g = 0; g < G; ++g)
@@ -830,7 +989,6 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
         sample_beta<Float>(hyperparameters.phi_p_1, hyperparameters.phi_p_2,
                            EntropySource::rngs[omp_get_thread_num()]));
 
-  cout << "foo" << endl;
   // initialize R
   if (verbosity >= Verbosity::Debug)
     cout << "initializing r of phi." << endl;
@@ -878,17 +1036,26 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     theta(s, t2) = gamma_distribution<Float>(
         r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
 
+  // TODO update lambda_gene_spot
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      // add effect of updated parameters
+      lambda_gene_spot(g, s) += phi(g, t2) * theta(s, t2);
+
   double ll_updated = log_likelihood_factor(data.counts, t1)
                     + log_likelihood_factor(data.counts, t2)
                     + log_likelihood_poisson_counts(data.counts);
 
-  cout << "ll_previous = " << ll_previous << endl
-    << "ll_updated = " << ll_updated << endl;
-  if(ll_updated < ll_previous) {
+  auto bla = sub_model.find_weakest_factor();
+  bla = bla *2;
+  cout << "ll_merge_previous = " << ll_previous << endl
+    << "ll_merge_updated = " << ll_updated << endl;
+  if(gibbs_test(ll_updated, ll_previous, verbosity)) {
+    cout << "ll_merge_ACCEPT" << endl;
+  } else {
     *this = previous;
-    cout << "ll_REJECT" << endl;
-  } else
-    cout << "ll_ACCEPT" << endl;
+    cout << "ll_merge_REJECT" << endl;
+  }
 }
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
