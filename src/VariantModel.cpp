@@ -932,7 +932,7 @@ void VariantModel::sample_split(const Counts &data, size_t t1, GibbsSample which
   bla = bla *2;
   cout << "ll_split_previous = " << ll_previous << endl
     << "ll_split_updated = " << ll_updated << endl;
-  if(gibbs_test(ll_updated, ll_previous, verbosity)) {
+  if(true or gibbs_test(ll_updated, ll_previous, verbosity)) {
     cout << "ll_split_ACCEPT" << endl;
   } else {
     *this = previous;
