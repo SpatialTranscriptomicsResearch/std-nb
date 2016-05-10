@@ -30,18 +30,18 @@ test.transforming = function(x) {
   return(all(x == reform.data(break.data(x))))
 }
 
+st.load.matrix = function(prefix, path, suffix="") {
+  return(as.matrix(read.delim(paste(prefix,
+                                    path,
+                                    suffix,
+                                    sep=""),
+                              header=T,
+                              row.names=1,
+                              sep="\t",
+                              check.names=F)))
+}
+
 st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
-  load.matrix = function(path.prefix,
-                         path) {
-    return(as.matrix(read.delim(paste(path.prefix,
-                                      path,
-                                      path.suffix,
-                                      sep=""),
-                                header=T,
-                                row.names=1,
-                                sep="\t",
-                                check.names=F)))
-  }
   load.vec = function(path.prefix, path) {
     x = read.delim(paste(path.prefix, path, path.suffix, sep=""),
                    header=F, row.names=1, sep="\t")
@@ -50,15 +50,15 @@ st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
     return(y)
   }
   d = list()
-  d$phi = load.matrix(path.prefix, "phi.txt")
-  d$theta = load.matrix(path.prefix, "theta.txt")
-  d$phi.r = load.matrix(path.prefix, "r.txt")
-  d$phi.p = load.matrix(path.prefix, "p.txt")
+  d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
+  d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
+  d$phi.r = st.load.matrix(path.prefix, "r.txt", path.suffix)
+  d$phi.p = st.load.matrix(path.prefix, "p.txt", path.suffix)
   d$theta.r = load.vec(path.prefix, "r_theta.txt")
   d$theta.p = load.vec(path.prefix, "p_theta.txt")
   if(load.means) {
-    d$means = load.matrix(path.prefix, "means.txt")
-    d$means.poisson = load.matrix(path.prefix, "means_poisson.txt")
+    d$means = st.load.matrix(path.prefix, "means.txt", path.suffix)
+    d$means.poisson = st.load.matrix(path.prefix, "means_poisson.txt", path.suffix)
   }
   d$spotscale = load.vec(path.prefix, "spot_scaling.txt")
   d$expscale = load.vec(path.prefix, "experiment_scaling.txt")
@@ -159,6 +159,18 @@ dimensionality.reduction.plot.multiple = function(simil, name, ...) {
   return(simil.break)
 }
 
+st.load.thetas = function(dir) {
+  paths = list.files(dir, "iter.*_theta.txt")
+  paths = sort(grep("_._theta", paths, invert=T, value=T))
+
+  thetas = c()
+  for(path in paths) {
+    print(path)
+    thetas = cbind(thetas, st.load.matrix(dir, path))
+  }
+  return(thetas)
+}
+
 st.multi = function(d,
                     single.experiment=FALSE,
                     simple.title=F,
@@ -192,6 +204,12 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
+    pdf(paste(path, "color-bar", sep=""), width=2, height=6)
+    par(mar=c(0,0,0,0))
+    num.steps = 1000
+    image(as.matrix(1:num.steps, nrow=1, ncol=num.steps), col=default.viz.pal(num.steps))
+    dev.off()
+
     pdf(paste(path, "spot-scaling-individual-scale.pdf", sep=""), width=w, height=h)
     par(mfrow=c(nrows, ncols))
     cur.max = max(d$spotscale)
