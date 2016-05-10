@@ -17,7 +17,7 @@ const size_t num_sub_gibbs = 100;
 using namespace std;
 namespace FactorAnalysis {
 
-bool gibbs_test(Float nextG , Float G, Verbosity verbosity, Float temperature=50) {
+bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50) {
   double dG = nextG - G;
   double r = RandomDistribution::Uniform(EntropySource::rng);
   double p = std::min<double>(1.0, MCMC::boltzdist(-dG, temperature));
@@ -872,6 +872,23 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n, const Counts &counts
   return sub_model;
 }
 
+void VariantModel::lift_sub_model(const VariantModel &sub_model, size_t t1, size_t t2) {
+  for (size_t g = 0; g < G; ++g) {
+    phi(g, t1) = sub_model.phi(g, t2);
+    r(g, t1) = sub_model.r(g, t2);
+    p(g, t1) = sub_model.p(g, t2);
+    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, t2);
+  }
+
+  for (size_t s = 0; s < S; ++s) {
+    theta(s, t1) = sub_model.theta(s, t2);
+    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, t2);
+  }
+  r_theta(t1) = sub_model.r_theta(t2);
+  p_theta(t1) = sub_model.p_theta(t2);
+}
+
+
 void VariantModel::sample_split(const Counts &data, size_t t1, GibbsSample which) {
   size_t t2 = find_weakest_factor();
   if (verbosity >= Verbosity::Info)
@@ -896,32 +913,12 @@ void VariantModel::sample_split(const Counts &data, size_t t1, GibbsSample which
 
   VariantModel sub_model = run_submodel(2, num_sub_gibbs, sub_counts, which);
 
-  for (size_t g = 0; g < G; ++g) {
-    phi(g, t1) = sub_model.phi(g, 0);
-    phi(g, t2) = sub_model.phi(g, 1);
-    r(g, t1) = sub_model.r(g, 0);
-    r(g, t2) = sub_model.r(g, 1);
-    p(g, t1) = sub_model.p(g, 0);
-    p(g, t2) = sub_model.p(g, 1);
-    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, 0);
-    contributions_gene_type(g, t2) = sub_model.contributions_gene_type(g, 1);
-  }
+  lift_sub_model(sub_model, t1, 0);
+  lift_sub_model(sub_model, t2, 1);
 
-  for (size_t s = 0; s < S; ++s) {
-    theta(s, t1) = sub_model.theta(s, 0);
-    theta(s, t2) = sub_model.theta(s, 1);
-    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, 0);
-    contributions_spot_type(s, t2) = sub_model.contributions_spot_type(s, 1);
-  }
-  r_theta(t1) = sub_model.r_theta(0);
-  r_theta(t2) = sub_model.r_theta(1);
-  p_theta(t1) = sub_model.p_theta(0);
-  p_theta(t2) = sub_model.p_theta(1);
-
-  // TODO update lambda_gene_spot
+  // add effect of updated parameters
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      // add effect of updated parameters
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
 
   double ll_updated = log_likelihood_factor(data.counts, t1)
@@ -963,27 +960,13 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
 
   VariantModel sub_model = run_submodel(1, num_sub_gibbs, sub_counts, which);
 
-  for (size_t g = 0; g < G; ++g) {
-    phi(g, t1) = sub_model.phi(g, 0);
-    r(g, t1) = sub_model.r(g, 0);
-    p(g, t1) = sub_model.p(g, 0);
-    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, 0);
-  }
+  lift_sub_model(sub_model, t1, 0);
 
-  for (size_t s = 0; s < S; ++s) {
-    theta(s, t1) = sub_model.theta(s, 0);
-    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, 0);
-  }
-  r_theta(t1) = sub_model.r_theta(0);
-  p_theta(t1) = sub_model.p_theta( 0);
-
-  // TODO update lambda_gene_spot
+  // add effect of updated parameters
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      // add effect of updated parameters
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
 
-  // TODO: reinitialize t2's contributions
   for (size_t g = 0; g < G; ++g)
     p(g, t2) = prob_to_neg_odds(
         sample_beta<Float>(hyperparameters.phi_p_1, hyperparameters.phi_p_2,
@@ -999,7 +982,6 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
         hyperparameters.phi_r_1,
         1 / hyperparameters.phi_r_2)(EntropySource::rngs[omp_get_thread_num()]);
 
-  cout << "bar" << endl;
   // randomly initialize Phi
   if (verbosity >= Verbosity::Debug)
     cout << "initializing phi." << endl;
@@ -1009,7 +991,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     phi(g, t2) = gamma_distribution<Float>(
         r(g, t2), 1 / p(g, t2))(EntropySource::rngs[omp_get_thread_num()]);
 
-  // randomly initialize P
+  // randomly initialize P of theta
   if (verbosity >= Verbosity::Debug)
     cout << "initializing p of theta." << endl;
   if (true)  // TODO make this CLI-switchable
@@ -1018,7 +1000,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
   else
     p_theta[t2] = 1;
 
-  // randomly initialize R
+  // initialize R of theta
   if (verbosity >= Verbosity::Debug)
     cout << "initializing r of theta." << endl;
   // NOTE: gamma_distribution takes a shape and scale parameter
@@ -1027,8 +1009,6 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
       1 / hyperparameters.theta_r_2)(EntropySource::rng);
 
   // initialize Theta
-  // Theta = rand(P,T);
-  // Theta = bsxfun(@rdivide,Phi,sum(Phi,1));
   if (verbosity >= Verbosity::Debug)
     cout << "initializing theta." << endl;
   for (size_t s = 0; s < S; ++s)
@@ -1036,11 +1016,24 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     theta(s, t2) = gamma_distribution<Float>(
         r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
 
-  // TODO update lambda_gene_spot
+  // add effect of updated parameters
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      // add effect of updated parameters
       lambda_gene_spot(g, s) += phi(g, t2) * theta(s, t2);
+
+  for (size_t g = 0; g < G; ++g)
+    contributions_gene_type(g, t2) = 0;
+  for (size_t s = 0; s < S; ++s)
+    contributions_spot_type(s, t2) = 0;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      Float lambda = phi(g, t2) * theta(s, t2);
+      Int count = std::binomial_distribution<Int>(
+          data.counts(g, s),
+          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
+      contributions_gene_type(g, t2) += count;
+      contributions_spot_type(s, t2) += count;
+    }
 
   double ll_updated = log_likelihood_factor(data.counts, t1)
                     + log_likelihood_factor(data.counts, t2)

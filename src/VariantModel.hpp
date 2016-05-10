@@ -157,6 +157,7 @@ struct VariantModel {
   void sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which);
   void sample_split(const Counts &data, size_t t, GibbsSample which);
   // void sample_split_merge(const Counts &data, GibbsSample which);
+  void lift_sub_model(const VariantModel &sub_model, size_t t1, size_t t2);
 
   VariantModel run_submodel(size_t t, size_t n, const Counts &counts, GibbsSample which);
 
