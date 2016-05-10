@@ -41,27 +41,28 @@ st.load.matrix = function(prefix, path, suffix="") {
                               check.names=F)))
 }
 
+st.load.vector = function(path.prefix, path, suffix="") {
+  x = read.delim(paste(path.prefix, path, suffix, sep=""),
+                 header=F, row.names=1, sep="\t")
+  y = x[,1]
+  names(y) = rownames(x)
+  return(y)
+}
+
 st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
-  load.vec = function(path.prefix, path) {
-    x = read.delim(paste(path.prefix, path, path.suffix, sep=""),
-                   header=F, row.names=1, sep="\t")
-    y = x[,1]
-    names(y) = rownames(x)
-    return(y)
-  }
   d = list()
   d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
   d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
   d$phi.r = st.load.matrix(path.prefix, "r.txt", path.suffix)
   d$phi.p = st.load.matrix(path.prefix, "p.txt", path.suffix)
-  d$theta.r = load.vec(path.prefix, "r_theta.txt")
-  d$theta.p = load.vec(path.prefix, "p_theta.txt")
+  d$theta.r = st.load.vector(path.prefix, "r_theta.txt", path.suffix)
+  d$theta.p = st.load.vector(path.prefix, "p_theta.txt", path.suffix)
   if(load.means) {
     d$means = st.load.matrix(path.prefix, "means.txt", path.suffix)
     d$means.poisson = st.load.matrix(path.prefix, "means_poisson.txt", path.suffix)
   }
-  d$spotscale = load.vec(path.prefix, "spot_scaling.txt")
-  d$expscale = load.vec(path.prefix, "experiment_scaling.txt")
+  d$spotscale = st.load.vector(path.prefix, "spot_scaling.txt", path.suffix)
+  d$expscale = st.load.vector(path.prefix, "experiment_scaling.txt", path.suffix)
   return(d)
 }
 
