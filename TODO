@@ -18,3 +18,8 @@
   - the NB conditional posterior
   - the NM conditional posterior
   - the Poisson conditional posterior
+* write out for the split and merge steps before splitting / merging and those afterwards:
+  - the sub-counts
+  - the normalized theta matrices (and the other parameters, too!)
+* for the splitting / merging:
+  - independently also optimize the parameters without splitting / merging
