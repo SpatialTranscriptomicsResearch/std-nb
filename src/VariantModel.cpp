@@ -366,6 +366,7 @@ Matrix VariantModel::normalized_theta() const {
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot_scaling(s) * experiment_scaling_long(s);
   }
+  return m;
 }
 
 void VariantModel::store(const Counts &counts, const string &prefix,
