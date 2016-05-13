@@ -979,6 +979,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
 
+  // initialize P
   for (size_t g = 0; g < G; ++g)
     p(g, t2) = prob_to_neg_odds(
         sample_beta<Float>(hyperparameters.phi_p_1, hyperparameters.phi_p_2,
