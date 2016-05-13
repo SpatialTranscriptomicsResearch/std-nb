@@ -357,6 +357,17 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
   return l;
 }
 
+Matrix VariantModel::normalized_theta() const {
+  Matrix m = theta;
+  for (size_t t = 0; t < T; ++t) {
+    Float x = 0;
+    for (size_t g = 0; g < G; ++g)
+      x += phi(g, t);
+    for (size_t s = 0; s < S; ++s)
+      m(s, t) *= x * spot_scaling(s) * experiment_scaling_long(s);
+  }
+}
+
 void VariantModel::store(const Counts &counts, const string &prefix,
                    bool mean_and_variance) const {
   vector<string> factor_names;
@@ -368,6 +379,7 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_matrix(r, prefix + "r.txt", gene_names, factor_names);
   write_matrix(p, prefix + "p.txt", gene_names, factor_names);
   write_matrix(theta, prefix + "theta.txt", spot_names, factor_names);
+  write_matrix(normalized_theta(), prefix + "normalized_theta.txt", spot_names, factor_names);
   write_vector(r_theta, prefix + "r_theta.txt", factor_names);
   write_vector(p_theta, prefix + "p_theta.txt", factor_names);
   write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
