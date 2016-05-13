@@ -120,7 +120,7 @@ struct VariantModel {
   void store(const Counts &counts, const std::string &prefix,
                    bool mean_and_variance = false) const;
 
-  Matrix normalized_theta() const;
+  Matrix weighted_theta() const;
 
   double log_likelihood(const IMatrix &counts) const;
   double log_likelihood_factor(const IMatrix &counts, size_t t) const;

@@ -357,7 +357,7 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
   return l;
 }
 
-Matrix VariantModel::normalized_theta() const {
+Matrix VariantModel::weighted_theta() const {
   Matrix m = theta;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
@@ -380,7 +380,7 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_matrix(r, prefix + "r.txt", gene_names, factor_names);
   write_matrix(p, prefix + "p.txt", gene_names, factor_names);
   write_matrix(theta, prefix + "theta.txt", spot_names, factor_names);
-  write_matrix(normalized_theta(), prefix + "normalized_theta.txt", spot_names, factor_names);
+  write_matrix(weighted_theta(), prefix + "weighted_theta.txt", spot_names, factor_names);
   write_vector(r_theta, prefix + "r_theta.txt", factor_names);
   write_vector(p_theta, prefix + "p_theta.txt", factor_names);
   write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
