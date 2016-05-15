@@ -90,10 +90,10 @@ struct VariantModel {
   Vector experiment_scaling_long;
 
   /** shape parameter for the prior of the loading matrix */
-  Matrix r;
+  Matrix r_phi;
   /** scale parameter for the prior of the loading matrix */
   /* Stored as negative-odds */
-  Matrix p;
+  Matrix p_phi;
 
   /** shape parameter for the prior of the mixing matrix */
   Vector r_theta;
@@ -136,7 +136,7 @@ struct VariantModel {
   void sample_phi();
   Float sample_phi_sub(size_t g, size_t t, Float theta_t, RNG &rng) const;
 
-  /** sample p and r */
+  /** sample phi_p and phi_r */
   void sample_p_and_r();
 
   /** sample theta */
