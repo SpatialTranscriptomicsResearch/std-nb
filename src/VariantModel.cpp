@@ -183,6 +183,7 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
     if (parameters.activate_experiment_scaling) {
       if (verbosity >= Verbosity::Debug)
         cout << "initializing experiment scaling." << endl;
+      experiment_scaling = Vector(E, arma::fill::zeros);
       for (size_t s = 0; s < S; ++s)
         experiment_scaling(c.experiments[s]) += contributions_spot(s);
       Float z = 0;
@@ -348,9 +349,11 @@ double VariantModel::log_likelihood(const IMatrix &counts) const {
   for(size_t s = 0; s < S; ++s)
     l += log_gamma(spot_scaling(s), hyperparameters.spot_a,
         1.0 / hyperparameters.spot_b);
-  for(size_t e = 0; e < E; ++e)
-    l += log_gamma(experiment_scaling(e), hyperparameters.experiment_a,
-        1.0 / hyperparameters.experiment_b);
+  if (parameters.activate_experiment_scaling) {
+    for (size_t e = 0; e < E; ++e)
+      l += log_gamma(experiment_scaling(e), hyperparameters.experiment_a,
+                     1.0 / hyperparameters.experiment_b);
+  }
 
   l += log_likelihood_poisson_counts(counts);
 
@@ -363,8 +366,11 @@ Matrix VariantModel::weighted_theta() const {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
       x += phi(g, t);
-    for (size_t s = 0; s < S; ++s)
-      m(s, t) *= x * spot_scaling(s) * experiment_scaling_long(s);
+    for (size_t s = 0; s < S; ++s) {
+      m(s, t) *= x * spot_scaling(s) ;
+      if (parameters.activate_experiment_scaling)
+        m(s,t) *= experiment_scaling_long(s);
+    }
   }
   return m;
 }
@@ -458,7 +464,9 @@ void VariantModel::sample_theta() {
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
-    const Float scale = spot_scaling[s] * experiment_scaling_long[s];
+    Float scale = spot_scaling[s];
+    if (parameters.activate_experiment_scaling)
+      scale *= experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta(s, t) = std::max<Float>(
@@ -528,7 +536,9 @@ void VariantModel::sample_p_and_r_theta() {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s) {
       count_sums[s] = contributions_spot_type(s, t);
-      weight_sums[s] = weight_sum * spot_scaling[s] * experiment_scaling_long[s];
+      weight_sums[s] = weight_sum * spot_scaling[s];
+      if (parameters.activate_experiment_scaling)
+        weight_sums[s] *= experiment_scaling_long[s];
     }
     auto res = mh.sample(pair<Float, Float>(r_theta[t], p_theta[t]),
                          parameters.n_iter, EntropySource::rng, gen,
@@ -572,8 +582,12 @@ void VariantModel::sample_p_and_r() {
 
   for (size_t t = 0; t < T; ++t) {
     Float weight_sum = 0;
-    for (size_t s = 0; s < S; ++s)
-      weight_sum += theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+    for (size_t s = 0; s < S; ++s) {
+      Float x = theta(s, t) * spot_scaling[s]
+      if (parameters.activate_experiment_scaling)
+        x *= experiment_scaling_long[s];
+      weight_sum += x;
+    }
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
                           verbosity);
 
@@ -603,7 +617,9 @@ void VariantModel::sample_phi() {
   if (verbosity >= Verbosity::Verbose) cout << "Sampling Φ" << endl;
   Vector theta_t(T, arma::fill::zeros);
   for (size_t s = 0; s < S; ++s) {
-    const Float prod = spot_scaling[s] * experiment_scaling_long[s];
+    Float prod = spot_scaling[s];
+    if (parameters.activate_experiment_scaling)
+      prod *= experiment_scaling_long[s];
     for (size_t t = 0; t < T; ++t)
       theta_t[t] += theta(s, t) * prod;
   }
@@ -642,7 +658,8 @@ void VariantModel::sample_spot_scaling() {
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t)
       intensity_sum += phi_marginal(t) * theta(s, t);
-    intensity_sum *= experiment_scaling_long[s];
+    if (parameters.activate_experiment_scaling)
+      intensity_sum *= experiment_scaling_long[s];
 
     /*
     if (verbosity >= Verbosity::Debug)
@@ -857,8 +874,12 @@ size_t VariantModel::find_weakest_factor() const {
     Float y = 0;
     for(size_t g = 0; g < G; ++g)
       y += phi(g, t);
-    for(size_t s = 0; s < S; ++s)
-      x[t] += y * theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+    for (size_t s = 0; s < S; ++s) {
+      Float z = y * theta(s, t) * spot_scaling[s];
+      if (parameters.activate_experiment_scaling)
+        z *= experiment_scaling_long[s];
+      x[t] += z;
+    }
     cout << " " << x[t];
   }
   cout << endl;
@@ -1067,8 +1088,11 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2, GibbsS
 
 vector<Int> VariantModel::sample_reads(size_t g, size_t s, size_t n) const {
   vector<Float> prods(T);
-  for (size_t t = 0; t < T; ++t)
-    prods[t] = theta(s, t) * spot_scaling[s] * experiment_scaling_long[s];
+  for (size_t t = 0; t < T; ++t) {
+    prods[t] = theta(s, t) * spot_scaling[s];
+    if (parameters.activate_experiment_scaling)
+      prods[t] *= experiment_scaling_long[s];
+  }
 
   vector<Int> v(n, 0);
 // TODO parallelize
@@ -1085,7 +1109,9 @@ double VariantModel::posterior_expectation(size_t g, size_t s) const {
   double x = 0;
   for(size_t t = 0; t < T; ++t)
     x += r(g, t) / p(g, t) * theta(s, t);
-  x *= spot_scaling[s] * experiment_scaling_long[s];
+  x *= spot_scaling[s];
+  if (parameters.activate_experiment_scaling)
+    x *= experiment_scaling_long[s];
   return x;
 }
 
@@ -1093,14 +1119,18 @@ double VariantModel::posterior_expectation_poisson(size_t g, size_t s) const {
   double x = 0;
   for(size_t t = 0; t < T; ++t)
     x += phi(g, t) * theta(s, t);
-  x *= spot_scaling[s] * experiment_scaling_long[s];
+  x *= spot_scaling[s];
+  if (parameters.activate_experiment_scaling)
+    x *= experiment_scaling_long[s];
   return x;
 }
 
 
 double VariantModel::posterior_variance(size_t g, size_t s) const {
   double x = 0;
-  double prod_ = spot_scaling[s] * experiment_scaling_long[s];
+  double prod_ = spot_scaling[s];
+  if (parameters.activate_experiment_scaling)
+    prod_ *= experiment_scaling_long[s];
   for(size_t t = 0; t < T; ++t) {
     double prod = theta(s, t) * prod_;
     x += r(g, t) * prod / (prod + p(g, t)) / p(g, t) / p(g, t);
