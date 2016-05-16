@@ -73,7 +73,8 @@ struct VariantModel {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_spot, contributions_experiment;
 
-  /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
+  /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
+   * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
   Matrix lambda_gene_spot;
 
   /** factor loading matrix */
@@ -90,17 +91,16 @@ struct VariantModel {
   Vector experiment_scaling_long;
 
   /** shape parameter for the prior of the loading matrix */
-  Matrix r;
+  Matrix r_phi;
   /** scale parameter for the prior of the loading matrix */
   /* Stored as negative-odds */
-  Matrix p;
+  Matrix p_phi;
 
   /** shape parameter for the prior of the mixing matrix */
   Vector r_theta;
   /** scale parameter for the prior of the mixing matrix */
   /* Stored as negative-odds */
   Vector p_theta;
-
 
   Verbosity verbosity;
 
@@ -118,7 +118,7 @@ struct VariantModel {
                const Parameters &parameters, Verbosity verbosity);
 
   void store(const Counts &counts, const std::string &prefix,
-                   bool mean_and_variance = false) const;
+             bool mean_and_variance = false) const;
 
   Matrix weighted_theta() const;
 
@@ -136,7 +136,7 @@ struct VariantModel {
   void sample_phi();
   Float sample_phi_sub(size_t g, size_t t, Float theta_t, RNG &rng) const;
 
-  /** sample p and r */
+  /** sample phi_p and phi_r */
   void sample_p_and_r();
 
   /** sample theta */
@@ -156,12 +156,14 @@ struct VariantModel {
   void gibbs_sample(const Counts &data, GibbsSample which, bool timing);
 
   void sample_split_merge(const Counts &data, GibbsSample which);
-  void sample_merge(const Counts &data, size_t t1, size_t t2, GibbsSample which);
+  void sample_merge(const Counts &data, size_t t1, size_t t2,
+                    GibbsSample which);
   void sample_split(const Counts &data, size_t t, GibbsSample which);
   // void sample_split_merge(const Counts &data, GibbsSample which);
   void lift_sub_model(const VariantModel &sub_model, size_t t1, size_t t2);
 
-  VariantModel run_submodel(size_t t, size_t n, const Counts &counts, GibbsSample which);
+  VariantModel run_submodel(size_t t, size_t n, const Counts &counts,
+                            GibbsSample which);
 
   size_t find_weakest_factor() const;
 
@@ -177,7 +179,7 @@ struct VariantModel {
   /** check that parameter invariants are fulfilled */
   void check_model(const IMatrix &counts) const;
 
- private:
+private:
   void update_experiment_scaling_long(const Counts &data);
 };
 
