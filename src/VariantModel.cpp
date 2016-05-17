@@ -483,7 +483,7 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", spot_names);
+  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
   // TODO: should we also write out contributions_spot and contributions_experiment?
   if (mean_and_variance) {
     write_matrix(posterior_expectations(), prefix + "means.txt", gene_names,
