@@ -53,8 +53,8 @@ st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
   d = list()
   d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
   d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
-  d$phi.r = st.load.matrix(path.prefix, "r.txt", path.suffix)
-  d$phi.p = st.load.matrix(path.prefix, "p.txt", path.suffix)
+  d$phi.r = st.load.matrix(path.prefix, "r_phi.txt", path.suffix)
+  d$phi.p = st.load.matrix(path.prefix, "p_phi.txt", path.suffix)
   d$theta.r = st.load.vector(path.prefix, "r_theta.txt", path.suffix)
   d$theta.p = st.load.vector(path.prefix, "p_theta.txt", path.suffix)
   if(load.means) {
