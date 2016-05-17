@@ -239,13 +239,15 @@ st.multi = function(d,
     }
     dev.off()
 
-    marg = as.matrix(as.data.frame(lapply(theta, colSums)))
-    pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
-    heatmap(marg, main="Factor activities across samples")
-    heatmap(log(marg+1), main="Factor log-activities across samples")
-    heatmap(t(marg), main="Factor activities within samples")
-    heatmap(t(log(marg+1)), main="Factor log-activities within samples")
-    dev.off()
+    if(n > 1) {
+      marg = as.matrix(as.data.frame(lapply(theta, colSums)))
+      pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
+      heatmap(marg, main="Factor activities across samples")
+      heatmap(log(marg+1), main="Factor log-activities across samples")
+      heatmap(t(marg), main="Factor activities within samples")
+      heatmap(t(log(marg+1)), main="Factor log-activities within samples")
+      dev.off()
+    }
 
     pdf(paste(path, "theta-factors-individual-scale.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(dtheta)) {
