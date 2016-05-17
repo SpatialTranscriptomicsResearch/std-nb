@@ -19,9 +19,11 @@ enum class GibbsSample {
   theta_p = 1 << 6,
   spot_scaling = 1 << 7,
   experiment_scaling = 1 << 8,
-  merge = 1 << 9,
-  split = 1 << 10
+  merge_split = 1 << 9,
 };
+
+std::ostream &operator<<(std::ostream &os, const GibbsSample &which);
+std::istream &operator>>(std::istream &is, GibbsSample &which);
 
 inline constexpr GibbsSample operator&(GibbsSample a, GibbsSample b) {
   return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
@@ -37,15 +39,14 @@ inline constexpr GibbsSample operator^(GibbsSample a, GibbsSample b) {
 
 inline constexpr GibbsSample
 operator~(GibbsSample a) {
-  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 11) - 1));
+  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 10) - 1));
 }
 
 inline constexpr GibbsSample DefaultGibbs() {
   return GibbsSample::contributions | GibbsSample::phi | GibbsSample::phi_r
          | GibbsSample::phi_p | GibbsSample::theta | GibbsSample::theta_r
          | GibbsSample::theta_p | GibbsSample::spot_scaling
-         | GibbsSample::experiment_scaling | GibbsSample::merge
-         | GibbsSample::split;
+         | GibbsSample::experiment_scaling | GibbsSample::merge_split;
 }
 
 inline bool flagged(GibbsSample x) {
@@ -70,8 +71,8 @@ struct VariantModel {
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
-  Matrix contributions_gene_type, contributions_spot_type;
-  Vector contributions_spot, contributions_experiment;
+  IMatrix contributions_gene_type, contributions_spot_type;
+  IVector contributions_spot, contributions_experiment;
 
   /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
    * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
@@ -107,6 +108,7 @@ struct VariantModel {
   struct Paths {
     Paths(const std::string &prefix, const std::string &suffix = "");
     std::string phi, theta, spot, experiment, r_phi, p_phi, r_theta, p_theta;
+    std::string contributions_gene_type, contributions_spot_type, contributions_spot, contributions_experiment;
   };
 
   VariantModel(const Counts &counts, const size_t T,
@@ -129,8 +131,8 @@ struct VariantModel {
   /** sample count decomposition */
   void sample_contributions(const IMatrix &counts);
   void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
-                                RNG &rng, Matrix &contrib_gene_type,
-                                Matrix &contrib_spot_type);
+                                RNG &rng, IMatrix &contrib_gene_type,
+                                IMatrix &contrib_spot_type);
 
   /** sample phi */
   void sample_phi();

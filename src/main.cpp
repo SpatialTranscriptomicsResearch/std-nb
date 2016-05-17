@@ -39,6 +39,7 @@ struct Options {
   bool compute_likelihood = false;
   bool timing = true;
   size_t top = 0;
+  FactorAnalysis::GibbsSample sample_these = FactorAnalysis::DefaultGibbs();
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -126,8 +127,6 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
   if (options.verbosity >= Verbosity::Info)
     cout << "Initial model" << endl << pfa << endl;
-  // TODO make the sampling selection CLI-selectable
-  FactorAnalysis::GibbsSample sample_these = FactorAnalysis::DefaultGibbs();
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
@@ -135,7 +134,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
       pfa.parameters.enforce_mean = FactorAnalysis::ForceMean::None;
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
-    pfa.gibbs_sample(data, sample_these, options.timing);
+    pfa.gibbs_sample(data, options.sample_these, options.timing);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
     if (iteration % options.report_interval == 0) {
@@ -210,6 +209,8 @@ int main(int argc, char **argv) {
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
      "Activate usage of the experiment scaling variables.")
+    ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
+     "Which sampling steps to perform.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 

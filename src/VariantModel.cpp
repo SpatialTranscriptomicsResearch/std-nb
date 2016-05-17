@@ -1,4 +1,5 @@
 #include <omp.h>
+#include <boost/tokenizer.hpp>
 #include "VariantModel.hpp"
 #include "compression.hpp"
 #include "io.hpp"
@@ -16,6 +17,92 @@ const size_t num_sub_gibbs = 100;
 
 using namespace std;
 namespace FactorAnalysis {
+
+std::ostream &operator<<(std::ostream &os, const GibbsSample &which) {
+  if(which == GibbsSample::empty) {
+    os << "empty";
+    return os;
+  } else {
+    bool first = true;
+    if(flagged(which & GibbsSample::contributions)) {
+      os << "contributions";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi)) {
+      os << (first ? "" : "," ) << "phi";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi_r)) {
+      os << (first ? "" : "," ) << "phi_r";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi_p)) {
+      os << (first ? "" : "," ) << "phi_p";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta)) {
+      os << (first ? "" : "," ) << "theta";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta_p)) {
+      os << (first ? "" : "," ) << "theta_p";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta_r)) {
+      os << (first ? "" : "," ) << "theta_r";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::spot_scaling)) {
+      os << (first ? "" : "," ) << "spot_scaling";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::experiment_scaling)) {
+      os << (first ? "" : "," ) << "experiment_scaling";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::merge_split)) {
+      os << (first ? "" : "," ) << "merge_split";
+      first = false;
+    }
+
+  }
+  return os;
+}
+
+std::istream &operator>>(std::istream &is, GibbsSample &which) {
+  which = GibbsSample::empty;
+  using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+  boost::char_separator<char> sep(",");
+
+  string line;
+  getline(is, line);
+  tokenizer tok(line, sep);
+  for (auto token : tok) {
+    if(token == "contributions")
+      which = which | GibbsSample::contributions;
+    else if(token == "phi")
+      which = which | GibbsSample::phi;
+    else if(token == "phi_r")
+      which = which | GibbsSample::phi_r;
+    else if(token == "phi_p")
+      which = which | GibbsSample::phi_p;
+    else if(token == "theta")
+      which = which | GibbsSample::theta;
+    else if(token == "theta_r")
+      which = which | GibbsSample::theta_r;
+    else if(token == "theta_p")
+      which = which | GibbsSample::theta_p;
+    else if(token == "spot_scaling")
+      which = which | GibbsSample::spot_scaling;
+    else if(token == "experiment_scaling")
+      which = which | GibbsSample::experiment_scaling;
+    else if(token == "merge_split")
+      which = which | GibbsSample::merge_split;
+    else
+      throw(std::runtime_error("Unknown sampling token: " + token));
+  }
+  return is;
+}
 
 bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50) {
   double dG = nextG - G;
@@ -65,7 +152,12 @@ VariantModel::Paths::Paths(const std::string &prefix, const std::string &suffix)
       r_phi(prefix + "r_phi.txt" + suffix),
       p_phi(prefix + "p_phi.txt" + suffix),
       r_theta(prefix + "r_theta.txt" + suffix),
-      p_theta(prefix + "p_theta.txt" + suffix){};
+      p_theta(prefix + "p_theta.txt" + suffix),
+      contributions_gene_type(prefix + "contributions_gene_type.txt" + suffix),
+      contributions_spot_type(prefix + "contributions_spot_type.txt" + suffix),
+      contributions_spot(prefix + "contributions_spot.txt" + suffix),
+      contributions_experiment(prefix + "contributions_experiment.txt"
+                               + suffix){};
 
 VariantModel::VariantModel(const Counts &c, const size_t T_,
                            const Hyperparameters &hyperparameters_,
@@ -92,7 +184,6 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
       p_theta(T),
       verbosity(verbosity_) {
   // initialize p_phi
-  // p_k=ones(T,1)*0.5;
   if (verbosity >= Verbosity::Debug)
     cout << "initializing p_phi." << endl;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -238,24 +329,20 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions_gene_type(G, T, arma::fill::zeros),
-      contributions_spot_type(S, T, arma::fill::zeros),
-      contributions_spot(S, arma::fill::zeros),
-      contributions_experiment(E, arma::fill::zeros),
+      contributions_gene_type(parse_file<IMatrix>(paths.contributions_gene_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
+      contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
       phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
-      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector, DEFAULT_SEPARATOR)),
+      spot_scaling(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S),
       r_phi(parse_file<Matrix>(paths.r_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       p_phi(parse_file<Matrix>(paths.p_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      r_theta(parse_file<Vector>(paths.r_theta, read_vector, DEFAULT_SEPARATOR)),
-      p_theta(parse_file<Vector>(paths.p_theta, read_vector, DEFAULT_SEPARATOR)),
+      r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       verbosity(verbosity_) {
-  // set contributions to 0, as we do not have data at this point
-  // NOTE: when data is available, before sampling any of the other parameters,
-  // it is necessary to first sample the contributions!
-
   update_experiment_scaling_long(c);
 
   if (verbosity >= Verbosity::Debug)
@@ -369,9 +456,9 @@ Matrix VariantModel::weighted_theta() const {
     for (size_t g = 0; g < G; ++g)
       x += phi(g, t);
     for (size_t s = 0; s < S; ++s) {
-      m(s, t) *= x * spot_scaling(s) ;
+      m(s, t) *= x * spot_scaling(s);
       if (parameters.activate_experiment_scaling)
-        m(s,t) *= experiment_scaling_long(s);
+        m(s, t) *= experiment_scaling_long(s);
     }
   }
   return m;
@@ -395,6 +482,8 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
+  write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
+  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", spot_names);
   // TODO: should we also write out contributions_spot and contributions_experiment?
   if (mean_and_variance) {
     write_matrix(posterior_expectations(), prefix + "means.txt", gene_names,
@@ -408,8 +497,8 @@ void VariantModel::store(const Counts &counts, const string &prefix,
 
 void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
                                             size_t s, RNG &rng,
-                                            Matrix &contrib_gene_type,
-                                            Matrix &contrib_spot_type) {
+                                            IMatrix &contrib_gene_type,
+                                            IMatrix &contrib_spot_type) {
   vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda[g][s][t] is proportional to both
@@ -431,12 +520,12 @@ void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling contributions" << endl;
-  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
-  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
+  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
+  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
   {
-    Matrix contrib_gene_type(G, T, arma::fill::zeros);
-    Matrix contrib_spot_type(S, T, arma::fill::zeros);
+    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
+    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
@@ -772,7 +861,7 @@ void VariantModel::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::merge)) {
+  if (flagged(which & GibbsSample::merge_split)) {
     // NOTE: this has to be done right after the Gibbs step for the contributions
     // because otherwise the lambda_gene_spot variables are not correct
     timer.tick();
@@ -905,8 +994,9 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n,
 
   // keep spot and experiment scaling fixed
   // don't recurse into either merge or sample steps
-  which = which & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
-                    | GibbsSample::merge | GibbsSample::split);
+  which = which
+          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
+              | GibbsSample::merge_split);
   for (size_t i = 0; i < n; ++i)
     sub_model.gibbs_sample(counts, which, show_timing);
   return sub_model;
@@ -960,8 +1050,8 @@ void VariantModel::sample_split(const Counts &data, size_t t1,
   // add effect of updated parameters
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1)
-                                + phi(g, t2) * theta(s, t2);
+      lambda_gene_spot(g, s)
+          += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
 
   double ll_updated = log_likelihood_factor(data.counts, t1)
                       + log_likelihood_factor(data.counts, t2)
