@@ -242,19 +242,19 @@ VariantModel::VariantModel(const Counts &c, const Paths &paths,
       E(c.experiment_names.size()),
       hyperparameters(hyperparameters_),
       parameters(parameters_),
-      contributions_gene_type(parse_file<Matrix>(paths.contributions_gene_type, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_spot_type(parse_file<Matrix>(paths.contributions_spot_type, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_spot(parse_file<Vector>(paths.contributions_spot, read_vector, DEFAULT_SEPARATOR)),
-      contributions_experiment(parse_file<Vector>(paths.contributions_experiment, read_vector, DEFAULT_SEPARATOR)),
+      contributions_gene_type(parse_file<IMatrix>(paths.contributions_gene_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
+      contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
       phi(parse_file<Matrix>(paths.phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      spot_scaling(parse_file<Vector>(paths.spot, read_vector, DEFAULT_SEPARATOR)),
-      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector, DEFAULT_SEPARATOR)),
+      spot_scaling(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S),
       r_phi(parse_file<Matrix>(paths.r_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       p_phi(parse_file<Matrix>(paths.p_phi, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      r_theta(parse_file<Vector>(paths.r_theta, read_vector, DEFAULT_SEPARATOR)),
-      p_theta(parse_file<Vector>(paths.p_theta, read_vector, DEFAULT_SEPARATOR)),
+      r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       verbosity(verbosity_) {
   update_experiment_scaling_long(c);
 
@@ -410,8 +410,8 @@ void VariantModel::store(const Counts &counts, const string &prefix,
 
 void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
                                             size_t s, RNG &rng,
-                                            Matrix &contrib_gene_type,
-                                            Matrix &contrib_spot_type) {
+                                            IMatrix &contrib_gene_type,
+                                            IMatrix &contrib_spot_type) {
   vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda[g][s][t] is proportional to both
@@ -433,12 +433,12 @@ void VariantModel::sample_contributions_sub(const IMatrix &counts, size_t g,
 void VariantModel::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     cout << "Sampling contributions" << endl;
-  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
-  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
+  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
+  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
   {
-    Matrix contrib_gene_type(G, T, arma::fill::zeros);
-    Matrix contrib_spot_type(S, T, arma::fill::zeros);
+    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
+    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g)

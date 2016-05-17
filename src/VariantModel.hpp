@@ -70,8 +70,8 @@ struct VariantModel {
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
-  Matrix contributions_gene_type, contributions_spot_type;
-  Vector contributions_spot, contributions_experiment;
+  IMatrix contributions_gene_type, contributions_spot_type;
+  IVector contributions_spot, contributions_experiment;
 
   /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
    * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
@@ -130,8 +130,8 @@ struct VariantModel {
   /** sample count decomposition */
   void sample_contributions(const IMatrix &counts);
   void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
-                                RNG &rng, Matrix &contrib_gene_type,
-                                Matrix &contrib_spot_type);
+                                RNG &rng, IMatrix &contrib_gene_type,
+                                IMatrix &contrib_spot_type);
 
   /** sample phi */
   void sample_phi();
