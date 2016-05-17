@@ -1,4 +1,5 @@
 #include <omp.h>
+#include <boost/tokenizer.hpp>
 #include "VariantModel.hpp"
 #include "compression.hpp"
 #include "io.hpp"
@@ -16,6 +17,92 @@ const size_t num_sub_gibbs = 100;
 
 using namespace std;
 namespace FactorAnalysis {
+
+std::ostream &operator<<(std::ostream &os, const GibbsSample &which) {
+  if(which == GibbsSample::empty) {
+    os << "empty";
+    return os;
+  } else {
+    bool first = true;
+    if(flagged(which & GibbsSample::contributions)) {
+      os << "contributions";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi)) {
+      os << (first ? "" : "," ) << "phi";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi_r)) {
+      os << (first ? "" : "," ) << "phi_r";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::phi_p)) {
+      os << (first ? "" : "," ) << "phi_p";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta)) {
+      os << (first ? "" : "," ) << "theta";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta_p)) {
+      os << (first ? "" : "," ) << "theta_p";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::theta_r)) {
+      os << (first ? "" : "," ) << "theta_r";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::spot_scaling)) {
+      os << (first ? "" : "," ) << "spot_scaling";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::experiment_scaling)) {
+      os << (first ? "" : "," ) << "experiment_scaling";
+      first = false;
+    }
+    if(flagged(which & GibbsSample::merge_split)) {
+      os << (first ? "" : "," ) << "merge_split";
+      first = false;
+    }
+
+  }
+  return os;
+}
+
+std::istream &operator>>(std::istream &is, GibbsSample &which) {
+  which = GibbsSample::empty;
+  using tokenizer = boost::tokenizer<boost::char_separator<char>>;
+  boost::char_separator<char> sep(",");
+
+  string line;
+  getline(is, line);
+  tokenizer tok(line, sep);
+  for (auto token : tok) {
+    if(token == "contributions")
+      which = which | GibbsSample::contributions;
+    else if(token == "phi")
+      which = which | GibbsSample::phi;
+    else if(token == "phi_r")
+      which = which | GibbsSample::phi_r;
+    else if(token == "phi_p")
+      which = which | GibbsSample::phi_p;
+    else if(token == "theta")
+      which = which | GibbsSample::theta;
+    else if(token == "theta_r")
+      which = which | GibbsSample::theta_r;
+    else if(token == "theta_p")
+      which = which | GibbsSample::theta_p;
+    else if(token == "spot_scaling")
+      which = which | GibbsSample::spot_scaling;
+    else if(token == "experiment_scaling")
+      which = which | GibbsSample::experiment_scaling;
+    else if(token == "merge_split")
+      which = which | GibbsSample::merge_split;
+    else
+      throw(std::runtime_error("Unknown sampling token: " + token));
+  }
+  return is;
+}
 
 bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50) {
   double dG = nextG - G;
@@ -774,7 +861,7 @@ void VariantModel::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::merge)) {
+  if (flagged(which & GibbsSample::merge_split)) {
     // NOTE: this has to be done right after the Gibbs step for the contributions
     // because otherwise the lambda_gene_spot variables are not correct
     timer.tick();
@@ -909,7 +996,7 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n,
   // don't recurse into either merge or sample steps
   which = which
           & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
-              | GibbsSample::merge | GibbsSample::split);
+              | GibbsSample::merge_split);
   for (size_t i = 0; i < n; ++i)
     sub_model.gibbs_sample(counts, which, show_timing);
   return sub_model;

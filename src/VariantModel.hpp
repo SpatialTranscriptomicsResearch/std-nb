@@ -19,9 +19,11 @@ enum class GibbsSample {
   theta_p = 1 << 6,
   spot_scaling = 1 << 7,
   experiment_scaling = 1 << 8,
-  merge = 1 << 9,
-  split = 1 << 10
+  merge_split = 1 << 9,
 };
+
+std::ostream &operator<<(std::ostream &os, const GibbsSample &which);
+std::istream &operator>>(std::istream &is, GibbsSample &which);
 
 inline constexpr GibbsSample operator&(GibbsSample a, GibbsSample b) {
   return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
@@ -37,15 +39,14 @@ inline constexpr GibbsSample operator^(GibbsSample a, GibbsSample b) {
 
 inline constexpr GibbsSample
 operator~(GibbsSample a) {
-  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 11) - 1));
+  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 10) - 1));
 }
 
 inline constexpr GibbsSample DefaultGibbs() {
   return GibbsSample::contributions | GibbsSample::phi | GibbsSample::phi_r
          | GibbsSample::phi_p | GibbsSample::theta | GibbsSample::theta_r
          | GibbsSample::theta_p | GibbsSample::spot_scaling
-         | GibbsSample::experiment_scaling | GibbsSample::merge
-         | GibbsSample::split;
+         | GibbsSample::experiment_scaling | GibbsSample::merge_split;
 }
 
 inline bool flagged(GibbsSample x) {
