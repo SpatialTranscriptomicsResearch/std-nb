@@ -369,9 +369,9 @@ Matrix VariantModel::weighted_theta() const {
     for (size_t g = 0; g < G; ++g)
       x += phi(g, t);
     for (size_t s = 0; s < S; ++s) {
-      m(s, t) *= x * spot_scaling(s) ;
+      m(s, t) *= x * spot_scaling(s);
       if (parameters.activate_experiment_scaling)
-        m(s,t) *= experiment_scaling_long(s);
+        m(s, t) *= experiment_scaling_long(s);
     }
   }
   return m;
@@ -907,8 +907,9 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n,
 
   // keep spot and experiment scaling fixed
   // don't recurse into either merge or sample steps
-  which = which & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
-                    | GibbsSample::merge | GibbsSample::split);
+  which = which
+          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
+              | GibbsSample::merge | GibbsSample::split);
   for (size_t i = 0; i < n; ++i)
     sub_model.gibbs_sample(counts, which, show_timing);
   return sub_model;
@@ -962,8 +963,8 @@ void VariantModel::sample_split(const Counts &data, size_t t1,
   // add effect of updated parameters
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1)
-                                + phi(g, t2) * theta(s, t2);
+      lambda_gene_spot(g, s)
+          += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
 
   double ll_updated = log_likelihood_factor(data.counts, t1)
                       + log_likelihood_factor(data.counts, t2)
