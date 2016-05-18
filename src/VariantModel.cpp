@@ -223,27 +223,29 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
   // initialize theta
   if (verbosity >= Verbosity::Debug)
     cout << "initializing theta." << endl;
-  for (size_t s = 0; s < S; ++s)
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s) {
+    const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta(s, t) = gamma_distribution<Float>(
-          r_theta(t), 1 / p_theta(t))(EntropySource::rng);
+          r_theta(t), 1 / p_theta(t))(EntropySource::rngs[thread_num]);
+  }
 
-  // initialize the contributions
+  // initialize:
+  //  * contributions_gene_type
+  //  * contributions_spot_type
+  //  * lambda_gene_spot
   if (verbosity >= Verbosity::Debug)
     cout << "initializing contributions." << endl;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      vector<double> prob(T);
-      for (size_t t = 0; t < T; ++t)
-        lambda_gene_spot(g, s) += prob[t] = phi(g, t) * theta(s, t);
-      for (size_t t = 0; t < T; ++t)
-        prob[t] /= lambda_gene_spot(g, s);
-      auto v = sample_multinomial<Int>(c.counts(g, s), prob);
-      for (size_t t = 0; t < T; ++t) {
-        contributions_gene_type(g, t) += v[t];
-        contributions_spot_type(s, t) += v[t];
-      }
+  sample_contributions(c.counts);
+
+  // initialize:
+  //  * contributions_spot
+  //  * contributions_experiment
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    for (size_t g = 0; g < G; ++g) {
       contributions_spot(s) += c.counts(g, s);
       contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
