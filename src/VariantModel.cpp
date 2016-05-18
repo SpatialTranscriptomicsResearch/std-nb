@@ -3,6 +3,7 @@
 #include "VariantModel.hpp"
 #include "compression.hpp"
 #include "io.hpp"
+#include "odds.hpp"
 #include "metropolis_hastings.hpp"
 #include "montecarlo.hpp"
 #include "pdist.hpp"
@@ -123,26 +124,6 @@ bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50)
 }
 
 const Float phi_scaling = 1.0;
-
-template <typename T>
-T odds_to_prob(T x) {
-  return x / (x + 1);
-}
-
-template <typename T>
-T neg_odds_to_prob(T x) {
-  return 1 / (x + 1);
-}
-
-template <typename T>
-T prob_to_odds(T x) {
-  return x / (1 - x);
-}
-
-template <typename T>
-T prob_to_neg_odds(T x) {
-  return (1 - x) / x;
-}
 
 VariantModel::Paths::Paths(const std::string &prefix, const std::string &suffix)
     : phi(prefix + "phi.txt" + suffix),
