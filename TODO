@@ -23,3 +23,6 @@
   - the normalized theta matrices (and the other parameters, too!)
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
+
+* add flag for consistent contribution marginals and expectation marginals
+* consider using HDF5 for IO
