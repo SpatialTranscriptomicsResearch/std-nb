@@ -26,3 +26,4 @@
 
 * add flag for consistent contribution marginals and expectation marginals
 * consider using HDF5 for IO
+* contribution initialization is unneeded if gibbs sampling does that as a first step
