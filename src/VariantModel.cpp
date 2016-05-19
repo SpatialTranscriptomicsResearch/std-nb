@@ -468,12 +468,9 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
   write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
   if (mean_and_variance) {
-    write_matrix(posterior_expectations(), prefix + "means.txt", gene_names,
-                 spot_names);
-    write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt",
-                 gene_names, spot_names);
-    write_matrix(posterior_variances(), prefix + "variances.txt", gene_names,
-                 spot_names);
+    write_matrix(posterior_expectations(), prefix + "means.txt", gene_names, spot_names);
+    write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt", gene_names, spot_names);
+    write_matrix(posterior_variances(), prefix + "variances.txt", gene_names, spot_names);
   }
 }
 
