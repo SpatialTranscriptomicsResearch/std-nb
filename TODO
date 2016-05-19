@@ -23,3 +23,4 @@
   - the normalized theta matrices (and the other parameters, too!)
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
+* experiment with splitting a single factor explaining everything
