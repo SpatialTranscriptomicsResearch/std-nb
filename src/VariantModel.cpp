@@ -402,7 +402,11 @@ double VariantModel::log_likelihood_poisson_counts(
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      auto cur = log_poisson(counts(g, s), lambda_gene_spot(g, s));
+      auto cur
+          = log_poisson(counts(g, s), lambda_gene_spot(g, s) * spot_scaling(s)
+                                      * (parameters.activate_experiment_scaling
+                                             ? experiment_scaling_long(s)
+                                             : 1));
       if (std::isinf(cur) or std::isnan(cur))
         cout << "ll poisson(g=" + to_string(g) + ",s=" + to_string(s) + ") = "
                 + to_string(cur) + " counts = " + to_string(counts(g, s))

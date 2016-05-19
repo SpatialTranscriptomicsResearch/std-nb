@@ -23,7 +23,7 @@
   - the normalized theta matrices (and the other parameters, too!)
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
-
 * add flag for consistent contribution marginals and expectation marginals
 * consider using HDF5 for IO
 * contribution initialization is unneeded if gibbs sampling does that as a first step
+* experiment with splitting a single factor explaining everything
