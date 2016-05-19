@@ -3,6 +3,7 @@
 #include "VariantModel.hpp"
 #include "compression.hpp"
 #include "io.hpp"
+#include "odds.hpp"
 #include "metropolis_hastings.hpp"
 #include "montecarlo.hpp"
 #include "pdist.hpp"
@@ -124,26 +125,6 @@ bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50)
 
 const Float phi_scaling = 1.0;
 
-template <typename T>
-T odds_to_prob(T x) {
-  return x / (x + 1);
-}
-
-template <typename T>
-T neg_odds_to_prob(T x) {
-  return 1 / (x + 1);
-}
-
-template <typename T>
-T prob_to_odds(T x) {
-  return x / (1 - x);
-}
-
-template <typename T>
-T prob_to_neg_odds(T x) {
-  return (1 - x) / x;
-}
-
 VariantModel::Paths::Paths(const std::string &prefix, const std::string &suffix)
     : phi(prefix + "phi.txt" + suffix),
       theta(prefix + "theta.txt" + suffix),
@@ -242,27 +223,29 @@ VariantModel::VariantModel(const Counts &c, const size_t T_,
   // initialize theta
   if (verbosity >= Verbosity::Debug)
     cout << "initializing theta." << endl;
-  for (size_t s = 0; s < S; ++s)
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s) {
+    const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
       theta(s, t) = gamma_distribution<Float>(
-          r_theta(t), 1 / p_theta(t))(EntropySource::rng);
+          r_theta(t), 1 / p_theta(t))(EntropySource::rngs[thread_num]);
+  }
 
-  // initialize the contributions
+  // initialize:
+  //  * contributions_gene_type
+  //  * contributions_spot_type
+  //  * lambda_gene_spot
   if (verbosity >= Verbosity::Debug)
     cout << "initializing contributions." << endl;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      vector<double> prob(T);
-      for (size_t t = 0; t < T; ++t)
-        lambda_gene_spot(g, s) += prob[t] = phi(g, t) * theta(s, t);
-      for (size_t t = 0; t < T; ++t)
-        prob[t] /= lambda_gene_spot(g, s);
-      auto v = sample_multinomial<Int>(c.counts(g, s), prob);
-      for (size_t t = 0; t < T; ++t) {
-        contributions_gene_type(g, t) += v[t];
-        contributions_spot_type(s, t) += v[t];
-      }
+  sample_contributions(c.counts);
+
+  // initialize:
+  //  * contributions_spot
+  //  * contributions_experiment
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    for (size_t g = 0; g < G; ++g) {
       contributions_spot(s) += c.counts(g, s);
       contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
@@ -487,8 +470,7 @@ void VariantModel::store(const Counts &counts, const string &prefix,
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", spot_names);
-  // TODO: should we also write out contributions_spot and contributions_experiment?
+  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
   if (mean_and_variance) {
     write_matrix(posterior_expectations(), prefix + "means.txt", gene_names,
                  spot_names);
