@@ -27,3 +27,5 @@
 * consider using HDF5 for IO
 * contribution initialization is unneeded if gibbs sampling does that as a first step
 * experiment with splitting a single factor explaining everything
+* don't split/merge in initial iterations
+* compute perplexity, i.e. validation
