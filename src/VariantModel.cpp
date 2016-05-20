@@ -10,7 +10,7 @@
 #include "stats.hpp"
 #include "timer.hpp"
 
-const size_t num_sub_gibbs = 100;
+const size_t num_sub_gibbs = 50;
 const bool consider_factor_likel = false;
 #define DO_PARALLEL 1
 
