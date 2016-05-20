@@ -205,7 +205,7 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
-    pdf(paste(path, "color-bar", sep=""), width=2, height=6)
+    pdf(paste(path, "color-bar.pdf", sep=""), width=2, height=6)
     par(mar=c(0,0,0,0))
     num.steps = 1000
     image(as.matrix(1:num.steps, nrow=num.steps, ncol=1), col=default.viz.pal(num.steps))
