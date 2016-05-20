@@ -11,6 +11,7 @@
 #include "timer.hpp"
 
 const size_t num_sub_gibbs = 100;
+const bool consider_factor_likel = false;
 #define DO_PARALLEL 1
 
 #define DEFAULT_SEPARATOR "\t"
@@ -1010,8 +1011,10 @@ void VariantModel::sample_split(const Counts &data, size_t t1,
          << endl;
   VariantModel previous(*this);
 
-  double ll_previous = log_likelihood_factor(data.counts, t1)
-                       + log_likelihood_factor(data.counts, t2)
+  double ll_previous = (consider_factor_likel
+                            ? log_likelihood_factor(data.counts, t1)
+                                  + log_likelihood_factor(data.counts, t2)
+                            : 0)
                        + log_likelihood_poisson_counts(data.counts);
 
   Counts sub_counts = data;
@@ -1036,15 +1039,15 @@ void VariantModel::sample_split(const Counts &data, size_t t1,
       lambda_gene_spot(g, s)
           += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
 
-  double ll_updated = log_likelihood_factor(data.counts, t1)
-                      + log_likelihood_factor(data.counts, t2)
+  double ll_updated = (consider_factor_likel
+                           ? log_likelihood_factor(data.counts, t1)
+                                 + log_likelihood_factor(data.counts, t2)
+                           : 0)
                       + log_likelihood_poisson_counts(data.counts);
 
-  auto bla = sub_model.find_weakest_factor();
-  bla = bla * 2;
   cout << "ll_split_previous = " << ll_previous << endl
        << "ll_split_updated = " << ll_updated << endl;
-  if (true or gibbs_test(ll_updated, ll_previous, verbosity)) {
+  if (gibbs_test(ll_updated, ll_previous, verbosity)) {
     cout << "ll_split_ACCEPT" << endl;
   } else {
     *this = previous;
@@ -1059,8 +1062,10 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2,
          << "." << endl;
   VariantModel previous(*this);
 
-  double ll_previous = log_likelihood_factor(data.counts, t1)
-                       + log_likelihood_factor(data.counts, t2)
+  double ll_previous = (consider_factor_likel
+                            ? log_likelihood_factor(data.counts, t1)
+                                  + log_likelihood_factor(data.counts, t2)
+                            : 0)
                        + log_likelihood_poisson_counts(data.counts);
 
   Counts sub_counts = data;
@@ -1152,12 +1157,12 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2,
       contributions_spot_type(s, t2) += count;
     }
 
-  double ll_updated = log_likelihood_factor(data.counts, t1)
-                      + log_likelihood_factor(data.counts, t2)
+  double ll_updated = (consider_factor_likel
+                           ? log_likelihood_factor(data.counts, t1)
+                                 + log_likelihood_factor(data.counts, t2)
+                           : 0)
                       + log_likelihood_poisson_counts(data.counts);
 
-  auto bla = sub_model.find_weakest_factor();
-  bla = bla * 2;
   cout << "ll_merge_previous = " << ll_previous << endl
        << "ll_merge_updated = " << ll_updated << endl;
   if (gibbs_test(ll_updated, ll_previous, verbosity)) {
