@@ -119,6 +119,13 @@ struct VariantModel {
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
+  void initialize_r_phi();
+  void initialize_p_phi();
+  void initialize_phi();
+  void initialize_r_theta();
+  void initialize_p_theta();
+  void initialize_theta();
+
   void store(const Counts &counts, const std::string &prefix,
              bool mean_and_variance = false) const;
 
