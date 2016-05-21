@@ -185,6 +185,9 @@ st.multi = function(d,
                     skip.samples=c(),
                     center.theta=F,
                     ncols=2, ...) {
+  # single.experiment=1:nrows(d$dtheta) == sort(grep("^\\d+\\d+$", rownames(d$theta)))
+  # single.experiment= is.single.experiment(rownames(d$theta)) // TODO
+
   dtheta = d$theta
   dspotscale = d$spotscale
   dexpscale = d$expscale

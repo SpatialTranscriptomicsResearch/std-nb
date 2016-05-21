@@ -29,3 +29,4 @@
 * experiment with splitting a single factor explaining everything
 * don't split/merge in initial iterations
 * compute perplexity, i.e. validation
+* automatically determine single experiments in analyze.r
