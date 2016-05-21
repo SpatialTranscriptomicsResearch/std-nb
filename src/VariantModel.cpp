@@ -965,8 +965,10 @@ size_t VariantModel::find_weakest_factor() const {
 
 VariantModel VariantModel::run_submodel(size_t t, size_t n,
                                         const Counts &counts,
-                                        GibbsSample which) {
+                                        GibbsSample which,
+                                        const vector<size_t> &init_factors) {
   const bool show_timing = false;
+  // TODO: use init_factors
   VariantModel sub_model(counts, t, hyperparameters, parameters,
                          Verbosity::Info);
   for (size_t s = 0; s < S; ++s) {

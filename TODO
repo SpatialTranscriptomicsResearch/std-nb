@@ -30,3 +30,4 @@
 * don't split/merge in initial iterations
 * compute perplexity, i.e. validation
 * automatically determine single experiments in analyze.r
+* use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
