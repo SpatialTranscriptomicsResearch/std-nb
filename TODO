@@ -31,3 +31,4 @@
 * compute perplexity, i.e. validation
 * automatically determine single experiments in analyze.r
 * use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
+* test possible benefits of JIT compiling with fixed G, S, T
