@@ -315,7 +315,7 @@ int main(int argc, char **argv) {
     data.select_top(options.top);
 
   if (options.simulate_path != "") {
-    FactorAnalysis::VariantModel::Paths paths(options.simulate_path, "");
+    FactorAnalysis::Paths paths(options.simulate_path, "");
     FactorAnalysis::VariantModel pfa(data, paths, hyperparameters,
                                      parameters, options.verbosity);
 
