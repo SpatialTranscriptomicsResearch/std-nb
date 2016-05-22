@@ -128,7 +128,7 @@ bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature=50)
 
 const Float phi_scaling = 1.0;
 
-VariantModel::Paths::Paths(const std::string &prefix, const std::string &suffix)
+Paths::Paths(const std::string &prefix, const std::string &suffix)
     : phi(prefix + "phi.txt" + suffix),
       theta(prefix + "theta.txt" + suffix),
       spot(prefix + "spot_scaling.txt" + suffix),
