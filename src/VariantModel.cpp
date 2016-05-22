@@ -12,6 +12,8 @@
 
 const size_t num_sub_gibbs = 50;
 const bool consider_factor_likel = false;
+#define print_sub_model_cnt true
+size_t sub_model_cnt = 0;
 #define DO_PARALLEL 1
 
 #define DEFAULT_SEPARATOR "\t"
@@ -995,6 +997,7 @@ size_t VariantModel::find_weakest_factor() const {
 VariantModel VariantModel::run_submodel(size_t t, size_t n,
                                         const Counts &counts,
                                         GibbsSample which,
+                                        const string &prefix,
                                         const vector<size_t> &init_factors) {
   const bool show_timing = false;
   // TODO: use init_factors
@@ -1007,6 +1010,10 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n,
   for (size_t e = 0; e < E; ++e)
     sub_model.experiment_scaling[e] = experiment_scaling[e];
 
+  if (print_sub_model_cnt)
+    sub_model.store(counts,
+                    prefix + "submodel_init_" + to_string(sub_model_cnt));
+
   // keep spot and experiment scaling fixed
   // don't recurse into either merge or sample steps
   which = which
@@ -1014,6 +1021,12 @@ VariantModel VariantModel::run_submodel(size_t t, size_t n,
               | GibbsSample::merge_split);
   for (size_t i = 0; i < n; ++i)
     sub_model.gibbs_sample(counts, which, show_timing);
+
+  if (print_sub_model_cnt)
+    sub_model.store(counts,
+                    prefix + "submodel_opti_" + to_string(sub_model_cnt));
+  sub_model_cnt++;
+
   return sub_model;
 }
 
@@ -1059,7 +1072,7 @@ void VariantModel::sample_split(const Counts &data, size_t t1,
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  VariantModel sub_model = run_submodel(2, num_sub_gibbs, sub_counts, which);
+  VariantModel sub_model = run_submodel(2, num_sub_gibbs, sub_counts, which, "splitmerge_split_");
 
   lift_sub_model(sub_model, t1, 0);
   lift_sub_model(sub_model, t2, 1);
@@ -1110,7 +1123,7 @@ void VariantModel::sample_merge(const Counts &data, size_t t1, size_t t2,
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  VariantModel sub_model = run_submodel(1, num_sub_gibbs, sub_counts, which);
+  VariantModel sub_model = run_submodel(1, num_sub_gibbs, sub_counts, which, "splitmerge_merge_");
 
   lift_sub_model(sub_model, t1, 0);
 

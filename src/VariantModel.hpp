@@ -171,7 +171,7 @@ struct VariantModel {
   void lift_sub_model(const VariantModel &sub_model, size_t t1, size_t t2);
 
   VariantModel run_submodel(size_t t, size_t n, const Counts &counts,
-                            GibbsSample which,
+                            GibbsSample which, const std::string &prefix,
                             const std::vector<size_t> &init_factors
                             = std::vector<size_t>());
 
