@@ -363,7 +363,8 @@ double VariantModel::log_likelihood_factor(const IMatrix &counts,
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(phi(g, t), r_phi(g, t), 1.0 / p_phi(g, t));
 
-  cout << "ll_phi = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_phi = " << l << endl;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -371,14 +372,16 @@ double VariantModel::log_likelihood_factor(const IMatrix &counts,
     l += log_gamma(r_phi(g, t), hyperparameters.phi_r_1,
                    1.0 / hyperparameters.phi_r_2);
 
-  cout << "ll_r_phi = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_r_phi = " << l << endl;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     l += log_beta_neg_odds(p_phi(g, t), hyperparameters.phi_p_1,
                            hyperparameters.phi_p_2);
 
-  cout << "ll_p_phi = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_p_phi = " << l << endl;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
@@ -397,23 +400,29 @@ double VariantModel::log_likelihood_factor(const IMatrix &counts,
     l += cur;
   }
 
-  cout << "ll_theta = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_theta = " << l << endl;
 
   // NOTE: log_gamma takes a shape and scale parameter
   l += log_gamma(r_theta(t), hyperparameters.theta_r_1,
                  1.0 / hyperparameters.theta_r_2);
 
-  cout << "ll_r_theta = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_r_theta = " << l << endl;
 
   l += log_beta_neg_odds(p_theta(t), hyperparameters.theta_p_1,
                          hyperparameters.theta_p_2);
 
-  cout << "ll_p_theta = " << l << endl;
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_p_theta = " << l << endl;
 
   if (std::isnan(l) or std::isinf(l))
     cout << "Warning: log likelihoood contribution of factor " << t << " = "
          << l << endl;
-  cout << "ll_X = " << l << endl;
+
+  if (verbosity >= Verbosity::Debug)
+    cout << "ll_X = " << l << endl;
+
   return l;
 }
 
