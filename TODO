@@ -33,3 +33,4 @@
 * use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
 * test possible benefits of JIT compiling with fixed G, S, T
 * consider using GPU for sampling contributions
+* experiment with activating ARMA_NO_DEBUG in types.hpp

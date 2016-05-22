@@ -2,6 +2,7 @@
 #define TYPES_HPP
 
 #include <cstdint>
+// #define ARMA_NO_DEBUG
 #include <armadillo>
 
 namespace FactorAnalysis {
