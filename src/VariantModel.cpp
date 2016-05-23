@@ -4,7 +4,7 @@
 #include "montecarlo.hpp"
 
 using namespace std;
-namespace FactorAnalysis {
+namespace PoissonFactorization {
 // extern size_t sub_model_cnt = 0; // TODO
 
 std::ostream &operator<<(std::ostream &os, const GibbsSample &which) {

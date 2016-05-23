@@ -10,10 +10,11 @@
 const bool counts_debugging = false;
 
 using namespace std;
-using Int = FactorAnalysis::Int;
-using IMatrix = FactorAnalysis::IMatrix;
-using Matrix = FactorAnalysis::Matrix;
-using Vector = FactorAnalysis::Vector;
+namespace PF = PoissonFactorization;
+using Int = PF::Int;
+using IMatrix = PF::IMatrix;
+using Matrix = PF::Matrix;
+using Vector = PF::Vector;
 
 Counts::Counts(const string &path, const string &label, const string &separator)
     : row_names(),

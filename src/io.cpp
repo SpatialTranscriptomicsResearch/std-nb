@@ -7,11 +7,12 @@
 #include "io.hpp"
 
 using namespace std;
-using Int = FactorAnalysis::Int;
-using Float = FactorAnalysis::Float;
-using Matrix = FactorAnalysis::Matrix;
-using IMatrix = FactorAnalysis::IMatrix;
-using Vector = FactorAnalysis::Vector;
+namespace PF = PoissonFactorization;
+using Int = PF::Int;
+using Float = PF::Float;
+using Matrix = PF::Matrix;
+using IMatrix = PF::IMatrix;
+using Vector = PF::Vector;
 
 Matrix read_matrix(istream &is, const string &separator, const string &label) {
   // TODO improve / factor / simplify implementation

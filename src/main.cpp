@@ -12,6 +12,7 @@
 #include "VariantModel.hpp"
 
 using namespace std;
+namespace PF = PoissonFactorization;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
@@ -39,7 +40,7 @@ struct Options {
   bool compute_likelihood = false;
   bool timing = true;
   size_t top = 0;
-  FactorAnalysis::GibbsSample sample_these = FactorAnalysis::DefaultGibbs();
+  PF::GibbsSample sample_these = PF::DefaultGibbs();
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -78,49 +79,49 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-template <FactorAnalysis::Kind kind>
-void simulate(const FactorAnalysis::VariantModel<kind> &pfa, const Counts &counts) {
-    // sample the highest, the median, and the lowest genes' counts for all spots
-    vector<size_t> counts_per_gene(pfa.G, 0);
-    for (size_t g = 0; g < pfa.G; ++g)
-      for (size_t s = 0; s < pfa.S; ++s)
-        counts_per_gene[g] += counts.counts(g, s);
-    vector<pair<size_t,size_t>> v;
-    for (size_t g = 0; g < pfa.G; ++g)
-      v.push_back(pair<size_t,size_t>(counts_per_gene[g], g));
-    sort(begin(v), end(v));
-    vector<size_t> to_sample;
-    to_sample.push_back(v.rbegin()->second);
-    to_sample.push_back((v.begin()+pfa.G/2)->second);
-    to_sample.push_back(v.begin()->second);
-    for(auto g: to_sample)
-      for (size_t s = 0; s < pfa.S; ++s) {
-        cout << "SAMPLE ACROSS SPOTS\t" << counts.row_names[g] << "\t"
-             << counts.col_names[s];
-        for (auto x : pfa.sample_reads(g, s, 10000))
-          cout << "\t" << x;
-        cout << endl;
-      }
-
-    // for spot with the highest number of reads, sample all genes' counts
-    FactorAnalysis::Int max_count = 0;
-    size_t max_idx = 0;
+template <PF::Kind kind>
+void simulate(const PF::Model<kind> &pfa, const Counts &counts) {
+  // sample the highest, the median, and the lowest genes' counts for all spots
+  vector<size_t> counts_per_gene(pfa.G, 0);
+  for (size_t g = 0; g < pfa.G; ++g)
+    for (size_t s = 0; s < pfa.S; ++s)
+      counts_per_gene[g] += counts.counts(g, s);
+  vector<pair<size_t, size_t>> v;
+  for (size_t g = 0; g < pfa.G; ++g)
+    v.push_back(pair<size_t, size_t>(counts_per_gene[g], g));
+  sort(begin(v), end(v));
+  vector<size_t> to_sample;
+  to_sample.push_back(v.rbegin()->second);
+  to_sample.push_back((v.begin() + pfa.G / 2)->second);
+  to_sample.push_back(v.begin()->second);
+  for (auto g : to_sample)
     for (size_t s = 0; s < pfa.S; ++s) {
-      FactorAnalysis::Int count = 0;
-      for (size_t g = 0; g < pfa.G; ++g)
-        count += counts.counts(g, s);
-      if(count > max_count) {
-        max_count = count;
-        max_idx = s;
-      }
-    }
-    for (size_t g = 0; g < pfa.G; ++g) {
-      cout << "SAMPLE ACROSS GENES\t" << counts.row_names[g] << "\t"
-        << counts.col_names[max_idx];
-      for (auto x : pfa.sample_reads(g, max_idx, 10000))
+      cout << "SAMPLE ACROSS SPOTS\t" << counts.row_names[g] << "\t"
+           << counts.col_names[s];
+      for (auto x : pfa.sample_reads(g, s, 10000))
         cout << "\t" << x;
       cout << endl;
     }
+
+  // for spot with the highest number of reads, sample all genes' counts
+  PF::Int max_count = 0;
+  size_t max_idx = 0;
+  for (size_t s = 0; s < pfa.S; ++s) {
+    PF::Int count = 0;
+    for (size_t g = 0; g < pfa.G; ++g)
+      count += counts.counts(g, s);
+    if (count > max_count) {
+      max_count = count;
+      max_idx = s;
+    }
+  }
+  for (size_t g = 0; g < pfa.G; ++g) {
+    cout << "SAMPLE ACROSS GENES\t" << counts.row_names[g] << "\t"
+         << counts.col_names[max_idx];
+    for (auto x : pfa.sample_reads(g, max_idx, 10000))
+      cout << "\t" << x;
+    cout << endl;
+  }
 }
 
 template <typename T>
@@ -132,7 +133,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
-      pfa.parameters.enforce_mean = FactorAnalysis::ForceMean::None;
+      pfa.parameters.enforce_mean = PF::ForceMean::None;
     if (options.verbosity >= Verbosity::Info)
       cout << "Performing iteration " << iteration << endl;
     pfa.gibbs_sample(data, options.sample_these, options.timing);
@@ -155,8 +156,8 @@ int main(int argc, char **argv) {
 
   Options options;
 
-  FactorAnalysis::Hyperparameters hyperparameters;
-  FactorAnalysis::Parameters parameters;
+  PF::Hyperparameters hyperparameters;
+  PF::Parameters parameters;
 
   string config_path;
   string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
@@ -316,14 +317,14 @@ int main(int argc, char **argv) {
     data.select_top(options.top);
 
   if (options.simulate_path != "") {
-    FactorAnalysis::Paths paths(options.simulate_path, "");
-    FactorAnalysis::VariantModel<FactorAnalysis::Kind::Gamma> pfa(data, paths, hyperparameters,
-                                     parameters, options.verbosity);
+    PF::Paths paths(options.simulate_path, "");
+    PF::Model<PF::Kind::Gamma> pfa(data, paths, hyperparameters, parameters,
+                                   options.verbosity);
 
     simulate(pfa, data);
   } else {
-    FactorAnalysis::VariantModel<FactorAnalysis::Kind::Gamma> pfa(data, options.num_factors, hyperparameters,
-                                     parameters, options.verbosity);
+    PF::Model<PF::Kind::Gamma> pfa(data, options.num_factors, hyperparameters,
+                                   parameters, options.verbosity);
 
     perform_gibbs_sampling(data, pfa, options);
   }

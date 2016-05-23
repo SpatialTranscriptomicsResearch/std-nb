@@ -5,7 +5,7 @@
 #include <vector>
 #include "types.hpp"
 
-namespace FactorAnalysis {
+namespace PoissonFactorization {
 struct Hyperparameters {
   Hyperparameters(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,

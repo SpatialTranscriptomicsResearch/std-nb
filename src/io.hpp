@@ -69,11 +69,11 @@ void write_matrix(const M &m, const std::string &path,
   }
 }
 
-FactorAnalysis::Matrix read_matrix(std::istream &os,
+PoissonFactorization::Matrix read_matrix(std::istream &os,
                                    const std::string &separator,
                                    const std::string &label);
 
-FactorAnalysis::IMatrix read_imatrix(std::istream &os,
+PoissonFactorization::IMatrix read_imatrix(std::istream &os,
                                      const std::string &separator,
                                      const std::string &label);
 
@@ -96,13 +96,13 @@ V read_vector(std::istream &is, const std::string &separator) {
   return v_;
 }
 
-FactorAnalysis::Matrix read_floats(std::istream &ifs,
+PoissonFactorization::Matrix read_floats(std::istream &ifs,
                                    const std::string &separator,
                                    std::vector<std::string> &row_names,
                                    std::vector<std::string> &col_names,
                                    const std::string &label);
 
-FactorAnalysis::IMatrix read_counts(std::istream &ifs,
+PoissonFactorization::IMatrix read_counts(std::istream &ifs,
                                     const std::string &separator,
                                     std::vector<std::string> &row_names,
                                     std::vector<std::string> &col_names,

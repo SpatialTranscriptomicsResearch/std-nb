@@ -15,7 +15,7 @@
 #include "timer.hpp"
 #include "verbosity.hpp"
 
-namespace FactorAnalysis {
+namespace PoissonFactorization {
 
 #define DO_PARALLEL 1
 #define DEFAULT_SEPARATOR "\t"
@@ -129,7 +129,7 @@ struct KindTraits<Kind::HierGamma> {
 };
 
 template <Kind kind = Kind::Gamma>
-struct VariantModel {
+struct Model {
   /** number of genes */
   size_t G;
   // const size_t G;
@@ -181,11 +181,11 @@ struct VariantModel {
 
   Verbosity verbosity;
 
-  VariantModel(const Counts &counts, const size_t T,
+  Model(const Counts &counts, const size_t T,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
-  VariantModel(const Counts &counts, const Paths &paths,
+  Model(const Counts &counts, const Paths &paths,
                const Hyperparameters &hyperparameters,
                const Parameters &parameters, Verbosity verbosity);
 
@@ -238,9 +238,9 @@ struct VariantModel {
   void sample_merge(const Counts &data, size_t t1, size_t t2,
                     GibbsSample which);
   void sample_split(const Counts &data, size_t t, GibbsSample which);
-  void lift_sub_model(const VariantModel &sub_model, size_t t1, size_t t2);
+  void lift_sub_model(const Model &sub_model, size_t t1, size_t t2);
 
-  VariantModel run_submodel(size_t t, size_t n, const Counts &counts,
+  Model run_submodel(size_t t, size_t n, const Counts &counts,
                             GibbsSample which, const std::string &prefix,
                             const std::vector<size_t> &init_factors
                             = std::vector<size_t>());
@@ -265,10 +265,10 @@ private:
 
 template <Kind kind>
 std::ostream &operator<<(std::ostream &os,
-                         const FactorAnalysis::VariantModel<kind> &pfa);
+                         const PoissonFactorization::Model<kind> &pfa);
 
 template <Kind kind>
-VariantModel<kind>::VariantModel(const Counts &c, const size_t T_,
+Model<kind>::Model(const Counts &c, const size_t T_,
                                  const Hyperparameters &hyperparameters_,
                                  const Parameters &parameters_,
                                  Verbosity verbosity_)
@@ -364,7 +364,7 @@ VariantModel<kind>::VariantModel(const Counts &c, const size_t T_,
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_p_phi() {
+void Model<kind>::initialize_p_phi() {
   // initialize p_phi
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing p_phi." << std::endl;
@@ -379,7 +379,7 @@ void VariantModel<kind>::initialize_p_phi() {
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_r_phi() {
+void Model<kind>::initialize_r_phi() {
   // initialize r_phi
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing r_phi." << std::endl;
@@ -395,7 +395,7 @@ void VariantModel<kind>::initialize_r_phi() {
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_phi() {
+void Model<kind>::initialize_phi() {
   // initialize phi
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing phi." << std::endl;
@@ -410,7 +410,7 @@ void VariantModel<kind>::initialize_phi() {
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_p_theta() {
+void Model<kind>::initialize_p_theta() {
   // initialize p_theta
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing p_theta." << std::endl;
@@ -423,7 +423,7 @@ void VariantModel<kind>::initialize_p_theta() {
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_r_theta() {
+void Model<kind>::initialize_r_theta() {
   // initialize r_theta
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing r_theta." << std::endl;
@@ -435,7 +435,7 @@ void VariantModel<kind>::initialize_r_theta() {
 }
 
 template <Kind kind>
-void VariantModel<kind>::initialize_theta() {
+void Model<kind>::initialize_theta() {
   // initialize theta
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing theta." << std::endl;
@@ -450,7 +450,7 @@ void VariantModel<kind>::initialize_theta() {
 }
 
 template <Kind kind>
-VariantModel<kind>::VariantModel(const Counts &c, const Paths &paths,
+Model<kind>::Model(const Counts &c, const Paths &paths,
                                  const Hyperparameters &hyperparameters_,
                                  const Parameters &parameters_,
                                  Verbosity verbosity_)
@@ -482,7 +482,7 @@ VariantModel<kind>::VariantModel(const Counts &c, const Paths &paths,
 
 template <Kind kind>
 // TODO ensure no NaNs or infinities are generated
-double VariantModel<kind>::log_likelihood_factor(const IMatrix &counts,
+double Model<kind>::log_likelihood_factor(const IMatrix &counts,
                                                  size_t t) const {
   double l = 0;
 
@@ -555,7 +555,7 @@ double VariantModel<kind>::log_likelihood_factor(const IMatrix &counts,
 }
 
 template <Kind kind>
-double VariantModel<kind>::log_likelihood_poisson_counts(
+double Model<kind>::log_likelihood_poisson_counts(
     const IMatrix &counts) const {
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
@@ -579,7 +579,7 @@ double VariantModel<kind>::log_likelihood_poisson_counts(
 }
 
 template <Kind kind>
-double VariantModel<kind>::log_likelihood(const IMatrix &counts) const {
+double Model<kind>::log_likelihood(const IMatrix &counts) const {
   double l = 0;
   for (size_t t = 0; t < T; ++t)
     l += log_likelihood_factor(counts, t);
@@ -599,7 +599,7 @@ double VariantModel<kind>::log_likelihood(const IMatrix &counts) const {
 }
 
 template <Kind kind>
-Matrix VariantModel<kind>::weighted_theta() const {
+Matrix Model<kind>::weighted_theta() const {
   Matrix m = theta;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
@@ -615,7 +615,7 @@ Matrix VariantModel<kind>::weighted_theta() const {
 }
 
 template <Kind kind>
-void VariantModel<kind>::store(const Counts &counts, const std::string &prefix,
+void Model<kind>::store(const Counts &counts, const std::string &prefix,
                                bool mean_and_variance) const {
   std::vector<std::string> factor_names;
   for (size_t t = 1; t <= T; ++t)
@@ -643,7 +643,7 @@ void VariantModel<kind>::store(const Counts &counts, const std::string &prefix,
 }
 
 template <Kind kind>
-void VariantModel<kind>::sample_contributions_sub(const IMatrix &counts,
+void Model<kind>::sample_contributions_sub(const IMatrix &counts,
                                                   size_t g, size_t s, RNG &rng,
                                                   IMatrix &contrib_gene_type,
                                                   IMatrix &contrib_spot_type) {
@@ -666,7 +666,7 @@ void VariantModel<kind>::sample_contributions_sub(const IMatrix &counts,
 
 template <Kind kind>
 /** sample count decomposition */
-void VariantModel<kind>::sample_contributions(const IMatrix &counts) {
+void Model<kind>::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling contributions" << std::endl;
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
@@ -690,7 +690,7 @@ void VariantModel<kind>::sample_contributions(const IMatrix &counts) {
 }
 
 template <Kind kind>
-std::vector<Float> VariantModel<kind>::compute_intensities_gene_type() const {
+std::vector<Float> Model<kind>::compute_intensities_gene_type() const {
   std::vector<Float> intensities(T, 0);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
@@ -701,7 +701,7 @@ std::vector<Float> VariantModel<kind>::compute_intensities_gene_type() const {
 
 template <Kind kind>
 /** sample theta */
-void VariantModel<kind>::sample_theta() {
+void Model<kind>::sample_theta() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling Θ" << std::endl;
   const std::vector<Float> intensities = compute_intensities_gene_type();
@@ -733,7 +733,7 @@ void VariantModel<kind>::sample_theta() {
 template <Kind kind>
 /** sample p_theta and r_theta */
 /* This is a simple Metropolis-Hastings sampling scheme */
-void VariantModel<kind>::sample_p_and_r_theta() {
+void Model<kind>::sample_p_and_r_theta() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling P_theta and R_theta" << std::endl;
 
@@ -775,7 +775,7 @@ void VariantModel<kind>::sample_p_and_r_theta() {
 /** sample p_phi and r_phi */
 /* This is a simple Metropolis-Hastings sampling scheme */
 template <Kind kind>
-void VariantModel<kind>::sample_p_and_r() {
+void Model<kind>::sample_p_and_r() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling P and R" << std::endl;
 
@@ -812,7 +812,7 @@ void VariantModel<kind>::sample_p_and_r() {
 }
 
 template <Kind kind>
-Float VariantModel<kind>::sample_phi_sub(size_t g, size_t t, Float theta_t,
+Float Model<kind>::sample_phi_sub(size_t g, size_t t, Float theta_t,
                                          RNG &rng) const {
   // NOTE: gamma_distribution takes a shape and scale parameter
   return std::gamma_distribution<Float>(
@@ -822,7 +822,7 @@ Float VariantModel<kind>::sample_phi_sub(size_t g, size_t t, Float theta_t,
 
 /** sample phi */
 template <Kind kind>
-void VariantModel<kind>::sample_phi() {
+void Model<kind>::sample_phi() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling Φ" << std::endl;
   Vector theta_t(T, arma::fill::zeros);
@@ -855,7 +855,7 @@ void VariantModel<kind>::sample_phi() {
 
 /** sample spot scaling factors */
 template <Kind kind>
-void VariantModel<kind>::sample_spot_scaling() {
+void Model<kind>::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling spot scaling factors" << std::endl;
   Vector phi_marginal(T, arma::fill::zeros);
@@ -905,7 +905,7 @@ void VariantModel<kind>::sample_spot_scaling() {
 
 /** sample experiment scaling factors */
 template <Kind kind>
-void VariantModel<kind>::sample_experiment_scaling(const Counts &data) {
+void Model<kind>::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling experiment scaling factors" << std::endl;
 
@@ -964,13 +964,13 @@ void VariantModel<kind>::sample_experiment_scaling(const Counts &data) {
 
 /** copy the experiment scaling parameters into the spot-indexed vector */
 template <Kind kind>
-void VariantModel<kind>::update_experiment_scaling_long(const Counts &data) {
+void Model<kind>::update_experiment_scaling_long(const Counts &data) {
   for (size_t s = 0; s < S; ++s)
     experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
 
 template <Kind kind>
-void VariantModel<kind>::gibbs_sample(const Counts &data, GibbsSample which,
+void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
                                       bool timing) {
   check_model(data.counts);
 
@@ -1069,7 +1069,7 @@ void VariantModel<kind>::gibbs_sample(const Counts &data, GibbsSample which,
 }
 
 template <Kind kind>
-void VariantModel<kind>::sample_split_merge(const Counts &data,
+void Model<kind>::sample_split_merge(const Counts &data,
                                             GibbsSample which) {
   if (T < 2)
     return;
@@ -1095,7 +1095,7 @@ void VariantModel<kind>::sample_split_merge(const Counts &data,
 }
 
 template <Kind kind>
-size_t VariantModel<kind>::find_weakest_factor() const {
+size_t Model<kind>::find_weakest_factor() const {
   std::vector<Float> x(T, 0);
   std::cout << "Factor strengths: ";
   for (size_t t = 0; t < T; ++t) {
@@ -1115,12 +1115,12 @@ size_t VariantModel<kind>::find_weakest_factor() const {
 }
 
 template <Kind kind>
-VariantModel<kind> VariantModel<kind>::run_submodel(
+Model<kind> Model<kind>::run_submodel(
     size_t t, size_t n, const Counts &counts, GibbsSample which,
     const std::string &prefix, const std::vector<size_t> &init_factors) {
   const bool show_timing = false;
   // TODO: use init_factors
-  VariantModel<kind> sub_model(counts, t, hyperparameters, parameters,
+  Model<kind> sub_model(counts, t, hyperparameters, parameters,
                                Verbosity::Info);
   for (size_t s = 0; s < S; ++s) {
     sub_model.spot_scaling[s] = spot_scaling[s];
@@ -1150,7 +1150,7 @@ VariantModel<kind> VariantModel<kind>::run_submodel(
 }
 
 template <Kind kind>
-void VariantModel<kind>::lift_sub_model(const VariantModel &sub_model,
+void Model<kind>::lift_sub_model(const Model &sub_model,
                                         size_t t1, size_t t2) {
   for (size_t g = 0; g < G; ++g) {
     phi(g, t1) = sub_model.phi(g, t2);
@@ -1168,13 +1168,13 @@ void VariantModel<kind>::lift_sub_model(const VariantModel &sub_model,
 }
 
 template <Kind kind>
-void VariantModel<kind>::sample_split(const Counts &data, size_t t1,
+void Model<kind>::sample_split(const Counts &data, size_t t1,
                                       GibbsSample which) {
   size_t t2 = find_weakest_factor();
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a split step. Splitting " << t1 << " and " << t2
               << "." << std::endl;
-  VariantModel previous(*this);
+  Model previous(*this);
 
   double ll_previous = (consider_factor_likel
                             ? log_likelihood_factor(data.counts, t1)
@@ -1193,7 +1193,7 @@ void VariantModel<kind>::sample_split(const Counts &data, size_t t1,
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  VariantModel sub_model
+  Model sub_model
       = run_submodel(2, num_sub_gibbs, sub_counts, which, "splitmerge_split_");
 
   lift_sub_model(sub_model, t1, 0);
@@ -1222,12 +1222,12 @@ void VariantModel<kind>::sample_split(const Counts &data, size_t t1,
 }
 
 template <Kind kind>
-void VariantModel<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
+void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
                                       GibbsSample which) {
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a merge step. Merging types " << t1 << " and "
               << t2 << "." << std::endl;
-  VariantModel previous(*this);
+  Model previous(*this);
 
   double ll_previous = (consider_factor_likel
                             ? log_likelihood_factor(data.counts, t1)
@@ -1246,7 +1246,7 @@ void VariantModel<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  VariantModel sub_model
+  Model sub_model
       = run_submodel(1, num_sub_gibbs, sub_counts, which, "splitmerge_merge_");
 
   lift_sub_model(sub_model, t1, 0);
@@ -1342,7 +1342,7 @@ void VariantModel<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
 }
 
 template <Kind kind>
-std::vector<Int> VariantModel<kind>::sample_reads(size_t g, size_t s,
+std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s,
                                                   size_t n) const {
   std::vector<Float> prods(T);
   for (size_t t = 0; t < T; ++t) {
@@ -1362,7 +1362,7 @@ std::vector<Int> VariantModel<kind>::sample_reads(size_t g, size_t s,
 }
 
 template <Kind kind>
-double VariantModel<kind>::posterior_expectation(size_t g, size_t s) const {
+double Model<kind>::posterior_expectation(size_t g, size_t s) const {
   double x = 0;
   for (size_t t = 0; t < T; ++t)
     x += r_phi(g, t) / p_phi(g, t) * theta(s, t);
@@ -1373,7 +1373,7 @@ double VariantModel<kind>::posterior_expectation(size_t g, size_t s) const {
 }
 
 template <Kind kind>
-double VariantModel<kind>::posterior_expectation_poisson(size_t g,
+double Model<kind>::posterior_expectation_poisson(size_t g,
                                                          size_t s) const {
   double x = 0;
   for (size_t t = 0; t < T; ++t)
@@ -1385,7 +1385,7 @@ double VariantModel<kind>::posterior_expectation_poisson(size_t g,
 }
 
 template <Kind kind>
-double VariantModel<kind>::posterior_variance(size_t g, size_t s) const {
+double Model<kind>::posterior_variance(size_t g, size_t s) const {
   double x = 0;
   double prod_ = spot_scaling[s];
   if (parameters.activate_experiment_scaling)
@@ -1398,7 +1398,7 @@ double VariantModel<kind>::posterior_variance(size_t g, size_t s) const {
 }
 
 template <Kind kind>
-Matrix VariantModel<kind>::posterior_expectations() const {
+Matrix Model<kind>::posterior_expectations() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1407,7 +1407,7 @@ Matrix VariantModel<kind>::posterior_expectations() const {
 }
 
 template <Kind kind>
-Matrix VariantModel<kind>::posterior_expectations_poisson() const {
+Matrix Model<kind>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1416,7 +1416,7 @@ Matrix VariantModel<kind>::posterior_expectations_poisson() const {
 }
 
 template <Kind kind>
-Matrix VariantModel<kind>::posterior_variances() const {
+Matrix Model<kind>::posterior_variances() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1425,7 +1425,7 @@ Matrix VariantModel<kind>::posterior_variances() const {
 }
 
 template <Kind kind>
-void VariantModel<kind>::check_model(const IMatrix &counts) const {
+void Model<kind>::check_model(const IMatrix &counts) const {
   return;
   // check that the contributions add up to the observations
   /*
@@ -1500,7 +1500,7 @@ void VariantModel<kind>::check_model(const IMatrix &counts) const {
 
 template <Kind kind>
 std::ostream &operator<<(std::ostream &os,
-                         const FactorAnalysis::VariantModel<kind> &pfa) {
+                         const PoissonFactorization::Model<kind> &pfa) {
   os << "Variant Poisson Factor Analysis "
      << "S = " << pfa.S << " "
      << "G = " << pfa.G << " "
