@@ -78,7 +78,8 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-void simulate(const FactorAnalysis::VariantModel &pfa, const Counts &counts) {
+template <FactorAnalysis::Kind kind>
+void simulate(const FactorAnalysis::VariantModel<kind> &pfa, const Counts &counts) {
     // sample the highest, the median, and the lowest genes' counts for all spots
     vector<size_t> counts_per_gene(pfa.G, 0);
     for (size_t g = 0; g < pfa.G; ++g)
@@ -316,12 +317,12 @@ int main(int argc, char **argv) {
 
   if (options.simulate_path != "") {
     FactorAnalysis::Paths paths(options.simulate_path, "");
-    FactorAnalysis::VariantModel pfa(data, paths, hyperparameters,
+    FactorAnalysis::VariantModel<FactorAnalysis::Kind::Gamma> pfa(data, paths, hyperparameters,
                                      parameters, options.verbosity);
 
     simulate(pfa, data);
   } else {
-    FactorAnalysis::VariantModel pfa(data, options.num_factors, hyperparameters,
+    FactorAnalysis::VariantModel<FactorAnalysis::Kind::Gamma> pfa(data, options.num_factors, hyperparameters,
                                      parameters, options.verbosity);
 
     perform_gibbs_sampling(data, pfa, options);
