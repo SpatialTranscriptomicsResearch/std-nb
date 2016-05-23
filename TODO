@@ -34,3 +34,4 @@
 * test possible benefits of JIT compiling with fixed G, S, T
 * consider using GPU for sampling contributions
 * experiment with activating ARMA_NO_DEBUG in types.hpp
+* use profile-generate / profile-use gcc flags
