@@ -325,10 +325,14 @@ int main(int argc, char **argv) {
     simulate(pfa, data);
   } else {
     if (options.feature_type == PF::Kind::Dirichlet) {
+      if (options.verbosity >= Verbosity::Info)
+        cout << "Using Dirichlet-distribution for the features." << endl;
       PF::Model<PF::Kind::Dirichlet> pfa(data, options.num_factors, parameters,
                                          options.verbosity);
       perform_gibbs_sampling(data, pfa, options);
     } else if (options.feature_type == PF::Kind::Gamma) {
+      if (options.verbosity >= Verbosity::Info)
+        cout << "Using gamma-distribution for the features." << endl;
       PF::Model<PF::Kind::Gamma> pfa(data, options.num_factors, parameters,
                                      options.verbosity);
       perform_gibbs_sampling(data, pfa, options);
