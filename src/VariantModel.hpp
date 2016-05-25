@@ -1534,7 +1534,7 @@ std::ostream &operator<<(std::ostream &os,
 
   if (pfa.verbosity >= Verbosity::Verbose) {
     print_matrix_head(os, pfa.features.phi, "Φ");
-    print_matrix_head(os, pfa.features.phi, "Θ");
+    print_matrix_head(os, pfa.theta, "Θ");
     os << pfa.features.prior;
 
     os << "Spot scaling factors" << std::endl;
