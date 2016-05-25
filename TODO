@@ -38,3 +38,4 @@
 * store all iterations' parameters;
 * compute auto-correlation
 * retire (git rm) src/PoissonModel.cpp and src/PoissonModel.hpp
+* print out acceptance / rejection statistics for MH parts
