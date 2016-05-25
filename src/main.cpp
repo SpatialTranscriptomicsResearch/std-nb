@@ -324,6 +324,8 @@ int main(int argc, char **argv) {
     PF::Model<PF::Kind::Gamma> pfa(data, paths, parameters, options.verbosity);
     simulate(pfa, data);
   } else {
+    if(options.phi_dirichlet)
+      options.feature_type = PF::Kind::Dirichlet;
     if (options.feature_type == PF::Kind::Dirichlet) {
       if (options.verbosity >= Verbosity::Info)
         cout << "Using Dirichlet-distribution for the features." << endl;
