@@ -1531,7 +1531,7 @@ void Model<kind>::check_model(const IMatrix &counts) const {
 template <Kind kind>
 std::ostream &operator<<(std::ostream &os,
                          const PoissonFactorization::Model<kind> &pfa) {
-  os << "Poisson Factorization"
+  os << "Poisson Factorization "
      << "G = " << pfa.G << " "
      << "S = " << pfa.S << " "
      << "T = " << pfa.T << std::endl;
