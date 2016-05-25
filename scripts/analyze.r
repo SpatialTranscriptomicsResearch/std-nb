@@ -349,30 +349,32 @@ st.multi = function(d,
       }
     }
 
-    simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
     simil.2d.break = list()
+    if (FALSE) { # TODO: reactivate
+      simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
 
-    if(!is.null(path)) {
-      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
-      par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
-      for(method in names(simil.2d)) {
-        broken = break.data(simil.2d[[method]])
-        experiment = rep(names(broken), times=sapply(broken, nrow))
-        nc = min(3, ncol(simil[[method]]))
-        plot(simil.2d[[method]],
-             col=make.color(simil[[method]][,1:nc]),
-             pch=as.numeric(as.factor(experiment)),
-             main=method,
-             xlab="",
-             ylab=""
-             )
-        legend("topleft",
-               names(broken),
-               pch=as.factor(names(broken)),
-               bty='n')
-        simil.2d.break[[method]] = broken
+      if(!is.null(path)) {
+        pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
+        par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
+        for(method in names(simil.2d)) {
+          broken = break.data(simil.2d[[method]])
+          experiment = rep(names(broken), times=sapply(broken, nrow))
+          nc = min(3, ncol(simil[[method]]))
+          plot(simil.2d[[method]],
+               col=make.color(simil[[method]][,1:nc]),
+               pch=as.numeric(as.factor(experiment)),
+               main=method,
+               xlab="",
+               ylab=""
+               )
+          legend("topleft",
+                 names(broken),
+                 pch=as.factor(names(broken)),
+                 bty='n')
+          simil.2d.break[[method]] = broken
+        }
+        dev.off()
       }
-      dev.off()
     }
 
 
