@@ -37,3 +37,4 @@
 * use profile-generate / profile-use gcc flags
 * store all iterations' parameters;
 * compute auto-correlation
+* retire (git rm) src/PoissonModel.cpp and src/PoissonModel.hpp
