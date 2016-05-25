@@ -329,7 +329,7 @@ void Features<Kind::Dirichlet>::sample(const Matrix &theta,
   // if (verbosity >= Verbosity::Verbose) // TODO-verbosity
   std::cout << "Sampling Φ from Dirichlet distribution" << std::endl;
   for (size_t t = 0; t < T; ++t) {
-    std::vector<Float> a(G);
+    std::vector<Float> a(G, parameters.hyperparameters.alpha);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       a[g] += contributions_gene_type(g, t);
