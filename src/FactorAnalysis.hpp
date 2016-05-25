@@ -98,6 +98,7 @@ struct Parameters {
    */
   size_t enforce_iter = 10;
   bool activate_experiment_scaling = false;
+  Hyperparameters hyperparameters;
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);
