@@ -996,8 +996,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
 
   if (flagged(which & GibbsSample::merge_split)) {
     // NOTE: this has to be done right after the Gibbs step for the
-    // contributions
-    // because otherwise the lambda_gene_spot variables are not correct
+    // contributions because otherwise lambda_gene_spot is inconsistent
     timer.tick();
     sample_split_merge(data, which);
     if (timing and verbosity >= Verbosity::Info)
@@ -1263,7 +1262,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
 
-  std::cout << "Error: not implemented: merging / splitting." << std::endl;
+  std::cout << "Error: not implemented: merging." << std::endl;
   exit(-1);
   /*
   // initialize p_phi
@@ -1356,7 +1355,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
 template <Kind kind>
 std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s,
                                                   size_t n) const {
-  std::cout << "Error: not implemented: merging / splitting." << std::endl;
+  std::cout << "Error: not implemented: sampling reads." << std::endl;
   exit(-1);
   /*
   std::vector<Float> prods(T);
@@ -1372,14 +1371,16 @@ std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s,
   for (size_t i = 0; i < n; ++i)
     for (size_t t = 0; t < T; ++t)
       v[i] += sample_negative_binomial(
-          features.prior.r(g, t), prods[t] / (prods[t] + features.prior.p(g, t)), EntropySource::rng);
+          features.prior.r(g, t), prods[t] / (prods[t] + features.prior.p(g,
+  t)), EntropySource::rng);
   return v;
   */
 }
 
 template <Kind kind>
 double Model<kind>::posterior_expectation(size_t g, size_t s) const {
-  std::cout << "Error: not implemented: merging / splitting." << std::endl;
+  std::cout << "Error: not implemented: computing posterior expectations."
+            << std::endl;
   exit(-1);
   /*
   double x = 0;
@@ -1406,7 +1407,8 @@ double Model<kind>::posterior_expectation_poisson(size_t g,
 
 template <Kind kind>
 double Model<kind>::posterior_variance(size_t g, size_t s) const {
-  std::cout << "Error: not implemented: merging / splitting." << std::endl;
+  std::cout << "Error: not implemented: computing posterior variance."
+            << std::endl;
   exit(-1);
   /*
   double x = 0;
@@ -1415,7 +1417,8 @@ double Model<kind>::posterior_variance(size_t g, size_t s) const {
     prod_ *= experiment_scaling_long[s];
   for (size_t t = 0; t < T; ++t) {
     double prod = theta(s, t) * prod_;
-    x += features.prior.r(g, t) * prod / (prod + features.prior.p(g, t)) / features.prior.p(g, t) / features.prior.p(g, t);
+    x += features.prior.r(g, t) * prod / (prod + features.prior.p(g, t)) /
+  features.prior.p(g, t) / features.prior.p(g, t);
   }
   return x;
   */
