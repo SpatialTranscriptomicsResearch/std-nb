@@ -40,6 +40,7 @@ struct Options {
   bool compute_likelihood = false;
   bool timing = true;
   size_t top = 0;
+  bool phi_dirichlet = false;
   PF::GibbsSample sample_these = PF::DefaultGibbs();
   PF::Kind feature_type = PF::Kind::Gamma;
 };
@@ -187,6 +188,8 @@ int main(int argc, char **argv) {
      "and row names in the first column of each row.");
 
   basic_options.add_options()
+    ("dirichlet,d", po::bool_switch(&options.phi_dirichlet),
+     "Use a Dirichlet distribution for the features.")
     ("simulate,s", po::value(&options.simulate_path),
      "Prefix to a set of parameter files. ")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
