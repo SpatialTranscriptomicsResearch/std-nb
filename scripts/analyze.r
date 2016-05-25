@@ -53,8 +53,8 @@ st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
   d = list()
   d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
   d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
-  d$phi.r = st.load.matrix(path.prefix, "r_phi.txt", path.suffix)
-  d$phi.p = st.load.matrix(path.prefix, "p_phi.txt", path.suffix)
+#  d$phi.r = st.load.matrix(path.prefix, "r_phi.txt", path.suffix) # TODO: reactivate
+#  d$phi.p = st.load.matrix(path.prefix, "p_phi.txt", path.suffix) # TODO: reactivate
   d$theta.r = st.load.vector(path.prefix, "r_theta.txt", path.suffix)
   d$theta.p = st.load.vector(path.prefix, "p_theta.txt", path.suffix)
   if(load.means) {
@@ -76,8 +76,8 @@ st.order = function(d, plot=T) {
   }
   e$theta = e$theta[,o]
   e$phi = e$phi[,o]
-  e$phi.p = e$phi.p[,o]
-  e$phi.r = e$phi.r[,o]
+#  e$phi.p = e$phi.p[,o] # TODO: reactivate
+#  e$phi.r = e$phi.r[,o] # TODO: reactivate
   e$theta.p = e$theta.p[o]
   e$theta.r = e$theta.r[o]
   return(e)
