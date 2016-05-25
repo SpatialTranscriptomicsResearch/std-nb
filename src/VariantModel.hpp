@@ -743,7 +743,7 @@ void Model<kind>::store(const Counts &counts, const std::string &prefix,
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
   write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
-  if (mean_and_variance) {
+  if (false and mean_and_variance) { // TODO reactivate
     write_matrix(posterior_expectations(), prefix + "means.txt", gene_names, spot_names);
     write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt", gene_names, spot_names);
     write_matrix(posterior_variances(), prefix + "variances.txt", gene_names, spot_names);
