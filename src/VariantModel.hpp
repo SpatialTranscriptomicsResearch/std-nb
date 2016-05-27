@@ -13,6 +13,7 @@
 #include "odds.hpp"
 #include "sampling.hpp"
 #include "stats.hpp"
+#include "target.hpp"
 #include "timer.hpp"
 #include "verbosity.hpp"
 
@@ -43,51 +44,6 @@ double compute_conditional(const std::pair<Float, Float> &x, Int count_sum,
 
 void print_matrix_head(std::ostream &os, const Matrix &m,
                        const std::string &label = "", size_t n = 10);
-
-enum class GibbsSample {
-  empty = 0,
-  contributions = 1 << 0,
-  phi = 1 << 1,
-  phi_r = 1 << 2,
-  phi_p = 1 << 3,
-  theta = 1 << 4,
-  theta_r = 1 << 5,
-  theta_p = 1 << 6,
-  spot_scaling = 1 << 7,
-  experiment_scaling = 1 << 8,
-  merge_split = 1 << 9,
-};
-
-std::ostream &operator<<(std::ostream &os, const GibbsSample &which);
-std::istream &operator>>(std::istream &is, GibbsSample &which);
-
-inline constexpr GibbsSample operator&(GibbsSample a, GibbsSample b) {
-  return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
-}
-
-inline constexpr GibbsSample operator|(GibbsSample a, GibbsSample b) {
-  return static_cast<GibbsSample>(static_cast<int>(a) | static_cast<int>(b));
-}
-
-inline constexpr GibbsSample operator^(GibbsSample a, GibbsSample b) {
-  return static_cast<GibbsSample>(static_cast<int>(a) & static_cast<int>(b));
-}
-
-inline constexpr GibbsSample
-operator~(GibbsSample a) {
-  return static_cast<GibbsSample>((~static_cast<int>(a)) & ((1 << 10) - 1));
-}
-
-inline constexpr GibbsSample DefaultGibbs() {
-  return GibbsSample::contributions | GibbsSample::phi | GibbsSample::phi_r
-         | GibbsSample::phi_p | GibbsSample::theta | GibbsSample::theta_r
-         | GibbsSample::theta_p | GibbsSample::spot_scaling
-         | GibbsSample::experiment_scaling; // TODO reactivate | GibbsSample::merge_split;
-}
-
-inline bool flagged(GibbsSample x) {
-  return (GibbsSample::empty | x) != GibbsSample::empty;
-}
 
 struct Paths {
   Paths(const std::string &prefix, const std::string &suffix = "");
@@ -427,18 +383,17 @@ struct Model {
   void sample_experiment_scaling(const Counts &data);
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(const Counts &data, GibbsSample which, bool timing);
+  void gibbs_sample(const Counts &data, Target which, bool timing);
 
-  void sample_split_merge(const Counts &data, GibbsSample which);
-  void sample_merge(const Counts &data, size_t t1, size_t t2,
-                    GibbsSample which);
-  void sample_split(const Counts &data, size_t t, GibbsSample which);
+  void sample_split_merge(const Counts &data, Target which);
+  void sample_merge(const Counts &data, size_t t1, size_t t2, Target which);
+  void sample_split(const Counts &data, size_t t, Target which);
   void lift_sub_model(const Model &sub_model, size_t t1, size_t t2);
 
-  Model run_submodel(size_t t, size_t n, const Counts &counts,
-                            GibbsSample which, const std::string &prefix,
-                            const std::vector<size_t> &init_factors
-                            = std::vector<size_t>());
+  Model run_submodel(size_t t, size_t n, const Counts &counts, Target which,
+                     const std::string &prefix,
+                     const std::vector<size_t> &init_factors
+                     = std::vector<size_t>());
 
   size_t find_weakest_factor() const;
 
@@ -980,12 +935,11 @@ void Model<kind>::update_experiment_scaling_long(const Counts &data) {
 }
 
 template <Kind kind>
-void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
-                                      bool timing) {
+void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
   check_model(data.counts);
 
   Timer timer;
-  if (flagged(which & GibbsSample::contributions)) {
+  if (flagged(which & Target::contributions)) {
     sample_contributions(data.counts);
     if (timing and verbosity >= Verbosity::Info)
       std::cout << "This took " << timer.tock() << "μs." << std::endl;
@@ -995,7 +949,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::merge_split)) {
+  if (flagged(which & Target::merge_split)) {
     // NOTE: this has to be done right after the Gibbs step for the
     // contributions because otherwise lambda_gene_spot is inconsistent
     timer.tick();
@@ -1008,7 +962,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::spot_scaling)) {
+  if (flagged(which & Target::spot_scaling)) {
     timer.tick();
     sample_spot_scaling();
     if (timing and verbosity >= Verbosity::Info)
@@ -1019,7 +973,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::experiment_scaling)) {
+  if (flagged(which & Target::experiment_scaling)) {
     if (E > 1 and parameters.activate_experiment_scaling) {
       timer.tick();
       sample_experiment_scaling(data);
@@ -1032,7 +986,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     }
   }
 
-  if (flagged(which & (GibbsSample::phi_r | GibbsSample::phi_p))) {
+  if (flagged(which & (Target::phi_r | Target::phi_p))) {
     timer.tick();
     features.prior.sample(theta, contributions_gene_type, spot_scaling,
                           experiment_scaling_long);
@@ -1044,7 +998,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & (GibbsSample::theta_r | GibbsSample::theta_p))) {
+  if (flagged(which & (Target::theta_r | Target::theta_p))) {
     timer.tick();
     sample_p_and_r_theta();
     if (timing and verbosity >= Verbosity::Info)
@@ -1055,7 +1009,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::phi)) {
+  if (flagged(which & Target::phi)) {
     timer.tick();
     features.sample(theta, contributions_gene_type, spot_scaling,
                     experiment_scaling_long);
@@ -1067,7 +1021,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
     check_model(data.counts);
   }
 
-  if (flagged(which & GibbsSample::theta)) {
+  if (flagged(which & Target::theta)) {
     timer.tick();
     sample_theta();
     if (timing and verbosity >= Verbosity::Info)
@@ -1080,8 +1034,7 @@ void Model<kind>::gibbs_sample(const Counts &data, GibbsSample which,
 }
 
 template <Kind kind>
-void Model<kind>::sample_split_merge(const Counts &data,
-                                            GibbsSample which) {
+void Model<kind>::sample_split_merge(const Counts &data, Target which) {
   if (T < 2)
     return;
 
@@ -1124,9 +1077,9 @@ size_t Model<kind>::find_weakest_factor() const {
 }
 
 template <Kind kind>
-Model<kind> Model<kind>::run_submodel(
-    size_t t, size_t n, const Counts &counts, GibbsSample which,
-    const std::string &prefix, const std::vector<size_t> &init_factors) {
+Model<kind> Model<kind>::run_submodel(size_t t, size_t n, const Counts &counts,
+                                      Target which, const std::string &prefix,
+                                      const std::vector<size_t> &init_factors) {
   const bool show_timing = false;
   // TODO: use init_factors
   Model<kind> sub_model(counts, t, parameters, Verbosity::Info);
@@ -1144,8 +1097,8 @@ Model<kind> Model<kind>::run_submodel(
   // keep spot and experiment scaling fixed
   // don't recurse into either merge or sample steps
   which = which
-          & ~(GibbsSample::spot_scaling | GibbsSample::experiment_scaling
-              | GibbsSample::merge_split);
+          & ~(Target::spot_scaling | Target::experiment_scaling
+              | Target::merge_split);
   for (size_t i = 0; i < n; ++i)
     sub_model.gibbs_sample(counts, which, show_timing);
 
@@ -1175,8 +1128,7 @@ void Model<kind>::lift_sub_model(const Model &sub_model,
 }
 
 template <Kind kind>
-void Model<kind>::sample_split(const Counts &data, size_t t1,
-                                      GibbsSample which) {
+void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
   size_t t2 = find_weakest_factor();
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a split step. Splitting " << t1 << " and " << t2
@@ -1230,7 +1182,7 @@ void Model<kind>::sample_split(const Counts &data, size_t t1,
 
 template <Kind kind>
 void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
-                               GibbsSample which) {
+                               Target which) {
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a merge step. Merging types " << t1 << " and "
               << t2 << "." << std::endl;

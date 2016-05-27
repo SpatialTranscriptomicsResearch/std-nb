@@ -6,7 +6,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
   io.cpp metropolis_hastings.cpp FactorAnalysis.cpp VariantModel.cpp
-  sampling.cpp terminal.cpp timer.cpp pdist.cpp)
+  sampling.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
 
 ADD_EXECUTABLE(multiScoop-bin main.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)

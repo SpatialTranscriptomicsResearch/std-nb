@@ -41,7 +41,7 @@ struct Options {
   bool timing = true;
   size_t top = 0;
   bool phi_dirichlet = false;
-  PF::GibbsSample sample_these = PF::DefaultGibbs();
+  PF::Target sample_these = PF::DefaultTarget();
   PF::Kind feature_type = PF::Kind::Gamma;
 };
 
