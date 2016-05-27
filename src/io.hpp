@@ -4,7 +4,7 @@
 #include <exception>
 #include <vector>
 #include <iostream>
-#include "FactorAnalysis.hpp"
+#include "types.hpp"
 
 template <typename V>
 void write_vector(const V &v, const std::string &path,
@@ -107,5 +107,8 @@ PoissonFactorization::IMatrix read_counts(std::istream &ifs,
                                     std::vector<std::string> &row_names,
                                     std::vector<std::string> &col_names,
                                     const std::string &label);
+
+void print_matrix_head(std::ostream &os, const PoissonFactorization::Matrix &m,
+                       const std::string &label = "", size_t n = 10);
 
 #endif

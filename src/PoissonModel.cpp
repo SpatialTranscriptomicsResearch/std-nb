@@ -8,6 +8,11 @@
 
 #define DO_PARALLEL 1
 
+template <typename T>
+T square(T x) {
+  return x * x;
+}
+
 using namespace std;
 namespace FactorAnalysis {
 PoissonModel::PoissonModel(const IMatrix &counts, const size_t T_,

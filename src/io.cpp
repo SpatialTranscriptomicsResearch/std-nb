@@ -130,3 +130,38 @@ IMatrix read_counts(istream &ifs, const string &separator,
     throw std::runtime_error(
         "Mismatch between number of columns and number of column labels.");
 }
+
+void print_matrix_head(ostream &os, const Matrix &m, const std::string &label,
+                       size_t n) {
+  if (label != "")
+    os << label << std::endl;
+  size_t X = m.n_rows;
+  size_t Y = m.n_cols;
+  for (size_t x = 0; x < std::min<size_t>(X, n); ++x) {
+    for (size_t y = 0; y < Y; ++y)
+      os << (y > 0 ? "\t" : "") << m(x, y);
+    os << std::endl;
+  }
+
+  if (label != "")
+    os << label << " ";
+  os << "column sums" << std::endl;
+
+  size_t zeros = 0;
+  for (size_t y = 0; y < Y; ++y) {
+    double sum = 0;
+    for (size_t x = 0; x < X; ++x) {
+      if (m(x, y) == 0)
+        zeros++;
+      sum += m(x, y);
+    }
+    os << (y > 0 ? "\t" : "") << sum;
+  }
+  os << std::endl;
+
+  os << "There are " << zeros << " zeros";
+  if (label != "")
+    os << " in " << label;
+  os << ". This corresponds to " << (100.0 * zeros / X / Y) << "%."
+     << std::endl;
+}

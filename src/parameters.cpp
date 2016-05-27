@@ -1,6 +1,6 @@
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
-#include "FactorAnalysis.hpp"
+#include "parameters.hpp"
 #include "aux.hpp"
 
 using namespace std;

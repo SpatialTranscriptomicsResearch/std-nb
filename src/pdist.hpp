@@ -1,6 +1,7 @@
 #ifndef PDIST_HPP
 #define PDIST_HPP
 
+#include <cmath>
 #include <unistd.h>
 #include <cassert>
 #include <vector>

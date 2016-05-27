@@ -1,8 +1,7 @@
-#ifndef FACTORANALYSIS_HPP
-#define FACTORANALYSIS_HPP
+#ifndef PARAMETERS_HPP
+#define PARAMETERS_HPP
 
 #include <cstdint>
-#include <vector>
 #include "types.hpp"
 
 namespace PoissonFactorization {
@@ -107,9 +106,5 @@ std::ostream &operator<<(std::ostream &os, const ForceMean &force);
 Float digamma(Float x);
 Float trigamma(Float x);
 
-template <typename T>
-T square(T x) {
-  return x * x;
-}
 }
 #endif

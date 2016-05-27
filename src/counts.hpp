@@ -2,7 +2,7 @@
 #define COUNTS_HPP
 #include <string>
 #include <vector>
-#include "FactorAnalysis.hpp"
+#include "types.hpp"
 
 struct Counts {
   Counts(const std::string &path, const std::string &label = "",
