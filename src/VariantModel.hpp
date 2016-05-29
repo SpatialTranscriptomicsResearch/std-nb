@@ -1015,11 +1015,14 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
 }
 
 template <Kind kind>
-std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s,
-                                                  size_t n) const {
+std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s, size_t n) const {
   std::cout << "Error: not implemented: sampling reads." << std::endl;
   exit(-1);
-  /*
+}
+
+template <>
+std::vector<Int> Model<Kind::Gamma>::sample_reads(size_t g, size_t s,
+                                                  size_t n) const {
   std::vector<Float> prods(T);
   for (size_t t = 0; t < T; ++t) {
     prods[t] = theta(s, t) * spot_scaling[s];
@@ -1033,10 +1036,9 @@ std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s,
   for (size_t i = 0; i < n; ++i)
     for (size_t t = 0; t < T; ++t)
       v[i] += sample_negative_binomial(
-          features.prior.r(g, t), prods[t] / (prods[t] + features.prior.p(g,
-  t)), EntropySource::rng);
+          features.prior.r(g, t),
+          prods[t] / (prods[t] + features.prior.p(g, t)), EntropySource::rng);
   return v;
-  */
 }
 
 template <Kind kind>
@@ -1044,7 +1046,10 @@ double Model<kind>::posterior_expectation(size_t g, size_t s) const {
   std::cout << "Error: not implemented: computing posterior expectations."
             << std::endl;
   exit(-1);
-  /*
+}
+
+template <>
+double Model<Kind::Gamma>::posterior_expectation(size_t g, size_t s) const {
   double x = 0;
   for (size_t t = 0; t < T; ++t)
     x += features.prior.r(g, t) / features.prior.p(g, t) * theta(s, t);
@@ -1052,7 +1057,6 @@ double Model<kind>::posterior_expectation(size_t g, size_t s) const {
   if (parameters.activate_experiment_scaling)
     x *= experiment_scaling_long[s];
   return x;
-  */
 }
 
 template <Kind kind>
@@ -1072,7 +1076,10 @@ double Model<kind>::posterior_variance(size_t g, size_t s) const {
   std::cout << "Error: not implemented: computing posterior variance."
             << std::endl;
   exit(-1);
-  /*
+}
+
+template <>
+double Model<Kind::Gamma>::posterior_variance(size_t g, size_t s) const {
   double x = 0;
   double prod_ = spot_scaling[s];
   if (parameters.activate_experiment_scaling)
@@ -1083,7 +1090,6 @@ double Model<kind>::posterior_variance(size_t g, size_t s) const {
   features.prior.p(g, t) / features.prior.p(g, t);
   }
   return x;
-  */
 }
 
 template <Kind kind>
