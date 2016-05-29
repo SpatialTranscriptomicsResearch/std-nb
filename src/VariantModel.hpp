@@ -591,22 +591,10 @@ void Model<kind>::sample_spot_scaling() {
     if (parameters.activate_experiment_scaling)
       intensity_sum *= experiment_scaling_long[s];
 
-    /*
-    if (verbosity >= Verbosity::Debug)
-    std::cout << "summed_contribution=" << summed_contribution
-           << " intensity_sum=" << intensity_sum
-           << " prev spot_scaling[" << s << "]=" << spot_scaling[s];
-    */
-
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = std::gamma_distribution<Float>(
         parameters.hyperparameters.spot_a + summed_contribution,
         1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(EntropySource::rng);
-    /*
-    if (verbosity >= Verbosity::Debug)
-    std::cout << "new spot_scaling[" << s << "]=" << spot_scaling[s] <<
-    std::endl;
-    */
   }
 
   if ((parameters.enforce_mean & ForceMean::Spot) != ForceMean::None) {
