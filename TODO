@@ -37,7 +37,6 @@
 * use profile-generate / profile-use gcc flags
 * store all iterations' parameters;
 * compute auto-correlation
-* retire (git rm) src/PoissonModel.cpp and src/PoissonModel.hpp
 * print out acceptance / rejection statistics for MH parts
 * implement operator<< and operator>> for PoissonFactorization::Kind to enable proper boost program options CLI handling of it
 * test likelihood optimization using ML
