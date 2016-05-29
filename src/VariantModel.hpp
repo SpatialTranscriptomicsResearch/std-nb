@@ -26,7 +26,8 @@ namespace PoissonFactorization {
 #define DEFAULT_LABEL ""
 #define print_sub_model_cnt true
 
-const size_t num_sub_gibbs = 50;
+const size_t num_sub_gibbs_split = 50;
+const size_t num_sub_gibbs_merge = 10;
 const bool consider_factor_likel = false;
 const size_t sub_model_cnt = 10;
 // static size_t sub_model_cnt; // TODO
@@ -890,7 +891,7 @@ void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
     }
 
   Model sub_model
-      = run_submodel(2, num_sub_gibbs, sub_counts, which, "splitmerge_split_");
+      = run_submodel(2, num_sub_gibbs_split, sub_counts, which, "splitmerge_split_");
 
   lift_sub_model(sub_model, t1, 0);
   lift_sub_model(sub_model, t2, 1);
@@ -943,7 +944,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
     }
 
   Model sub_model
-      = run_submodel(1, num_sub_gibbs, sub_counts, which, "splitmerge_merge_");
+      = run_submodel(1, num_sub_gibbs_merge, sub_counts, which, "splitmerge_merge_");
 
   lift_sub_model(sub_model, t1, 0);
 
