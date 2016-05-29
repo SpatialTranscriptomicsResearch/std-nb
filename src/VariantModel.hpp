@@ -24,7 +24,6 @@ namespace PoissonFactorization {
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
-const Float phi_scaling = 1.0;
 #define print_sub_model_cnt true
 
 const size_t num_sub_gibbs = 50;
@@ -576,8 +575,6 @@ void Model<kind>::sample_p_and_r_theta() {
   }
 }
 
-// herehere
-
 /** sample spot scaling factors */
 template <Kind kind>
 void Model<kind>::sample_spot_scaling() {
@@ -967,35 +964,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
 
-  std::cout << "Error: not implemented: merging." << std::endl;
-  exit(-1);
-  /*
-  // initialize p_phi
-  for (size_t g = 0; g < G; ++g)
-    features.prior.p(g, t2) = prob_to_neg_odds(
-        sample_beta<Float>(parameters.hyperparameters.phi_p_1, parameters.hyperparameters.phi_p_2,
-                           EntropySource::rngs[omp_get_thread_num()]));
-
-  // initialize r_phi
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing r_phi." << std::endl;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    features.prior.r(g, t2) = std::gamma_distribution<Float>(
-        parameters.hyperparameters.phi_r_1,
-        1 / parameters.hyperparameters.phi_r_2)(EntropySource::rngs[omp_get_thread_num()]);
-
-  // initialize phi
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing phi." << std::endl;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    phi(g, t2) = std::gamma_distribution<Float>(
-        features.prior.r(g, t2),
-        1 / features.prior.p(g, t2))(EntropySource::rngs[omp_get_thread_num()]);
-        */
+  features.initialize_factor(t2);
 
   // randomly initialize p_theta
   if (verbosity >= Verbosity::Debug)

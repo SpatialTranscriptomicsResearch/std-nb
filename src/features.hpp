@@ -2,6 +2,7 @@
 #define FEATURES_HPP
 
 #include "io.hpp"
+#include "odds.hpp"
 #include "pdist.hpp"
 #include "priors.hpp"
 #include "sampling.hpp"
@@ -46,6 +47,7 @@ struct Features {
   Parameters parameters;
   prior_type prior;
 
+  void initialize_factor(size_t t);
   void initialize();
   void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
               const Vector &spot_scaling,
@@ -69,6 +71,46 @@ struct Features {
 };
 
 template <>
+void Features<Kind::Gamma>::initialize_factor(size_t t) {
+  // initialize p_phi
+  for (size_t g = 0; g < G; ++g)
+    prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
+        parameters.hyperparameters.phi_p_1, parameters.hyperparameters.phi_p_2,
+        EntropySource::rngs[omp_get_thread_num()]));
+
+  // initialize r_phi
+  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
+  std::cout << "initializing r_phi." << std::endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    // NOTE: std::gamma_distribution takes a shape and scale parameter
+    prior.r(g, t) = std::gamma_distribution<Float>(
+        parameters.hyperparameters.phi_r_1,
+        1 / parameters.hyperparameters.phi_r_2)(
+        EntropySource::rngs[omp_get_thread_num()]);
+
+  // initialize phi
+  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
+  std::cout << "initializing phi." << std::endl;
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    // NOTE: std::gamma_distribution takes a shape and scale parameter
+    phi(g, t)
+        = std::gamma_distribution<Float>(prior.r(g, t), 1 / prior.p(g, t))(
+            EntropySource::rngs[omp_get_thread_num()]);
+}
+
+template <>
+void Features<Kind::Dirichlet>::initialize_factor(size_t t) {
+  std::vector<double> a(G);
+  for (size_t g = 0; g < G; ++g)
+    a[g] = prior.alpha[g];
+  auto x = sample_dirichlet<Float>(a);
+  for (size_t g = 0; g < G; ++g)
+    phi(g, t) = x[g];
+}
+
+template <>
 void Features<Kind::Gamma>::initialize() {
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
   std::cout << "initializing phi from Gamma distribution." << std::endl;
@@ -87,20 +129,14 @@ void Features<Kind::Dirichlet>::initialize() {
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
   std::cout << "initializing phi from Dirichlet distribution." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t) {
-    std::vector<double> a(G);
-    for (size_t g = 0; g < G; ++g)
-      a[g] = prior.alpha[g];
-    auto x = sample_dirichlet<Float>(a);
-    for (size_t g = 0; g < G; ++g)
-      phi(g, t) = x[g];
-  }
+  for (size_t t = 0; t < T; ++t)
+    initialize_factor(t);
 }
 
 template <>
 // TODO ensure no NaNs or infinities are generated
 double Features<Kind::Gamma>::log_likelihood_factor(const IMatrix &counts,
-                                                    size_t t) const {
+    size_t t) const {
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
