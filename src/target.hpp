@@ -42,8 +42,8 @@ operator~(Target a) {
 inline constexpr Target DefaultTarget() {
   return Target::contributions | Target::phi | Target::phi_r | Target::phi_p
          | Target::theta | Target::theta_r | Target::theta_p
-         | Target::spot_scaling | Target::experiment_scaling;
-  // TODO reactivate | Target::merge_split;
+         | Target::spot_scaling | Target::experiment_scaling
+         | Target::merge_split;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }
