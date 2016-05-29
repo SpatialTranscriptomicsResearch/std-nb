@@ -105,7 +105,8 @@ void Features<Kind::Dirichlet>::initialize_factor(size_t t) {
   std::vector<double> a(G);
   for (size_t g = 0; g < G; ++g)
     a[g] = prior.alpha[g];
-  auto x = sample_dirichlet<Float>(a);
+  auto x
+      = sample_dirichlet<Float>(a, EntropySource::rngs[omp_get_thread_num()]);
   for (size_t g = 0; g < G; ++g)
     phi(g, t) = x[g];
 }
