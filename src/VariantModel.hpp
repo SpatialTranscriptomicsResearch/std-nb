@@ -1123,19 +1123,6 @@ Matrix Model<kind>::posterior_variances() const {
 template <Kind kind>
 void Model<kind>::check_model(const IMatrix &counts) const {
   return;
-  // check that the contributions add up to the observations
-  /*
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      Int z = 0;
-      for (size_t t = 0; t < T; ++t) z += contributions(g, s, t);
-      if (z != counts(g, s))
-        throw(std::runtime_error(
-            "Contributions do not add up to observations for gene " +
-            std::to_string(g) + " in spot " + std::to_string(s) + "."));
-    }
-  */
-
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
