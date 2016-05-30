@@ -197,8 +197,8 @@ int main(int argc, char **argv) {
      "Number of iterations to perform.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
-    ("likelihood", po::bool_switch(&options.compute_likelihood),
-     "Compute and print the likelihood every time parameters are reported.")
+    ("nolikel", po::bool_switch(&options.compute_likelihood),
+     "Do not compute and print the likelihood every iteration.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
@@ -269,6 +269,9 @@ int main(int argc, char **argv) {
                                     cli_options, true, positional_options);
   if (ret_val != PROCESSING_SUCCESSFUL)
     return ret_val;
+
+  // invert the negative CLI switch value
+  options.compute_likelihood = !options.compute_likelihood;
 
   if(options.verbosity >= Verbosity::Verbose)
     cout << exec_info.name_and_version() << endl;
