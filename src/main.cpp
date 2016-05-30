@@ -132,7 +132,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   if (options.verbosity >= Verbosity::Info)
     cout << "Initial model" << endl << pfa << endl;
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-    cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
+    cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
@@ -143,12 +143,12 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
       cout << "Current model" << endl << pfa << endl;
     if (iteration % options.report_interval == 0) {
       if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-        cout << "Log-likelihood = " << pfa.log_likelihood(data.counts) << endl;
+        cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
       pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
     }
   }
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-    cout << "Final log-likelihood = " << pfa.log_likelihood(data.counts)
+    cout << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts)
          << endl;
   pfa.store(data, options.output, true);
 }
