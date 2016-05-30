@@ -141,11 +141,10 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     pfa.gibbs_sample(data, options.sample_these, options.timing);
     if (options.verbosity >= Verbosity::Info)
       cout << "Current model" << endl << pfa << endl;
-    if (iteration % options.report_interval == 0) {
-      if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-        cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
+    if (iteration % options.report_interval == 0)
       pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
-    }
+    if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
+      cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
   }
   if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
     cout << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts)
