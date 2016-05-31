@@ -24,7 +24,7 @@ namespace PoissonFactorization {
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
-#define print_sub_model_cnt true
+#define print_sub_model_cnt false // TODO make configurable
 
 const size_t num_sub_gibbs_split = 50;
 const size_t num_sub_gibbs_merge = 10;

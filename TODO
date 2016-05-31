@@ -42,3 +42,4 @@
 * test likelihood optimization using ML
 * figure out what kind of splitting / merging proposal distribution is currently realized
 * consider hierarchies of factors
+* enable proper before / after prioring for merging and splitting
