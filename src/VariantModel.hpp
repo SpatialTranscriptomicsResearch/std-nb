@@ -880,6 +880,7 @@ void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
                        + log_likelihood_poisson_counts(data.counts);
 
   Counts sub_counts = data;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
@@ -897,6 +898,7 @@ void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
   lift_sub_model(sub_model, t2, 1);
 
   // add effect of updated parameters
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s)
@@ -933,6 +935,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
                        + log_likelihood_poisson_counts(data.counts);
 
   Counts sub_counts = data;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
@@ -949,6 +952,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
   lift_sub_model(sub_model, t1, 0);
 
   // add effect of updated parameters
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
@@ -975,12 +979,14 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
   // initialize theta
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing theta." << std::endl;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     theta(s, t2) = std::gamma_distribution<Float>(
         r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
 
   // add effect of updated parameters
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       lambda_gene_spot(g, s) += phi(g, t2) * theta(s, t2);
@@ -989,6 +995,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
     contributions_gene_type(g, t2) = 0;
   for (size_t s = 0; s < S; ++s)
     contributions_spot_type(s, t2) = 0;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       Float lambda = phi(g, t2) * theta(s, t2);
