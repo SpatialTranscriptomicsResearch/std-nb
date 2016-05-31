@@ -40,3 +40,5 @@
 * print out acceptance / rejection statistics for MH parts
 * implement operator<< and operator>> for PoissonFactorization::Kind to enable proper boost program options CLI handling of it
 * test likelihood optimization using ML
+* figure out what kind of splitting / merging proposal distribution is currently realized
+* consider hierarchies of factors
