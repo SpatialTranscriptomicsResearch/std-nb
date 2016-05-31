@@ -73,6 +73,7 @@ struct Features {
 template <>
 void Features<Kind::Gamma>::initialize_factor(size_t t) {
   // initialize p_phi
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
         parameters.hyperparameters.phi_p_1, parameters.hyperparameters.phi_p_2,
