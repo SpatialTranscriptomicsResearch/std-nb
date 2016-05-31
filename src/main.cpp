@@ -273,8 +273,13 @@ int main(int argc, char **argv) {
   // invert the negative CLI switch value
   options.compute_likelihood = !options.compute_likelihood;
 
-  if(options.verbosity >= Verbosity::Verbose)
+  if(options.verbosity >= Verbosity::Info) {
     cout << exec_info.name_and_version() << endl;
+    cout << exec_info.datetime << endl;
+    cout << "Working directory = " << exec_info.directory << endl;
+    cout << "Command =" << exec_info.cmdline << endl;
+    cout << endl;
+  }
 
   if (options.output == default_output_string) {
     options.output =
