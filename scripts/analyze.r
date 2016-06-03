@@ -207,7 +207,7 @@ st.multi = function(d,
     pdf(paste(path, "color-bar", sep=""), width=2, height=6)
     par(mar=c(0,0,0,0))
     num.steps = 1000
-    image(as.matrix(1:num.steps, nrow=1, ncol=num.steps), col=default.viz.pal(num.steps))
+    image(t(as.matrix(1:num.steps, nrow=1, ncol=num.steps), col=default.viz.pal(num.steps)))
     dev.off()
 
     pdf(paste(path, "spot-scaling-individual-scale.pdf", sep=""), width=w, height=h)
