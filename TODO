@@ -3,7 +3,7 @@
 * dump log to file in output prefix
 * use something like libmagic to figure out file types
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
-* compute covariance of spots across cell type contributiones during MCMC and accumulate statistics -> clustering of spots
+* compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
 * way to freeze the scaling factors
 * computing means etc. on chain statistics:
@@ -18,3 +18,34 @@
   - the NB conditional posterior
   - the NM conditional posterior
   - the Poisson conditional posterior
+* write out for the split and merge steps before splitting / merging and those afterwards:
+  - the sub-counts
+  - the normalized theta matrices (and the other parameters, too!)
+* for the splitting / merging:
+  - independently also optimize the parameters without splitting / merging
+* add flag for consistent contribution marginals and expectation marginals
+* consider using HDF5 for IO
+* contribution initialization is unneeded if Gibbs sampling does that as a first step
+* experiment with splitting a single factor explaining everything
+* don't split/merge in initial iterations
+* compute perplexity, i.e. validation
+* automatically determine single experiments in analyze.r
+* use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
+* test possible benefits of JIT compiling with fixed G, S, T
+* consider using GPU for sampling contributions
+* experiment with activating ARMA_NO_DEBUG in types.hpp
+* use profile-generate / profile-use gcc flags
+* store all iterations' parameters;
+* compute auto-correlation
+* print out acceptance / rejection statistics for MH parts
+* implement operator<< and operator>> for PoissonFactorization::Kind to enable proper boost program options CLI handling of it
+* test likelihood optimization using ML
+* figure out what kind of splitting / merging proposal distribution is currently realized
+* consider hierarchies of factors
+* enable proper before / after printing for merging and splitting
+* trans-experiment factors:
+  - by using data in blocks corresponding to the experiments
+  - alternative: make sense of trans-experiment profiles post-analysis
+* alternative to split / merge:
+  - multiple re-starts
+* implement Dirichlet model for theta
