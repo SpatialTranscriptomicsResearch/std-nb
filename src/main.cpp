@@ -42,7 +42,7 @@ struct Options {
   size_t top = 0;
   bool phi_dirichlet = false;
   PF::Target sample_these = PF::DefaultTarget();
-  PF::Kind feature_type = PF::Kind::Gamma;
+  PF::Feature::Kind feature_type = PF::Feature::Kind::Gamma;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -81,8 +81,8 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-template <PF::Kind kind>
-void simulate(const PF::Model<kind> &pfa, const Counts &counts) {
+template <typename T>
+void simulate(const T &pfa, const Counts &counts) {
   // sample the highest, the median, and the lowest genes' counts for all spots
   vector<size_t> counts_per_gene(pfa.G, 0);
   for (size_t g = 0; g < pfa.G; ++g)
@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
   // invert the negative CLI switch value
   options.compute_likelihood = !options.compute_likelihood;
 
-  if(options.verbosity >= Verbosity::Info) {
+  if (options.verbosity >= Verbosity::Info) {
     cout << exec_info.name_and_version() << endl;
     cout << exec_info.datetime << endl;
     cout << "Working directory = " << exec_info.directory << endl;
@@ -282,11 +282,11 @@ int main(int argc, char **argv) {
   }
 
   if (options.output == default_output_string) {
-    options.output =
-        generate_random_label(exec_info.program_name, 0, options.verbosity) +
-        "/";
+    options.output
+        = generate_random_label(exec_info.program_name, 0, options.verbosity)
+          + "/";
   }
-  if(not options.output.empty() and *options.output.rbegin() == '/')
+  if (not options.output.empty() and *options.output.rbegin() == '/')
     if (not boost::filesystem::create_directory(options.output)) {
       cout << "Error creating output directory " << options.output << endl;
       return EXIT_FAILURE;
@@ -328,22 +328,23 @@ int main(int argc, char **argv) {
 
   if (options.simulate_path != "") {
     PF::Paths paths(options.simulate_path, "");
-    PF::Model<PF::Kind::Gamma> pfa(data, paths, parameters, options.verbosity);
+    PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
+        data, paths, parameters, options.verbosity);
     simulate(pfa, data);
   } else {
-    if(options.phi_dirichlet)
-      options.feature_type = PF::Kind::Dirichlet;
-    if (options.feature_type == PF::Kind::Dirichlet) {
+    if (options.phi_dirichlet)
+      options.feature_type = PF::Feature::Kind::Dirichlet;
+    if (options.feature_type == PF::Feature::Kind::Dirichlet) {
       if (options.verbosity >= Verbosity::Info)
         cout << "Using Dirichlet-distribution for the features." << endl;
-      PF::Model<PF::Kind::Dirichlet> pfa(data, options.num_factors, parameters,
-                                         options.verbosity);
+      PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
+          data, options.num_factors, parameters, options.verbosity);
       perform_gibbs_sampling(data, pfa, options);
-    } else if (options.feature_type == PF::Kind::Gamma) {
+    } else if (options.feature_type == PF::Feature::Kind::Gamma) {
       if (options.verbosity >= Verbosity::Info)
         cout << "Using gamma-distribution for the features." << endl;
-      PF::Model<PF::Kind::Gamma> pfa(data, options.num_factors, parameters,
-                                     options.verbosity);
+      PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
+          data, options.num_factors, parameters, options.verbosity);
       perform_gibbs_sampling(data, pfa, options);
     }
   }

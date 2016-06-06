@@ -50,29 +50,4 @@ size_t num_lines(const string &path) {
     ++number_of_lines;
   return number_of_lines;
 }
-
-double compute_conditional_theta(const pair<Float, Float> &x,
-                                 const vector<Int> &count_sums,
-                                 const vector<Float> &weight_sums,
-                                 const Hyperparameters &hyperparameters) {
-  const size_t S = count_sums.size();
-  const Float current_r = x.first;
-  const Float current_p = x.second;
-  double r = log_beta_neg_odds(current_p, hyperparameters.theta_p_1,
-                               hyperparameters.theta_p_2)
-             // NOTE: gamma_distribution takes a shape and scale parameter
-             + log_gamma(current_r, hyperparameters.theta_r_1,
-                         1 / hyperparameters.theta_r_2)
-             + S * (current_r * log(current_p) - lgamma(current_r));
-#pragma omp parallel for reduction(+ : r) if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    // The next line is part of the negative binomial distribution.
-    // The other factors aren't needed as they don't depend on either of
-    // r[t] and p[t], and thus would cancel when computing the score
-    // ratio.
-    r += lgamma(current_r + count_sums[s])
-         - (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
-  return r;
-}
-
 }

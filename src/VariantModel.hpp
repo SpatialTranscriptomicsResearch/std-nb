@@ -9,6 +9,7 @@
 #include "parameters.hpp"
 #include "compression.hpp"
 #include "features.hpp"
+#include "mix.hpp"
 #include "io.hpp"
 #include "metropolis_hastings.hpp"
 #include "pdist.hpp"
@@ -36,11 +37,6 @@ bool gibbs_test(Float nextG, Float G, Verbosity verbosity,
                 Float temperature = 50);
 size_t num_lines(const std::string &path);
 
-double compute_conditional_theta(const std::pair<Float, Float> &x,
-                                 const std::vector<Int> &count_sums,
-                                 const std::vector<Float> &weight_sums,
-                                 const Hyperparameters &hyperparameters);
-
 struct Paths {
   Paths(const std::string &prefix, const std::string &suffix = "");
   std::string phi, theta, spot, experiment, r_phi, p_phi, r_theta, p_theta;
@@ -48,9 +44,11 @@ struct Paths {
       contributions_spot, contributions_experiment;
 };
 
-template <Kind kind = Kind::Gamma>
+template <Feature::Kind feat_kind = Feature::Kind::Gamma,
+          Mix::Kind mix_kind = Mix::Kind::Gamma>
 struct Model {
-  typedef Features<kind> features_t;
+  typedef Feature::Features<feat_kind> features_t;
+  typedef Mix::Weights<mix_kind> weights_t;
   /** number of genes */
   size_t G;
   // const size_t G;
@@ -76,11 +74,14 @@ struct Model {
 
   /** factor loading matrix */
   features_t features;
+  /** factor score matrix */
+  weights_t weights;
+
   inline Float &phi(size_t x, size_t y) { return features.phi(x, y); };
   inline Float phi(size_t x, size_t y) const { return features.phi(x, y); };
 
-  /** factor score matrix */
-  Matrix theta;
+  inline Float &theta(size_t x, size_t y) { return weights.theta(x, y); };
+  inline Float theta(size_t x, size_t y) const { return weights.theta(x, y); };
 
   /** spot scaling vector */
   Vector spot_scaling;
@@ -89,12 +90,6 @@ struct Model {
   Vector experiment_scaling;
   Vector experiment_scaling_long;
 
-  /** shape parameter for the prior of the mixing matrix */
-  Vector r_theta;
-  /** scale parameter for the prior of the mixing matrix */
-  /* Stored as negative-odds */
-  Vector p_theta;
-
   Verbosity verbosity;
 
   Model(const Counts &counts, const size_t T, const Parameters &parameters,
@@ -102,10 +97,6 @@ struct Model {
 
   Model(const Counts &counts, const Paths &paths, const Parameters &parameters,
         Verbosity verbosity);
-
-  void initialize_r_theta();
-  void initialize_p_theta();
-  void initialize_theta();
 
   void store(const Counts &counts, const std::string &prefix,
              bool mean_and_variance = false) const;
@@ -121,12 +112,6 @@ struct Model {
   void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
                                 RNG &rng, IMatrix &contrib_gene_type,
                                 IMatrix &contrib_spot_type);
-
-  /** sample theta */
-  void sample_theta();
-
-  /** sample p_theta and r_theta */
-  void sample_p_and_r_theta();
 
   /** sample spot scaling factors */
   void sample_spot_scaling();
@@ -165,13 +150,15 @@ private:
   void update_experiment_scaling_long(const Counts &data);
 };
 
-template <Kind kind>
-std::ostream &operator<<(std::ostream &os,
-                         const PoissonFactorization::Model<kind> &pfa);
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+std::ostream &operator<<(
+    std::ostream &os,
+    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa);
 
-template <Kind kind>
-Model<kind>::Model(const Counts &c, const size_t T_,
-                   const Parameters &parameters_, Verbosity verbosity_)
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
+                                  const Parameters &parameters_,
+                                  Verbosity verbosity_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
       T(T_),
@@ -183,17 +170,11 @@ Model<kind>::Model(const Counts &c, const size_t T_,
       contributions_experiment(E, arma::fill::zeros),
       lambda_gene_spot(G, S, arma::fill::zeros),
       features(G, S, T, parameters),
-      theta(S, T),
+      weights(G, S, T, parameters),
       spot_scaling(S, arma::fill::ones),
       experiment_scaling(E, arma::fill::ones),
       experiment_scaling_long(S, arma::fill::ones),
-      r_theta(T),
-      p_theta(T),
       verbosity(verbosity_) {
-  initialize_p_theta();
-  initialize_r_theta();
-  initialize_theta();
-
   // initialize:
   //  * contributions_gene_type
   //  * contributions_spot_type
@@ -256,48 +237,8 @@ Model<kind>::Model(const Counts &c, const size_t T_,
   }
 }
 
-template <Kind kind>
-void Model<kind>::initialize_p_theta() {
-  // initialize p_theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing p_theta." << std::endl;
-  for (size_t t = 0; t < T; ++t)
-    if (false)  // TODO make this CLI-switchable
-      p_theta[t] = prob_to_neg_odds(sample_beta<Float>(
-          parameters.hyperparameters.theta_p_1, parameters.hyperparameters.theta_p_2));
-    else
-      p_theta[t] = 1;
-}
-
-template <Kind kind>
-void Model<kind>::initialize_r_theta() {
-  // initialize r_theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing r_theta." << std::endl;
-  for (size_t t = 0; t < T; ++t)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    r_theta[t] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.theta_r_1,
-        1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
-}
-
-template <Kind kind>
-void Model<kind>::initialize_theta() {
-  // initialize theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing theta." << std::endl;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    const size_t thread_num = omp_get_thread_num();
-    for (size_t t = 0; t < T; ++t)
-      // NOTE: std::gamma_distribution takes a shape and scale parameter
-      theta(s, t) = std::gamma_distribution<Float>(
-          r_theta(t), 1 / p_theta(t))(EntropySource::rngs[thread_num]);
-  }
-}
-
-template <Kind kind>
-Model<kind>::Model(const Counts &c, const Paths &paths,
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Model<feat_kind,mix_kind>::Model(const Counts &c, const Paths &paths,
                    const Parameters &parameters_, Verbosity verbosity_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
@@ -308,14 +249,15 @@ Model<kind>::Model(const Counts &c, const Paths &paths,
       contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
       contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      // features(parse_file<Matrix>(paths.features, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
       features(G, S, T, parameters), // TODO deactivate
-      theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      weights(G, S, T, parameters), // TODO deactivate
+      // features(parse_file<Matrix>(paths.features, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
+      // theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
+      // r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      // p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       spot_scaling(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S),
-      r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       verbosity(verbosity_) {
   update_experiment_scaling_long(c);
 
@@ -323,44 +265,12 @@ Model<kind>::Model(const Counts &c, const Paths &paths,
     std::cout << *this << std::endl;
 }
 
-template <Kind kind>
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 // TODO ensure no NaNs or infinities are generated
-double Model<kind>::log_likelihood_factor(const IMatrix &counts,
-                                          size_t t) const {
-  double l = features.log_likelihood_factor(counts, t);
-
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    // NOTE: log_gamma takes a shape and scale parameter
-    auto cur = log_gamma(theta(s, t), r_theta(t), 1.0 / p_theta(t));
-    if (false and cur > 0)
-      std::cout << "ll_cur > 0 for (s,t) = (" + std::to_string(s) + ", " + std::to_string(t) + "): " + std::to_string(cur)
-        + " theta = " + std::to_string(theta(s,t))
-        + " r = " + std::to_string(r_theta(t))
-        + " p = " + std::to_string(p_theta(t))
-        + " (r - 1) * log(theta) = " + std::to_string((r_theta(t)- 1) * log(theta(s,t)))
-        + " - theta / 1/p = " + std::to_string(- theta(s,t) / 1/p_theta(t))
-        + " - lgamma(r) = " + std::to_string(- lgamma(r_theta(t)))
-        + " - r * log(1/p) = " + std::to_string(- r_theta(t) * log(1/p_theta(t)))
-        + "\n" << std::flush;
-    l += cur;
-  }
-
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "ll_theta = " << l << std::endl;
-
-  // NOTE: log_gamma takes a shape and scale parameter
-  l += log_gamma(r_theta(t), parameters.hyperparameters.theta_r_1,
-                 1.0 / parameters.hyperparameters.theta_r_2);
-
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "ll_r_theta = " << l << std::endl;
-
-  l += log_beta_neg_odds(p_theta(t), parameters.hyperparameters.theta_p_1,
-                         parameters.hyperparameters.theta_p_2);
-
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "ll_p_theta = " << l << std::endl;
+double Model<feat_kind, mix_kind>::log_likelihood_factor(const IMatrix &counts,
+                                                         size_t t) const {
+  double l = features.log_likelihood_factor(counts, t)
+             + weights.log_likelihood_factor(counts, t);
 
   if (std::isnan(l) or std::isinf(l))
     std::cout << "Warning: log likelihoood contribution of factor " << t
@@ -372,32 +282,31 @@ double Model<kind>::log_likelihood_factor(const IMatrix &counts,
   return l;
 }
 
-template <Kind kind>
-double Model<kind>::log_likelihood_poisson_counts(
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
     const IMatrix &counts) const {
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      auto cur = log_poisson(counts(g, s),
-                             lambda_gene_spot(g, s) * spot_scaling(s)
-                                 * (parameters.activate_experiment_scaling
-                                        ? experiment_scaling_long(s)
-                                        : 1));
+      double rate = lambda_gene_spot(g, s) * spot_scaling(s);
+      if (parameters.activate_experiment_scaling)
+        rate *= experiment_scaling_long(s);
+      auto cur = log_poisson(counts(g, s), rate);
       if (std::isinf(cur) or std::isnan(cur))
         std::cout << "ll poisson(g=" + std::to_string(g) + ",s="
                          + std::to_string(s) + ") = " + std::to_string(cur)
                          + " counts = " + std::to_string(counts(g, s))
                          + " lambda = " + std::to_string(lambda_gene_spot(g, s))
-                         + "\n"
+                         + " rate = " + std::to_string(rate) + "\n"
                   << std::flush;
       l += cur;
     }
   return l;
 }
 
-template <Kind kind>
-double Model<kind>::log_likelihood(const IMatrix &counts) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
   double l = 0;
   for (size_t t = 0; t < T; ++t)
     l += log_likelihood_factor(counts, t);
@@ -407,7 +316,8 @@ double Model<kind>::log_likelihood(const IMatrix &counts) const {
                    1.0 / parameters.hyperparameters.spot_b);
   if (parameters.activate_experiment_scaling) {
     for (size_t e = 0; e < E; ++e)
-      l += log_gamma(experiment_scaling(e), parameters.hyperparameters.experiment_a,
+      l += log_gamma(experiment_scaling(e),
+                     parameters.hyperparameters.experiment_a,
                      1.0 / parameters.hyperparameters.experiment_b);
   }
 
@@ -416,9 +326,9 @@ double Model<kind>::log_likelihood(const IMatrix &counts) const {
   return l;
 }
 
-template <Kind kind>
-Matrix Model<kind>::weighted_theta() const {
-  Matrix m = theta;
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::weighted_theta() const {
+  Matrix m = weights.theta;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
@@ -432,19 +342,18 @@ Matrix Model<kind>::weighted_theta() const {
   return m;
 }
 
-template <Kind kind>
-void Model<kind>::store(const Counts &counts, const std::string &prefix,
-                               bool mean_and_variance) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::store(const Counts &counts,
+                                       const std::string &prefix,
+                                       bool mean_and_variance) const {
   std::vector<std::string> factor_names;
   for (size_t t = 1; t <= T; ++t)
     factor_names.push_back("Factor " + std::to_string(t));
   auto &gene_names = counts.row_names;
   auto &spot_names = counts.col_names;
   features.store(prefix, gene_names, factor_names);
-  write_matrix(theta, prefix + "theta.txt", spot_names, factor_names);
+  weights.store(prefix, spot_names, factor_names);
   write_matrix(weighted_theta(), prefix + "weighted_theta.txt", spot_names, factor_names);
-  write_vector(r_theta, prefix + "r_theta.txt", factor_names);
-  write_vector(p_theta, prefix + "p_theta.txt", factor_names);
   write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
   write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -458,11 +367,10 @@ void Model<kind>::store(const Counts &counts, const std::string &prefix,
   }
 }
 
-template <Kind kind>
-void Model<kind>::sample_contributions_sub(const IMatrix &counts,
-                                                  size_t g, size_t s, RNG &rng,
-                                                  IMatrix &contrib_gene_type,
-                                                  IMatrix &contrib_spot_type) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_contributions_sub(
+    const IMatrix &counts, size_t g, size_t s, RNG &rng,
+    IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda[g][s][t] is proportional to both
@@ -480,9 +388,9 @@ void Model<kind>::sample_contributions_sub(const IMatrix &counts,
   lambda_gene_spot(g, s) = z;
 }
 
-template <Kind kind>
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 /** sample count decomposition */
-void Model<kind>::sample_contributions(const IMatrix &counts) {
+void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling contributions" << std::endl;
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
@@ -505,80 +413,9 @@ void Model<kind>::sample_contributions(const IMatrix &counts) {
   }
 }
 
-template <Kind kind>
-/** sample theta */
-void Model<kind>::sample_theta() {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling Θ" << std::endl;
-  const std::vector<Float> intensities = features.marginalize_genes();
-
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    Float scale = spot_scaling[s];
-    if (parameters.activate_experiment_scaling)
-      scale *= experiment_scaling_long[s];
-    for (size_t t = 0; t < T; ++t)
-      // NOTE: std::gamma_distribution takes a shape and scale parameter
-      theta(s, t) = std::max<Float>(
-          std::numeric_limits<Float>::denorm_min(),
-          std::gamma_distribution<Float>(
-              r_theta[t] + contributions_spot_type(s, t),
-              1.0 / (p_theta[t] + intensities[t] * scale))(EntropySource::rng));
-  }
-  if ((parameters.enforce_mean & ForceMean::Theta) != ForceMean::None)
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s) {
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += theta(s, t);
-      for (size_t t = 0; t < T; ++t)
-        theta(s, t) /= z;
-    }
-}
-
-template <Kind kind>
-/** sample p_theta and r_theta */
-/* This is a simple Metropolis-Hastings sampling scheme */
-void Model<kind>::sample_p_and_r_theta() {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling P_theta and R_theta" << std::endl;
-
-  auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
-    std::normal_distribution<double> rnorm;
-    const double f1 = exp(rnorm(rng));
-    const double f2 = exp(rnorm(rng));
-    return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
-  };
-
-  for (size_t t = 0; t < T; ++t) {
-    Float weight_sum = 0;
-#pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      weight_sum += phi(g, t);
-    MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
-                          verbosity);
-
-    std::vector<Int> count_sums(S, 0);
-    std::vector<Float> weight_sums(S, 0);
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s) {
-      count_sums[s] = contributions_spot_type(s, t);
-      weight_sums[s] = weight_sum * spot_scaling[s];
-      if (parameters.activate_experiment_scaling)
-        weight_sums[s] *= experiment_scaling_long[s];
-    }
-    auto res = mh.sample(std::pair<Float, Float>(r_theta[t], p_theta[t]),
-                         parameters.n_iter, EntropySource::rng, gen,
-                         compute_conditional_theta, count_sums, weight_sums,
-                         parameters.hyperparameters);
-    r_theta[t] = res.first;
-    p_theta[t] = res.second;
-  }
-}
-
 /** sample spot scaling factors */
-template <Kind kind>
-void Model<kind>::sample_spot_scaling() {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_spot_scaling() {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling spot scaling factors" << std::endl;
   auto phi_marginal = features.marginalize_genes();
@@ -595,7 +432,8 @@ void Model<kind>::sample_spot_scaling() {
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     spot_scaling[s] = std::gamma_distribution<Float>(
         parameters.hyperparameters.spot_a + summed_contribution,
-        1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(EntropySource::rng);
+        1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
+        EntropySource::rng);
   }
 
   if ((parameters.enforce_mean & ForceMean::Spot) != ForceMean::None) {
@@ -611,8 +449,8 @@ void Model<kind>::sample_spot_scaling() {
 }
 
 /** sample experiment scaling factors */
-template <Kind kind>
-void Model<kind>::sample_experiment_scaling(const Counts &data) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
   if (verbosity >= Verbosity::Verbose)
     std::cout << "Sampling experiment scaling factors" << std::endl;
 
@@ -666,14 +504,16 @@ void Model<kind>::sample_experiment_scaling(const Counts &data) {
 }
 
 /** copy the experiment scaling parameters into the spot-indexed vector */
-template <Kind kind>
-void Model<kind>::update_experiment_scaling_long(const Counts &data) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::update_experiment_scaling_long(
+    const Counts &data) {
   for (size_t s = 0; s < S; ++s)
     experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
 
-template <Kind kind>
-void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
+                                              bool timing) {
   check_model(data.counts);
 
   Timer timer;
@@ -726,7 +566,7 @@ void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
 
   if (flagged(which & (Target::phi_r | Target::phi_p))) {
     timer.tick();
-    features.prior.sample(theta, contributions_gene_type, spot_scaling,
+    features.prior.sample(weights.theta, contributions_gene_type, spot_scaling,
                           experiment_scaling_long);
     if (timing and verbosity >= Verbosity::Info)
       std::cout << "This took " << timer.tock() << "μs." << std::endl;
@@ -738,7 +578,8 @@ void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
 
   if (flagged(which & (Target::theta_r | Target::theta_p))) {
     timer.tick();
-    sample_p_and_r_theta();
+    weights.prior.sample(features.phi, contributions_spot_type, spot_scaling,
+                         experiment_scaling_long);
     if (timing and verbosity >= Verbosity::Info)
       std::cout << "This took " << timer.tock() << "μs." << std::endl;
     if (verbosity >= Verbosity::Everything)
@@ -749,7 +590,7 @@ void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
 
   if (flagged(which & Target::phi)) {
     timer.tick();
-    features.sample(theta, contributions_gene_type, spot_scaling,
+    features.sample(weights.theta, contributions_gene_type, spot_scaling,
                     experiment_scaling_long);
     if (timing and verbosity >= Verbosity::Info)
       std::cout << "This took " << timer.tock() << "μs." << std::endl;
@@ -761,7 +602,8 @@ void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
 
   if (flagged(which & Target::theta)) {
     timer.tick();
-    sample_theta();
+    weights.sample(features, contributions_spot_type, spot_scaling,
+                   experiment_scaling_long);
     if (timing and verbosity >= Verbosity::Info)
       std::cout << "This took " << timer.tock() << "μs." << std::endl;
     if (verbosity >= Verbosity::Everything)
@@ -771,8 +613,9 @@ void Model<kind>::gibbs_sample(const Counts &data, Target which, bool timing) {
   }
 }
 
-template <Kind kind>
-void Model<kind>::sample_split_merge(const Counts &data, Target which) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_split_merge(const Counts &data,
+                                                    Target which) {
   if (T < 2)
     return;
 
@@ -796,8 +639,8 @@ void Model<kind>::sample_split_merge(const Counts &data, Target which) {
     sample_split(data, t1, which);
 }
 
-template <Kind kind>
-size_t Model<kind>::find_weakest_factor() const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
   std::vector<Float> x(T, 0);
   std::cout << "Factor strengths: ";
   auto phi_marginal = features.marginalize_genes();
@@ -814,13 +657,13 @@ size_t Model<kind>::find_weakest_factor() const {
   return std::distance(begin(x), min_element(begin(x), end(x)));
 }
 
-template <Kind kind>
-Model<kind> Model<kind>::run_submodel(size_t t, size_t n, const Counts &counts,
-                                      Target which, const std::string &prefix,
-                                      const std::vector<size_t> &init_factors) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
+    size_t t, size_t n, const Counts &counts, Target which,
+    const std::string &prefix, const std::vector<size_t> &init_factors) {
   const bool show_timing = false;
   // TODO: use init_factors
-  Model<kind> sub_model(counts, t, parameters, Verbosity::Info);
+  Model<feat_kind, mix_kind> sub_model(counts, t, parameters, Verbosity::Info);
   for (size_t s = 0; s < S; ++s) {
     sub_model.spot_scaling[s] = spot_scaling[s];
     sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
@@ -848,25 +691,22 @@ Model<kind> Model<kind>::run_submodel(size_t t, size_t n, const Counts &counts,
   return sub_model;
 }
 
-template <Kind kind>
-void Model<kind>::lift_sub_model(const Model &sub_model,
-                                        size_t t1, size_t t2) {
-  features.prior.lift_sub_model(sub_model.features.prior, t1, t2);
-  for (size_t g = 0; g < G; ++g) {
-    features.phi(g, t1) = sub_model.features.phi(g, t2);
-    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, t2);
-  }
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::lift_sub_model(const Model &sub_model,
+                                                size_t t1, size_t t2) {
+  features.lift_sub_model(sub_model.features, t1, t2);
+  weights.lift_sub_model(sub_model.weights, t1, t2);
 
-  for (size_t s = 0; s < S; ++s) {
-    theta(s, t1) = sub_model.theta(s, t2);
+  for (size_t g = 0; g < G; ++g)
+    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, t2);
+
+  for (size_t s = 0; s < S; ++s)
     contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, t2);
-  }
-  r_theta(t1) = sub_model.r_theta(t2);
-  p_theta(t1) = sub_model.p_theta(t2);
 }
 
-template <Kind kind>
-void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
+                                              Target which) {
   size_t t2 = find_weakest_factor();
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a split step. Splitting " << t1 << " and " << t2
@@ -891,8 +731,8 @@ void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  Model sub_model
-      = run_submodel(2, num_sub_gibbs_split, sub_counts, which, "splitmerge_split_");
+  Model sub_model = run_submodel(2, num_sub_gibbs_split, sub_counts, which,
+                                 "splitmerge_split_");
 
   lift_sub_model(sub_model, t1, 0);
   lift_sub_model(sub_model, t2, 1);
@@ -920,9 +760,9 @@ void Model<kind>::sample_split(const Counts &data, size_t t1, Target which) {
   }
 }
 
-template <Kind kind>
-void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
-                               Target which) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
+                                              size_t t2, Target which) {
   if (verbosity >= Verbosity::Info)
     std::cout << "Performing a merge step. Merging types " << t1 << " and "
               << t2 << "." << std::endl;
@@ -946,8 +786,8 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
       lambda_gene_spot(g, s) -= lambda;
     }
 
-  Model sub_model
-      = run_submodel(1, num_sub_gibbs_merge, sub_counts, which, "splitmerge_merge_");
+  Model sub_model = run_submodel(1, num_sub_gibbs_merge, sub_counts, which,
+                                 "splitmerge_merge_");
 
   lift_sub_model(sub_model, t1, 0);
 
@@ -963,16 +803,17 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing p of theta." << std::endl;
   if (true)  // TODO make this CLI-switchable
-    p_theta[t2] = prob_to_neg_odds(sample_beta<Float>(
-        parameters.hyperparameters.theta_p_1, parameters.hyperparameters.theta_p_2));
+    weights.prior.p[t2] = prob_to_neg_odds(
+        sample_beta<Float>(parameters.hyperparameters.theta_p_1,
+                           parameters.hyperparameters.theta_p_2));
   else
-    p_theta[t2] = 1;
+    weights.prior.p[t2] = 1;
 
   // initialize r_theta
   if (verbosity >= Verbosity::Debug)
     std::cout << "initializing r of theta." << std::endl;
   // NOTE: std::gamma_distribution takes a shape and scale parameter
-  r_theta[t2] = std::gamma_distribution<Float>(
+  weights.prior.r[t2] = std::gamma_distribution<Float>(
       parameters.hyperparameters.theta_r_1,
       1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
 
@@ -983,7 +824,7 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
   for (size_t s = 0; s < S; ++s)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     theta(s, t2) = std::gamma_distribution<Float>(
-        r_theta(t2), 1 / p_theta(t2))(EntropySource::rng);
+        weights.prior.r(t2), 1 / weights.prior.p(t2))(EntropySource::rng);
 
   // add effect of updated parameters
 #pragma omp parallel for if (DO_PARALLEL)
@@ -1022,14 +863,18 @@ void Model<kind>::sample_merge(const Counts &data, size_t t1, size_t t2,
   }
 }
 
-template <Kind kind>
-std::vector<Int> Model<kind>::sample_reads(size_t g, size_t s, size_t n) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+std::vector<Int> Model<feat_kind, mix_kind>::sample_reads(size_t g, size_t s,
+                                                          size_t n) const {
   std::cout << "Error: not implemented: sampling reads." << std::endl;
   exit(-1);
 }
 
+/*
+ TODO reactivate
 template <>
-std::vector<Int> Model<Kind::Gamma>::sample_reads(size_t g, size_t s,
+template <Mix::Kind mix_kind>
+std::vector<Int> Model<Feature::Kind::Gamma, mix_kind>::sample_reads(size_t g, size_t s,
                                                   size_t n) const {
   std::vector<Float> prods(T);
   for (size_t t = 0; t < T; ++t) {
@@ -1048,14 +893,18 @@ std::vector<Int> Model<Kind::Gamma>::sample_reads(size_t g, size_t s,
           prods[t] / (prods[t] + features.prior.p(g, t)), EntropySource::rng);
   return v;
 }
+*/
 
-template <Kind kind>
-double Model<kind>::posterior_expectation(size_t g, size_t s) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+double Model<feat_kind, mix_kind>::posterior_expectation(size_t g,
+                                                         size_t s) const {
   std::cout << "Error: not implemented: computing posterior expectations."
             << std::endl;
   exit(-1);
 }
 
+/*
+ TODO reactivate
 template <>
 double Model<Kind::Gamma>::posterior_expectation(size_t g, size_t s) const {
   double x = 0;
@@ -1066,10 +915,11 @@ double Model<Kind::Gamma>::posterior_expectation(size_t g, size_t s) const {
     x *= experiment_scaling_long[s];
   return x;
 }
+*/
 
-template <Kind kind>
-double Model<kind>::posterior_expectation_poisson(size_t g,
-                                                         size_t s) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
+    size_t g, size_t s) const {
   double x = 0;
   for (size_t t = 0; t < T; ++t)
     x += phi(g, t) * theta(s, t);
@@ -1079,13 +929,16 @@ double Model<kind>::posterior_expectation_poisson(size_t g,
   return x;
 }
 
-template <Kind kind>
-double Model<kind>::posterior_variance(size_t g, size_t s) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+double Model<feat_kind, mix_kind>::posterior_variance(size_t g,
+                                                      size_t s) const {
   std::cout << "Error: not implemented: computing posterior variance."
             << std::endl;
   exit(-1);
 }
 
+/*
+ TODO reactivate
 template <>
 double Model<Kind::Gamma>::posterior_variance(size_t g, size_t s) const {
   double x = 0;
@@ -1099,9 +952,10 @@ double Model<Kind::Gamma>::posterior_variance(size_t g, size_t s) const {
   }
   return x;
 }
+*/
 
-template <Kind kind>
-Matrix Model<kind>::posterior_expectations() const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::posterior_expectations() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1109,8 +963,8 @@ Matrix Model<kind>::posterior_expectations() const {
   return m;
 }
 
-template <Kind kind>
-Matrix Model<kind>::posterior_expectations_poisson() const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1118,8 +972,8 @@ Matrix Model<kind>::posterior_expectations_poisson() const {
   return m;
 }
 
-template <Kind kind>
-Matrix Model<kind>::posterior_variances() const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::posterior_variances() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -1127,8 +981,8 @@ Matrix Model<kind>::posterior_variances() const {
   return m;
 }
 
-template <Kind kind>
-void Model<kind>::check_model(const IMatrix &counts) const {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
   return;
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
@@ -1190,9 +1044,10 @@ void Model<kind>::check_model(const IMatrix &counts) const {
     throw(std::runtime_error("The prior alpha is zero."));
 }
 
-template <Kind kind>
-std::ostream &operator<<(std::ostream &os,
-                         const PoissonFactorization::Model<kind> &pfa) {
+template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+std::ostream &operator<<(
+    std::ostream &os,
+    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa) {
   os << "Poisson Factorization "
      << "G = " << pfa.G << " "
      << "S = " << pfa.S << " "
@@ -1200,8 +1055,9 @@ std::ostream &operator<<(std::ostream &os,
 
   if (pfa.verbosity >= Verbosity::Verbose) {
     print_matrix_head(os, pfa.features.phi, "Φ");
-    print_matrix_head(os, pfa.theta, "Θ");
+    print_matrix_head(os, pfa.weights.theta, "Θ");
     os << pfa.features.prior;
+    os << pfa.weights.prior;
 
     os << "Spot scaling factors" << std::endl;
     for (size_t s = 0; s < pfa.S; ++s)
@@ -1229,6 +1085,7 @@ std::ostream &operator<<(std::ostream &os,
       os << Stats::summary(pfa.experiment_scaling) << std::endl;
     }
 
+    /*
     os << "R_theta factors" << std::endl;
     for (size_t t = 0; t < pfa.T; ++t)
       os << (t > 0 ? "\t" : "") << pfa.r_theta[t];
@@ -1250,6 +1107,7 @@ std::ostream &operator<<(std::ostream &os,
         p_theta_zeros++;
     os << "There are " << p_theta_zeros << " zeros in P_theta." << std::endl;
     os << Stats::summary(pfa.p_theta) << std::endl;
+    */
   }
 
   return os;

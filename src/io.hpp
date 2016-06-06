@@ -70,12 +70,12 @@ void write_matrix(const M &m, const std::string &path,
 }
 
 PoissonFactorization::Matrix read_matrix(std::istream &os,
-                                   const std::string &separator,
-                                   const std::string &label);
+                                         const std::string &separator,
+                                         const std::string &label);
 
 PoissonFactorization::IMatrix read_imatrix(std::istream &os,
-                                     const std::string &separator,
-                                     const std::string &label);
+                                           const std::string &separator,
+                                           const std::string &label);
 
 template <typename V>
 V read_vector(std::istream &is, const std::string &separator) {
@@ -97,18 +97,28 @@ V read_vector(std::istream &is, const std::string &separator) {
 }
 
 PoissonFactorization::Matrix read_floats(std::istream &ifs,
-                                   const std::string &separator,
-                                   std::vector<std::string> &row_names,
-                                   std::vector<std::string> &col_names,
-                                   const std::string &label);
+                                         const std::string &separator,
+                                         std::vector<std::string> &row_names,
+                                         std::vector<std::string> &col_names,
+                                         const std::string &label);
 
 PoissonFactorization::IMatrix read_counts(std::istream &ifs,
-                                    const std::string &separator,
-                                    std::vector<std::string> &row_names,
-                                    std::vector<std::string> &col_names,
-                                    const std::string &label);
+                                          const std::string &separator,
+                                          std::vector<std::string> &row_names,
+                                          std::vector<std::string> &col_names,
+                                          const std::string &label);
 
 void print_matrix_head(std::ostream &os, const PoissonFactorization::Matrix &m,
                        const std::string &label = "", size_t n = 10);
+
+template <typename V>
+void print_vector_head(std::ostream &os, const V &v,
+                       const std::string &label = "", size_t n = 10) {
+  if (label != "")
+    os << label << std::endl;
+  size_t X = v.n_rows;
+  for (size_t x = 0; x < X; ++x)
+    os << (x > 0 ? "\t" : "") << v[x];
+}
 
 #endif

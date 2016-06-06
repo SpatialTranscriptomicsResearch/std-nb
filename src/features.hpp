@@ -8,6 +8,7 @@
 #include "sampling.hpp"
 
 namespace PoissonFactorization {
+namespace Feature {
 
 const Float phi_scaling = 1.0;
 
@@ -68,20 +69,28 @@ struct Features {
         intensities[t] += phi(g, t);
     return intensities;
   };
+
+  void lift_sub_model(const Features<kind> &sub_model, size_t t1, size_t t2) {
+    prior.lift_sub_model(sub_model.prior, t1, t2);
+    for (size_t g = 0; g < G; ++g)
+      phi(g, t1) = sub_model.phi(g, t2);
+  }
 };
 
 template <>
 void Features<Kind::Gamma>::initialize_factor(size_t t) {
-  // initialize p_phi
+  // initialize p of Φ
+  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
+  std::cout << "initializing p of Φ." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
         parameters.hyperparameters.phi_p_1, parameters.hyperparameters.phi_p_2,
         EntropySource::rngs[omp_get_thread_num()]));
 
-  // initialize r_phi
+  // initialize r of Φ
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing r_phi." << std::endl;
+  std::cout << "initializing r of Φ." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -90,9 +99,9 @@ void Features<Kind::Gamma>::initialize_factor(size_t t) {
         1 / parameters.hyperparameters.phi_r_2)(
         EntropySource::rngs[omp_get_thread_num()]);
 
-  // initialize phi
+  // initialize Φ
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing phi." << std::endl;
+  std::cout << "initializing Φ." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -115,7 +124,7 @@ void Features<Kind::Dirichlet>::initialize_factor(size_t t) {
 template <>
 void Features<Kind::Gamma>::initialize() {
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing phi from Gamma distribution." << std::endl;
+  std::cout << "initializing Φ from Gamma distribution." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
@@ -129,7 +138,7 @@ void Features<Kind::Gamma>::initialize() {
 template <>
 void Features<Kind::Dirichlet>::initialize() {
   // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing phi from Dirichlet distribution." << std::endl;
+  std::cout << "initializing Φ from Dirichlet distribution." << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
     initialize_factor(t);
@@ -231,6 +240,7 @@ void Features<Kind::Dirichlet>::sample(const Matrix &theta,
     for (size_t g = 0; g < G; ++g)
       phi(g, t) = phi_k[g];
   }
+}
 }
 }
 
