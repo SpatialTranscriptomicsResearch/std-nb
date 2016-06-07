@@ -8,6 +8,7 @@
 #include "parallel.hpp"
 #include "parameters.hpp"
 #include "compression.hpp"
+#include "log.hpp"
 #include "features.hpp"
 #include "mix.hpp"
 #include "io.hpp"
@@ -25,7 +26,7 @@ namespace PoissonFactorization {
 
 #define DEFAULT_SEPARATOR "\t"
 #define DEFAULT_LABEL ""
-#define print_sub_model_cnt false // TODO make configurable
+#define print_sub_model_cnt false  // TODO make configurable
 
 const size_t num_sub_gibbs_split = 50;
 const size_t num_sub_gibbs_merge = 10;
@@ -196,8 +197,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
   if (parameters.activate_experiment_scaling) {
     // initialize experiment scaling factors
     if (parameters.activate_experiment_scaling) {
-      if (verbosity >= Verbosity::Debug)
-        std::cout << "initializing experiment scaling." << std::endl;
+      LOG(debug) << "Initializing experiment scaling.";
       experiment_scaling = Vector(E, arma::fill::zeros);
       for (size_t s = 0; s < S; ++s)
         experiment_scaling(c.experiments[s]) += contributions_spot(s);
@@ -214,24 +214,11 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
 
   // initialize spot scaling factors
   {
-    if (verbosity >= Verbosity::Debug)
-      std::cout << "initializing spot scaling." << std::endl;
+    LOG(debug) << "Initializing spot scaling.";
     Float z = 0;
-    for (size_t s = 0; s < S; ++s) {
-      if (verbosity >= Verbosity::Debug)
-        std::cout << "z = " << z << " spot_scaling(s) = " << spot_scaling(s)
-                  << " contributions_spot(s) = " << contributions_spot(s)
-                  << " experiment_scaling_long(s) = "
-                  << experiment_scaling_long(s);
+    for (size_t s = 0; s < S; ++s)
       z += spot_scaling(s) = contributions_spot(s) / experiment_scaling_long(s);
-      if (verbosity >= Verbosity::Debug)
-        std::cout << " spot_scaling(s) = " << spot_scaling(s) << std::endl;
-    }
-    if (verbosity >= Verbosity::Debug)
-      std::cout << "z = " << z << std::endl;
     z /= S;
-    if (verbosity >= Verbosity::Debug)
-      std::cout << "z = " << z << std::endl;
     for (size_t s = 0; s < S; ++s)
       spot_scaling(s) /= z;
   }
@@ -261,8 +248,7 @@ Model<feat_kind,mix_kind>::Model(const Counts &c, const Paths &paths,
       verbosity(verbosity_) {
   update_experiment_scaling_long(c);
 
-  if (verbosity >= Verbosity::Debug)
-    std::cout << *this << std::endl;
+  LOG(debug) << *this;
 }
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
@@ -273,11 +259,10 @@ double Model<feat_kind, mix_kind>::log_likelihood_factor(const IMatrix &counts,
              + weights.log_likelihood_factor(counts, t);
 
   if (std::isnan(l) or std::isinf(l))
-    std::cout << "Warning: log likelihoood contribution of factor " << t
-              << " = " << l << std::endl;
+    LOG(warning) << "Warning: log likelihoood contribution of factor " << t
+              << " = " << l;
 
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "ll_X = " << l << std::endl;
+  LOG(debug) << "ll_X = " << l;
 
   return l;
 }
@@ -294,12 +279,10 @@ double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
         rate *= experiment_scaling_long(s);
       auto cur = log_poisson(counts(g, s), rate);
       if (std::isinf(cur) or std::isnan(cur))
-        std::cout << "ll poisson(g=" + std::to_string(g) + ",s="
-                         + std::to_string(s) + ") = " + std::to_string(cur)
-                         + " counts = " + std::to_string(counts(g, s))
-                         + " lambda = " + std::to_string(lambda_gene_spot(g, s))
-                         + " rate = " + std::to_string(rate) + "\n"
-                  << std::flush;
+        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
+                     << " counts = " << counts(g, s)
+                     << " lambda = " << lambda_gene_spot(g, s)
+                     << " rate = " << rate;
       l += cur;
     }
   return l;
@@ -391,8 +374,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 /** sample count decomposition */
 void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling contributions" << std::endl;
+  LOG(info) << "Sampling contributions";
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
   contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
@@ -416,8 +398,7 @@ void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
 /** sample spot scaling factors */
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_spot_scaling() {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling spot scaling factors" << std::endl;
+  LOG(info) << "Sampling spot scaling factors";
   auto phi_marginal = features.marginalize_genes();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
@@ -451,8 +432,7 @@ void Model<feat_kind, mix_kind>::sample_spot_scaling() {
 /** sample experiment scaling factors */
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
-  if (verbosity >= Verbosity::Verbose)
-    std::cout << "Sampling experiment scaling factors" << std::endl;
+  LOG(info) << "Sampling experiment scaling factors";
 
   auto phi_marginal = features.marginalize_genes();
   std::vector<Float> intensity_sums(E, 0);
@@ -467,12 +447,13 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
   }
 
   if (verbosity >= Verbosity::Debug)
-    for (size_t e = 0; e < E; ++e)
-      std::cout << "contributions_experiment[" << e
-                << "]=" << contributions_experiment[e] << std::endl
-                << "intensity_sum=" << intensity_sums[e] << std::endl
-                << "prev experiment_scaling[" << e
-                << "]=" << experiment_scaling[e] << std::endl;
+    for (size_t e = 0; e < E; ++e) {
+      LOG(debug) << "contributions_experiment[" << e
+                 << "]=" << contributions_experiment[e];
+      LOG(debug) << "intensity_sum=" << intensity_sums[e];
+      LOG(debug) << "prev experiment_scaling[" << e
+                 << "]=" << experiment_scaling[e];
+    }
 
   for (size_t e = 0; e < E; ++e) {
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -480,9 +461,8 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
         parameters.hyperparameters.experiment_a + contributions_experiment(e),
         1.0 / (parameters.hyperparameters.experiment_b + intensity_sums[e]))(
         EntropySource::rng);
-    if (verbosity >= Verbosity::Debug)
-      std::cout << "new experiment_scaling[" << e
-                << "]=" << experiment_scaling[e] << std::endl;
+    LOG(debug) << "new experiment_scaling[" << e
+               << "]=" << experiment_scaling[e];
   }
 
   // copy the experiment scaling parameters into the spot-indexed vector
@@ -519,11 +499,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
   Timer timer;
   if (flagged(which & Target::contributions)) {
     sample_contributions(data.counts);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
@@ -532,22 +510,18 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     // contributions because otherwise lambda_gene_spot is inconsistent
     timer.tick();
     sample_split_merge(data, which);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
   if (flagged(which & Target::spot_scaling)) {
     timer.tick();
     sample_spot_scaling();
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
@@ -555,11 +529,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (E > 1 and parameters.activate_experiment_scaling) {
       timer.tick();
       sample_experiment_scaling(data);
-      if (timing and verbosity >= Verbosity::Info)
-        std::cout << "This took " << timer.tock() << "μs." << std::endl;
-      if (verbosity >= Verbosity::Everything)
-        std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                  << std::endl;
+      if (timing)
+        LOG(info) << "This took " << timer.tock() << "μs.";
+      LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
       check_model(data.counts);
     }
   }
@@ -568,11 +540,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     timer.tick();
     features.prior.sample(weights.theta, contributions_gene_type, spot_scaling,
                           experiment_scaling_long);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
@@ -580,11 +550,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     timer.tick();
     weights.prior.sample(features.phi, contributions_spot_type, spot_scaling,
                          experiment_scaling_long);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
@@ -592,11 +560,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     timer.tick();
     features.sample(weights.theta, contributions_gene_type, spot_scaling,
                     experiment_scaling_long);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 
@@ -604,11 +570,9 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     timer.tick();
     weights.sample(features, contributions_spot_type, spot_scaling,
                    experiment_scaling_long);
-    if (timing and verbosity >= Verbosity::Info)
-      std::cout << "This took " << timer.tock() << "μs." << std::endl;
-    if (verbosity >= Verbosity::Everything)
-      std::cout << "Log-likelihood = " << log_likelihood(data.counts)
-                << std::endl;
+    if (timing)
+      LOG(info) << "This took " << timer.tock() << "μs.";
+    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
     check_model(data.counts);
   }
 }
@@ -642,18 +606,14 @@ void Model<feat_kind, mix_kind>::sample_split_merge(const Counts &data,
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
   std::vector<Float> x(T, 0);
-  std::cout << "Factor strengths: ";
   auto phi_marginal = features.marginalize_genes();
-  for (size_t t = 0; t < T; ++t) {
+  for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
       Float z = phi_marginal[t] * theta(s, t) * spot_scaling[s];
       if (parameters.activate_experiment_scaling)
         z *= experiment_scaling_long[s];
       x[t] += z;
     }
-    std::cout << " " << x[t];
-  }
-  std::cout << std::endl;
   return std::distance(begin(x), min_element(begin(x), end(x)));
 }
 
@@ -680,8 +640,16 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
   which = which
           & ~(Target::spot_scaling | Target::experiment_scaling
               | Target::merge_split);
-  for (size_t i = 0; i < n; ++i)
+
+  bool prev_logging = boost::log::core::get()->set_logging_enabled(false);
+
+  for (size_t i = 0; i < n; ++i) {
     sub_model.gibbs_sample(counts, which, show_timing);
+    LOG(info) << "sub model log likelihood = "
+              << sub_model.log_likelihood_poisson_counts(counts.counts);
+  }
+
+  boost::log::core::get()->set_logging_enabled(prev_logging);
 
   if (print_sub_model_cnt)
     sub_model.store(counts,
@@ -708,9 +676,7 @@ template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
                                               Target which) {
   size_t t2 = find_weakest_factor();
-  if (verbosity >= Verbosity::Info)
-    std::cout << "Performing a split step. Splitting " << t1 << " and " << t2
-              << "." << std::endl;
+  LOG(info) << "Performing a split step: " << t1 << " and " << t2 << ".";
   Model previous(*this);
 
   double ll_previous = (consider_factor_likel
@@ -750,22 +716,20 @@ void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
                            : 0)
                       + log_likelihood_poisson_counts(data.counts);
 
-  std::cout << "ll_split_previous = " << ll_previous << std::endl
-            << "ll_split_updated = " << ll_updated << std::endl;
+  LOG(debug) << "ll_split_previous = " << ll_previous
+            << " ll_split_updated = " << ll_updated;
   if (gibbs_test(ll_updated, ll_previous, verbosity)) {
-    std::cout << "ll_split_ACCEPT" << std::endl;
+    LOG(info) << "Split step accecpted";
   } else {
     *this = previous;
-    std::cout << "ll_split_REJECT" << std::endl;
+    LOG(info) << "Split step rejected";
   }
 }
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
                                               size_t t2, Target which) {
-  if (verbosity >= Verbosity::Info)
-    std::cout << "Performing a merge step. Merging types " << t1 << " and "
-              << t2 << "." << std::endl;
+  LOG(info) << "Performing a merge step: " << t1 << " and " << t2 << ".";
   Model previous(*this);
 
   double ll_previous = (consider_factor_likel
@@ -800,8 +764,7 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
   features.initialize_factor(t2);
 
   // randomly initialize p_theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing p of theta." << std::endl;
+  LOG(debug) << "Initializing P of Θ";
   if (true)  // TODO make this CLI-switchable
     weights.prior.p[t2] = prob_to_neg_odds(
         sample_beta<Float>(parameters.hyperparameters.theta_p_1,
@@ -810,16 +773,14 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
     weights.prior.p[t2] = 1;
 
   // initialize r_theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing r of theta." << std::endl;
+  LOG(debug) << "Initializing R of Θ";
   // NOTE: std::gamma_distribution takes a shape and scale parameter
   weights.prior.r[t2] = std::gamma_distribution<Float>(
       parameters.hyperparameters.theta_r_1,
       1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
 
   // initialize theta
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing theta." << std::endl;
+  LOG(debug) << "Initializing Θ";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -853,20 +814,20 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
                            : 0)
                       + log_likelihood_poisson_counts(data.counts);
 
-  std::cout << "ll_merge_previous = " << ll_previous << std::endl
-            << "ll_merge_updated = " << ll_updated << std::endl;
+  LOG(debug) << "ll_merge_previous = " << ll_previous
+            << " ll_merge_updated = " << ll_updated;
   if (gibbs_test(ll_updated, ll_previous, verbosity)) {
-    std::cout << "ll_merge_ACCEPT" << std::endl;
+    LOG(info) << "Merge step accepted";
   } else {
     *this = previous;
-    std::cout << "ll_merge_REJECT" << std::endl;
+    LOG(info) << "Merge step rejected";
   }
 }
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 std::vector<Int> Model<feat_kind, mix_kind>::sample_reads(size_t g, size_t s,
                                                           size_t n) const {
-  std::cout << "Error: not implemented: sampling reads." << std::endl;
+  LOG(fatal) << "Error: not implemented: sampling reads.";
   exit(-1);
 }
 
@@ -898,8 +859,7 @@ std::vector<Int> Model<Feature::Kind::Gamma, mix_kind>::sample_reads(size_t g, s
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 double Model<feat_kind, mix_kind>::posterior_expectation(size_t g,
                                                          size_t s) const {
-  std::cout << "Error: not implemented: computing posterior expectations."
-            << std::endl;
+  LOG(fatal) << "Error: not implemented: computing posterior expectations.";
   exit(-1);
 }
 
@@ -932,8 +892,7 @@ double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 double Model<feat_kind, mix_kind>::posterior_variance(size_t g,
                                                       size_t s) const {
-  std::cout << "Error: not implemented: computing posterior variance."
-            << std::endl;
+  LOG(fatal) << "Error: not implemented: computing posterior variance.";
   exit(-1);
 }
 

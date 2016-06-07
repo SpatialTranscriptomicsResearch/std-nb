@@ -2,6 +2,7 @@
 #define FEATURES_HPP
 
 #include "io.hpp"
+#include "log.hpp"
 #include "odds.hpp"
 #include "pdist.hpp"
 #include "priors.hpp"
@@ -80,8 +81,7 @@ struct Features {
 template <>
 void Features<Kind::Gamma>::initialize_factor(size_t t) {
   // initialize p of Φ
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing p of Φ." << std::endl;
+  LOG(debug) << "Initializing P of Φ";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
@@ -89,8 +89,7 @@ void Features<Kind::Gamma>::initialize_factor(size_t t) {
         EntropySource::rngs[omp_get_thread_num()]));
 
   // initialize r of Φ
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing r of Φ." << std::endl;
+  LOG(debug) << "Initializing R of Φ";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -100,8 +99,7 @@ void Features<Kind::Gamma>::initialize_factor(size_t t) {
         EntropySource::rngs[omp_get_thread_num()]);
 
   // initialize Φ
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing Φ." << std::endl;
+  LOG(debug) << "Initializing Φ";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
@@ -123,8 +121,7 @@ void Features<Kind::Dirichlet>::initialize_factor(size_t t) {
 
 template <>
 void Features<Kind::Gamma>::initialize() {
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing Φ from Gamma distribution." << std::endl;
+  LOG(debug) << "Initializing Φ from Gamma distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
@@ -137,8 +134,7 @@ void Features<Kind::Gamma>::initialize() {
 
 template <>
 void Features<Kind::Dirichlet>::initialize() {
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing Φ from Dirichlet distribution." << std::endl;
+  LOG(debug) << "Initializing Φ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
     initialize_factor(t);
@@ -187,8 +183,7 @@ void Features<Kind::Gamma>::sample(const Matrix &theta,
                                    const IMatrix &contributions_gene_type,
                                    const Vector &spot_scaling,
                                    const Vector &experiment_scaling_long) {
-  // if (verbosity >= Verbosity::Verbose) // TODO-verbosity
-  std::cout << "Sampling Φ from Gamma distribution" << std::endl;
+  LOG(info) << "Sampling Φ from Gamma distribution";
 
   // pre-computation
   Vector theta_t(T, arma::fill::zeros);
@@ -229,8 +224,7 @@ void Features<Kind::Dirichlet>::sample(const Matrix &theta,
                                        const IMatrix &contributions_gene_type,
                                        const Vector &spot_scaling,
                                        const Vector &experiment_scaling_long) {
-  // if (verbosity >= Verbosity::Verbose) // TODO-verbosity
-  std::cout << "Sampling Φ from Dirichlet distribution" << std::endl;
+  LOG(info) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < T; ++t) {
     std::vector<Float> a(G, parameters.hyperparameters.alpha);
 #pragma omp parallel for if (DO_PARALLEL)

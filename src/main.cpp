@@ -129,26 +129,20 @@ void simulate(const T &pfa, const Counts &counts) {
 template <typename T>
 void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
-  if (options.verbosity >= Verbosity::Info)
-    cout << "Initial model" << endl << pfa << endl;
-  if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-    cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
+  LOG(info) << "Initial model" << endl << pfa;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
-    if (options.verbosity >= Verbosity::Info)
-      cout << "Performing iteration " << iteration << endl;
+    LOG(info) << "Performing iteration " << iteration;
     pfa.gibbs_sample(data, options.sample_these, options.timing);
-    if (options.verbosity >= Verbosity::Info)
-      cout << "Current model" << endl << pfa << endl;
+    LOG(info) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0)
       pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
-    if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-      cout << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts) << endl;
+    if (options.compute_likelihood)
+      LOG(info) << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
   }
-  if (options.compute_likelihood and options.verbosity >= Verbosity::Info)
-    cout << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts)
-         << endl;
+  if (options.compute_likelihood)
+    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
   pfa.store(data, options.output, true);
 }
 
@@ -273,24 +267,31 @@ int main(int argc, char **argv) {
   // invert the negative CLI switch value
   options.compute_likelihood = !options.compute_likelihood;
 
-  if (options.verbosity >= Verbosity::Info) {
-    cout << exec_info.name_and_version() << endl;
-    cout << exec_info.datetime << endl;
-    cout << "Working directory = " << exec_info.directory << endl;
-    cout << "Command =" << exec_info.cmdline << endl;
-    cout << endl;
-  }
-
   if (options.output == default_output_string) {
     options.output
         = generate_random_label(exec_info.program_name, 0, options.verbosity)
           + "/";
   }
-  if (not options.output.empty() and *options.output.rbegin() == '/')
+  string log_file_path = options.output;
+  if (options.output.empty()) {
+    log_file_path = "log.txt";
+  } else if (*options.output.rbegin() == '/') {
     if (not boost::filesystem::create_directory(options.output)) {
-      cout << "Error creating output directory " << options.output << endl;
+      LOG(fatal) << "Error creating output directory " << options.output;
       return EXIT_FAILURE;
+    } else {
+      log_file_path += "log.txt";
     }
+  } else {
+    log_file_path += ".log.txt";
+  }
+
+  if (options.verbosity >= Verbosity::Info) {
+    LOG(info) << exec_info.name_and_version();
+    LOG(info) << exec_info.datetime;
+    LOG(info) << "Working directory = " << exec_info.directory;
+    LOG(info) << "Command =" << exec_info.cmdline << endl;
+  }
 
   vector<string> labels;
   switch (options.labeling) {
@@ -312,7 +313,7 @@ int main(int argc, char **argv) {
   }
 
   if (labels.size() < options.tsv_paths.size()) {
-    cout << "Warning: too few labels available! Using paths as labels." << endl;
+    LOG(warning) << "Warning: too few labels available! Using paths as labels.";
     labels = options.tsv_paths;
   }
 
@@ -334,18 +335,19 @@ int main(int argc, char **argv) {
   } else {
     if (options.phi_dirichlet)
       options.feature_type = PF::Feature::Kind::Dirichlet;
-    if (options.feature_type == PF::Feature::Kind::Dirichlet) {
-      if (options.verbosity >= Verbosity::Info)
-        cout << "Using Dirichlet-distribution for the features." << endl;
-      PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
-          data, options.num_factors, parameters, options.verbosity);
-      perform_gibbs_sampling(data, pfa, options);
-    } else if (options.feature_type == PF::Feature::Kind::Gamma) {
-      if (options.verbosity >= Verbosity::Info)
-        cout << "Using gamma-distribution for the features." << endl;
-      PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
-          data, options.num_factors, parameters, options.verbosity);
-      perform_gibbs_sampling(data, pfa, options);
+    switch (options.feature_type) {
+      case PF::Feature::Kind::Dirichlet: {
+        LOG(info) << "Using Dirichlet-distribution for the features.";
+        PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
+            data, options.num_factors, parameters, options.verbosity);
+        perform_gibbs_sampling(data, pfa, options);
+      } break;
+      case PF::Feature::Kind::Gamma: {
+        LOG(info) << "Using gamma-distribution for the features.";
+        PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
+            data, options.num_factors, parameters, options.verbosity);
+        perform_gibbs_sampling(data, pfa, options);
+      } break;
     }
   }
 

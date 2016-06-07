@@ -35,8 +35,8 @@
 #include <list>
 #include <vector>
 #include <cmath>
-#include "verbosity.hpp"
 #include "entropy.hpp"
+#include "log.hpp"
 #include "sampling.hpp"
 // #include "../random_distributions.hpp"
 
@@ -58,13 +58,12 @@ public:
 template <class T>
 class MonteCarlo {
   using E = std::pair<T, double>;
-  Verbosity verbosity;
 
 public:
-  MonteCarlo(Verbosity ver)
-      : verbosity(ver), generator(Generator<T>()), evaluator(Evaluator<T>()){};
+  MonteCarlo()
+      : generator(Generator<T>()), evaluator(Evaluator<T>()){};
   MonteCarlo(const Generator<T> &gen, const Evaluator<T> &eval, Verbosity ver)
-      : verbosity(ver), generator(gen), evaluator(eval){};
+      : generator(gen), evaluator(eval){};
   ~MonteCarlo(){};
 
   Generator<T> generator;
@@ -80,19 +79,16 @@ private:
     double dG = nextG - G;
     double r = RandomDistribution::Uniform(EntropySource::rng);
     double p = std::min<double>(1.0, boltzdist(-dG, temp));
-    if (verbosity >= Verbosity::Verbose)
-      std::cerr << "T = " << temp << " next = " << nextstate << std::endl
-                << "nextG = " << nextG << " G = " << G << " dG = " << dG
-                << " p = " << p << " r = " << r << std::endl;
+    LOG(debug) << "T = " << temp << " next = " << nextstate;
+    LOG(debug) << "nextG = " << nextG << " G = " << G << " dG = " << dG
+               << " p = " << p << " r = " << r;
     if (std::isnan(nextG) == 0 and (dG > 0 or r <= p)) {
-      if (verbosity >= Verbosity::Verbose)
-        std::cerr << "Accepted!" << std::endl;
+      LOG(debug) << "Accepted!";
       state = nextstate;
       G = nextG;
       return true;
     } else {
-      if (verbosity >= Verbosity::Verbose)
-        std::cerr << "Rejected!" << std::endl;
+      LOG(debug) << "Rejected!";
       return false;
     }
   }
@@ -102,18 +98,16 @@ private:
     double r = RandomDistribution::Uniform(EntropySource::rng);
     double p = std::min<double>(
         1.0, exp(-(G1 / temp1 + G2 / temp2 - G1 / temp2 - G2 / temp1)));
-    if (verbosity >= Verbosity::Verbose)
-      std::cerr << "T1 = " << temp1 << " T2 " << temp2 << " G1 = " << G1
-                << " G2 = " << G2 << std::endl << "r = " << r << " p = " << p
-                << std::endl;
+      LOG(debug) << "T1 = " << temp1 << " T2 " << temp2 << " G1 = " << G1
+                << " G2 = " << G2;
+      LOG(debug) << "r = " << r << " p = " << p;
     if (r <= p) {
-      if (verbosity >= Verbosity::Verbose) std::cerr << "Swap!" << std::endl;
+      LOG(debug) << "Swap!";
       std::swap<T>(state1, state2);
       std::swap<double>(G1, G2);
       return true;
     } else {
-      if (verbosity >= Verbosity::Verbose)
-        std::cerr << "Swap rejected!" << std::endl;
+      LOG(debug) << "Swap rejected!";
       return false;
     }
   }
@@ -126,9 +120,7 @@ public:
     std::list<E> trajectory;
     // trajectory.push_back(E(state, G));
     for (size_t i = 0; i < steps; i++) {
-      if (verbosity >= Verbosity::Info)
-        std::cerr << std::endl << "Iteration " << i << " of " << steps
-                  << std::endl;
+      LOG(debug) << std::endl << "Iteration " << i << " of " << steps;
       GibbsStep(temp, state, G);
       // if (GibbsStep(temp, state, G))
         // trajectory.push_back(E(state, G));
@@ -154,31 +146,29 @@ public:
       trajectory[t].push_back(E(state[t], G[t]));
 
     for (size_t i = 0; i < steps; i++) {
-      if (verbosity >= Verbosity::Info)
-        std::cerr << "Iteration " << i << " of " << steps << std::endl;
+      LOG(debug) << "Iteration " << i << " of " << steps;
       for (size_t t = 0; t < n; t++)
         // TODO: if one wants to determine means one should respect the failed
         // changes, and input once more the original state to the trajectory.
         if (GibbsStep(temp[t], state[t], G[t]))
           trajectory[t].push_back(E(state[t], G[t]));
 
+      /* TODO reactivate debug output
       if (verbosity >= Verbosity::Info) {
         std::cout << "Scores =";
         for (size_t t = 0; t < n; t++) std::cout << " " << G[t];
         std::cout << std::endl;
       }
+      */
 
       if (temp.size() > 1) {
         size_t r = r_unif(EntropySource::rng);
-        if (verbosity >= Verbosity::Verbose)
-          std::cerr << "Testing swap of " << r << " and " << r + 1 << std::endl;
+        LOG(debug) << "Testing swap of " << r << " and " << r + 1;
         if (swap(temp[r], temp[r + 1], state[r], state[r + 1], G[r],
                  G[r + 1])) {
           trajectory[r].push_back(E(state[r], G[r]));
           trajectory[r + 1].push_back(E(state[r + 1], G[r + 1]));
-          if (verbosity >= Verbosity::Info)
-            std::cerr << "Swapping chains " << r << " and " << r + 1 << "."
-                      << std::endl;
+          LOG(debug) << "Swapping chains " << r << " and " << r + 1;
         }
       }
     }

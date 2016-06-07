@@ -84,7 +84,7 @@ struct Gamma {
               const Vector &experiment_scaling_long);
 
   void store(const std::string &prefix,
-             const std::vector<std::string> &gene_names,
+             const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const;
 
   void lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2);
@@ -109,7 +109,7 @@ struct Dirichlet {
               const Vector &spot_scaling,
               const Vector &experiment_scaling_long) const;
   void store(const std::string &prefix,
-             const std::vector<std::string> &gene_names,
+             const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const;
 
   void lift_sub_model(const Dirichlet &sub_model, size_t t1, size_t t2) const;

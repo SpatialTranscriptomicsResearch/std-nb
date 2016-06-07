@@ -129,8 +129,9 @@ SET(Boost_DEBUG OFF)
 # SET(Boost_USE_STATIC_LIBS  OFF)
 # SET(Boost_USE_STATIC_RUNTIME ON)
 # SET(Boost_ADDITIONAL_VERSIONS "1.47" "1.47.0" "1.46" "1.46.0" "1.42.0" "1.40.0")
-FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} COMPONENTS iostreams regex system filesystem
-  unit_test_framework program_options serialization date_time REQUIRED)
+FIND_PACKAGE(Boost ${BOOST_MIN_VERSION} COMPONENTS iostreams regex system log
+  filesystem unit_test_framework program_options serialization date_time thread
+  REQUIRED)
 IF(Boost_FOUND)
   ADD_DEFINITIONS( "-DHAS_BOOST" )
   INCLUDE_DIRECTORIES(SYSTEM ${Boost_INCLUDE_DIR})

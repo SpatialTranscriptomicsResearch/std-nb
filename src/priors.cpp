@@ -7,6 +7,7 @@
 #include "metropolis_hastings.hpp"
 #include "sampling.hpp"
 #include "verbosity.hpp"
+#include "log.hpp"
 
 using namespace std;
 
@@ -49,8 +50,7 @@ Gamma::Gamma(const Gamma &other)
 
 void Gamma::initialize_r() {
   // initialize r_phi
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing r_phi." << std::endl;
+  LOG(debug) << "Initializing R of Φ.";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
@@ -64,8 +64,7 @@ void Gamma::initialize_r() {
 }
 void Gamma::initialize_p() {
   // initialize p_phi
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing p_phi." << std::endl;
+  LOG(debug) << "Initializing P of Φ.";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
     const size_t thread_num = omp_get_thread_num();
@@ -79,9 +78,8 @@ void Gamma::initialize_p() {
 void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
                    const Vector &spot_scaling,
                    const Vector &experiment_scaling_long) {
-  Verbosity verbosity = Verbosity::Info;
-  if (verbosity >= Verbosity::Verbose)  // TODO-verbosity
-    std::cout << "Sampling P and R" << std::endl;
+  Verbosity verbosity = Verbosity::Verbose;  // TODO-verbosity
+  LOG(info) << "Sampling P and R of Φ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
     std::normal_distribution<double> rnorm;
@@ -210,8 +208,7 @@ Gamma::Gamma(const Gamma &other)
 
 void Gamma::initialize_r() {
   // initialize r_theta
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing r_theta." << std::endl;
+  LOG(debug) << "Initializing R of Θ.";
   for (size_t t = 0; t < T; ++t)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     r[t] = std::gamma_distribution<Float>(
@@ -221,8 +218,7 @@ void Gamma::initialize_r() {
 
 void Gamma::initialize_p() {
   // initialize p_theta
-  // if (verbosity >= Verbosity::Debug) // TODO-verbosity
-  std::cout << "initializing p_theta." << std::endl;
+  LOG(debug) << "Initializing P of Θ.";
   for (size_t t = 0; t < T; ++t)
     if (false)  // TODO make this CLI-switchable
       p[t] = prob_to_neg_odds(
@@ -236,8 +232,7 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
                    const Vector &spot_scaling,
                    const Vector &experiment_scaling_long) {
   Verbosity verbosity = Verbosity::Verbose;  // TODO-verbosity
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "Sampling P_theta and R_theta" << std::endl;
+  LOG(info) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
     std::normal_distribution<double> rnorm;
@@ -272,10 +267,10 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
 }
 
 void Gamma::store(const std::string &prefix,
-                  const std::vector<std::string> &gene_names,
+                  const std::vector<std::string> &spot_names,
                   const std::vector<std::string> &factor_names) const {
-  write_matrix(r, prefix + "r_theta.txt", gene_names, factor_names);
-  write_matrix(p, prefix + "p_theta.txt", gene_names, factor_names);
+  write_vector(r, prefix + "r_theta.txt", factor_names);
+  write_vector(p, prefix + "p_theta.txt", factor_names);
 }
 
 void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
@@ -304,7 +299,7 @@ void Dirichlet::sample(const Matrix &theta,
                        const Vector &experiment_scaling_long) const {}
 
 void Dirichlet::store(const std::string &prefix,
-                      const std::vector<std::string> &gene_names,
+                      const std::vector<std::string> &spot_names,
                       const std::vector<std::string> &factor_names) const {}
 
 void Dirichlet::lift_sub_model(const Dirichlet &sub_model, size_t t1,
