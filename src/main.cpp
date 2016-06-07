@@ -286,11 +286,21 @@ int main(int argc, char **argv) {
     log_file_path += ".log.txt";
   }
 
+  // {
+  //   namespace logging = boost::log;
+  //   // add a logfile stream to our sink
+  //   logging::add_file_log(log_file_path);
+  //   logging::core::get()->set_filter(logging::trivial::severity
+  //                                    >= logging::trivial::info);
+  // }
+  // // sink->locked_backend()->add_stream(
+  // //     boost::make_shared<std::ofstream>(LOGFILE));
+
   if (options.verbosity >= Verbosity::Info) {
     LOG(info) << exec_info.name_and_version();
     LOG(info) << exec_info.datetime;
     LOG(info) << "Working directory = " << exec_info.directory;
-    LOG(info) << "Command =" << exec_info.cmdline << endl;
+    LOG(info) << "Command = " << exec_info.cmdline << endl;
   }
 
   vector<string> labels;
