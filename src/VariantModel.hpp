@@ -28,7 +28,7 @@ namespace PoissonFactorization {
 #define DEFAULT_LABEL ""
 #define print_sub_model_cnt false  // TODO make configurable
 
-const size_t num_sub_gibbs_split = 50;
+const size_t num_sub_gibbs_split = 10;
 const size_t num_sub_gibbs_merge = 10;
 const bool consider_factor_likel = false;
 const size_t sub_model_cnt = 10;
