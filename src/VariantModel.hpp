@@ -176,13 +176,14 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
       experiment_scaling(E, arma::fill::ones),
       experiment_scaling_long(S, arma::fill::ones),
       verbosity(verbosity_) {
-  // initialize:
-  //  * contributions_gene_type
-  //  * contributions_spot_type
-  //  * lambda_gene_spot
-  if (verbosity >= Verbosity::Debug)
-    std::cout << "initializing contributions." << std::endl;
-  sample_contributions(c.counts);
+  if (false) {
+    // initialize:
+    //  * contributions_gene_type
+    //  * contributions_spot_type
+    //  * lambda_gene_spot
+    LOG(debug) << "Initializing contributions.";
+    sample_contributions(c.counts);
+  }
 
 // initialize:
 //  * contributions_spot
