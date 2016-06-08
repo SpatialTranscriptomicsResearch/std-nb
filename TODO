@@ -1,6 +1,8 @@
 * storing loading of models to and from files
 * collect log-likelihoods and write to file
 * dump log to file in output prefix
+* figure out the license for simplelogger or replace it
+* log to a specific file
 * use something like libmagic to figure out file types
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
@@ -49,3 +51,6 @@
 * alternative to split / merge:
   - multiple re-starts
 * implement Dirichlet model for theta
+* experiment-wise mix-in of factors
+* write probabilistic unit tests for sampling routines
+* use faster method for sampling from the Poisson distribution
