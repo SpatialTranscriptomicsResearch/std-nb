@@ -495,15 +495,12 @@ void Model<feat_kind, mix_kind>::update_experiment_scaling_long(
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
                                               bool timing) {
-  check_model(data.counts);
-
   Timer timer;
   if (flagged(which & Target::contributions)) {
     sample_contributions(data.counts);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & Target::merge_split)) {
@@ -514,7 +511,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & Target::spot_scaling)) {
@@ -523,7 +519,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & Target::experiment_scaling)) {
@@ -533,7 +528,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
       if (timing)
         LOG(info) << "This took " << timer.tock() << "μs.";
       LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-      check_model(data.counts);
     }
   }
 
@@ -544,7 +538,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & (Target::theta_r | Target::theta_p))) {
@@ -554,7 +547,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & Target::phi)) {
@@ -564,7 +556,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 
   if (flagged(which & Target::theta)) {
@@ -574,7 +565,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    check_model(data.counts);
   }
 }
 
@@ -943,15 +933,12 @@ Matrix Model<feat_kind, mix_kind>::posterior_variances() const {
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
-  return;
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
-      /*
       if (phi[g][t] == 0)
         throw(std::runtime_error("Phi is zero for gene " + std::to_string(g) +
                             " in factor " + std::to_string(t) + "."));
-                            */
       if (phi(g, t) < 0)
         throw(std::runtime_error("Phi is negative for gene " + std::to_string(g)
                                  + " in factor " + std::to_string(t) + "."));
@@ -968,40 +955,6 @@ void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
                                  + std::to_string(s) + " in factor "
                                  + std::to_string(t) + "."));
     }
-
-  // check that r_phi and p_phi are positive, and that p is < 1
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      /*
-      if (features.prior.p(g, t) < 0)
-        throw(std::runtime_error("P[" + std::to_string(g) + "]["
-                                 + std::to_string(t) + "] is smaller zero: p="
-                                 + std::to_string(features.prior.p(g, t)) + "."));
-      if (features.prior.p(g, t) == 0)
-        throw(std::runtime_error("P is zero for gene " + std::to_string(g)
-                                 + " in factor " + std::to_string(t) + "."));
-
-      if (features.prior.r(g, t) < 0)
-        throw(std::runtime_error("R[" + std::to_string(g) + "]["
-                                 + std::to_string(t) + "] is smaller zero: r="
-                                 + std::to_string(features.prior.r(g, t)) + "."));
-      if (features.prior.r(g, t) == 0)
-        throw(std::runtime_error("R is zero for gene " + std::to_string(g)
-                                 + " in factor " + std::to_string(t) + "."));
-      */
-    }
-
-  // check hyper-parameters
-  if (parameters.hyperparameters.phi_r_1 == 0)
-    throw(std::runtime_error("The prior phi_r_1 is zero."));
-  if (parameters.hyperparameters.phi_r_2 == 0)
-    throw(std::runtime_error("The prior phi_r_2 is zero."));
-  if (parameters.hyperparameters.phi_p_1 == 0)
-    throw(std::runtime_error("The prior phi_p_1 is zero."));
-  if (parameters.hyperparameters.phi_p_2 == 0)
-    throw(std::runtime_error("The prior phi_p_2 is zero."));
-  if (parameters.hyperparameters.alpha == 0)
-    throw(std::runtime_error("The prior alpha is zero."));
 }
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
@@ -1044,30 +997,6 @@ std::ostream &operator<<(
          << " zeros in experiment_scaling." << std::endl;
       os << Stats::summary(pfa.experiment_scaling) << std::endl;
     }
-
-    /*
-    os << "R_theta factors" << std::endl;
-    for (size_t t = 0; t < pfa.T; ++t)
-      os << (t > 0 ? "\t" : "") << pfa.r_theta[t];
-    os << std::endl;
-    size_t r_theta_zeros = 0;
-    for (size_t t = 0; t < pfa.T; ++t)
-      if (pfa.r_theta[t] == 0)
-        r_theta_zeros++;
-    os << "There are " << r_theta_zeros << " zeros in R_theta." << std::endl;
-    os << Stats::summary(pfa.r_theta) << std::endl;
-
-    os << "P_theta factors" << std::endl;
-    for (size_t t = 0; t < pfa.T; ++t)
-      os << (t > 0 ? "\t" : "") << pfa.p_theta[t];
-    os << std::endl;
-    size_t p_theta_zeros = 0;
-    for (size_t t = 0; t < pfa.T; ++t)
-      if (pfa.p_theta[t] == 0)
-        p_theta_zeros++;
-    os << "There are " << p_theta_zeros << " zeros in P_theta." << std::endl;
-    os << Stats::summary(pfa.p_theta) << std::endl;
-    */
   }
 
   return os;
