@@ -38,6 +38,7 @@ struct Options {
   bool intersect = false;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
+  bool perform_splitmerge = false;
   bool timing = true;
   size_t top = 0;
   bool phi_dirichlet = false;
@@ -183,7 +184,7 @@ int main(int argc, char **argv) {
   basic_options.add_options()
     ("dirichlet,d", po::bool_switch(&options.phi_dirichlet),
      "Use a Dirichlet distribution for the features.")
-    ("simulate,s", po::value(&options.simulate_path),
+    ("simulate", po::value(&options.simulate_path),
      "Prefix to a set of parameter files. ")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
@@ -193,6 +194,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("split,s", po::bool_switch(&options.perform_splitmerge),
+     "Perform split/merge steps.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
@@ -326,6 +329,10 @@ int main(int argc, char **argv) {
     LOG(warning) << "Warning: too few labels available! Using paths as labels.";
     labels = options.tsv_paths;
   }
+
+  if (options.perform_splitmerge)
+    options.sample_these
+        = options.sample_these | PoissonFactorization::Target::merge_split;
 
   Counts data(options.tsv_paths[0], labels[0]);
   for (size_t i = 1; i < options.tsv_paths.size(); ++i)
