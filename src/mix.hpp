@@ -19,7 +19,7 @@ enum class Kind {
 };
 
 std::ostream &operator<<(std::ostream &os, Kind kind);
-std::istream &operator>>(std::istream &is, Kind kind);
+std::istream &operator>>(std::istream &is, Kind &kind);
 
 template <Kind kind>
 struct Traits {};

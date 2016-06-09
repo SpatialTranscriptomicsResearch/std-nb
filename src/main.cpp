@@ -40,7 +40,6 @@ struct Options {
   bool perform_splitmerge = false;
   bool timing = true;
   size_t top = 0;
-  bool phi_dirichlet = false;
   PF::Target sample_these = PF::DefaultTarget();
   PF::Feature::Kind feature_type = PF::Feature::Kind::Gamma;
   PF::Mix::Kind mixing_type = PF::Mix::Kind::Gamma;
@@ -131,14 +130,18 @@ int main(int argc, char **argv) {
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
-    ("file,f", po::value(&options.tsv_paths)->required(),
+    ("file", po::value(&options.tsv_paths)->required(),
      "Path to a count matrix file, can be given multiple times. "
      "Format: tab-separated, including a header line, "
      "and row names in the first column of each row.");
 
   basic_options.add_options()
-    ("dirichlet,d", po::bool_switch(&options.phi_dirichlet),
-     "Use a Dirichlet distribution for the features.")
+    ("feature,f", po::value(&options.feature_type)->default_value(options.feature_type),
+     "Which type of distribution to use for the features. "
+     "Can be one of 'gamma' or 'dirichlet'.")
+    ("mix,m", po::value(&options.mixing_type)->default_value(options.mixing_type),
+     "Which type of distribution to use for the mixing weights. "
+     "Can be one of 'gamma' or 'dirichlet'.")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
@@ -297,8 +300,6 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  if (options.phi_dirichlet)
-    options.feature_type = PF::Feature::Kind::Dirichlet;
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";
   LOG(info) << "Using " << options.mixing_type
@@ -307,9 +308,9 @@ int main(int argc, char **argv) {
     case PF::Feature::Kind::Dirichlet: {
       switch (options.mixing_type) {
         case PF::Mix::Kind::Dirichlet: {
-          // PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Dirichlet> pfa(
-          //     data, options.num_factors, parameters, options.verbosity);
-          // perform_gibbs_sampling(data, pfa, options);
+          PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Dirichlet> pfa(
+              data, options.num_factors, parameters, options.verbosity);
+          perform_gibbs_sampling(data, pfa, options);
         } break;
         case PF::Mix::Kind::Gamma: {
           PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
@@ -321,9 +322,9 @@ int main(int argc, char **argv) {
     case PF::Feature::Kind::Gamma: {
       switch (options.mixing_type) {
         case PF::Mix::Kind::Dirichlet: {
-          // PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Dirichlet> pfa(
-          //     data, options.num_factors, parameters, options.verbosity);
-          // perform_gibbs_sampling(data, pfa, options);
+          PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Dirichlet> pfa(
+              data, options.num_factors, parameters, options.verbosity);
+          perform_gibbs_sampling(data, pfa, options);
         } break;
         case PF::Mix::Kind::Gamma: {
           PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
