@@ -29,7 +29,6 @@ const vector<string> alphabetic_labels = gen_alpha_labels();
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
-  string simulate_path = "";
   Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
@@ -80,51 +79,6 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
       break;
   }
   return os;
-}
-
-template <typename T>
-void simulate(const T &pfa, const Counts &counts) {
-  // sample the highest, the median, and the lowest genes' counts for all spots
-  vector<size_t> counts_per_gene(pfa.G, 0);
-  for (size_t g = 0; g < pfa.G; ++g)
-    for (size_t s = 0; s < pfa.S; ++s)
-      counts_per_gene[g] += counts.counts(g, s);
-  vector<pair<size_t, size_t>> v;
-  for (size_t g = 0; g < pfa.G; ++g)
-    v.push_back(pair<size_t, size_t>(counts_per_gene[g], g));
-  sort(begin(v), end(v));
-  vector<size_t> to_sample;
-  to_sample.push_back(v.rbegin()->second);
-  to_sample.push_back((v.begin() + pfa.G / 2)->second);
-  to_sample.push_back(v.begin()->second);
-  for (auto g : to_sample)
-    for (size_t s = 0; s < pfa.S; ++s) {
-      cout << "SAMPLE ACROSS SPOTS\t" << counts.row_names[g] << "\t"
-           << counts.col_names[s];
-      for (auto x : pfa.sample_reads(g, s, 10000))
-        cout << "\t" << x;
-      cout << endl;
-    }
-
-  // for spot with the highest number of reads, sample all genes' counts
-  PF::Int max_count = 0;
-  size_t max_idx = 0;
-  for (size_t s = 0; s < pfa.S; ++s) {
-    PF::Int count = 0;
-    for (size_t g = 0; g < pfa.G; ++g)
-      count += counts.counts(g, s);
-    if (count > max_count) {
-      max_count = count;
-      max_idx = s;
-    }
-  }
-  for (size_t g = 0; g < pfa.G; ++g) {
-    cout << "SAMPLE ACROSS GENES\t" << counts.row_names[g] << "\t"
-         << counts.col_names[max_idx];
-    for (auto x : pfa.sample_reads(g, max_idx, 10000))
-      cout << "\t" << x;
-    cout << endl;
-  }
 }
 
 template <typename T>
@@ -184,8 +138,6 @@ int main(int argc, char **argv) {
   basic_options.add_options()
     ("dirichlet,d", po::bool_switch(&options.phi_dirichlet),
      "Use a Dirichlet distribution for the features.")
-    ("simulate", po::value(&options.simulate_path),
-     "Prefix to a set of parameter files. ")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
@@ -344,27 +296,37 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  if (options.simulate_path != "") {
-    PF::Paths paths(options.simulate_path, "");
-    PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
-        data, paths, parameters, options.verbosity);
-    simulate(pfa, data);
-  } else {
-    if (options.phi_dirichlet)
-      options.feature_type = PF::Feature::Kind::Dirichlet;
-    switch (options.feature_type) {
-      case PF::Feature::Kind::Dirichlet: {
-        LOG(info) << "Using Dirichlet-distribution for the features.";
-        PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
-            data, options.num_factors, parameters, options.verbosity);
-        perform_gibbs_sampling(data, pfa, options);
-      } break;
-      case PF::Feature::Kind::Gamma: {
-        LOG(info) << "Using gamma-distribution for the features.";
-        PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
-            data, options.num_factors, parameters, options.verbosity);
-        perform_gibbs_sampling(data, pfa, options);
-      } break;
+  if (options.phi_dirichlet)
+    options.feature_type = PF::Feature::Kind::Dirichlet;
+  switch (options.feature_type) {
+    case PF::Feature::Kind::Dirichlet: {
+      switch (options.mixing_type) {
+        case PF::Mix::Kind::Dirichlet: {
+          // PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Dirichlet> pfa(
+          //     data, options.num_factors, parameters, options.verbosity);
+          // perform_gibbs_sampling(data, pfa, options);
+        } break;
+        case PF::Mix::Kind::Gamma: {
+          PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
+              data, options.num_factors, parameters, options.verbosity);
+          perform_gibbs_sampling(data, pfa, options);
+        } break;
+      }
+    } break;
+    case PF::Feature::Kind::Gamma: {
+      switch (options.mixing_type) {
+        case PF::Mix::Kind::Dirichlet: {
+          // PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Dirichlet> pfa(
+          //     data, options.num_factors, parameters, options.verbosity);
+          // perform_gibbs_sampling(data, pfa, options);
+        } break;
+        case PF::Mix::Kind::Gamma: {
+          PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
+              data, options.num_factors, parameters, options.verbosity);
+          perform_gibbs_sampling(data, pfa, options);
+        }
+      }
+      break;
     }
   }
 
