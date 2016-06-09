@@ -1,4 +1,3 @@
-#include <omp.h>
 #include <boost/tokenizer.hpp>
 #include "VariantModel.hpp"
 #include "montecarlo.hpp"

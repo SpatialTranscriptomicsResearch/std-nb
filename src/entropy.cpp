@@ -1,5 +1,5 @@
 #include "entropy.hpp"
-#include <omp.h>
+#include "parallel.hpp"
 
 using namespace std;
 

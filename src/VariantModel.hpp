@@ -2,7 +2,6 @@
 #define VARIANTMODEL_HPP
 
 #include <random>
-#include <omp.h>
 #include "counts.hpp"
 #include "entropy.hpp"
 #include "parallel.hpp"

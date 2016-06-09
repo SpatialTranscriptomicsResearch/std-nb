@@ -4,6 +4,7 @@
 #include "io.hpp"
 #include "log.hpp"
 #include "odds.hpp"
+#include "parallel.hpp"
 #include "pdist.hpp"
 #include "priors.hpp"
 #include "sampling.hpp"
@@ -18,6 +19,9 @@ enum class Kind {
   Gamma
   //, HierGamma
 };
+
+std::ostream &operator<<(std::ostream &os, Kind kind);
+std::istream &operator>>(std::istream &is, Kind kind);
 
 template <Kind kind>
 struct Traits {};

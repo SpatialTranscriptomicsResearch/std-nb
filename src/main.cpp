@@ -43,6 +43,7 @@ struct Options {
   bool phi_dirichlet = false;
   PF::Target sample_these = PF::DefaultTarget();
   PF::Feature::Kind feature_type = PF::Feature::Kind::Gamma;
+  PF::Mix::Kind mixing_type = PF::Mix::Kind::Gamma;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -298,6 +299,10 @@ int main(int argc, char **argv) {
 
   if (options.phi_dirichlet)
     options.feature_type = PF::Feature::Kind::Dirichlet;
+  LOG(info) << "Using " << options.feature_type
+            << " distribution for the features.";
+  LOG(info) << "Using " << options.mixing_type
+            << " distribution for the mixing weights.";
   switch (options.feature_type) {
     case PF::Feature::Kind::Dirichlet: {
       switch (options.mixing_type) {

@@ -5,6 +5,7 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -Wno-unused-local-typedefs -march=
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
+  features.cpp mix.cpp
   io.cpp metropolis_hastings.cpp parameters.cpp VariantModel.cpp priors.cpp
   sampling.cpp simpleLogger.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
 

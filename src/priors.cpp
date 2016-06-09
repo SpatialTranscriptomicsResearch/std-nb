@@ -1,4 +1,3 @@
-#include <omp.h>
 #include "io.hpp"
 #include "odds.hpp"
 #include "parallel.hpp"
