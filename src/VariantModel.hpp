@@ -138,14 +138,6 @@ struct Model {
   double posterior_expectation_poisson(size_t g, size_t s) const;
   Matrix posterior_expectations_poisson() const;
 
-  /* TODO reactivate
-  std::vector<Int> sample_reads(size_t g, size_t s, size_t n = 1) const;
-  double posterior_expectation(size_t g, size_t s) const;
-  double posterior_variance(size_t g, size_t s) const;
-  Matrix posterior_expectations() const;
-  Matrix posterior_variances() const;
-  */
-
   /** check that parameter invariants are fulfilled */
   void check_model(const IMatrix &counts) const;
 
@@ -840,94 +832,6 @@ Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
       m(g, s) = posterior_expectation_poisson(g, s);
   return m;
 }
-
-/* TODO reactivate
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-std::vector<Int> Model<feat_kind, mix_kind>::sample_reads(size_t g, size_t s,
-                                                          size_t n) const {
-  LOG(fatal) << "Error: not implemented: sampling reads.";
-  exit(-1);
-}
-
-template <>
-template <Mix::Kind mix_kind>
-std::vector<Int> Model<Feature::Kind::Gamma, mix_kind>::sample_reads(size_t g, size_t s,
-                                                  size_t n) const {
-  std::vector<Float> prods(T);
-  for (size_t t = 0; t < T; ++t) {
-    prods[t] = theta(s, t) * spot_scaling[s];
-    if (parameters.activate_experiment_scaling)
-      prods[t] *= experiment_scaling_long[s];
-  }
-
-  std::vector<Int> v(n, 0);
-  // TODO parallelize
-  // #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t i = 0; i < n; ++i)
-    for (size_t t = 0; t < T; ++t)
-      v[i] += sample_negative_binomial(
-          features.prior.r(g, t),
-          prods[t] / (prods[t] + features.prior.p(g, t)), EntropySource::rng);
-  return v;
-}
-
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_expectation(size_t g,
-                                                         size_t s) const {
-  LOG(fatal) << "Error: not implemented: computing posterior expectations.";
-  exit(-1);
-}
-
-template <>
-double Model<Kind::Gamma>::posterior_expectation(size_t g, size_t s) const {
-  double x = 0;
-  for (size_t t = 0; t < T; ++t)
-    x += features.prior.r(g, t) / features.prior.p(g, t) * theta(s, t);
-  x *= spot_scaling[s];
-  if (parameters.activate_experiment_scaling)
-    x *= experiment_scaling_long[s];
-  return x;
-}
-
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_variance(size_t g,
-                                                      size_t s) const {
-  LOG(fatal) << "Error: not implemented: computing posterior variance.";
-  exit(-1);
-}
-
-template <>
-double Model<Kind::Gamma>::posterior_variance(size_t g, size_t s) const {
-  double x = 0;
-  double prod_ = spot_scaling[s];
-  if (parameters.activate_experiment_scaling)
-    prod_ *= experiment_scaling_long[s];
-  for (size_t t = 0; t < T; ++t) {
-    double prod = theta(s, t) * prod_;
-    x += features.prior.r(g, t) * prod / (prod + features.prior.p(g, t)) /
-  features.prior.p(g, t) / features.prior.p(g, t);
-  }
-  return x;
-}
-
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_expectations() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_expectation(g, s);
-  return m;
-}
-
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_variances() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_variance(g, s);
-  return m;
-}
-*/
 
 template <Feature::Kind feat_kind, Mix::Kind mix_kind>
 void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
