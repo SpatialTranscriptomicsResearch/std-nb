@@ -1,4 +1,5 @@
 #include "features.hpp"
+#include "aux.hpp"
 #include "odds.hpp"
 
 using namespace std;
@@ -21,6 +22,7 @@ ostream &operator<<(ostream &os, Kind kind) {
 istream &operator>>(istream &is, Kind &kind) {
   string token;
   is >> token;
+  token = to_lower(token);
   if (token == "dirichlet")
     kind = Kind::Dirichlet;
   else if (token == "gamma")
