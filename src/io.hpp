@@ -115,10 +115,11 @@ template <typename V>
 void print_vector_head(std::ostream &os, const V &v,
                        const std::string &label = "", size_t n = 10) {
   if (label != "")
-    os << label << std::endl;
+    os << label << "\n";
   size_t X = v.n_rows;
-  for (size_t x = 0; x < X; ++x)
+  for (size_t x = 0; x < std::min(n, X); ++x)
     os << (x > 0 ? "\t" : "") << v[x];
+  os << "\n";
 }
 
 #endif
