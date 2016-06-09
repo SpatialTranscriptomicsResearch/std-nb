@@ -742,43 +742,15 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
 
   lift_sub_model(sub_model, t1, 0);
 
-  // add effect of updated parameters
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s) += phi(g, t1) * theta(s, t1);
-
   features.initialize_factor(t2);
+  weights.initialize_factor(t2);
 
-  // randomly initialize p_theta
-  LOG(debug) << "Initializing P of Θ";
-  if (true)  // TODO make this CLI-switchable
-    weights.prior.p[t2] = prob_to_neg_odds(
-        sample_beta<Float>(parameters.hyperparameters.theta_p_1,
-                           parameters.hyperparameters.theta_p_2));
-  else
-    weights.prior.p[t2] = 1;
-
-  // initialize r_theta
-  LOG(debug) << "Initializing R of Θ";
-  // NOTE: std::gamma_distribution takes a shape and scale parameter
-  weights.prior.r[t2] = std::gamma_distribution<Float>(
-      parameters.hyperparameters.theta_r_1,
-      1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
-
-  // initialize theta
-  LOG(debug) << "Initializing Θ";
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    theta(s, t2) = std::gamma_distribution<Float>(
-        weights.prior.r(t2), 1 / weights.prior.p(t2))(EntropySource::rng);
-
-  // add effect of updated parameters
+// add effect of updated parameters
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s) += phi(g, t2) * theta(s, t2);
+      lambda_gene_spot(g, s)
+          += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
 
   for (size_t g = 0; g < G; ++g)
     contributions_gene_type(g, t2) = 0;

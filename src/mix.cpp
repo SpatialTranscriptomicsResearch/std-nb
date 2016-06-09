@@ -62,7 +62,7 @@ void Weights<Kind::Gamma>::initialize_factor(size_t t) {
 
 template <>
 void Weights<Kind::Dirichlet>::initialize_factor(size_t t) {
-  // TODO
+  // TODO implement
   std::vector<double> a(S);
   for (size_t s = 0; s < S; ++s)
     a[s] = prior.alpha[s];
