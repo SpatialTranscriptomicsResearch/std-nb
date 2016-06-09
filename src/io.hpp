@@ -120,6 +120,19 @@ void print_vector_head(std::ostream &os, const V &v,
   for (size_t x = 0; x < std::min(n, X); ++x)
     os << (x > 0 ? "\t" : "") << v[x];
   os << "\n";
+
+  size_t zeros = 0;
+  for (auto &x : v)
+    if (x == 0)
+      zeros++;
+
+  os << "There are " << zeros << " zeros";
+  if (label != "")
+    os << " in " << label;
+  os << ". This corresponds to " << (100.0 * zeros / X) << "%."
+     << "\n";
+
+  // os << Stats::summary(v) << "\n"; // TODO reactivate this
 }
 
 #endif

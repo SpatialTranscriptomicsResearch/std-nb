@@ -973,31 +973,10 @@ std::ostream &operator<<(
     os << pfa.features.prior;
     os << pfa.weights.prior;
 
-    os << "Spot scaling factors" << std::endl;
-    for (size_t s = 0; s < pfa.S; ++s)
-      os << (s > 0 ? "\t" : "") << pfa.spot_scaling[s];
-    os << std::endl;
-    size_t spot_scaling_zeros = 0;
-    for (size_t s = 0; s < pfa.S; ++s)
-      if (pfa.spot_scaling[s] == 0)
-        spot_scaling_zeros++;
-    os << "There are " << spot_scaling_zeros << " zeros in spot_scaling."
-       << std::endl;
-    os << Stats::summary(pfa.spot_scaling) << std::endl;
-
-    if (pfa.parameters.activate_experiment_scaling) {
-      os << "Experiment scaling factors" << std::endl;
-      for (size_t e = 0; e < pfa.E; ++e)
-        os << (e > 0 ? "\t" : "") << pfa.experiment_scaling[e];
-      os << std::endl;
-      size_t experiment_scaling_zeros = 0;
-      for (size_t e = 0; e < pfa.E; ++e)
-        if (pfa.experiment_scaling[e] == 0)
-          spot_scaling_zeros++;
-      os << "There are " << experiment_scaling_zeros
-         << " zeros in experiment_scaling." << std::endl;
-      os << Stats::summary(pfa.experiment_scaling) << std::endl;
-    }
+    print_vector_head(os, pfa.spot_scaling, "Spot scaling factors");
+    if (pfa.parameters.activate_experiment_scaling)
+      print_vector_head(os, pfa.experiment_scaling,
+                        "Experiment scaling factors");
   }
 
   return os;
