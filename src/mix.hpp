@@ -137,9 +137,9 @@ void Weights<Kind::Dirichlet>::sample(const Features &features,
                                       const Vector &spot_scaling,
                                       const Vector &experiment_scaling_long) {
   LOG(info) << "Sampling Θ from Dirichlet distribution";
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     std::vector<Float> a(T, parameters.hyperparameters.alpha);
-#pragma omp parallel for if (DO_PARALLEL)
     for (size_t t = 0; t < T; ++t)
       a[t] += contributions_spot_type(s, t);
     auto theta_sample = sample_dirichlet<Float>(a);
