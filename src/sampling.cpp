@@ -6,6 +6,7 @@ using namespace std;
 
 uniform_real_distribution<double> RandomDistribution::Uniform(0, 1);
 
+// TODO: this is very slow for large lambda
 size_t sample_poisson(double lambda, std::mt19937 &rng) {
   size_t k = 0;
   double logp = 0;
@@ -13,7 +14,6 @@ size_t sample_poisson(double lambda, std::mt19937 &rng) {
     k++;
     logp += log(RandomDistribution::Uniform(rng));
   } while (logp > -lambda);
-  // cerr << "Poisson sample for lambda = " << lambda << " -> " << k-1 << endl;
   return k - 1;
 };
 

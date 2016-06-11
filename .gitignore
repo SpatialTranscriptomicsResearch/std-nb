@@ -1,6 +1,8 @@
 build
 *.swp
+*.swo
 *~
 data/
 results/
 local_configuration.cmake
+maths

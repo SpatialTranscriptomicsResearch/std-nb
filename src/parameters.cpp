@@ -1,11 +1,11 @@
 #include <boost/math/special_functions/digamma.hpp>
 #include <boost/math/special_functions/trigamma.hpp>
-#include "FactorAnalysis.hpp"
+#include "parameters.hpp"
 #include "aux.hpp"
 
 using namespace std;
 
-namespace FactorAnalysis {
+namespace PoissonFactorization {
 Float digamma(Float x) { return boost::math::digamma(x); }
 
 Float trigamma(Float x) { return boost::math::trigamma(x); }

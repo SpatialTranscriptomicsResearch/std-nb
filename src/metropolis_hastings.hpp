@@ -3,6 +3,7 @@
 
 #include <random>
 #include <iostream>
+#include "log.hpp"
 #include "verbosity.hpp"
 #include "sampling.hpp"
 
@@ -18,8 +19,8 @@ struct MetropolisHastings {
 
   template <typename T, typename RNG, typename Gen, typename Score,
             typename... Args>
-  T sample(T current, size_t n_iter_initial, RNG &rng, Gen generate,
-           Score fnc, Args &... args) const {
+  T sample(T current, size_t n_iter_initial, RNG &rng, Gen generate, Score fnc,
+           Args &... args) const {
     const auto current_score = fnc(current, args...);
     size_t n_iter = n_iter_initial;
     T accepted = current;
@@ -31,8 +32,7 @@ struct MetropolisHastings {
       const auto propsition_score = fnc(proposition, args...);
 
       if (propsition_score > current_score) {
-        if (verbosity >= Verbosity::Debug)
-          std::cout << "Improved!" << std::endl;
+        LOG(debug) << "Improved!";
         accept = true;
       } else {
         const auto dG = propsition_score - current_score;
@@ -40,11 +40,9 @@ struct MetropolisHastings {
         const double prob = std::min<double>(1.0, boltzdist(-dG, temperature));
         if (std::isnan(propsition_score) == 0 and (dG > 0 or rnd <= prob)) {
           accept = true;
-          if (verbosity >= Verbosity::Debug)
-            std::cout << "Accepted!" << std::endl;
+          LOG(debug) << "Accepted!";
         } else {
-          if (verbosity >= Verbosity::Debug)
-            std::cout << "Rejected!" << std::endl;
+          LOG(debug) << "Rejected!";
         }
       }
       if (accept) {
@@ -52,9 +50,8 @@ struct MetropolisHastings {
         break;
       }
     }
-    if (verbosity >= Verbosity::Debug)
-      std::cout << "Left MCMC " << (accept ? "" : "un") << "successfully after "
-                << (n_iter_initial - n_iter) << " iterations." << std::endl;
+    LOG(debug) << "Left MCMC " << (accept ? "" : "un") << "successfully after "
+               << (n_iter_initial - n_iter) << " iterations.";
     return accepted;
   }
 };

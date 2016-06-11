@@ -1,6 +1,8 @@
 * storing loading of models to and from files
 * collect log-likelihoods and write to file
 * dump log to file in output prefix
+* figure out the license for simplelogger or replace it
+* log to a specific file
 * use something like libmagic to figure out file types
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
@@ -38,7 +40,6 @@
 * store all iterations' parameters;
 * compute auto-correlation
 * print out acceptance / rejection statistics for MH parts
-* implement operator<< and operator>> for PoissonFactorization::Kind to enable proper boost program options CLI handling of it
 * test likelihood optimization using ML
 * figure out what kind of splitting / merging proposal distribution is currently realized
 * consider hierarchies of factors
@@ -48,4 +49,11 @@
   - alternative: make sense of trans-experiment profiles post-analysis
 * alternative to split / merge:
   - multiple re-starts
-* implement Dirichlet model for theta
+* experiment-wise mix-in of factors
+* write probabilistic unit tests for sampling routines
+* use faster method for sampling from the Poisson distribution
+* bring back statistical summary printing for vectors
+* templatize scaling variables
+* unify templatized sub model types?
+* evaluate log-normal poisson rate modeling
+* differential expression analysis

@@ -5,8 +5,9 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -Wno-unused-local-typedefs -march=
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
-  io.cpp metropolis_hastings.cpp FactorAnalysis.cpp PoissonModel.cpp
-  VariantModel.cpp sampling.cpp terminal.cpp timer.cpp pdist.cpp)
+  features.cpp mix.cpp
+  io.cpp metropolis_hastings.cpp parameters.cpp VariantModel.cpp priors.cpp
+  sampling.cpp simpleLogger.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
 
 ADD_EXECUTABLE(multiScoop-bin main.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)
@@ -17,6 +18,8 @@ TARGET_LINK_LIBRARIES(multiScoop
   -L${Boost_LIBRARY_DIRS}
   ${Boost_FILESYSTEM_LIBRARY}
   ${Boost_SYSTEM_LIBRARY}
+  ${Boost_LOG_LIBRARY}
+  ${Boost_THREAD_LIBRARY}
   ${Boost_REGEX_LIBRARY}
   ${Boost_IOSTREAMS_LIBRARY}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}

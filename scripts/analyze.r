@@ -41,27 +41,28 @@ st.load.matrix = function(prefix, path, suffix="") {
                               check.names=F)))
 }
 
+st.load.vector = function(path.prefix, path, suffix="") {
+  x = read.delim(paste(path.prefix, path, suffix, sep=""),
+                 header=F, row.names=1, sep="\t")
+  y = x[,1]
+  names(y) = rownames(x)
+  return(y)
+}
+
 st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
-  load.vec = function(path.prefix, path) {
-    x = read.delim(paste(path.prefix, path, path.suffix, sep=""),
-                   header=F, row.names=1, sep="\t")
-    y = x[,1]
-    names(y) = rownames(x)
-    return(y)
-  }
   d = list()
   d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
   d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
-  d$phi.r = st.load.matrix(path.prefix, "r.txt", path.suffix)
-  d$phi.p = st.load.matrix(path.prefix, "p.txt", path.suffix)
-  d$theta.r = load.vec(path.prefix, "r_theta.txt")
-  d$theta.p = load.vec(path.prefix, "p_theta.txt")
+#  d$phi.r = st.load.matrix(path.prefix, "r_phi.txt", path.suffix) # TODO: reactivate
+#  d$phi.p = st.load.matrix(path.prefix, "p_phi.txt", path.suffix) # TODO: reactivate
+#  d$theta.r = st.load.vector(path.prefix, "r_theta.txt", path.suffix) # TODO: reactivate
+#  d$theta.p = st.load.vector(path.prefix, "p_theta.txt", path.suffix) # TODO: reactivate
   if(load.means) {
     d$means = st.load.matrix(path.prefix, "means.txt", path.suffix)
     d$means.poisson = st.load.matrix(path.prefix, "means_poisson.txt", path.suffix)
   }
-  d$spotscale = load.vec(path.prefix, "spot_scaling.txt")
-  d$expscale = load.vec(path.prefix, "experiment_scaling.txt")
+  d$spotscale = st.load.vector(path.prefix, "spot_scaling.txt", path.suffix)
+  d$expscale = st.load.vector(path.prefix, "experiment_scaling.txt", path.suffix)
   return(d)
 }
 
@@ -75,8 +76,8 @@ st.order = function(d, plot=T) {
   }
   e$theta = e$theta[,o]
   e$phi = e$phi[,o]
-  e$phi.p = e$phi.p[,o]
-  e$phi.r = e$phi.r[,o]
+#  e$phi.p = e$phi.p[,o] # TODO: reactivate
+#  e$phi.r = e$phi.r[,o] # TODO: reactivate
   e$theta.p = e$theta.p[o]
   e$theta.r = e$theta.r[o]
   return(e)
@@ -184,6 +185,9 @@ st.multi = function(d,
                     skip.samples=c(),
                     center.theta=F,
                     ncols=2, ...) {
+  # single.experiment=1:nrows(d$dtheta) == sort(grep("^\\d+\\d+$", rownames(d$theta)))
+  # single.experiment= is.single.experiment(rownames(d$theta)) // TODO
+
   dtheta = d$theta
   dspotscale = d$spotscale
   dexpscale = d$expscale
@@ -204,10 +208,10 @@ st.multi = function(d,
   w = ncols*6
   h = nrows*6
   if(!is.null(path)) {
-    pdf(paste(path, "color-bar", sep=""), width=2, height=6)
+    pdf(paste(path, "color-bar.pdf", sep=""), width=2, height=6)
     par(mar=c(0,0,0,0))
     num.steps = 1000
-    image(t(as.matrix(1:num.steps, nrow=1, ncol=num.steps), col=default.viz.pal(num.steps)))
+    image(t(1:num.steps), col=default.viz.pal(num.steps))
     dev.off()
 
     pdf(paste(path, "spot-scaling-individual-scale.pdf", sep=""), width=w, height=h)
@@ -238,13 +242,15 @@ st.multi = function(d,
     }
     dev.off()
 
-    marg = as.matrix(as.data.frame(lapply(theta, colSums)))
-    pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
-    heatmap(marg, main="Factor activities across samples")
-    heatmap(log(marg+1), main="Factor log-activities across samples")
-    heatmap(t(marg), main="Factor activities within samples")
-    heatmap(t(log(marg+1)), main="Factor log-activities within samples")
-    dev.off()
+    if(n > 1) {
+      marg = as.matrix(as.data.frame(lapply(theta, colSums)))
+      pdf(paste(path, "theta-marginals-heatmap.pdf", sep=""), width=w, height=h)
+      heatmap(marg, main="Factor activities across samples")
+      heatmap(log(marg+1), main="Factor log-activities across samples")
+      heatmap(t(marg), main="Factor activities within samples")
+      heatmap(t(log(marg+1)), main="Factor log-activities within samples")
+      dev.off()
+    }
 
     pdf(paste(path, "theta-factors-individual-scale.pdf", sep=""), width=w, height=h)
     for(factor.name in colnames(dtheta)) {
@@ -343,30 +349,32 @@ st.multi = function(d,
       }
     }
 
-    simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
     simil.2d.break = list()
+    if (FALSE) { # TODO: reactivate
+      simil.2d = dimensionality.reduction(cur, dims=2, do.tsne=do.tsne, do.pca=do.pca, do.mds=do.mds, ...)
 
-    if(!is.null(path)) {
-      pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
-      par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
-      for(method in names(simil.2d)) {
-        broken = break.data(simil.2d[[method]])
-        experiment = rep(names(broken), times=sapply(broken, nrow))
-        nc = min(3, ncol(simil[[method]]))
-        plot(simil.2d[[method]],
-             col=make.color(simil[[method]][,1:nc]),
-             pch=as.numeric(as.factor(experiment)),
-             main=method,
-             xlab="",
-             ylab=""
-             )
-        legend("topleft",
-               names(broken),
-               pch=as.factor(names(broken)),
-               bty='n')
-        simil.2d.break[[method]] = broken
+      if(!is.null(path)) {
+        pdf(paste(path, "theta-factors-dimensionality-reduction-2d.pdf", sep=""), width=w, height=w)
+        par(ask=F, bg="black",col='white', fg='white', col.main="white", col.axis="white", col.sub="white", col.lab="white")
+        for(method in names(simil.2d)) {
+          broken = break.data(simil.2d[[method]])
+          experiment = rep(names(broken), times=sapply(broken, nrow))
+          nc = min(3, ncol(simil[[method]]))
+          plot(simil.2d[[method]],
+               col=make.color(simil[[method]][,1:nc]),
+               pch=as.numeric(as.factor(experiment)),
+               main=method,
+               xlab="",
+               ylab=""
+               )
+          legend("topleft",
+                 names(broken),
+                 pch=as.factor(names(broken)),
+                 bty='n')
+          simil.2d.break[[method]] = broken
+        }
+        dev.off()
       }
-      dev.off()
     }
 
 

@@ -1,11 +1,10 @@
-#ifndef FACTORANALYSIS_HPP
-#define FACTORANALYSIS_HPP
+#ifndef PARAMETERS_HPP
+#define PARAMETERS_HPP
 
 #include <cstdint>
-#include <vector>
 #include "types.hpp"
 
-namespace FactorAnalysis {
+namespace PoissonFactorization {
 struct Hyperparameters {
   Hyperparameters(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,
@@ -98,6 +97,7 @@ struct Parameters {
    */
   size_t enforce_iter = 10;
   bool activate_experiment_scaling = false;
+  Hyperparameters hyperparameters;
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);
@@ -106,9 +106,5 @@ std::ostream &operator<<(std::ostream &os, const ForceMean &force);
 Float digamma(Float x);
 Float trigamma(Float x);
 
-template <typename T>
-T square(T x) {
-  return x * x;
-}
 }
 #endif

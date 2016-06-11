@@ -30,10 +30,6 @@ double log_gamma(double x, double shape, double scale) {
 double log_beta(double p, double a, double b) {
   double x = (a - 1) * log(p) + (b - 1) * log(1 - p);
   double y = lgamma(a + b) - lgamma(a) - lgamma(b);
-  /*
-  cout << "p=" << p << " a=" << a << " b=" << b << " x=" << x << " y=" << y
-            << " x+y=" << x + y << endl;
-  */
   return x + y;
 }
 
