@@ -7,15 +7,19 @@ using namespace std;
 namespace PoissonFactorization {
 namespace Feature {
 
-ostream &operator<<(ostream &os, Kind kind) {
+string to_string(Kind kind) {
   switch (kind) {
     case Kind::Dirichlet:
-      os << "Dirichlet";
+      return "Dirichlet";
       break;
     case Kind::Gamma:
-      os << "Gamma";
+      return "Gamma";
       break;
   }
+}
+
+ostream &operator<<(ostream &os, Kind kind) {
+  os << to_string(kind);
   return os;
 }
 

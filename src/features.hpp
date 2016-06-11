@@ -19,6 +19,7 @@ enum class Kind {
   //, HierGamma
 };
 
+std::string to_string(Kind kind);
 std::ostream &operator<<(std::ostream &os, Kind kind);
 std::istream &operator>>(std::istream &is, Kind &kind);
 
