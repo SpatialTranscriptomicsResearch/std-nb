@@ -40,7 +40,6 @@
 * store all iterations' parameters;
 * compute auto-correlation
 * print out acceptance / rejection statistics for MH parts
-* implement operator<< and operator>> for PoissonFactorization::Kind to enable proper boost program options CLI handling of it
 * test likelihood optimization using ML
 * figure out what kind of splitting / merging proposal distribution is currently realized
 * consider hierarchies of factors
@@ -50,7 +49,6 @@
   - alternative: make sense of trans-experiment profiles post-analysis
 * alternative to split / merge:
   - multiple re-starts
-* implement Dirichlet model for theta
 * experiment-wise mix-in of factors
 * write probabilistic unit tests for sampling routines
 * use faster method for sampling from the Poisson distribution
