@@ -56,7 +56,9 @@ struct Model {
       : G(G_),
         S(S_),
         T(T_),
-        matrix(S, T),
+        // different nr. of rows for features and mixing weights;
+        // initialize construct this
+        // matrix(X, T),
         parameters(params),
         prior(G, S, T, parameters) {
     initialize();
