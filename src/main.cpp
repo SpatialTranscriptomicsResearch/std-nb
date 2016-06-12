@@ -42,7 +42,7 @@ struct Options {
   size_t top = 0;
   PF::Target sample_these = PF::DefaultTarget();
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
-  PF::Partial::Kind mixing_type = PF::Partial::Kind::Gamma;
+  PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
