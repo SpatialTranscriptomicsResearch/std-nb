@@ -54,6 +54,5 @@
 * use faster method for sampling from the Poisson distribution
 * bring back statistical summary printing for vectors
 * templatize scaling variables
-* unify templatized sub model types?
 * evaluate log-normal poisson rate modeling
 * differential expression analysis
