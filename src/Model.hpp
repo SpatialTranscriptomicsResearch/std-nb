@@ -1,5 +1,5 @@
-#ifndef VARIANTMODEL_HPP
-#define VARIANTMODEL_HPP
+#ifndef MODEL_HPP
+#define MODEL_HPP
 
 #include <random>
 #include "counts.hpp"

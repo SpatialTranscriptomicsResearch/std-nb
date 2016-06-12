@@ -1,5 +1,5 @@
 #include <boost/tokenizer.hpp>
-#include "VariantModel.hpp"
+#include "Model.hpp"
 #include "montecarlo.hpp"
 
 using namespace std;

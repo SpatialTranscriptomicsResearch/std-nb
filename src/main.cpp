@@ -9,7 +9,7 @@
 #include "counts.hpp"
 #include "io.hpp"
 #include "montecarlo.hpp"
-#include "VariantModel.hpp"
+#include "Model.hpp"
 
 using namespace std;
 namespace PF = PoissonFactorization;
