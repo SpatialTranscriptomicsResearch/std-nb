@@ -41,8 +41,8 @@ struct Options {
   bool timing = true;
   size_t top = 0;
   PF::Target sample_these = PF::DefaultTarget();
-  PF::Feature::Kind feature_type = PF::Feature::Kind::Gamma;
-  PF::Mix::Kind mixing_type = PF::Mix::Kind::Gamma;
+  PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
+  PF::Partial::Kind mixing_type = PF::Partial::Kind::Gamma;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -304,35 +304,52 @@ int main(int argc, char **argv) {
             << " distribution for the features.";
   LOG(info) << "Using " << options.mixing_type
             << " distribution for the mixing weights.";
+
+  using Kind = PF::Partial::Kind;
   switch (options.feature_type) {
-    case PF::Feature::Kind::Dirichlet: {
+    case Kind::Dirichlet: {
       switch (options.mixing_type) {
-        case PF::Mix::Kind::Dirichlet: {
-          PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Dirichlet> pfa(
-              data, options.num_factors, parameters, options.verbosity);
+        case Kind::Dirichlet: {
+          PF::Model<Kind::Dirichlet, Kind::Dirichlet>
+              pfa(data, options.num_factors, parameters, options.verbosity);
           perform_gibbs_sampling(data, pfa, options);
         } break;
-        case PF::Mix::Kind::Gamma: {
-          PF::Model<PF::Feature::Kind::Dirichlet, PF::Mix::Kind::Gamma> pfa(
-              data, options.num_factors, parameters, options.verbosity);
+        case Kind::HierGamma: {
+          PF::Model<Kind::Dirichlet, Kind::HierGamma>
+              pfa(data, options.num_factors, parameters, options.verbosity);
           perform_gibbs_sampling(data, pfa, options);
         } break;
+        default:
+          throw std::runtime_error("Error: Mixing type '"
+                                   + to_string(options.mixing_type)
+                                   + "' not implemented.");
+          break;
       }
     } break;
-    case PF::Feature::Kind::Gamma: {
+    case Kind::Gamma: {
       switch (options.mixing_type) {
-        case PF::Mix::Kind::Dirichlet: {
-          PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Dirichlet> pfa(
+        case Kind::Dirichlet: {
+          PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(
               data, options.num_factors, parameters, options.verbosity);
           perform_gibbs_sampling(data, pfa, options);
         } break;
-        case PF::Mix::Kind::Gamma: {
-          PF::Model<PF::Feature::Kind::Gamma, PF::Mix::Kind::Gamma> pfa(
+        case Kind::HierGamma: {
+          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(
               data, options.num_factors, parameters, options.verbosity);
           perform_gibbs_sampling(data, pfa, options);
-        }
+        } break;
+        default:
+          throw std::runtime_error("Error: Mixing type '"
+                                   + to_string(options.mixing_type)
+                                   + "' not implemented.");
+          break;
       }
       break;
+      default:
+        throw std::runtime_error("Error: feature type '"
+                                 + to_string(options.feature_type)
+                                 + "' not implemented.");
+        break;
     }
   }
 

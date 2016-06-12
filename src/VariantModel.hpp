@@ -8,8 +8,8 @@
 #include "parameters.hpp"
 #include "compression.hpp"
 #include "log.hpp"
-#include "features.hpp"
-#include "mix.hpp"
+// #include "features.hpp"
+#include "PartialModel.hpp"
 #include "io.hpp"
 #include "metropolis_hastings.hpp"
 #include "pdist.hpp"
@@ -44,11 +44,11 @@ struct Paths {
       contributions_spot, contributions_experiment;
 };
 
-template <Feature::Kind feat_kind = Feature::Kind::Gamma,
-          Mix::Kind mix_kind = Mix::Kind::Gamma>
+template <Partial::Kind feat_kind = Partial::Kind::Gamma,
+          Partial::Kind mix_kind = Partial::Kind::HierGamma>
 struct Model {
-  typedef Feature::Features<feat_kind> features_t;
-  typedef Mix::Weights<mix_kind> weights_t;
+  typedef Partial::Model<Partial::Variable::Feature, feat_kind> features_t;
+  typedef Partial::Model<Partial::Variable::Mix, mix_kind> weights_t;
   /** number of genes */
   size_t G;
   // const size_t G;
@@ -77,11 +77,11 @@ struct Model {
   /** factor score matrix */
   weights_t weights;
 
-  inline Float &phi(size_t x, size_t y) { return features.phi(x, y); };
-  inline Float phi(size_t x, size_t y) const { return features.phi(x, y); };
+  inline Float &phi(size_t x, size_t y) { return features.matrix(x, y); };
+  inline Float phi(size_t x, size_t y) const { return features.matrix(x, y); };
 
-  inline Float &theta(size_t x, size_t y) { return weights.theta(x, y); };
-  inline Float theta(size_t x, size_t y) const { return weights.theta(x, y); };
+  inline Float &theta(size_t x, size_t y) { return weights.matrix(x, y); };
+  inline Float theta(size_t x, size_t y) const { return weights.matrix(x, y); };
 
   /** spot scaling vector */
   Vector spot_scaling;
@@ -144,12 +144,12 @@ private:
   void update_experiment_scaling_long(const Counts &data);
 };
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(
     std::ostream &os,
     const PoissonFactorization::Model<feat_kind, mix_kind> &pfa);
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
                                   const Parameters &parameters_,
                                   Verbosity verbosity_)
@@ -218,9 +218,10 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
   }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
-Model<feat_kind,mix_kind>::Model(const Counts &c, const Paths &paths,
-                   const Parameters &parameters_, Verbosity verbosity_)
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
+                                  const Parameters &parameters_,
+                                  Verbosity verbosity_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
       T(num_lines(paths.r_theta)),
@@ -245,7 +246,7 @@ Model<feat_kind,mix_kind>::Model(const Counts &c, const Paths &paths,
   LOG(debug) << *this;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 // TODO ensure no NaNs or infinities are generated
 double Model<feat_kind, mix_kind>::log_likelihood_factor(const IMatrix &counts,
                                                          size_t t) const {
@@ -254,14 +255,14 @@ double Model<feat_kind, mix_kind>::log_likelihood_factor(const IMatrix &counts,
 
   if (std::isnan(l) or std::isinf(l))
     LOG(warning) << "Warning: log likelihoood contribution of factor " << t
-              << " = " << l;
+                 << " = " << l;
 
   LOG(debug) << "ll_X = " << l;
 
   return l;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
     const IMatrix &counts) const {
   double l = 0;
@@ -282,7 +283,7 @@ double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
   return l;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
   double l = 0;
   for (size_t t = 0; t < T; ++t)
@@ -303,9 +304,9 @@ double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
   return l;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::weighted_theta() const {
-  Matrix m = weights.theta;
+  Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
@@ -319,7 +320,7 @@ Matrix Model<feat_kind, mix_kind>::weighted_theta() const {
   return m;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::store(const Counts &counts,
                                        const std::string &prefix,
                                        bool mean_and_variance) const {
@@ -347,7 +348,7 @@ void Model<feat_kind, mix_kind>::store(const Counts &counts,
   }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_contributions_sub(
     const IMatrix &counts, size_t g, size_t s, RNG &rng,
     IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
@@ -368,7 +369,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
   lambda_gene_spot(g, s) = z;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 /** sample count decomposition */
 void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
   LOG(info) << "Sampling contributions";
@@ -393,10 +394,10 @@ void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
 }
 
 /** sample spot scaling factors */
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_spot_scaling() {
   LOG(info) << "Sampling spot scaling factors";
-  auto phi_marginal = features.marginalize_genes();
+  auto phi_marginal = marginalize_genes(features);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     const Int summed_contribution = contributions_spot(s);
@@ -427,11 +428,11 @@ void Model<feat_kind, mix_kind>::sample_spot_scaling() {
 }
 
 /** sample experiment scaling factors */
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
   LOG(info) << "Sampling experiment scaling factors";
 
-  auto phi_marginal = features.marginalize_genes();
+  auto phi_marginal = marginalize_genes(features);
   std::vector<Float> intensity_sums(E, 0);
   // TODO: improve parallelism
   for (size_t s = 0; s < S; ++s) {
@@ -481,14 +482,14 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
 }
 
 /** copy the experiment scaling parameters into the spot-indexed vector */
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::update_experiment_scaling_long(
     const Counts &data) {
   for (size_t s = 0; s < S; ++s)
     experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
                                               bool timing) {
   Timer timer;
@@ -529,7 +530,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & (Target::phi_r | Target::phi_p))) {
     timer.tick();
-    features.prior.sample(weights.theta, contributions_gene_type, spot_scaling,
+    features.prior.sample(weights.matrix, contributions_gene_type, spot_scaling,
                           experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -538,7 +539,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & (Target::theta_r | Target::theta_p))) {
     timer.tick();
-    weights.prior.sample(features.phi, contributions_spot_type, spot_scaling,
+    weights.prior.sample(features.matrix, contributions_spot_type, spot_scaling,
                          experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -547,7 +548,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & Target::phi)) {
     timer.tick();
-    features.sample(weights.theta, contributions_gene_type, spot_scaling,
+    features.sample(weights, contributions_gene_type, spot_scaling,
                     experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -564,7 +565,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
   }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_split_merge(const Counts &data,
                                                     Target which) {
   if (T < 2)
@@ -590,10 +591,10 @@ void Model<feat_kind, mix_kind>::sample_split_merge(const Counts &data,
     sample_split(data, t1, which);
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
   std::vector<Float> x(T, 0);
-  auto phi_marginal = features.marginalize_genes();
+  auto phi_marginal = marginalize_genes(features);
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
       Float z = phi_marginal[t] * theta(s, t) * spot_scaling[s];
@@ -604,7 +605,7 @@ size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
   return std::distance(begin(x), min_element(begin(x), end(x)));
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
     size_t t, size_t n, const Counts &counts, Target which,
     const std::string &prefix, const std::vector<size_t> &init_factors) {
@@ -646,7 +647,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
   return sub_model;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::lift_sub_model(const Model &sub_model,
                                                 size_t t1, size_t t2) {
   features.lift_sub_model(sub_model.features, t1, t2);
@@ -659,7 +660,7 @@ void Model<feat_kind, mix_kind>::lift_sub_model(const Model &sub_model,
     contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, t2);
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
                                               Target which) {
   size_t t2 = find_weakest_factor();
@@ -704,7 +705,7 @@ void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
                       + log_likelihood_poisson_counts(data.counts);
 
   LOG(debug) << "ll_split_previous = " << ll_previous
-            << " ll_split_updated = " << ll_updated;
+             << " ll_split_updated = " << ll_updated;
   if (gibbs_test(ll_updated, ll_previous, verbosity)) {
     LOG(info) << "Split step accecpted";
   } else {
@@ -713,7 +714,7 @@ void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
   }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
                                               size_t t2, Target which) {
   LOG(info) << "Performing a merge step: " << t1 << " and " << t2 << ".";
@@ -774,7 +775,7 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
                       + log_likelihood_poisson_counts(data.counts);
 
   LOG(debug) << "ll_merge_previous = " << ll_previous
-            << " ll_merge_updated = " << ll_updated;
+             << " ll_merge_updated = " << ll_updated;
   if (gibbs_test(ll_updated, ll_previous, verbosity)) {
     LOG(info) << "Merge step accepted";
   } else {
@@ -783,7 +784,7 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
   }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
     size_t g, size_t s) const {
   double x = 0;
@@ -795,7 +796,7 @@ double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
   return x;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
@@ -804,14 +805,14 @@ Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   return m;
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
   // check that phi is positive
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
       if (phi[g][t] == 0)
-        throw(std::runtime_error("Phi is zero for gene " + std::to_string(g) +
-                            " in factor " + std::to_string(t) + "."));
+        throw(std::runtime_error("Phi is zero for gene " + std::to_string(g)
+                                 + " in factor " + std::to_string(t) + "."));
       if (phi(g, t) < 0)
         throw(std::runtime_error("Phi is negative for gene " + std::to_string(g)
                                  + " in factor " + std::to_string(t) + "."));
@@ -830,7 +831,7 @@ void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
     }
 }
 
-template <Feature::Kind feat_kind, Mix::Kind mix_kind>
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(
     std::ostream &os,
     const PoissonFactorization::Model<feat_kind, mix_kind> &pfa) {
@@ -840,8 +841,8 @@ std::ostream &operator<<(
      << "T = " << pfa.T << std::endl;
 
   if (pfa.verbosity >= Verbosity::Verbose) {
-    print_matrix_head(os, pfa.features.phi, "Φ");
-    print_matrix_head(os, pfa.weights.theta, "Θ");
+    print_matrix_head(os, pfa.features.matrix, "Φ");
+    print_matrix_head(os, pfa.weights.matrix, "Θ");
     os << pfa.features.prior;
     os << pfa.weights.prior;
 
