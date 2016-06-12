@@ -10,16 +10,16 @@ namespace Partial {
 string to_string(Variable variable) {
   switch (variable) {
     case Variable::Feature:
-      return "Dirichlet";
+      return "Feature";
       break;
     case Variable::Mix:
-      return "Dirichlet";
+      return "Mix";
       break;
     case Variable::Spot:
-      return "Gamma";
+      return "Spot";
       break;
     case Variable::Experiment:
-      return "HierGamma";
+      return "Experiment";
       break;
     default:
       throw std::logic_error("Implementation of to_string(Kind) incomplete!");
