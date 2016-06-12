@@ -245,6 +245,8 @@ int main(int argc, char **argv) {
     log_file_path += ".log.txt";
   }
 
+  init_logging(log_file_path);
+
   // {
   //   namespace logging = boost::log;
   //   // add a logfile stream to our sink
