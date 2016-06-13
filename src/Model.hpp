@@ -8,7 +8,6 @@
 #include "parameters.hpp"
 #include "compression.hpp"
 #include "log.hpp"
-// #include "features.hpp"
 #include "PartialModel.hpp"
 #include "io.hpp"
 #include "metropolis_hastings.hpp"

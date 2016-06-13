@@ -53,3 +53,5 @@
 * templatize scaling variables
 * evaluate log-normal poisson rate modeling
 * differential expression analysis
+* R analysis script: dynamically discover which files are present in the loading routine
+* check the Dirichlet posteriors
