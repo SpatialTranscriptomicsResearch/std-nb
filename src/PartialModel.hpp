@@ -170,7 +170,6 @@ template <typename M>
 void Model<Variable::Feature, Kind::Dirichlet>::sample(
     const M &mix, const IMatrix &contributions_gene_type, const Vector &spot,
     const Vector &experiment) {
-  // TODO needs proof
   LOG(info) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < T; ++t) {
     std::vector<Float> a(G, parameters.hyperparameters.alpha);
