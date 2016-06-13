@@ -255,8 +255,8 @@ template <typename M>
 void Model<Variable::Mix, Kind::Dirichlet>::sample(
     const M &features, const IMatrix &contributions_spot_type,
     const Vector &spot, const Vector &experiment) {
+  // TODO needs written-down proof; it's analogous to the case for the features
   LOG(info) << "Sampling Θ from Dirichlet distribution";
-// TODO needs proof
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     std::vector<Float> a(T, parameters.hyperparameters.alpha);
