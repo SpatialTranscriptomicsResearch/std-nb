@@ -1,6 +1,4 @@
 * storing loading of models to and from files
-* collect log-likelihoods and write to file
-* use something like libmagic to figure out file types
 * note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
@@ -23,7 +21,6 @@
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
 * add flag for consistent contribution marginals and expectation marginals
-* consider using HDF5 for IO
 * contribution initialization is unneeded if Gibbs sampling does that as a first step
 * experiment with splitting a single factor explaining everything
 * don't split/merge in initial iterations
@@ -31,8 +28,6 @@
 * automatically determine single experiments in analyze.r
 * use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
 * test possible benefits of JIT compiling with fixed G, S, T
-* consider using GPU for sampling contributions
-* experiment with activating ARMA_NO_DEBUG in types.hpp
 * use profile-generate / profile-use gcc flags
 * store all iterations' parameters;
 * compute auto-correlation
@@ -47,7 +42,6 @@
 * alternative to split / merge:
   - multiple re-starts
 * experiment-wise mix-in of factors
-* write probabilistic unit tests for sampling routines
 * use faster method for sampling from the Poisson distribution
 * bring back statistical summary printing for vectors
 * templatize scaling variables
@@ -55,3 +49,11 @@
 * differential expression analysis
 * R analysis script: dynamically discover which files are present in the loading routine
 * check the Dirichlet posteriors
+
+less important:
+* collect log-likelihoods and write to file
+* use something like libmagic to figure out file types
+* consider using GPU for sampling contributions
+* experiment with activating ARMA_NO_DEBUG in types.hpp
+* write probabilistic unit tests for sampling routines
+* consider using HDF5 for IO
