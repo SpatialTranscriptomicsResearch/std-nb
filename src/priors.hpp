@@ -45,9 +45,7 @@ struct Dirichlet {
   Dirichlet(size_t G_, size_t S_, size_t T_, const Parameters &parameters);
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
-   * but only hyper-parameters
-   */
-  // void sample() const;
+   * but only hyper-parameters */
   void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
               const Vector &spot_scaling,
               const Vector &experiment_scaling_long) const;
@@ -58,8 +56,7 @@ struct Dirichlet {
   void lift_sub_model(const Dirichlet &sub_model, size_t t1, size_t t2) const;
 };
 
-/** This routine doesn't print, for the same reason as sampl() does nothing
- */
+/** This routine doesn't print, for the same reason as sample() does nothing */
 std::ostream &operator<<(std::ostream &os, const Gamma &x);
 std::ostream &operator<<(std::ostream &os, const Dirichlet &x);
 }
@@ -102,9 +99,7 @@ struct Dirichlet {
   Dirichlet(size_t G_, size_t S_, size_t T_, const Parameters &parameters);
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
-   * but only hyper-parameters
-   */
-  // void sample() const;
+   * but only hyper-parameters */
   void sample(const Matrix &phi, const IMatrix &contributions_spot_type,
               const Vector &spot_scaling,
               const Vector &experiment_scaling_long) const;
@@ -115,8 +110,7 @@ struct Dirichlet {
   void lift_sub_model(const Dirichlet &sub_model, size_t t1, size_t t2) const;
 };
 
-/** This routine doesn't print, for the same reason as sampl() does nothing
- */
+/** This routine doesn't print, for the same reason as sampl() does nothing */
 std::ostream &operator<<(std::ostream &os, const Gamma &x);
 std::ostream &operator<<(std::ostream &os, const Dirichlet &x);
 }

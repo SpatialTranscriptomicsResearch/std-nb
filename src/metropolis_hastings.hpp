@@ -4,18 +4,16 @@
 #include <random>
 #include <iostream>
 #include "log.hpp"
-#include "verbosity.hpp"
 #include "sampling.hpp"
 
 struct MetropolisHastings {
-  inline double boltzdist(double dG, double T) const { return exp(-dG / T); };
+  inline static double boltzdist(double dG, double T) { return exp(-dG / T); };
 
   double temperature;
   double prop_sd;
-  Verbosity verbosity;
   // std::normal_distribution<double> rnorm;
 
-  MetropolisHastings(double temp, double prop_sd_, Verbosity verb);
+  MetropolisHastings(double temp, double prop_sd_);
 
   template <typename T, typename RNG, typename Gen, typename Score,
             typename... Args>

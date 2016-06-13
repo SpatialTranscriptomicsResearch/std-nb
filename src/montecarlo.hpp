@@ -62,7 +62,7 @@ class MonteCarlo {
 public:
   MonteCarlo()
       : generator(Generator<T>()), evaluator(Evaluator<T>()){};
-  MonteCarlo(const Generator<T> &gen, const Evaluator<T> &eval, Verbosity ver)
+  MonteCarlo(const Generator<T> &gen, const Evaluator<T> &eval)
       : generator(gen), evaluator(eval){};
   ~MonteCarlo(){};
 
@@ -152,14 +152,6 @@ public:
         // changes, and input once more the original state to the trajectory.
         if (GibbsStep(temp[t], state[t], G[t]))
           trajectory[t].push_back(E(state[t], G[t]));
-
-      /* TODO reactivate debug output
-      if (verbosity >= Verbosity::Info) {
-        std::cout << "Scores =";
-        for (size_t t = 0; t < n; t++) std::cout << " " << G[t];
-        std::cout << std::endl;
-      }
-      */
 
       if (temp.size() > 1) {
         size_t r = r_unif(EntropySource::rng);

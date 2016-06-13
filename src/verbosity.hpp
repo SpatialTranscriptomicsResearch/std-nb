@@ -30,13 +30,24 @@
 #ifndef VERBOSITY_HPP
 #define VERBOSITY_HPP
 
+#include <string>
+#include <iostream>
+
 enum class Verbosity {
-  Nothing = 0,
-  Error = 1,
-  Info = 2,
-  Verbose = 3,
-  Debug = 4,
-  Everything = 5
+  fatal = 0,
+  error = 1,
+  warning = 2,
+  info = 3,
+  verbose = 4,
+  debug = 5,
+  trace = 6,
+  everything = 7
 };
+
+extern Verbosity verbosity;
+
+std::string to_string(Verbosity verbosity);
+std::ostream &operator<<(std::ostream &os, Verbosity verbosity);
+std::istream &operator>>(std::istream &is, Verbosity &verbosity);
 
 #endif

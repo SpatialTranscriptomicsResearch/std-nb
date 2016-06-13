@@ -32,8 +32,7 @@ const bool consider_factor_likel = false;
 const size_t sub_model_cnt = 10;
 // static size_t sub_model_cnt; // TODO
 
-bool gibbs_test(Float nextG, Float G, Verbosity verbosity,
-                Float temperature = 50);
+bool gibbs_test(Float nextG, Float G, Float temperature = 50);
 size_t num_lines(const std::string &path);
 
 struct Paths {
@@ -89,13 +88,8 @@ struct Model {
   Vector experiment_scaling;
   Vector experiment_scaling_long;
 
-  Verbosity verbosity;
-
-  Model(const Counts &counts, const size_t T, const Parameters &parameters,
-        Verbosity verbosity);
-
-  Model(const Counts &counts, const Paths &paths, const Parameters &parameters,
-        Verbosity verbosity);
+  Model(const Counts &counts, const size_t T, const Parameters &parameters);
+  Model(const Counts &counts, const Paths &paths, const Parameters &parameters);
 
   void store(const Counts &counts, const std::string &prefix,
              bool mean_and_variance = false) const;
@@ -150,8 +144,7 @@ std::ostream &operator<<(
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
-                                  const Parameters &parameters_,
-                                  Verbosity verbosity_)
+                                  const Parameters &parameters_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
       T(T_),
@@ -166,8 +159,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
       weights(G, S, T, parameters),
       spot_scaling(S, arma::fill::ones),
       experiment_scaling(E, arma::fill::ones),
-      experiment_scaling_long(S, arma::fill::ones),
-      verbosity(verbosity_) {
+      experiment_scaling_long(S, arma::fill::ones) {
   if (false) {
     // initialize:
     //  * contributions_gene_type
@@ -219,8 +211,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
-                                  const Parameters &parameters_,
-                                  Verbosity verbosity_)
+                                  const Parameters &parameters_)
     : G(c.counts.n_rows),
       S(c.counts.n_cols),
       T(num_lines(paths.r_theta)),
@@ -238,8 +229,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
       // p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       spot_scaling(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      experiment_scaling_long(S),
-      verbosity(verbosity_) {
+      experiment_scaling_long(S) {
   update_experiment_scaling_long(c);
 
   LOG(debug) << *this;
@@ -443,15 +433,6 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
     intensity_sums[data.experiments[s]] += x;
   }
 
-  if (verbosity >= Verbosity::Debug)
-    for (size_t e = 0; e < E; ++e) {
-      LOG(debug) << "contributions_experiment[" << e
-                 << "]=" << contributions_experiment[e];
-      LOG(debug) << "intensity_sum=" << intensity_sums[e];
-      LOG(debug) << "prev experiment_scaling[" << e
-                 << "]=" << experiment_scaling[e];
-    }
-
   for (size_t e = 0; e < E; ++e) {
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     experiment_scaling[e] = std::gamma_distribution<Float>(
@@ -610,7 +591,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
     const std::string &prefix, const std::vector<size_t> &init_factors) {
   const bool show_timing = false;
   // TODO: use init_factors
-  Model<feat_kind, mix_kind> sub_model(counts, t, parameters, Verbosity::Info);
+  Model<feat_kind, mix_kind> sub_model(counts, t, parameters);
   for (size_t s = 0; s < S; ++s) {
     sub_model.spot_scaling[s] = spot_scaling[s];
     sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
@@ -628,6 +609,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
           & ~(Target::spot_scaling | Target::experiment_scaling
               | Target::merge_split);
 
+  // deactivate logging during Gibbs sampling for sub model
   bool prev_logging = boost::log::core::get()->set_logging_enabled(false);
 
   for (size_t i = 0; i < n; ++i) {
@@ -636,6 +618,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
               << sub_model.log_likelihood_poisson_counts(counts.counts);
   }
 
+  // re-activate logging after Gibbs sampling for sub model
   boost::log::core::get()->set_logging_enabled(prev_logging);
 
   if (print_sub_model_cnt)
@@ -705,7 +688,7 @@ void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
 
   LOG(debug) << "ll_split_previous = " << ll_previous
              << " ll_split_updated = " << ll_updated;
-  if (gibbs_test(ll_updated, ll_previous, verbosity)) {
+  if (gibbs_test(ll_updated, ll_previous)) {
     LOG(info) << "Split step accecpted";
   } else {
     *this = previous;
@@ -775,7 +758,7 @@ void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
 
   LOG(debug) << "ll_merge_previous = " << ll_previous
              << " ll_merge_updated = " << ll_updated;
-  if (gibbs_test(ll_updated, ll_previous, verbosity)) {
+  if (gibbs_test(ll_updated, ll_previous)) {
     LOG(info) << "Merge step accepted";
   } else {
     *this = previous;
@@ -839,7 +822,7 @@ std::ostream &operator<<(
      << "S = " << pfa.S << " "
      << "T = " << pfa.T << std::endl;
 
-  if (pfa.verbosity >= Verbosity::Verbose) {
+  if (verbosity >= Verbosity::verbose) {
     print_matrix_head(os, pfa.features.matrix, "Φ");
     print_matrix_head(os, pfa.weights.matrix, "Θ");
     os << pfa.features.prior;

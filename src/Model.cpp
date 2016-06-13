@@ -1,26 +1,22 @@
 #include <boost/tokenizer.hpp>
 #include "Model.hpp"
-#include "montecarlo.hpp"
 
 using namespace std;
 namespace PoissonFactorization {
 
 // extern size_t sub_model_cnt = 0; // TODO
 
-bool gibbs_test(Float nextG, Float G, Verbosity verbosity, Float temperature) {
+bool gibbs_test(Float nextG, Float G, Float temperature) {
   double dG = nextG - G;
   double r = RandomDistribution::Uniform(EntropySource::rng);
-  double p = std::min<double>(1.0, MCMC::boltzdist(-dG, temperature));
-  if (verbosity >= Verbosity::Verbose)
-    std::cerr << "T = " << temperature << " nextG = " << nextG << " G = " << G
-      << " dG = " << dG << " p = " << p << " r = " << r << std::endl;
+  double p = std::min<double>(1.0, MetropolisHastings::boltzdist(-dG, temperature));
+  LOG(debug) << "T = " << temperature << " nextG = " << nextG << " G = " << G
+      << " dG = " << dG << " p = " << p << " r = " << r;
   if (std::isnan(nextG) == 0 and (dG > 0 or r <= p)) {
-    if (verbosity >= Verbosity::Verbose)
-      std::cerr << "Accepted!" << std::endl;
+    LOG(verbose) << "Accepted!";
     return true;
   } else {
-    if (verbosity >= Verbosity::Verbose)
-      std::cerr << "Rejected!" << std::endl;
+    LOG(verbose) << "Rejected!";
     return false;
   }
 }

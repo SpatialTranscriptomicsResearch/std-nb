@@ -22,11 +22,10 @@ namespace sinks = boost::log::sinks;
 namespace attrs = boost::log::attributes;
 
 BOOST_LOG_ATTRIBUTE_KEYWORD(timestamp, "TimeStamp", boost::posix_time::ptime)
-BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity",
-                            logging::trivial::severity_level)
+BOOST_LOG_ATTRIBUTE_KEYWORD(severity, "Severity", severity_level);
 
 BOOST_LOG_GLOBAL_LOGGER_INIT(logger, src::severity_logger_mt) {
-  src::severity_logger_mt<boost::log::trivial::severity_level> logger;
+  src::severity_logger_mt<severity_level> logger;
 
   // add attribute: each log line gets a timestamp
   logger.add_attribute("TimeStamp", attrs::local_clock());
@@ -50,12 +49,12 @@ void init_logging(const std::string &path) {
                                  << expr::format_date_time(
                                         timestamp, "%Y-%m-%d %H:%M:%S.%f")
                                  << " "
-                                 << "[" << logging::trivial::severity << "]"
+                                 << "[" << severity << "]"
                                  << " " << expr::smessage;
   sink->set_formatter(formatter);
 
   // only messages with severity >= SEVERITY_THRESHOLD are written
-  sink->set_filter(severity >= SEVERITY_THRESHOLD);
+  sink->set_filter(severity <= verbosity);
 
   // Register the sink in the logging core
   logging::core::get()->add_sink(sink);

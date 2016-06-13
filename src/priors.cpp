@@ -5,7 +5,6 @@
 #include "priors.hpp"
 #include "metropolis_hastings.hpp"
 #include "sampling.hpp"
-#include "verbosity.hpp"
 #include "log.hpp"
 
 using namespace std;
@@ -77,7 +76,6 @@ void Gamma::initialize_p() {
 void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
                    const Vector &spot_scaling,
                    const Vector &experiment_scaling_long) {
-  Verbosity verbosity = Verbosity::Verbose;  // TODO-verbosity
   LOG(info) << "Sampling P and R of Φ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -95,8 +93,7 @@ void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
         x *= experiment_scaling_long[s];
       weight_sum += x;
     }
-    MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
-                          verbosity);
+    MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -230,7 +227,6 @@ void Gamma::initialize_p() {
 void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
                    const Vector &spot_scaling,
                    const Vector &experiment_scaling_long) {
-  Verbosity verbosity = Verbosity::Verbose;  // TODO-verbosity
   LOG(info) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -245,8 +241,7 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
 #pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       weight_sum += phi(g, t);
-    MetropolisHastings mh(parameters.temperature, parameters.prop_sd,
-                          verbosity);
+    MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
 
     std::vector<Int> count_sums(S, 0);
     std::vector<Float> weight_sums(S, 0);

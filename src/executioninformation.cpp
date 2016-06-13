@@ -9,7 +9,8 @@ using namespace std;
 
 string reconstitute_cmdline(int argc, const char **argv) {
   string cmd;
-  for (int i = 0; i < argc; i++) cmd += (i != 0 ? " " : "") + string(argv[i]);
+  for (int i = 0; i < argc; i++)
+    cmd += (i != 0 ? " " : "") + string(argv[i]);
   return cmd;
 }
 
@@ -40,12 +41,10 @@ ExecutionInformation::ExecutionInformation(const string &name,
 }
 
 string ExecutionInformation::name_and_version() const {
-  return program_name + " " + program_version
-                      + " [" + git_branch + " branch]";
+  return program_name + " " + program_version + " [" + git_branch + " branch]";
 }
 
-string generate_random_label(const string &prefix, size_t n_rnd_char,
-                             Verbosity verbosity) {
+string generate_random_label(const string &prefix, size_t n_rnd_char) {
   random_device rng;
   uniform_int_distribution<char> r_char('a', 'z');
   using namespace boost::posix_time;
@@ -53,7 +52,7 @@ string generate_random_label(const string &prefix, size_t n_rnd_char,
   string label = prefix;
 
   // TODO perhaps add the process ID -> getpid()
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::debug)
     cout << "Generating random label with prefix " << prefix << " and "
          << n_rnd_char << " random characters." << endl;
 
@@ -62,21 +61,21 @@ string generate_random_label(const string &prefix, size_t n_rnd_char,
     string datetime = to_iso_extended_string(t) + "Z";
     label += "_" + datetime;
   } catch (...) {
-    cout << "WARNING: An error occurred while generating the date part of a "
-            "label." << endl << "Although this shouldn't occur (something "
-                                "weird is going on with your system!)," << endl
-         << "you can likely circumvent this issue by using the --output "
-            "command line switch)" << endl << "to provide you own output label."
-         << endl;
-    if (n_rnd_char < 5) n_rnd_char = 5;
+    cout << "WARNING: An error occurred while generating the date part of a label." << endl
+         << "Although this shouldn't occur (something weird is going on with your system!)," << endl
+         << "you can likely circumvent this issue by using the --output command line switch)" << endl
+         << "to provide you own output label." << endl;
+    if (n_rnd_char < 5)
+      n_rnd_char = 5;
   }
 
   if (n_rnd_char > 0) {
     label += "_";
-    for (size_t i = 0; i < n_rnd_char; i++) label += r_char(rng);
+    for (size_t i = 0; i < n_rnd_char; i++)
+      label += r_char(rng);
   }
 
-  if (verbosity >= Verbosity::Debug)
+  if (verbosity >= Verbosity::debug)
     cout << "Generated random label " << label << endl;
 
   return label;

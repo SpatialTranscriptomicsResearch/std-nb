@@ -51,7 +51,6 @@ struct ExecutionInformation {
 };
 
 std::string generate_random_label(const std::string &prefix,
-                                  size_t n_rnd_char = 5,
-                                  Verbosity verbosity = Verbosity::Info);
+                                  size_t n_rnd_char = 5);
 
 #endif

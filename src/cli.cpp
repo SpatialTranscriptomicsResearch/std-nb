@@ -38,8 +38,8 @@ using namespace std;
 
 namespace po = boost::program_options;
 
-const std::string default_error_msg =
-    "Please inspect the command line help with -h or --help.";
+const std::string default_error_msg
+    = "Please inspect the command line help with -h or --help.";
 
 po::options_description gen_generic_options(string &config_path, size_t cols) {
   po::options_description generic_options("Generic options", cols);
@@ -54,9 +54,9 @@ po::options_description gen_generic_options(string &config_path, size_t cols) {
 }
 
 int process_cli_options(
-    int argc, const char **argv, Verbosity &verbosity,
-    ExecutionInformation &exec_info,
-    const std::string &usage_string, boost::program_options::options_description &cli_options,
+    int argc, const char **argv, ExecutionInformation &exec_info,
+    const std::string &usage_string,
+    boost::program_options::options_description &cli_options,
     bool use_positional_options,
     boost::program_options::positional_options_description &positional_options) {
   namespace po = boost::program_options;
@@ -66,8 +66,10 @@ int process_cli_options(
   const size_t MIN_COLS = 60;
   const size_t MAX_COLS = 80;
   size_t cols = get_terminal_width();
-  if (cols < MIN_COLS) cols = MIN_COLS;
-  if (cols > MAX_COLS) cols = MAX_COLS;
+  if (cols < MIN_COLS)
+    cols = MIN_COLS;
+  if (cols > MAX_COLS)
+    cols = MAX_COLS;
 
   po::variables_map vm;
   try {
@@ -144,12 +146,15 @@ int process_cli_options(
     return EXIT_FAILURE;
   }
 
-  if (vm.count("verbose")) verbosity = Verbosity::Verbose;
-  if (vm.count("noisy")) verbosity = Verbosity::Debug;
+  if (vm.count("verbose"))
+    verbosity = Verbosity::verbose;
+  if (vm.count("noisy"))
+    verbosity = Verbosity::debug;
 
   if (vm.count("version") and not vm.count("help")) {
     std::cout << exec_info.name_and_version() << std::endl;
-    if (verbosity >= Verbosity::Verbose) std::cout << GIT_SHA1 << std::endl;
+    if (verbosity >= Verbosity::verbose)
+      std::cout << GIT_SHA1 << std::endl;
     return EXIT_SUCCESS;
   }
 
@@ -160,7 +165,8 @@ int process_cli_options(
         << "Copyright (C) 2015 Jonas Maaskola\n"
            "Provided under GNU General Public License Version 3 or later.\n"
            "See the file COPYING provided with this software for details of "
-           "the license.\n" << std::endl;
+           "the license.\n"
+        << std::endl;
     std::cout << usage_string << std::endl << std::endl;
     std::cout << cli_options << std::endl;
     return EXIT_SUCCESS;

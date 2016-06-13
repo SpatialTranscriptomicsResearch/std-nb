@@ -8,7 +8,6 @@
 #include "cli.hpp"
 #include "counts.hpp"
 #include "io.hpp"
-#include "montecarlo.hpp"
 #include "Model.hpp"
 
 using namespace std;
@@ -29,7 +28,6 @@ const vector<string> alphabetic_labels = gen_alpha_labels();
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
-  Verbosity verbosity = Verbosity::Info;
   size_t num_factors = 20;
   size_t num_steps = 2000;
   size_t report_interval = 20;
@@ -217,9 +215,9 @@ int main(int argc, char **argv) {
   positional_options.add("file", -1);
 
   ExecutionInformation exec_info;
-  int ret_val = process_cli_options(argc, const_cast<const char **>(argv),
-                                    options.verbosity, exec_info, usage_info,
-                                    cli_options, true, positional_options);
+  int ret_val
+      = process_cli_options(argc, const_cast<const char **>(argv), exec_info,
+                            usage_info, cli_options, true, positional_options);
   if (ret_val != PROCESSING_SUCCESSFUL)
     return ret_val;
 
@@ -228,7 +226,7 @@ int main(int argc, char **argv) {
 
   if (options.output == default_output_string) {
     options.output
-        = generate_random_label(exec_info.program_name, 0, options.verbosity)
+        = generate_random_label(exec_info.program_name, 0)
           + "/";
   }
   string log_file_path = options.output;
@@ -247,22 +245,10 @@ int main(int argc, char **argv) {
 
   init_logging(log_file_path);
 
-  // {
-  //   namespace logging = boost::log;
-  //   // add a logfile stream to our sink
-  //   logging::add_file_log(log_file_path);
-  //   logging::core::get()->set_filter(logging::trivial::severity
-  //                                    >= logging::trivial::info);
-  // }
-  // // sink->locked_backend()->add_stream(
-  // //     boost::make_shared<std::ofstream>(LOGFILE));
-
-  if (options.verbosity >= Verbosity::Info) {
-    LOG(info) << exec_info.name_and_version();
-    LOG(info) << exec_info.datetime;
-    LOG(info) << "Working directory = " << exec_info.directory;
-    LOG(info) << "Command = " << exec_info.cmdline << endl;
-  }
+  LOG(info) << exec_info.name_and_version();
+  LOG(info) << exec_info.datetime;
+  LOG(info) << "Working directory = " << exec_info.directory;
+  LOG(info) << "Command = " << exec_info.cmdline << endl;
 
   vector<string> labels;
   switch (options.labeling) {
@@ -312,13 +298,13 @@ int main(int argc, char **argv) {
     case Kind::Dirichlet: {
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
-          PF::Model<Kind::Dirichlet, Kind::Dirichlet>
-              pfa(data, options.num_factors, parameters, options.verbosity);
+          PF::Model<Kind::Dirichlet, Kind::Dirichlet> pfa(
+              data, options.num_factors, parameters);
           perform_gibbs_sampling(data, pfa, options);
         } break;
         case Kind::HierGamma: {
-          PF::Model<Kind::Dirichlet, Kind::HierGamma>
-              pfa(data, options.num_factors, parameters, options.verbosity);
+          PF::Model<Kind::Dirichlet, Kind::HierGamma> pfa(
+              data, options.num_factors, parameters);
           perform_gibbs_sampling(data, pfa, options);
         } break;
         default:
@@ -331,13 +317,13 @@ int main(int argc, char **argv) {
     case Kind::Gamma: {
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
-          PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(
-              data, options.num_factors, parameters, options.verbosity);
+          PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(data, options.num_factors,
+                                                      parameters);
           perform_gibbs_sampling(data, pfa, options);
         } break;
         case Kind::HierGamma: {
-          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(
-              data, options.num_factors, parameters, options.verbosity);
+          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(data, options.num_factors,
+                                                      parameters);
           perform_gibbs_sampling(data, pfa, options);
         } break;
         default:
