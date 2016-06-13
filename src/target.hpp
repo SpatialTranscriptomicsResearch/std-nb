@@ -14,8 +14,8 @@ enum class Target {
   theta = 1 << 4,
   theta_r = 1 << 5,
   theta_p = 1 << 6,
-  spot_scaling = 1 << 7,
-  experiment_scaling = 1 << 8,
+  spot = 1 << 7,
+  experiment = 1 << 8,
   merge_split = 1 << 9,
 };
 
@@ -41,8 +41,8 @@ operator~(Target a) {
 
 inline constexpr Target DefaultTarget() {
   return Target::contributions | Target::phi | Target::phi_r | Target::phi_p
-         | Target::theta | Target::theta_r | Target::theta_p
-         | Target::spot_scaling | Target::experiment_scaling;
+         | Target::theta | Target::theta_r | Target::theta_p | Target::spot
+         | Target::experiment;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }

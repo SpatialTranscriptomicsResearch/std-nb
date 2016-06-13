@@ -82,7 +82,7 @@ struct Model {
   inline Float theta(size_t x, size_t y) const { return weights.matrix(x, y); };
 
   /** spot scaling vector */
-  Vector spot_scaling;
+  Vector spot;
 
   /** experiment scaling vector */
   Vector experiment_scaling;
@@ -107,7 +107,7 @@ struct Model {
                                 IMatrix &contrib_spot_type);
 
   /** sample spot scaling factors */
-  void sample_spot_scaling();
+  void sample_spot();
 
   /** sample experiment scaling factors */
   void sample_experiment_scaling(const Counts &data);
@@ -157,7 +157,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
       lambda_gene_spot(G, S, arma::fill::zeros),
       features(G, S, T, parameters),
       weights(G, S, T, parameters),
-      spot_scaling(S, arma::fill::ones),
+      spot(S, arma::fill::ones),
       experiment_scaling(E, arma::fill::ones),
       experiment_scaling_long(S, arma::fill::ones) {
   if (false) {
@@ -202,10 +202,10 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
     LOG(debug) << "Initializing spot scaling.";
     Float z = 0;
     for (size_t s = 0; s < S; ++s)
-      z += spot_scaling(s) = contributions_spot(s) / experiment_scaling_long(s);
+      z += spot(s) = contributions_spot(s) / experiment_scaling_long(s);
     z /= S;
     for (size_t s = 0; s < S; ++s)
-      spot_scaling(s) /= z;
+      spot(s) /= z;
   }
 }
 
@@ -227,7 +227,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
       // theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
       // r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
       // p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      spot_scaling(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
+      spot(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
       experiment_scaling_long(S) {
   update_experiment_scaling_long(c);
@@ -258,7 +258,7 @@ double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot_scaling(s);
+      double rate = lambda_gene_spot(g, s) * spot(s);
       if (parameters.activate_experiment_scaling)
         rate *= experiment_scaling_long(s);
       auto cur = log_poisson(counts(g, s), rate);
@@ -279,7 +279,7 @@ double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
     l += log_likelihood_factor(counts, t);
 
   for (size_t s = 0; s < S; ++s)
-    l += log_gamma(spot_scaling(s), parameters.hyperparameters.spot_a,
+    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
                    1.0 / parameters.hyperparameters.spot_b);
   if (parameters.activate_experiment_scaling) {
     for (size_t e = 0; e < E; ++e)
@@ -301,7 +301,7 @@ Matrix Model<feat_kind, mix_kind>::weighted_theta() const {
     for (size_t g = 0; g < G; ++g)
       x += phi(g, t);
     for (size_t s = 0; s < S; ++s) {
-      m(s, t) *= x * spot_scaling(s);
+      m(s, t) *= x * spot(s);
       if (parameters.activate_experiment_scaling)
         m(s, t) *= experiment_scaling_long(s);
     }
@@ -321,7 +321,7 @@ void Model<feat_kind, mix_kind>::store(const Counts &counts,
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
   write_matrix(weighted_theta(), prefix + "weighted_theta.txt", spot_names, factor_names);
-  write_vector(spot_scaling, prefix + "spot_scaling.txt", spot_names);
+  write_vector(spot, prefix + "spot_scaling.txt", spot_names);
   write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
   // write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -344,7 +344,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda[g][s][t] is proportional to both
-  // spot_scaling[s] and experiment_scaling[s]. However, these terms would
+  // spot[s] and experiment_scaling[s]. However, these terms would
   // cancel. Thus, we do not multiply them in here.
   for (size_t t = 0; t < T; ++t)
     z += rel_rate[t] = phi(g, t) * theta(s, t);
@@ -384,7 +384,7 @@ void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
 
 /** sample spot scaling factors */
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_spot_scaling() {
+void Model<feat_kind, mix_kind>::sample_spot() {
   LOG(info) << "Sampling spot scaling factors";
   auto phi_marginal = marginalize_genes(features);
 #pragma omp parallel for if (DO_PARALLEL)
@@ -398,7 +398,7 @@ void Model<feat_kind, mix_kind>::sample_spot_scaling() {
       intensity_sum *= experiment_scaling_long[s];
 
     // NOTE: std::gamma_distribution takes a shape and scale parameter
-    spot_scaling[s] = std::gamma_distribution<Float>(
+    spot[s] = std::gamma_distribution<Float>(
         parameters.hyperparameters.spot_a + summed_contribution,
         1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
         EntropySource::rng);
@@ -408,11 +408,11 @@ void Model<feat_kind, mix_kind>::sample_spot_scaling() {
     double z = 0;
 #pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
-      z += spot_scaling[s];
+      z += spot[s];
     z /= S;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
-      spot_scaling[s] /= z;
+      spot[s] /= z;
   }
 }
 
@@ -429,7 +429,7 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
 #pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
     for (size_t t = 0; t < T; ++t)
       x += phi_marginal[t] * theta(s, t);
-    x *= spot_scaling[s];
+    x *= spot[s];
     intensity_sums[data.experiments[s]] += x;
   }
 
@@ -490,15 +490,15 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
   }
 
-  if (flagged(which & Target::spot_scaling)) {
+  if (flagged(which & Target::spot)) {
     timer.tick();
-    sample_spot_scaling();
+    sample_spot();
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
   }
 
-  if (flagged(which & Target::experiment_scaling)) {
+  if (flagged(which & Target::experiment)) {
     if (E > 1 and parameters.activate_experiment_scaling) {
       timer.tick();
       sample_experiment_scaling(data);
@@ -510,7 +510,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & (Target::phi_r | Target::phi_p))) {
     timer.tick();
-    features.prior.sample(weights.matrix, contributions_gene_type, spot_scaling,
+    features.prior.sample(weights.matrix, contributions_gene_type, spot,
                           experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -519,7 +519,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & (Target::theta_r | Target::theta_p))) {
     timer.tick();
-    weights.prior.sample(features.matrix, contributions_spot_type, spot_scaling,
+    weights.prior.sample(features.matrix, contributions_spot_type, spot,
                          experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -528,7 +528,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & Target::phi)) {
     timer.tick();
-    features.sample(weights, contributions_gene_type, spot_scaling,
+    features.sample(weights, contributions_gene_type, spot,
                     experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -537,7 +537,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
 
   if (flagged(which & Target::theta)) {
     timer.tick();
-    weights.sample(features, contributions_spot_type, spot_scaling,
+    weights.sample(features, contributions_spot_type, spot,
                    experiment_scaling_long);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
@@ -577,7 +577,7 @@ size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
   auto phi_marginal = marginalize_genes(features);
   for (size_t t = 0; t < T; ++t)
     for (size_t s = 0; s < S; ++s) {
-      Float z = phi_marginal[t] * theta(s, t) * spot_scaling[s];
+      Float z = phi_marginal[t] * theta(s, t) * spot[s];
       if (parameters.activate_experiment_scaling)
         z *= experiment_scaling_long[s];
       x[t] += z;
@@ -593,7 +593,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
   // TODO: use init_factors
   Model<feat_kind, mix_kind> sub_model(counts, t, parameters);
   for (size_t s = 0; s < S; ++s) {
-    sub_model.spot_scaling[s] = spot_scaling[s];
+    sub_model.spot[s] = spot[s];
     sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
   }
   for (size_t e = 0; e < E; ++e)
@@ -605,9 +605,7 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
 
   // keep spot and experiment scaling fixed
   // don't recurse into either merge or sample steps
-  which = which
-          & ~(Target::spot_scaling | Target::experiment_scaling
-              | Target::merge_split);
+  which = which & ~(Target::spot | Target::experiment | Target::merge_split);
 
   // deactivate logging during Gibbs sampling for sub model
   bool prev_logging = boost::log::core::get()->set_logging_enabled(false);
@@ -772,7 +770,7 @@ double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
   double x = 0;
   for (size_t t = 0; t < T; ++t)
     x += phi(g, t) * theta(s, t);
-  x *= spot_scaling[s];
+  x *= spot[s];
   if (parameters.activate_experiment_scaling)
     x *= experiment_scaling_long[s];
   return x;
@@ -828,7 +826,7 @@ std::ostream &operator<<(
     os << pfa.features.prior;
     os << pfa.weights.prior;
 
-    print_vector_head(os, pfa.spot_scaling, "Spot scaling factors");
+    print_vector_head(os, pfa.spot, "Spot scaling factors");
     if (pfa.parameters.activate_experiment_scaling)
       print_vector_head(os, pfa.experiment_scaling,
                         "Experiment scaling factors");

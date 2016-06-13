@@ -39,12 +39,12 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "theta_r";
       first = false;
     }
-    if (flagged(which & Target::spot_scaling)) {
-      os << (first ? "" : ",") << "spot_scaling";
+    if (flagged(which & Target::spot)) {
+      os << (first ? "" : ",") << "spot";
       first = false;
     }
-    if (flagged(which & Target::experiment_scaling)) {
-      os << (first ? "" : ",") << "experiment_scaling";
+    if (flagged(which & Target::experiment)) {
+      os << (first ? "" : ",") << "experiment";
       first = false;
     }
     if (flagged(which & Target::merge_split)) {
@@ -82,10 +82,10 @@ istream &operator>>(istream &is, Target &which) {
       which = which | Target::theta_r;
     else if (token == "theta_p")
       which = which | Target::theta_p;
-    else if (token == "spot_scaling")
-      which = which | Target::spot_scaling;
-    else if (token == "experiment_scaling")
-      which = which | Target::experiment_scaling;
+    else if (token == "spot")
+      which = which | Target::spot;
+    else if (token == "experiment")
+      which = which | Target::experiment;
     else if (token == "merge_split")
       which = which | Target::merge_split;
     else
