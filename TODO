@@ -50,6 +50,8 @@
 * R analysis script: dynamically discover which files are present in the loading routine
 * check the Dirichlet posteriors
 
+* is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
+
 less important:
 * collect log-likelihoods and write to file
 * use something like libmagic to figure out file types

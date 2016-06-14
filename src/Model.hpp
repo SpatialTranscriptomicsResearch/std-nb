@@ -350,12 +350,14 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
     z += rel_rate[t] = phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
-  auto v = sample_multinomial<Int>(counts(g, s), rel_rate, rng);
-  for (size_t t = 0; t < T; ++t) {
-    contrib_gene_type(g, t) += v[t];
-    contrib_spot_type(s, t) += v[t];
-  }
   lambda_gene_spot(g, s) = z;
+  if (counts(g, s) > 0) {
+    auto v = sample_multinomial<Int>(counts(g, s), rel_rate, rng);
+    for (size_t t = 0; t < T; ++t) {
+      contrib_gene_type(g, t) += v[t];
+      contrib_spot_type(s, t) += v[t];
+    }
+  }
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
