@@ -1,6 +1,7 @@
 #ifndef MIX_HPP
 #define MIX_HPP
 
+#include "aux.hpp"
 #include "io.hpp"
 #include "pdist.hpp"
 #include "priors.hpp"
@@ -77,9 +78,10 @@ struct Model {
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const {
-    std::string name = to_string(variable) + "-" + to_string(kind);
-    write_matrix(matrix, prefix + name + ".txt", spot_names, factor_names);
-    prior.store(prefix + name, spot_names, factor_names);
+    std::string path = to_string(variable) + "-" + to_string(kind);
+    path = prefix + to_lower(path);
+    write_matrix(matrix, path + ".txt", spot_names, factor_names);
+    prior.store(path, spot_names, factor_names);
   };
 
   double log_likelihood_factor(const IMatrix &counts, size_t t) const;

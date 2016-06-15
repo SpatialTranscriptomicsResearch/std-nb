@@ -112,8 +112,8 @@ void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &gene_names,
                   const std::vector<std::string> &factor_names) const {
-  write_matrix(r, prefix + "r_phi.txt", gene_names, factor_names);
-  write_matrix(p, prefix + "p_phi.txt", gene_names, factor_names);
+  write_matrix(r, prefix + "_prior-r.txt", gene_names, factor_names);
+  write_matrix(p, prefix + "_prior-p.txt", gene_names, factor_names);
 }
 
 void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
@@ -263,8 +263,8 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &spot_names,
                   const std::vector<std::string> &factor_names) const {
-  write_vector(r, prefix + "r_theta.txt", factor_names);
-  write_vector(p, prefix + "p_theta.txt", factor_names);
+  write_vector(r, prefix + "_prior-r.txt", factor_names);
+  write_vector(p, prefix + "_prior-p.txt", factor_names);
 }
 
 void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {

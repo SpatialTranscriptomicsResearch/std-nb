@@ -30,7 +30,7 @@ string to_string(Variable variable) {
 string to_string(Kind kind) {
   switch (kind) {
     case Kind::Constant:
-      return "Dirichlet";
+      return "Constant";
       break;
     case Kind::Dirichlet:
       return "Dirichlet";

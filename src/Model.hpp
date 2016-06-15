@@ -320,9 +320,9 @@ void Model<feat_kind, mix_kind>::store(const Counts &counts,
   auto &spot_names = counts.col_names;
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
-  write_matrix(weighted_theta(), prefix + "weighted_theta.txt", spot_names, factor_names);
-  write_vector(spot, prefix + "spot_scaling.txt", spot_names);
-  write_vector(experiment_scaling, prefix + "experiment_scaling.txt", counts.experiment_names);
+  write_matrix(weighted_theta(), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_vector(spot, prefix + "spot-scaling.txt", spot_names);
+  write_vector(experiment_scaling, prefix + "experiment-scaling.txt", counts.experiment_names);
   // write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
