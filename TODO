@@ -1,16 +1,14 @@
 * storing loading of models to and from files
-* note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
-* way to freeze the scaling factors
-* computing means etc. on chain statistics:
+* improve code for and CLI to freeze the scaling factors
+* compute means etc. on chain statistics:
   - point estimates: mean, standard deviation, percentiles
   - interval estimates: equal-tail and highest posterior density (HPD) intervals
   - posterior covariance matrix
   - posterior correlation matrix
   - deviance information criterion (DIC)
 * determine and direct acceptance rate of Metropolis-Hastings sampling
-* enforcing medians as alternative to means
 * write out predicted means and variances, based on
   - the NB conditional posterior
   - the NM conditional posterior
@@ -27,8 +25,6 @@
 * compute perplexity, i.e. validation
 * automatically determine single experiments in analyze.r
 * use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
-* test possible benefits of JIT compiling with fixed G, S, T
-* use profile-generate / profile-use gcc flags
 * store all iterations' parameters;
 * compute auto-correlation
 * print out acceptance / rejection statistics for MH parts
@@ -48,13 +44,19 @@
 * evaluate log-normal poisson rate modeling
 * differential expression analysis
 * check the Dirichlet posteriors
+  - done! the feature side is as in that publication; the mixing side is different but ultimately analogous; I haven't written this down yet
 
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
 less important:
 * collect log-likelihoods and write to file
+* note that some sums across factors, genes, and / or spots may yield numbers greater than 2^16; however the count data type uses 32 bit! So this should be unproblematic
 * use something like libmagic to figure out file types
 * consider using GPU for sampling contributions
 * experiment with activating ARMA_NO_DEBUG in types.hpp
 * write probabilistic unit tests for sampling routines
 * consider using HDF5 for IO
+* test possible benefits of JIT compiling with fixed G, S, T
+  - the speed-up was marginal in a manual test it went from 2:05 min to 2:00 (round about...). unfortunately I forgot whether I used all or only the top 1000 genes; some speed-ups only become apparent with more parameters!
+* use profile-generate / profile-use gcc flags
+* enforcing medians as alternative to means
