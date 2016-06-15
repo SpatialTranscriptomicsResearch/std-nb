@@ -47,7 +47,6 @@
 * templatize scaling variables
 * evaluate log-normal poisson rate modeling
 * differential expression analysis
-* R analysis script: dynamically discover which files are present in the loading routine
 * check the Dirichlet posteriors
 
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster

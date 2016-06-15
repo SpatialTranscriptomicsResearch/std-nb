@@ -30,9 +30,8 @@ test.transforming = function(x) {
   return(all(x == reform.data(break.data(x))))
 }
 
-st.load.matrix = function(prefix, path, suffix="") {
-  return(as.matrix(read.delim(paste(prefix,
-                                    path,
+st.load.matrix = function(path, suffix="") {
+  return(as.matrix(read.delim(paste(path,
                                     suffix,
                                     sep=""),
                               header=T,
@@ -41,28 +40,63 @@ st.load.matrix = function(prefix, path, suffix="") {
                               check.names=F)))
 }
 
-st.load.vector = function(path.prefix, path, suffix="") {
-  x = read.delim(paste(path.prefix, path, suffix, sep=""),
+st.load.vector = function(path, suffix="") {
+  x = read.delim(paste(path, suffix, sep=""),
                  header=F, row.names=1, sep="\t")
   y = x[,1]
   names(y) = rownames(x)
   return(y)
 }
 
-st.load.data = function(path.prefix="", path.suffix="", load.means=F) {
+gen.matrix.paths = function(prefix="", ending=".txt", suffix="") {
+  paths = list()
+  paths$phi = c("phi","feature-gamma", "feature-dirichlet")
+  paths$theta = c("theta","mix-dirichlet", "mix-hiergamma")
+  paths$phi.p = c("r_phi","feature-gamma_prior-p")
+  paths$phi.r = c("p_phi","feature-gamma_prior-r")
+  paths$theta.p = c("r_theta","mix-hiergamma_prior-p")
+  paths$theta.r = c("p_theta","mix-hiergamma_prior-r")
+  for(name in names(paths))
+    paths[[name]] = paste(prefix, paths[[name]], ending, suffix, sep="")
+  return(paths)
+}
+
+gen.vector.paths = function(prefix="", ending=".txt", suffix="") {
+  paths = list()
+  paths$spotscale = c("spot_scaling", "spot-scaling")
+  paths$expscale = c("experiment_scaling", "experiment-scaling")
+  for(name in names(paths))
+    paths[[name]] = paste(prefix, paths[[name]], ending, suffix, sep="")
+  return(paths)
+}
+
+
+st.load.data = function(prefix="", suffix="", load.means=F) {
   d = list()
-  d$phi = st.load.matrix(path.prefix, "phi.txt", path.suffix)
-  d$theta = st.load.matrix(path.prefix, "theta.txt", path.suffix)
-#  d$phi.r = st.load.matrix(path.prefix, "r_phi.txt", path.suffix) # TODO: reactivate
-#  d$phi.p = st.load.matrix(path.prefix, "p_phi.txt", path.suffix) # TODO: reactivate
-#  d$theta.r = st.load.vector(path.prefix, "r_theta.txt", path.suffix) # TODO: reactivate
-#  d$theta.p = st.load.vector(path.prefix, "p_theta.txt", path.suffix) # TODO: reactivate
+
+  paths = gen.matrix.paths(prefix=prefix, suffix=suffix)
+  for(name in names(paths))
+    for(path in paths[[name]])
+      if(file.exists(path)) {
+        print(path)
+        d[[name]] = st.load.matrix(path)
+        break
+      }
+
+  vpaths = gen.vector.paths(prefix=prefix, suffix=suffix)
+  for(name in names(vpaths))
+    for(path in vpaths[[name]])
+      if(file.exists(path)) {
+        print(path)
+        d[[name]] = st.load.vector(path)
+        break
+      }
+
   if(load.means) {
-    d$means = st.load.matrix(path.prefix, "means.txt", path.suffix)
-    d$means.poisson = st.load.matrix(path.prefix, "means_poisson.txt", path.suffix)
+    d$means = st.load.matrix(paste(prefix, "means.txt", suffix, sep=""))
+    d$means.poisson = st.load.matrix(paste(prefix, "means_poisson.txt", suffix, sep=""))
   }
-  d$spotscale = st.load.vector(path.prefix, "spot_scaling.txt", path.suffix)
-  d$expscale = st.load.vector(path.prefix, "experiment_scaling.txt", path.suffix)
+
   return(d)
 }
 
@@ -78,8 +112,8 @@ st.order = function(d, plot=T) {
   e$phi = e$phi[,o]
 #  e$phi.p = e$phi.p[,o] # TODO: reactivate
 #  e$phi.r = e$phi.r[,o] # TODO: reactivate
-  e$theta.p = e$theta.p[o]
-  e$theta.r = e$theta.r[o]
+#  e$theta.p = e$theta.p[o]
+#  e$theta.r = e$theta.r[o]
   return(e)
 }
 
@@ -167,7 +201,7 @@ st.load.thetas = function(dir) {
   thetas = c()
   for(path in paths) {
     print(path)
-    thetas = cbind(thetas, st.load.matrix(dir, path))
+    thetas = cbind(thetas, st.load.matrix(paste(dir, path, sep="")))
   }
   return(thetas)
 }
