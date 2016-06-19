@@ -38,6 +38,7 @@
 * alternative to split / merge:
   - multiple re-starts
 * experiment-wise mix-in of factors
+  - like normal factors (with features and weights in the same matrices), but treated differently when sampling theta
 * use faster method for sampling from the Poisson distribution
 * bring back statistical summary printing for vectors
 * templatize scaling variables
@@ -45,6 +46,26 @@
 * differential expression analysis
 * check the Dirichlet posteriors
   - done! the feature side is as in that publication; the mixing side is different but ultimately analogous; I haven't written this down yet
+* analysis script:
+  - create barplots for expected reads explained, aside from expected spots explained;
+  - also break-down experiment-wise
+  - aside from basing on theta, also consider using the assigned contributions
+    o do this across iterations, for each in decreasing order (because of non-identifiability due to exchangability!), coloring the first say in red, the last in black to see whether (and if so, how long) there change in the distribution
+
+implement t1, t2, g1, g2, s1, s2 to set limits for sampling
+
+experiment-constant factors:
+* improve experiment handling
+* needs modification:
+  - PartialModel<Mix>::sample()
+  - Model::Model()
+  - Model::split()
+  - Model::merge()
+
+* what would be simpler than this is factors that are zero in the other samples, otherwise free
+
+hierarchical dirichlet features
+a two-level hierarchy
 
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
