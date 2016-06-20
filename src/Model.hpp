@@ -39,7 +39,7 @@ struct Paths {
   Paths(const std::string &prefix, const std::string &suffix = "");
   std::string phi, theta, spot, experiment, r_phi, p_phi, r_theta, p_theta;
   std::string contributions_gene_type, contributions_spot_type,
-      contributions_spot, contributions_experiment;
+      contributions_gene, contributions_spot, contributions_experiment;
 };
 
 template <Partial::Kind feat_kind = Partial::Kind::Gamma,
@@ -64,7 +64,7 @@ struct Model {
 
   /** hidden contributions to the count data due to the different factors */
   IMatrix contributions_gene_type, contributions_spot_type;
-  IVector contributions_spot, contributions_experiment;
+  IVector contributions_gene, contributions_spot, contributions_experiment;
 
   /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
    * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
@@ -102,6 +102,7 @@ struct Model {
 
   /** sample count decomposition */
   void sample_contributions(const IMatrix &counts);
+  void sample_contributions_variational(const IMatrix &counts);
   void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
                                 RNG &rng, IMatrix &contrib_gene_type,
                                 IMatrix &contrib_spot_type);
@@ -152,6 +153,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_gene(G, arma::fill::zeros),
       contributions_spot(S, arma::fill::zeros),
       contributions_experiment(E, arma::fill::zeros),
       lambda_gene_spot(G, S, arma::fill::zeros),
@@ -178,6 +180,10 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
       contributions_spot(s) += c.counts(g, s);
       contributions_experiment(c.experiments[s]) += c.counts(g, s);
     }
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      contributions_gene(g) += c.counts(g, s);
 
   if (parameters.activate_experiment_scaling) {
     // initialize experiment scaling factors
@@ -219,6 +225,7 @@ Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
       parameters(parameters_),
       contributions_gene_type(parse_file<IMatrix>(paths.contributions_gene_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
       contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
+      contributions_gene(parse_file<IVector>(paths.contributions_gene, read_vector<IVector>, DEFAULT_SEPARATOR)),
       contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
       contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
       features(G, S, T, parameters), // TODO deactivate
@@ -326,6 +333,7 @@ void Model<feat_kind, mix_kind>::store(const Counts &counts,
   // write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
+  write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
   write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
   if (false and mean_and_variance) {
@@ -381,6 +389,73 @@ void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
       contributions_gene_type += contrib_gene_type;
       contributions_spot_type += contrib_spot_type;
     }
+  }
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+/** sample count decomposition */
+void Model<feat_kind, mix_kind>::sample_contributions_variational(
+    const IMatrix &counts) {
+  LOG(info) << "Sampling contribution marginals";
+  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
+  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
+  lambda_gene_spot = Matrix(G, S, arma::fill::zeros);
+  Matrix rate_gene_type(G, T, arma::fill::zeros);
+  Matrix rate_spot_type(S, T, arma::fill::zeros);
+
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    Matrix rate_spot_type_(S, T, arma::fill::zeros);
+#pragma omp for
+    for (size_t g = 0; g < G; ++g)
+      for (size_t s = 0; s < S; ++s) {
+        double factor = spot(s);
+        if (parameters.activate_experiment_scaling)
+          factor *= experiment_scaling_long[s];
+        double z = 0;
+        for (size_t t = 0; t < T; ++t) {
+          double x = phi(g, t) * theta(s, t) * factor;
+          rate_gene_type(g, t) += x;
+          rate_spot_type_(s, t) += x;
+          z += x;
+        }
+        lambda_gene_spot(g, s) = z;
+      }
+#pragma omp critical
+    { rate_spot_type += rate_spot_type_; }
+  }
+
+#pragma omp parallel if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g) {
+    const size_t thread_num = omp_get_thread_num();
+    std::vector<Float> a(T);
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += a[t] = rate_gene_type(g, t);
+    for (size_t t = 0; t < T; ++t)
+      a[t] /= z;
+
+    // LOG(info) << "contributions_gene(" << g << ") = " << contributions_gene[g];
+    auto v = sample_multinomial<Int>(contributions_gene(g), a,
+                                     EntropySource::rngs[thread_num]);
+    for (size_t t = 0; t < T; ++t)
+      contributions_gene_type(g, t) = v[t];
+  }
+
+#pragma omp parallel if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s) {
+    const size_t thread_num = omp_get_thread_num();
+    std::vector<Float> a(T);
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += a[t] = rate_spot_type(s, t);
+    for (size_t t = 0; t < T; ++t)
+      a[t] /= z;
+
+    auto v = sample_multinomial<Int>(contributions_spot(s), a,
+                                     EntropySource::rngs[thread_num]);
+    for (size_t t = 0; t < T; ++t)
+      contributions_spot_type(s, t) = v[t];
   }
 }
 
@@ -476,7 +551,10 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
                                               bool timing) {
   Timer timer;
   if (flagged(which & Target::contributions)) {
-    sample_contributions(data.counts);
+    if(parameters.variational)
+      sample_contributions_variational(data.counts);
+    else
+      sample_contributions(data.counts);
     if (timing)
       LOG(info) << "This took " << timer.tock() << "μs.";
     LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);

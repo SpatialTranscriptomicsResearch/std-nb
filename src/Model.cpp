@@ -32,6 +32,7 @@ Paths::Paths(const std::string &prefix, const std::string &suffix)
       p_theta(prefix + "p_theta.txt" + suffix),
       contributions_gene_type(prefix + "contributions_gene_type.txt" + suffix),
       contributions_spot_type(prefix + "contributions_spot_type.txt" + suffix),
+      contributions_gene(prefix + "contributions_gene.txt" + suffix),
       contributions_spot(prefix + "contributions_spot.txt" + suffix),
       contributions_experiment(prefix + "contributions_experiment.txt"
                                + suffix){};

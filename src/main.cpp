@@ -148,6 +148,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("var,V", po::bool_switch(&parameters.variational),
+     "Sample contribution marginals. This is faster but less accurate.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
     ("output,o", po::value(&options.output),
