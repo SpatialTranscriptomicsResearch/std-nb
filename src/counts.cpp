@@ -31,7 +31,11 @@ Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
       col_names(cnames),
       counts(cnts),
       experiments(exps),
-      experiment_names(exp_names) {}
+      experiment_names(exp_names) {
+  assert(rnames.size() == cnts.n_rows);
+  assert(cnames.size() == cnts.n_cols);
+  assert(experiments.size() == cnts.n_cols);
+}
 
 Counts &Counts::operator=(const Counts &other) {
   row_names = other.row_names;
@@ -155,4 +159,36 @@ void Counts::select_top(size_t n) {
 
   row_names = new_row_names;
   counts = new_counts;
+}
+
+std::vector<Counts> Counts::split_experiments() const {
+  const size_t E = experiment_names.size();
+  const size_t G = row_names.size();
+  const size_t S = col_names.size();
+  vector<size_t> sizes(E, 0);
+  vector<vector<size_t>> idxs(E);
+  vector<vector<string>> spot_names(E);
+  for (size_t s = 0; s < S; ++s) {
+    sizes[experiments[s]]++;
+    spot_names[experiments[s]].push_back(col_names[s]);
+    idxs[experiments[s]].push_back(s);
+  }
+
+  vector<Counts> split_counts;
+  for (size_t e = 0; e < E; ++e) {
+    IMatrix cnts(G, sizes[e]);
+    size_t s = 0;
+    for (auto idx : idxs[e]) {
+      assert(idx < S);
+      assert(s < sizes[e]);
+      for (size_t g = 0; g < G; ++g)
+        cnts(g, s) = counts(g, idx);
+      s++;
+    }
+    Counts part_counts(row_names, spot_names[e], cnts,
+                       vector<size_t>(sizes[e], 0), {experiment_names[e]});
+    split_counts.push_back(part_counts);
+  }
+
+  return split_counts;
 }

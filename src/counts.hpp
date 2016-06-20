@@ -21,6 +21,7 @@ struct Counts {
   Counts operator*(const Counts &other) const;
   Counts &operator=(const Counts &other);
   void select_top(size_t n);
+  std::vector<Counts> split_experiments() const;
 };
 
 #endif
