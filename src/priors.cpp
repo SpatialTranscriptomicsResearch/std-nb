@@ -123,13 +123,15 @@ void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
   }
 }
 
-Dirichlet::Dirichlet(size_t G_, size_t S_, size_t T_,
+Dirichlet::Dirichlet(size_t g, size_t s, size_t t,
                      const Parameters &parameters)
-    : G(G_),
-      S(S_),
-      T(T_),
+    : G(g),
+      S(s),
+      T(t),
       alpha_prior(parameters.hyperparameters.alpha),
-      alpha(G, alpha_prior) {}
+      alpha(G, T) {
+  alpha.fill(alpha_prior);
+}
 
 Dirichlet::Dirichlet(const Dirichlet &other)
     : G(other.G),

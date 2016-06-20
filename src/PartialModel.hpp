@@ -174,10 +174,10 @@ void Model<Variable::Feature, Kind::Dirichlet>::sample(
     const Vector &experiment) {
   LOG(info) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < T; ++t) {
-    std::vector<Float> a(G, parameters.hyperparameters.alpha);
+    std::vector<Float> a(G, 0);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      a[g] += contributions_gene_type(g, t);
+      a[g] = prior.alpha(g,t) + contributions_gene_type(g, t);
     auto phi_k = sample_dirichlet<Float>(a);
     for (size_t g = 0; g < G; ++g)
       matrix(g, t) = phi_k[g];

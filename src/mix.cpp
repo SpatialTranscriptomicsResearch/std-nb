@@ -36,6 +36,8 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize_factor(size_t t) {
 
 template <>
 void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
+  assert(false);
+  throw(std::runtime_error("Not implemented!"));
   // TODO implement
   std::vector<double> a(S);
   for (size_t s = 0; s < S; ++s)

@@ -41,7 +41,7 @@ template <>
 void Model<Variable::Feature, Kind::Dirichlet>::initialize_factor(size_t t) {
   std::vector<double> a(G);
   for (size_t g = 0; g < G; ++g)
-    a[g] = prior.alpha[g];
+    a[g] = prior.alpha(g,t);
   auto x
       = sample_dirichlet<Float>(a, EntropySource::rngs[omp_get_thread_num()]);
   for (size_t g = 0; g < G; ++g)
@@ -98,6 +98,7 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
 
 template <>
 // TODO ensure no NaNs or infinities are generated
+// TODO check whether using OMP is actually faster here!
 double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
     const IMatrix &counts, size_t t) const {
   std::vector<Float> p(G);
@@ -105,7 +106,12 @@ double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
   for (size_t g = 0; g < G; ++g)
     p[g] = matrix(g, t);
 
-  return log_dirichlet(p, prior.alpha);
+  std::vector<Float> alpha(G);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    alpha[g] = prior.alpha(g,t);
+
+  return log_dirichlet(p, alpha);
 }
 }
 }

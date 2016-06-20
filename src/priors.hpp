@@ -40,7 +40,7 @@ private:
 struct Dirichlet {
   size_t G, S, T;
   Float alpha_prior;
-  std::vector<Float> alpha;
+  Matrix alpha;
 
   Dirichlet(size_t G_, size_t S_, size_t T_, const Parameters &parameters);
   Dirichlet(const Dirichlet &other);
