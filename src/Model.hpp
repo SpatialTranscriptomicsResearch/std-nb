@@ -406,6 +406,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_variational(
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix rate_spot_type_(S, T, arma::fill::zeros);
+    Vector lambda(T);
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s) {
@@ -413,13 +414,15 @@ void Model<feat_kind, mix_kind>::sample_contributions_variational(
         if (parameters.activate_experiment_scaling)
           factor *= experiment_scaling_long[s];
         double z = 0;
-        for (size_t t = 0; t < T; ++t) {
-          double x = phi(g, t) * theta(s, t) * factor;
-          rate_gene_type(g, t) += x;
-          rate_spot_type_(s, t) += x;
-          z += x;
-        }
+        for (size_t t = 0; t < T; ++t)
+          z += lambda[t] = phi(g, t) * theta(s, t) * factor;
         lambda_gene_spot(g, s) = z;
+        if (counts(g, s) > 0)
+          for (size_t t = 0; t < T; ++t) {
+            const double x = lambda[t] / z * counts(g, s);
+            rate_gene_type(g, t) += x;
+            rate_spot_type_(s, t) += x;
+          }
       }
 #pragma omp critical
     { rate_spot_type += rate_spot_type_; }
