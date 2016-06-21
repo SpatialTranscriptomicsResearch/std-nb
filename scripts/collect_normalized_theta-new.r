@@ -4,6 +4,7 @@ source("~/code/multiScoopIBP/scripts/analyze.r")
 
 st.collect.normalized.thetas = function(dir) {
   paths = list.files(dir, "iter.*weighted_theta.txt")
+  paths = c(paths, list.files(dir, "iter.*weighted-mix"))
   paths = sort(grep("_._theta", paths, invert=T, value=T))
 
   thetas = c()
