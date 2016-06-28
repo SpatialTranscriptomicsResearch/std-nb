@@ -9,6 +9,7 @@ ADD_LIBRARY(multiScoop SHARED aux.cpp counts.cpp executioninformation.cpp
   log.cpp io.cpp metropolis_hastings.cpp parameters.cpp priors.cpp
   sampling.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
 
+ADD_EXECUTABLE(enrich enrich.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(multiScoop-bin main.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)
 SET_TARGET_PROPERTIES(multiScoop-bin PROPERTIES OUTPUT_NAME multiScoop)
@@ -29,6 +30,7 @@ TARGET_LINK_LIBRARIES(multiScoop
 
 TARGET_LINK_LIBRARIES(multiScoop-bin multiScoop)
 TARGET_LINK_LIBRARIES(test_sampling multiScoop)
+TARGET_LINK_LIBRARIES(enrich multiScoop)
 
 IF(GOOGLEPERFTOOLS_FOUND)
   TARGET_LINK_LIBRARIES(multiScoop-bin ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
@@ -36,5 +38,6 @@ ENDIF()
 
 CONFIGURE_FILE(git_config.hpp.in git_config.hpp)
 
+INSTALL(TARGETS enrich DESTINATION bin)
 INSTALL(TARGETS multiScoop-bin DESTINATION bin)
 INSTALL(TARGETS multiScoop DESTINATION lib)
