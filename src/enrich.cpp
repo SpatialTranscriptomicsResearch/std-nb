@@ -76,6 +76,21 @@ struct Data {
   }
 };
 
+ostream &print(ostream &os, const Matrix &m,
+           const vector<string> &row_names = vector<string>(),
+           const vector<string> &col_names = vector<string>()) {
+  for (auto name : row_names)
+    os << "\t" << name;
+  os << endl;
+  for (size_t i = 0; i < m.n_rows; ++i) {
+    os << col_names[i];
+    for (size_t j = 0; j < m.n_cols; ++j)
+      os << "\t" << m(i, j);
+    os << endl;
+  }
+  return os;
+}
+
 int main(int argc, char **argv) {
   string expression_path = argv[1];
   string func_path = argv[2];
@@ -88,9 +103,9 @@ int main(int argc, char **argv) {
   auto expected = data.compute_shuffle_expectation(1000);
   // LOG(info) << expected;
 
-  cerr << observed << endl;
-  cout << observed - expected.first << endl;
-  cout << (observed - expected.first) / expected.second << endl;
+  print(cerr, observed, data.type_names, data.func_names);
+  print(cout, (observed - expected.first) / expected.second, data.type_names,
+        data.func_names);
 
   return EXIT_SUCCESS;
 }
