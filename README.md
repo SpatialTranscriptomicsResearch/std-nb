@@ -25,3 +25,7 @@ export PATH=<INSTALL_PREFIX>/bin:$PATH
 ```
 
 in your ```$HOME/.bashrc``` file (or similar in case you are a shell other than bash).
+
+Related
+=======
+Note that you can find script to analyse the output of this package in [another git repository](https://gits-15.sys.kth.se/maaskola/multiScoopIBP-scripts).
