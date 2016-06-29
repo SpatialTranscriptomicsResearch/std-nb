@@ -79,11 +79,11 @@ struct Data {
 ostream &print(ostream &os, const Matrix &m,
            const vector<string> &row_names = vector<string>(),
            const vector<string> &col_names = vector<string>()) {
-  for (auto name : row_names)
+  for (auto name : col_names)
     os << "\t" << name;
   os << endl;
   for (size_t i = 0; i < m.n_rows; ++i) {
-    os << col_names[i];
+    os << row_names[i];
     for (size_t j = 0; j < m.n_cols; ++j)
       os << "\t" << m(i, j);
     os << endl;
