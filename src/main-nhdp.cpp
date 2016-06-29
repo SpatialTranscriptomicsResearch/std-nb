@@ -340,5 +340,8 @@ int main(int argc, char **argv) {
   print(cout, model.counts_gene_type, data.row_names, type_names);
   print(cerr, model.counts_spot_type, data.col_names, type_names);
 
+  ofstream os("model.dot");
+  os << model.to_dot();
+
   return EXIT_SUCCESS;
 }

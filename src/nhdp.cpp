@@ -113,4 +113,29 @@ void nHDP::register_read(size_t g, size_t s) {
 
   counts_type(t)++;
 }
+
+string nHDP::to_dot() const {
+  stringstream ss, tt;
+  ss << "digraph {\n";
+  list<size_t> types;
+  types.push_back(0);
+  while(not types.empty()) {
+    size_t t = types.front();
+    types.pop_front();
+    size_t x = 0;
+    for(size_t s = 0; s < S; ++s)
+      x += counts_spot_type(s, t);
+    size_t y = 0;
+    for(size_t s = 0; s < S; ++s)
+      y += desc_counts_spot_type(s, t);
+    ss << t << " [label=\"Factor " << t << "\\n" << x << "\"];\n";
+    for(auto child: children_of(t)) {
+      types.push_back(child);
+      tt << t << " -> " << child << "\n";
+    }
+  }
+  ss << tt.str();
+  ss << "}\n";
+  return ss.str();
+}
 }

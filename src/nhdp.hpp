@@ -35,6 +35,8 @@ struct nHDP {
 
   size_t sample_type(size_t g, size_t s) const;
   void register_read(size_t g, size_t s);
+
+  std::string to_dot() const;
 };
 }
 
