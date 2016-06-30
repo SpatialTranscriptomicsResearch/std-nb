@@ -23,10 +23,16 @@ nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
 
 size_t nHDP::sample_type(size_t g, size_t s) const {
   LOG(verbose) << "Sample type for gene " << g << " in spot " << s;
+
+  // the first T components of the vector represent probabilities for the currently active factors
+  // the second T components of the vector represent probabilities for new possible factors
   vector<Float> p(2 * T, 0);
+
   list<size_t> types;
+
   types.push_front(0);
   p[0] = 1;
+
   while (not types.empty()) {
     size_t t = types.front();
     LOG(debug) << "Processing t = " << t;
