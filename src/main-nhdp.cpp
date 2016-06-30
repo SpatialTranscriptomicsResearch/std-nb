@@ -178,8 +178,6 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
-    // ("var,V", po::bool_switch(&parameters.variational),
-     // "Sample contribution marginals. This is faster but less accurate.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
     ("output,o", po::value(&options.output),
@@ -190,22 +188,12 @@ int main(int argc, char **argv) {
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("timing", po::bool_switch(&options.timing),
      "Print out timing information.")
-    // ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
-     // "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
-    // ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
-     // "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    // ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
-     // "Activate usage of the experiment scaling variables.")
-    // ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
-     // "Which sampling steps to perform.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
   parameter_options.add_options()
     ("feat_a", po::value(&parameters.feature_alpha)->default_value(parameters.feature_alpha),
      "Feature alpha.")
-    ("feat_b", po::value(&parameters.feature_beta)->default_value(parameters.feature_beta),
-     "Feature beta.")
     ("mix_a", po::value(&parameters.mix_alpha)->default_value(parameters.mix_alpha),
      "Mixture alpha.")
     ("mix_b", po::value(&parameters.mix_beta)->default_value(parameters.mix_beta),

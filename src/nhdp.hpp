@@ -8,7 +8,6 @@ namespace PoissonFactorization {
 struct nHDP {
   struct Parameters {
     Float feature_alpha = 1;
-    Float feature_beta = 1;
 
     Float mix_alpha = 1;
     Float mix_beta = 1;

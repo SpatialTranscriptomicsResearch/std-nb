@@ -51,9 +51,7 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
 
     LOG(verbose) << "u = " << u;
 
-    // if (K > 0) {
     vector<Float> alpha(K + 1, parameters.tree_alpha);
-    // alpha[K] = tree_alpha;
     for (size_t k = 0; k < K; ++k)
       alpha[k] += counts_spot_type(s, children[k])
                   + desc_counts_spot_type(s, children[k]);
@@ -69,7 +67,6 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
     p[T + t] *= p_transition[K];
     for (size_t k = 0; k < K; ++k)
       p[children[k]] *= p_transition[k];
-    // }
   }
 
   for (size_t t = T; t < 2 * T; ++t)
@@ -82,11 +79,11 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
   for (size_t t = 0; t < T; ++t)
     p[t] *= sample_beta<Float>(
         counts_gene_type(g, t) + parameters.feature_alpha,
-        counts_type(t) - counts_gene_type(g, t) + G * parameters.feature_beta,
+        counts_type(t) - counts_gene_type(g, t) + (G - 1) * parameters.feature_alpha,
         EntropySource::rng);
   for (size_t t = T; t < 2 * T; ++t)
     p[t] *= sample_beta<Float>(parameters.feature_alpha,
-                               G * parameters.feature_beta, EntropySource::rng);
+                               (G - 1) * parameters.feature_alpha, EntropySource::rng);
 
   for (size_t t = 0; t < 2 * T; ++t)
     LOG(verbose) << "p[" << t << "] = " << p[t];
