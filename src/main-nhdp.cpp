@@ -270,10 +270,6 @@ int main(int argc, char **argv) {
     labels = options.tsv_paths;
   }
 
-  // if (options.perform_splitmerge)
-  //   options.sample_these
-  //       = options.sample_these | PoissonFactorization::Target::merge_split;
-
   Counts data(options.tsv_paths[0], labels[0]);
   for (size_t i = 1; i < options.tsv_paths.size(); ++i)
     if (options.intersect)
