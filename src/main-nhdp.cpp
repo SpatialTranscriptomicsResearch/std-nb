@@ -117,12 +117,25 @@ ostream &print(ostream &os, const PF::IMatrix &m,
   return os;
 }
 
+std::pair<size_t, size_t> draw_read(const Counts &data, size_t total) {
+  std::uniform_int_distribution<size_t> unif(0, total - 1);
+  size_t j = unif(EntropySource::rng);
+  size_t cumul = 0;
+  for (size_t g = 0; g < data.counts.n_rows; ++g)
+    for (size_t s = 0; s < data.counts.n_cols; ++s) {
+      cumul += data.counts(g, s);
+      if (cumul >= j)
+        return make_pair(g, s);
+    }
+  return make_pair(data.counts.n_rows - 1, data.counts.n_cols - 1);
+}
+
 int main(int argc, char **argv) {
   EntropySource::seed();
 
   Options options;
 
-  // PF::Parameters parameters;
+  PF::nHDP::Parameters parameters;
 
   string config_path;
   string usage_info = "This software implements the nested hierarchical Dirichlet process model of\n"
@@ -142,8 +155,7 @@ int main(int argc, char **argv) {
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
-  // po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
-  // po::options_description inference_options("MCMC inference options", num_cols);
+  po::options_description parameter_options("Hyper-parameter options", num_cols);
 
   required_options.add_options()
     ("file", po::value(&options.tsv_paths)->required(),
@@ -189,49 +201,22 @@ int main(int argc, char **argv) {
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
-  /*
-  hyperparameter_options.add_options()
-    ("alpha", po::value(&parameters.hyperparameters.alpha)->default_value(parameters.hyperparameters.alpha),
-     "Dirichlet prior alpha of the factor loading matrix.")
-    ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
-     "Gamma prior 1 of r[g][t].")
-    ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
-     "Gamma prior 2 of r[g][t].")
-    ("phi_p_1", po::value(&parameters.hyperparameters.phi_p_1)->default_value(parameters.hyperparameters.phi_p_1),
-     "Beta prior 1 of p[g][t].")
-    ("phi_p_2", po::value(&parameters.hyperparameters.phi_p_2)->default_value(parameters.hyperparameters.phi_p_2),
-     "Beta prior 2 of p[g][t].")
-    ("theta_r_1", po::value(&parameters.hyperparameters.theta_r_1)->default_value(parameters.hyperparameters.theta_r_1),
-     "Gamma prior 1 of r[t].")
-    ("theta_r_2", po::value(&parameters.hyperparameters.theta_r_2)->default_value(parameters.hyperparameters.theta_r_2),
-     "Gamma prior 2 of r[t].")
-    ("theta_p_1", po::value(&parameters.hyperparameters.theta_p_1)->default_value(parameters.hyperparameters.theta_p_1, to_string(round(parameters.hyperparameters.theta_p_1 * 100) / 100)),
-     "Beta prior 1 of p[t].")
-    ("theta_p_2", po::value(&parameters.hyperparameters.theta_p_2)->default_value(parameters.hyperparameters.theta_p_2, to_string(round(parameters.hyperparameters.theta_p_2 * 100) / 100)),
-     "Beta prior 2 of p[t].")
-    ("spot_1", po::value(&parameters.hyperparameters.spot_a)->default_value(parameters.hyperparameters.spot_a),
-     "Gamma prior 1 of the spot scaling parameter.")
-    ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
-     "Gamma prior 2 of the spot scaling parameter.")
-    ("exp_1", po::value(&parameters.hyperparameters.experiment_a)->default_value(parameters.hyperparameters.experiment_a),
-     "Gamma prior 1 of the experiment scaling parameter.")
-    ("exp_2", po::value(&parameters.hyperparameters.experiment_b)->default_value(parameters.hyperparameters.experiment_b),
-     "Gamma prior 2 of the experiment scaling parameter.");
-
-  inference_options.add_options()
-    ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
-     "Maximal number of propositions for Metropolis-Hastings sampling of r")
-    ("MHtemp", po::value(&parameters.temperature)->default_value(parameters.temperature),
-     "Temperature for Metropolis-Hastings sampling of R.")
-    ("MHsd", po::value(&parameters.prop_sd)->default_value(parameters.prop_sd),
-     "Standard deviation for log-normal proposition scaling in Metropolis-Hastings sampling of r[g][t]");
-     */
+  parameter_options.add_options()
+    ("feat_a", po::value(&parameters.feature_alpha)->default_value(parameters.feature_alpha),
+     "Feature alpha.")
+    ("feat_b", po::value(&parameters.feature_beta)->default_value(parameters.feature_beta),
+     "Feature beta.")
+    ("mix_a", po::value(&parameters.mix_alpha)->default_value(parameters.mix_alpha),
+     "Mixture alpha.")
+    ("mix_b", po::value(&parameters.mix_beta)->default_value(parameters.mix_beta),
+     "Mixture beta.")
+    ("tree", po::value(&parameters.tree_alpha)->default_value(parameters.tree_alpha),
+     "Tree Dirichlet prior.");
 
   cli_options.add(generic_options)
       .add(required_options)
       .add(basic_options)
-      // .add(hyperparameter_options)
-      // .add(inference_options);
+      .add(parameter_options)
       ;
 
   po::positional_options_description positional_options;
@@ -311,7 +296,7 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors);
+  PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors, parameters);
 
   size_t G = data.counts.n_rows;
   size_t S = data.counts.n_cols;
@@ -320,17 +305,10 @@ int main(int argc, char **argv) {
     for(size_t s = 0; s < S; ++s)
       total += data.counts(g,s);
 
-  std::uniform_int_distribution<size_t> unif(0, total-1);
-  for(size_t i = 0; i < options.num_steps; ++i) {
+  for (size_t i = 0; i < options.num_steps; ++i) {
     LOG(info) << "Iteration " << i;
-    size_t j = unif(EntropySource::rng);
-    size_t cumul = 0;
-    for(size_t g = 0; g < G and cumul < j; ++g)
-      for(size_t s = 0; s < S and cumul < j; ++s) {
-        cumul += data.counts(g,s);
-        if(cumul > j)
-          model.register_read(g,s);
-      }
+    auto read = draw_read(data, total);
+    model.register_read(read.first, read.second);
   }
 
   vector<string> type_names;
