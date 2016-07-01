@@ -290,8 +290,8 @@ int main(int argc, char **argv) {
       total += data.counts(g,s);
 
   for (size_t i = 0; i < options.num_steps; ++i) {
-    LOG(info) << "Iteration " << i;
     auto read = draw_read(data, total);
+    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first] << " spot " << data.col_names[read.second];
     model.register_read(read.first, read.second);
   }
 
