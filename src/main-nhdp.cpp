@@ -285,20 +285,20 @@ int main(int argc, char **argv) {
   size_t G = data.counts.n_rows;
   size_t S = data.counts.n_cols;
   size_t total = 0;
-  for(size_t g = 0; g < G; ++g)
-    for(size_t s = 0; s < S; ++s)
-      total += data.counts(g,s);
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      total += data.counts(g, s);
 
   for (size_t i = 0; i < options.num_steps; ++i) {
     auto read = draw_read(data, total);
-    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first] << " spot " << data.col_names[read.second];
+    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
+              << " spot " << data.col_names[read.second];
     model.register_read(read.first, read.second);
   }
 
   vector<string> type_names;
-  for(size_t t = 0; t < options.num_factors; ++t)
+  for (size_t t = 0; t < options.num_factors; ++t)
     type_names.push_back("Factor " + to_string(t));
-
 
   ofstream os_features("features.txt");
   print(os_features, model.counts_gene_type, data.row_names, type_names);
