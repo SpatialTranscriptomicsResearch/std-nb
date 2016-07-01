@@ -105,19 +105,10 @@ void nHDP::register_read(size_t g, size_t s) {
   size_t t = sample_type(g, s);
   if (t >= T) {
     size_t parent = t - T;
-    // new type
-    t = T;
-    T++;
-    parent_of[t] = parent;
-    children_of[parent].push_back(t);
+    t = add_node(parent);
   }
 
   LOG(info) << "gene " << g << " spot " << s << " -> type " << t;
-
-  if (T > maxT) {
-    LOG(fatal) << "Reached maximum number of factors!";
-    exit(-1);
-  }
 
   counts_gene_type(g, t)++;
   counts_spot_type(s, t)++;
@@ -127,6 +118,17 @@ void nHDP::register_read(size_t g, size_t s) {
   }
 
   counts_type(t)++;
+}
+
+size_t nHDP::add_node(size_t parent) {
+  if (T > maxT) {
+    LOG(fatal) << "Reached maximum number of factors!";
+    exit(-1);
+  }
+
+  parent_of[T] = parent;
+  children_of[parent].push_back(T);
+  return T++;
 }
 
 string nHDP::to_dot() const {

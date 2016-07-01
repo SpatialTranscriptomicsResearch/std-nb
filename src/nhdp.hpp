@@ -40,6 +40,8 @@ struct nHDP {
   std::vector<size_t> parent_of;
   std::vector<std::vector<size_t>> children_of;
 
+  size_t add_node(size_t parent);
+
   size_t sample_type(size_t g, size_t s) const;
   void register_read(size_t g, size_t s);
 
