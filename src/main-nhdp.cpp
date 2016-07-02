@@ -32,7 +32,7 @@ const vector<string> alphabetic_labels = gen_alpha_labels();
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
-  size_t num_factors = 20;
+  size_t num_factors = 1000;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
