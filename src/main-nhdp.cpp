@@ -12,6 +12,7 @@
 #include "log.hpp"
 // #include "Model.hpp"
 #include "nhdp.hpp"
+#include "hierarchical_kmeans.hpp"
 
 using namespace std;
 namespace PF = PoissonFactorization;
@@ -299,6 +300,24 @@ int main(int argc, char **argv) {
   vector<string> type_names;
   for (size_t t = 0; t < options.num_factors; ++t)
     type_names.push_back("Factor " + to_string(t));
+
+  /*
+  list<size_t> levels;
+  levels.push_back(20);
+  levels.push_back(10);
+  levels.push_back(5);
+  PF::Matrix fm(G, S);
+  for (size_t s = 0; s < S; ++s) {
+    double z = 0;
+    for (size_t g = 0; g < G; ++g)
+      z += fm(g, s) = data.counts(g, s);
+    for (size_t g = 0; g < G; ++g)
+      fm(g, s) /= z;
+  }
+
+  PF::Hierarchy h = PF::hierarchical_kmeans(
+      fm, PF::Vector(G, arma::fill::zeros), begin(levels), end(levels));
+  */
 
   ofstream os_features("features.txt");
   print(os_features, model.counts_gene_type, data.row_names, type_names);
