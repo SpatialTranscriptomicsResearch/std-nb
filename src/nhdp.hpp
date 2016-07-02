@@ -31,7 +31,7 @@ struct nHDP {
   IMatrix counts_gene_type, counts_spot_type;
   /** descendants' marginals of hidden count contributions by the different
    * factors */
-  IMatrix desc_counts_spot_type;
+  IMatrix desc_counts_gene_type, desc_counts_spot_type;
 
   IVector counts_type;
 

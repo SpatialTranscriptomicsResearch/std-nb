@@ -16,6 +16,7 @@ nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
       parameters(params),
       counts_gene_type(G, maxT, arma::fill::zeros),
       counts_spot_type(S, maxT, arma::fill::zeros),
+      desc_counts_gene_type(G, maxT, arma::fill::zeros),
       desc_counts_spot_type(S, maxT, arma::fill::zeros),
       counts_type(maxT, arma::fill::zeros),
       parent_of(maxT),
@@ -115,6 +116,7 @@ void nHDP::register_read(size_t g, size_t s) {
   while (t != 0) {
     t = parent_of[t];
     desc_counts_spot_type(s, t)++;
+    desc_counts_gene_type(g, t)++;
   }
 
   counts_type(t)++;
