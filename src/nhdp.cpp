@@ -131,7 +131,7 @@ void nHDP::register_read(size_t g, size_t s) {
 }
 
 size_t nHDP::add_node(size_t parent) {
-  if (T > maxT) {
+  if (T == maxT) {
     LOG(fatal) << "Reached maximum number of factors!";
     exit(-1);
   }
