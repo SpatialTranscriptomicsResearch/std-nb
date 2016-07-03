@@ -42,6 +42,9 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
   types.push_front(0);
   p[0] = 1;
 
+  LOG(debug) << "counts_spot_type(s,.) = " << counts_spot_type.row(s);
+  LOG(debug) << "desc_counts_spot_type(s,.) = " << desc_counts_spot_type.row(s);
+
   while (not types.empty()) {
     size_t t = types.front();
     LOG(debug) << "Processing t = " << t;
@@ -121,10 +124,13 @@ void nHDP::register_read(size_t g, size_t s) {
 
   counts_gene_type(g, t)++;
   counts_spot_type(s, t)++;
+  LOG(debug) << "Assigning to desc_counts_spot_type";
   while (t != 0) {
     t = parent_of[t];
     desc_counts_spot_type(s, t)++;
     desc_counts_gene_type(g, t)++;
+    LOG(debug) << "Assigning to desc_counts_spot_type of t = " << t << ": " << desc_counts_spot_type(s, t);
+    LOG(debug) << "Assigning to desc_counts_gene_type of t = " << t << ": " << desc_counts_gene_type(g, t);
   }
 
   counts_type(t)++;
