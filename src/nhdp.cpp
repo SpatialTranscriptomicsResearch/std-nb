@@ -22,6 +22,14 @@ nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
       parent_of(maxT),
       children_of(maxT) {}
 
+void nHDP::add_hierarchy(size_t t, const Hierarchy &hierarchy, double concentration) {
+  counts_gene_type.col(t) = hierarchy.profile * concentration;
+  for(auto &h: hierarchy.children) {
+    size_t child = add_node(t);
+    add_hierarchy(child, h, concentration);
+  }
+}
+
 size_t nHDP::sample_type(size_t g, size_t s) const {
   LOG(verbose) << "Sample type for gene " << g << " in spot " << s;
 

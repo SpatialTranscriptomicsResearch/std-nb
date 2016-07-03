@@ -103,7 +103,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
   pfa.store(data, options.output, true);
 }
 
-ostream &print(ostream &os, const PF::IMatrix &m,
+ostream &print(ostream &os, const PF::Matrix &m,
            const vector<string> &row_names = vector<string>(),
            const vector<string> &col_names = vector<string>()) {
   for (auto name : col_names)
@@ -281,30 +281,12 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors, parameters);
-
   size_t G = data.counts.n_rows;
   size_t S = data.counts.n_cols;
-  size_t total = 0;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      total += data.counts(g, s);
 
-  for (size_t i = 0; i < options.num_steps; ++i) {
-    auto read = draw_read(data, total);
-    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
-              << " spot " << data.col_names[read.second];
-    model.register_read(read.first, read.second);
-  }
-
-  vector<string> type_names;
-  for (size_t t = 0; t < options.num_factors; ++t)
-    type_names.push_back("Factor " + to_string(t));
-
-  /*
   list<size_t> levels;
-  levels.push_back(20);
-  levels.push_back(10);
+  levels.push_back(5);
+  levels.push_back(5);
   levels.push_back(5);
   PF::Matrix fm(G, S);
   for (size_t s = 0; s < S; ++s) {
@@ -315,15 +297,43 @@ int main(int argc, char **argv) {
       fm(g, s) /= z;
   }
 
-  PF::Hierarchy h = PF::hierarchical_kmeans(
+  PF::Hierarchy hierarchy = PF::hierarchical_kmeans(
       fm, PF::Vector(G, arma::fill::zeros), begin(levels), end(levels));
-  */
 
-  ofstream os_features("features.txt");
-  print(os_features, model.counts_gene_type, data.row_names, type_names);
-  ofstream os_mix("mix.txt");
-  print(os_mix, model.counts_spot_type, data.col_names, type_names);
-  ofstream os("model.dot");
+  PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors,
+                 parameters);
+  model.add_hierarchy(0, hierarchy, 100);
+
+  vector<string> type_names;
+  for (size_t t = 0; t < options.num_factors; ++t)
+    type_names.push_back("Factor " + to_string(t));
+
+  ofstream os("nhdp-features_inital.txt");
+  print(os, model.counts_gene_type, data.row_names, type_names);
+  os.close();
+
+  size_t total = 0;
+  for (size_t g = 0; g < G; ++g)
+    // for (size_t s = 0; s < 1; ++s)
+    for (size_t s = 0; s < S; ++s)
+      total += data.counts(g, s);
+
+  for (size_t i = 0; i < options.num_steps; ++i) {
+    auto read = draw_read(data, total);
+    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
+              << " spot " << data.col_names[read.second];
+    model.register_read(read.first, read.second);
+  }
+
+  os = ofstream("nhdp-features.txt");
+  print(os, model.counts_gene_type, data.row_names, type_names);
+  os = ofstream("nhdp-tree-features.txt");
+  print(os, model.desc_counts_gene_type, data.row_names, type_names);
+  os = ofstream("nhdp-mix.txt");
+  print(os, model.counts_spot_type, data.col_names, type_names);
+  os = ofstream("nhdp-tree-mix.txt");
+  print(os, model.desc_counts_spot_type, data.col_names, type_names);
+  os = ofstream("nhdp-model.dot");
   os << model.to_dot();
 
   return EXIT_SUCCESS;

@@ -2,6 +2,7 @@
 #define NHDP_HPP
 
 #include "types.hpp"
+#include "hierarchical_kmeans.hpp"
 
 namespace PoissonFactorization {
 
@@ -28,14 +29,16 @@ struct nHDP {
   Parameters parameters;
 
   /** marginals of hidden count contributions by the different factors */
-  IMatrix counts_gene_type, counts_spot_type;
+  Matrix counts_gene_type, counts_spot_type;
   /** descendants' marginals of hidden count contributions by the different
    * factors */
-  IMatrix desc_counts_gene_type, desc_counts_spot_type;
+  Matrix desc_counts_gene_type, desc_counts_spot_type;
 
-  IVector counts_type;
+  Vector counts_type;
 
   nHDP(size_t g, size_t s, size_t t, const Parameters &params);
+
+  void add_hierarchy(size_t t, const Hierarchy &hierarchy, double concentration);
 
   std::vector<size_t> parent_of;
   std::vector<std::vector<size_t>> children_of;
