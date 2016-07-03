@@ -36,7 +36,7 @@ Hierarchy hierarchical_kmeans(const Matrix &m, const Profile &profile, I begin,
       double z = 0;
       for (size_t g = 0; g < G; ++g) {
         rem(g, s) -= profile[g];
-        z += rem(g, s) = std::max<Float>(0, m(g, s));
+        z += rem(g, s) = std::max<Float>(0, rem(g, s));
       }
       for (size_t g = 0; g < G; ++g)
         rem(g, s) /= z;
