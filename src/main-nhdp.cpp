@@ -306,7 +306,7 @@ int main(int argc, char **argv) {
 
   vector<string> type_names;
   for (size_t t = 0; t < options.num_factors; ++t)
-    type_names.push_back("Factor " + to_string(t));
+    type_names.push_back("Factor " + to_string(t + 1));
 
   ofstream os("nhdp-features_inital.txt");
   print(os, model.counts_gene_type, data.row_names, type_names);
