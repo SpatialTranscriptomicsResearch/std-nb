@@ -304,9 +304,9 @@ int main(int argc, char **argv) {
   for (size_t t = 0; t < options.num_factors; ++t)
     type_names.push_back("Factor " + to_string(t + 1));
 
-  ofstream os("nhdp-features_inital.txt");
-  print(os, model.counts_gene_type, data.row_names, type_names);
-  os.close();
+  // ofstream os("nhdp-features_inital.txt");
+  // print(os, model.counts_gene_type, data.row_names, type_names);
+  // os.close();
 
   vector<size_t> colSums(S, 0);
   for (size_t s = 0; s < S; ++s)
@@ -320,6 +320,8 @@ int main(int argc, char **argv) {
     model.register_read(read.first, read.second);
   }
 
+  ofstream os("nhdp-model.dot");
+  os << model.to_dot();
   os = ofstream("nhdp-features.txt");
   print(os, model.counts_gene_type, data.row_names, type_names);
   os = ofstream("nhdp-tree-features.txt");
@@ -328,8 +330,6 @@ int main(int argc, char **argv) {
   print(os, model.counts_spot_type, data.col_names, type_names);
   os = ofstream("nhdp-tree-mix.txt");
   print(os, model.desc_counts_spot_type, data.col_names, type_names);
-  os = ofstream("nhdp-model.dot");
-  os << model.to_dot();
 
   return EXIT_SUCCESS;
 }
