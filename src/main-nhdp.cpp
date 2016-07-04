@@ -37,6 +37,7 @@ struct Options {
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
+  bool kmeans = false;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool perform_splitmerge = false;
@@ -177,6 +178,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
+    ("kmeans,k", po::bool_switch(&options.kmeans),
+     "Perform hierarchical K-means for initialization.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
@@ -280,25 +283,28 @@ int main(int argc, char **argv) {
   size_t G = data.counts.n_rows;
   size_t S = data.counts.n_cols;
 
-  list<size_t> levels;
-  levels.push_back(5);
-  levels.push_back(5);
-  levels.push_back(5);
-  PF::Matrix fm(G, S);
-  for (size_t s = 0; s < S; ++s) {
-    double z = 0;
-    for (size_t g = 0; g < G; ++g)
-      z += fm(g, s) = data.counts(g, s);
-    for (size_t g = 0; g < G; ++g)
-      fm(g, s) /= z;
-  }
-
-  PF::Hierarchy hierarchy = PF::hierarchical_kmeans(
-      fm, PF::Vector(G, arma::fill::zeros), begin(levels), end(levels));
-
   PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors,
                  parameters);
-  model.add_hierarchy(0, hierarchy, 100);
+
+  if (options.kmeans) {
+    list<size_t> levels;
+    levels.push_back(5);
+    levels.push_back(5);
+    levels.push_back(5);
+    PF::Matrix fm(G, S);
+    for (size_t s = 0; s < S; ++s) {
+      double z = 0;
+      for (size_t g = 0; g < G; ++g)
+        z += fm(g, s) = data.counts(g, s);
+      for (size_t g = 0; g < G; ++g)
+        fm(g, s) /= z;
+    }
+
+    PF::Hierarchy hierarchy = PF::hierarchical_kmeans(
+        fm, PF::Vector(G, arma::fill::zeros), begin(levels), end(levels));
+
+    model.add_hierarchy(0, hierarchy, 100);
+  }
 
   vector<string> type_names;
   for (size_t t = 0; t < options.num_factors; ++t)
