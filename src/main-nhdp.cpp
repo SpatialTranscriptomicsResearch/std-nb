@@ -41,6 +41,7 @@ struct Options {
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool perform_splitmerge = false;
+  bool posterior_switches = false;
   bool timing = true;
   size_t top = 0;
   // PF::Target sample_these = PF::DefaultTarget();
@@ -180,6 +181,8 @@ int main(int argc, char **argv) {
      "Perform split/merge steps.")
     ("kmeans,k", po::bool_switch(&options.kmeans),
      "Perform hierarchical K-means for initialization.")
+    ("switches", po::bool_switch(&options.posterior_switches),
+     "Don't sample activation switches independently but from the posterior.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
@@ -323,7 +326,7 @@ int main(int argc, char **argv) {
     auto read = draw_read(data, colSums);
     LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
               << " spot " << data.col_names[read.second];
-    model.register_read(read.first, read.second);
+    model.register_read(read.first, read.second, not options.posterior_switches);
   }
 
   ofstream os("nhdp-model.dot");

@@ -31,7 +31,7 @@ void nHDP::add_hierarchy(size_t t, const Hierarchy &hierarchy,
   }
 }
 
-size_t nHDP::sample_type(size_t g, size_t s) const {
+size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
   LOG(verbose) << "Sample type for gene " << g << " in spot " << s;
 
   // the first T components of the vector represent probabilities for the currently active factors
@@ -60,9 +60,13 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
     for (auto child : children)
       types.push_back(child);
 
-    Float u
-        = sample_beta<Float>(counts_spot_type(s, t) + parameters.mix_alpha,
+    Float u;
+    if (independent_switches)
+      u = sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
+    else
+      u = sample_beta<Float>(counts_spot_type(s, t) + parameters.mix_alpha,
                              desc_counts_spot_type(s, t) + parameters.mix_beta);
+
     p[t] *= u;
     for (auto child : children)
       p[child] = 1 - u;
@@ -83,7 +87,7 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
     if (zeros > 1)
       for (size_t k = 0; k < K + 1; ++k)
         if (alpha[k] == 0)
-          alpha[k] = parameters.tree_alpha_new / zeros;
+          alpha[k] = parameters.tree_alpha / zeros;
 
     for (size_t k = 0; k < K + 1; ++k)
       LOG(debug) << "alpha[" << k << "] = " << alpha[k];
@@ -126,11 +130,11 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
                                             end(p))(EntropySource::rng);
 }
 
-void nHDP::register_read(size_t g, size_t s) {
+void nHDP::register_read(size_t g, size_t s, bool independent_switches) {
   LOG(verbose) << "Register read for gene " << g << " in spot " << s
                << ", G = " << G << " S = " << S << " T = " << T;
 
-  size_t t = sample_type(g, s);
+  size_t t = sample_type(g, s, independent_switches);
   if (t >= T) {
     size_t parent = t - T;
     t = add_node(parent);
