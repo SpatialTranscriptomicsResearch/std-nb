@@ -117,6 +117,11 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
   for (size_t t = 0; t < 2 * T; ++t)
     LOG(verbose) << "p[" << t << "] = " << p[t];
 
+  // TODO figure out when and why NANs are generated
+  for (auto &x : p)
+    if (std::isnan(x))
+      x = 0;
+
   return std::discrete_distribution<size_t>(begin(p),
                                             end(p))(EntropySource::rng);
 }
