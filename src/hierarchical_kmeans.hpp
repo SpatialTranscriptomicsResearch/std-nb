@@ -1,6 +1,8 @@
 #ifndef HIERARCHICAL_KMEANS_HPP
 #define HIERARCHICAL_KMEANS_HPP
 
+#include <iostream>
+#include "log.hpp"
 #include "types.hpp"
 
 namespace PoissonFactorization {
@@ -18,6 +20,8 @@ struct KMeansResults {
   Profiles profiles;
   std::vector<size_t> clusters;
 };
+
+std::ostream &operator<<(std::ostream &os, const KMeansResults &results);
 
 KMeansResults kmeans(const Matrix &m, size_t k);
 
@@ -43,6 +47,7 @@ Hierarchy hierarchical_kmeans(const Matrix &m, const Profile &profile, I begin,
     }
 
     auto res = kmeans(rem, k);
+    LOG(verbose) << res;
 
     begin++;
     for (size_t r = 0; r < res.profiles.size(); ++r) {

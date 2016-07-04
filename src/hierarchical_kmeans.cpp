@@ -67,4 +67,11 @@ KMeansResults kmeans(const Matrix &m, size_t K) {
   }
   return res;
 }
+
+ostream &operator<<(ostream &os, const KMeansResults &results) {
+    os << "clusters:";
+    for(auto &cl: results.clusters)
+      os << " " << cl;
+  return os;
+}
 }
