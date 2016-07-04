@@ -118,17 +118,13 @@ ostream &print(ostream &os, const PF::Matrix &m,
   return os;
 }
 
-std::pair<size_t, size_t> draw_read(const Counts &data, size_t total) {
-  std::uniform_int_distribution<size_t> unif(0, total - 1);
-  size_t j = unif(EntropySource::rng);
-  size_t cumul = 0;
-  for (size_t g = 0; g < data.counts.n_rows; ++g)
-    for (size_t s = 0; s < data.counts.n_cols; ++s) {
-      cumul += data.counts(g, s);
-      if (cumul >= j)
-        return make_pair(g, s);
-    }
-  return make_pair(data.counts.n_rows - 1, data.counts.n_cols - 1);
+std::pair<size_t, size_t> draw_read(const Counts &data,
+                                    vector<size_t> colSums) {
+  size_t s = std::discrete_distribution<size_t>(
+      begin(colSums), end(colSums))(EntropySource::rng);
+  size_t g = std::discrete_distribution<size_t>(
+      data.counts.begin_col(s), data.counts.end_col(s))(EntropySource::rng);
+  return make_pair(g, s);
 }
 
 int main(int argc, char **argv) {
@@ -312,14 +308,13 @@ int main(int argc, char **argv) {
   print(os, model.counts_gene_type, data.row_names, type_names);
   os.close();
 
-  size_t total = 0;
-  for (size_t g = 0; g < G; ++g)
-    // for (size_t s = 0; s < 1; ++s)
-    for (size_t s = 0; s < S; ++s)
-      total += data.counts(g, s);
+  vector<size_t> colSums(S, 0);
+  for (size_t s = 0; s < S; ++s)
+    for (size_t g = 0; g < G; ++g)
+      colSums[s] += data.counts(g, s);
 
   for (size_t i = 0; i < options.num_steps; ++i) {
-    auto read = draw_read(data, total);
+    auto read = draw_read(data, colSums);
     LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
               << " spot " << data.col_names[read.second];
     model.register_read(read.first, read.second);
