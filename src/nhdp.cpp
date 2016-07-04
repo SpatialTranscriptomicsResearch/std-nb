@@ -70,10 +70,20 @@ size_t nHDP::sample_type(size_t g, size_t s) const {
 
     LOG(verbose) << "u = " << u;
 
-    vector<Float> alpha(K + 1, parameters.tree_alpha);
+    vector<Float> alpha(K + 1, 0);
+    size_t zeros = 0;
     for (size_t k = 0; k < K; ++k)
-      alpha[k] += counts_spot_type(s, children[k])
-                  + desc_counts_spot_type(s, children[k]);
+      if ((alpha[k] = counts_spot_type(s, children[k])
+                      + desc_counts_spot_type(s, children[k]))
+          == 0)
+        zeros++;
+
+    zeros++;
+
+    if (zeros > 1)
+      for (size_t k = 0; k < K + 1; ++k)
+        if (alpha[k] == 0)
+          alpha[k] = parameters.tree_alpha_new / zeros;
 
     for (size_t k = 0; k < K + 1; ++k)
       LOG(debug) << "alpha[" << k << "] = " << alpha[k];
