@@ -110,13 +110,16 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
     LOG(verbose) << "p[" << t << "] = " << p[t];
 
   for (size_t t = 0; t < T; ++t)
-    p[t] *= sample_beta<Float>(
-        counts_gene_type(g, t) + parameters.feature_alpha,
-        counts_type(t) - counts_gene_type(g, t) + (G - 1) * parameters.feature_alpha,
-        EntropySource::rng);
+    p[t]
+        *= sample_beta<Float>(counts_gene_type(g, t) + parameters.feature_alpha,
+                              counts_type(t) - counts_gene_type(g, t)
+                                  + (G - 1) * parameters.feature_alpha,
+                              EntropySource::rng);
+
   for (size_t t = T; t < 2 * T; ++t)
     p[t] *= sample_beta<Float>(parameters.feature_alpha,
-                               (G - 1) * parameters.feature_alpha, EntropySource::rng);
+                               (G - 1) * parameters.feature_alpha,
+                               EntropySource::rng);
 
   for (size_t t = 0; t < 2 * T; ++t)
     LOG(verbose) << "p[" << t << "] = " << p[t];
