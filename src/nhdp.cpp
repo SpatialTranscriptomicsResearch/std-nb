@@ -147,6 +147,7 @@ void nHDP::register_read(size_t g, size_t s, bool independent_switches) {
 
   counts_gene_type(g, t)++;
   counts_spot_type(s, t)++;
+  counts_type(t)++;
   LOG(debug) << "Assigning to desc_counts_spot_type";
   while (t != 0) {
     t = parent_of[t];
@@ -156,7 +157,6 @@ void nHDP::register_read(size_t g, size_t s, bool independent_switches) {
     LOG(debug) << "Assigning to desc_counts_gene_type of t = " << t << ": " << desc_counts_gene_type(g, t);
   }
 
-  counts_type(t)++;
 }
 
 size_t nHDP::add_node(size_t parent) {
