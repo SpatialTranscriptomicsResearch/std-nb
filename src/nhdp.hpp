@@ -50,7 +50,7 @@ struct nHDP {
   size_t sample_type(size_t g, size_t s, bool independent_switches) const;
   void register_read(size_t g, size_t s, bool independent_switches);
 
-  std::string to_dot() const;
+  std::string to_dot(double threshold = 0) const;
 };
 }
 

@@ -216,12 +216,13 @@ size_t nHDP::add_node(size_t parent) {
   return T++;
 }
 
-string nHDP::to_dot() const {
+string nHDP::to_dot(double threshold) const {
   stringstream ss, tt;
   ss << "digraph {\n";
   list<size_t> types;
   types.push_back(0);
   size_t total = 0;
+  vector<bool> skipped(T, true);
   while (not types.empty()) {
     size_t t = types.front();
     types.pop_front();
@@ -233,12 +234,31 @@ string nHDP::to_dot() const {
       y += desc_counts_spot_type(s, t);
     if (t == 0)
       total = x + y;
-    ss << t << " [label=\"Factor " << t << "\\n" << x << " " << 100.0 * x / total
-       << "%\\n" << (x + y) << " " << 100.0 * (x + y) / total << "%\"];\n";
-    for (auto child : children_of[t]) {
-      types.push_back(child);
-      tt << t << " -> " << child << "\n";
+
+    if (1.0 * (x + y) / total > threshold)
+      skipped[t] = false;
+
+    if (not skipped[t]) {
+      ss << t << " [label=\"Factor " << t << "\\n" << x << " "
+         << 100.0 * x / total << "%\\n";
+      if (y > 0)
+        ss << (x + y) << " " << 100.0 * (x + y) / total << "%";
+      ss << "\"];\n";
+
+      for (auto child : children_of[t])
+        types.push_back(child);
     }
+  }
+  types.push_back(0);
+  while (not types.empty()) {
+    size_t t = types.front();
+    types.pop_front();
+    if (not skipped[t])
+      for (auto child : children_of[t])
+        if (not skipped[child]) {
+          types.push_back(child);
+          tt << t << " -> " << child << "\n";
+        }
   }
   ss << tt.str();
   ss << "}\n";
