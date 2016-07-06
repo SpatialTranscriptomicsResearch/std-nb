@@ -67,6 +67,10 @@ experiment-constant factors:
 hierarchical dirichlet features
 a two-level hierarchy
 
+sampling from currently unused types could be based upon the global prior
+when sampling a novel type (i.e. one that isn't already present in the global hierarchy) then sample a dirichlet-multinomial as dirichlet prior for it, with a similar scaling as the initial factors
+use direct probabilities, rather than poisson samples for transition probabilities
+
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
 less important:
