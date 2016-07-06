@@ -283,9 +283,6 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  size_t G = data.counts.n_rows;
-  size_t S = data.counts.n_cols;
-
   PF::nHDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors,
                  parameters);
 
@@ -294,17 +291,17 @@ int main(int argc, char **argv) {
     levels.push_back(5);
     levels.push_back(5);
     levels.push_back(5);
-    PF::Matrix fm(G, S);
-    for (size_t s = 0; s < S; ++s) {
+    PF::Matrix fm(model.G, model.S);
+    for (size_t s = 0; s < model.S; ++s) {
       double z = 0;
-      for (size_t g = 0; g < G; ++g)
+      for (size_t g = 0; g < model.G; ++g)
         z += fm(g, s) = data.counts(g, s);
-      for (size_t g = 0; g < G; ++g)
+      for (size_t g = 0; g < model.G; ++g)
         fm(g, s) /= z;
     }
 
     PF::Hierarchy hierarchy = PF::hierarchical_kmeans(
-        fm, PF::Vector(G, arma::fill::zeros), begin(levels), end(levels));
+        fm, PF::Vector(model.G, arma::fill::zeros), begin(levels), end(levels));
 
     model.add_hierarchy(0, hierarchy, 100);
   }
@@ -317,15 +314,16 @@ int main(int argc, char **argv) {
   // print(os, model.counts_gene_type, data.row_names, type_names);
   // os.close();
 
-  vector<size_t> colSums(S, 0);
-  for (size_t s = 0; s < S; ++s)
-    for (size_t g = 0; g < G; ++g)
+  vector<size_t> colSums(model.S, 0);
+  for (size_t s = 0; s < model.S; ++s)
+    for (size_t g = 0; g < model.G; ++g)
       colSums[s] += data.counts(g, s);
 
   for (size_t i = 0; i < options.num_steps; ++i) {
     auto read = draw_read(data, colSums);
     LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
               << " spot " << data.col_names[read.second];
+    LOG(info) << "G = " << model.G << " S = " << model.S << " T = " << model.T;
     model.register_read(read.first, read.second, not options.posterior_switches);
   }
 

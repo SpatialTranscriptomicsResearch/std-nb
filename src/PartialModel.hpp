@@ -178,7 +178,7 @@ void Model<Variable::Feature, Kind::Dirichlet>::sample(
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       a[g] = prior.alpha(g,t) + contributions_gene_type(g, t);
-    auto phi_k = sample_dirichlet<Float>(a);
+    auto phi_k = sample_dirichlet<Float>(begin(a), end(a));
     for (size_t g = 0; g < G; ++g)
       matrix(g, t) = phi_k[g];
   }
@@ -263,7 +263,7 @@ void Model<Variable::Mix, Kind::Dirichlet>::sample(
     std::vector<Float> a(T, parameters.hyperparameters.alpha);
     for (size_t t = 0; t < T; ++t)
       a[t] += contributions_spot_type(s, t);
-    auto theta_sample = sample_dirichlet<Float>(a);
+    auto theta_sample = sample_dirichlet<Float>(begin(a), end(a));
     for (size_t t = 0; t < T; ++t)
       matrix(s, t) = theta_sample[t];
   }

@@ -42,8 +42,8 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
   std::vector<double> a(S);
   for (size_t s = 0; s < S; ++s)
     a[s] = prior.alpha[s];
-  auto x
-      = sample_dirichlet<Float>(a, EntropySource::rngs[omp_get_thread_num()]);
+  auto x = sample_dirichlet<Float>(begin(a), end(a),
+                                   EntropySource::rngs[omp_get_thread_num()]);
   // for (size_t s = 0; s < S; ++s)
   //   phi(g, t) = x[g];
 }
@@ -67,13 +67,11 @@ template <>
 void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
   matrix = Matrix(S, T);
   LOG(debug) << "Initializing Θ from Dirichlet distribution" << std::endl;
-  std::vector<double> a(T);
-  for (size_t t = 0; t < T; ++t)
-    a[t] = prior.alpha[t];
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     const size_t thread_num = omp_get_thread_num();
-    auto x = sample_dirichlet<Float>(a, EntropySource::rngs[thread_num]);
+    auto x = sample_dirichlet<Float>(begin(prior.alpha), end(prior.alpha),
+                                     EntropySource::rngs[thread_num]);
     for (size_t t = 0; t < T; ++t)
       matrix(s, t) = x[t];
   }

@@ -360,7 +360,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
     rel_rate[t] /= z;
   lambda_gene_spot(g, s) = z;
   if (counts(g, s) > 0) {
-    auto v = sample_multinomial<Int>(counts(g, s), rel_rate, rng);
+    auto v = sample_multinomial<Int>(counts(g, s), begin(rel_rate), end(rel_rate), rng);
     for (size_t t = 0; t < T; ++t) {
       contrib_gene_type(g, t) += v[t];
       contrib_spot_type(s, t) += v[t];
@@ -439,7 +439,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_variational(
       a[t] /= z;
 
     // LOG(info) << "contributions_gene(" << g << ") = " << contributions_gene[g];
-    auto v = sample_multinomial<Int>(contributions_gene(g), a,
+    auto v = sample_multinomial<Int>(contributions_gene(g), begin(a), end(a),
                                      EntropySource::rngs[thread_num]);
     for (size_t t = 0; t < T; ++t)
       contributions_gene_type(g, t) = v[t];
@@ -455,7 +455,7 @@ void Model<feat_kind, mix_kind>::sample_contributions_variational(
     for (size_t t = 0; t < T; ++t)
       a[t] /= z;
 
-    auto v = sample_multinomial<Int>(contributions_spot(s), a,
+    auto v = sample_multinomial<Int>(contributions_spot(s), begin(a), end(a),
                                      EntropySource::rngs[thread_num]);
     for (size_t t = 0; t < T; ++t)
       contributions_spot_type(s, t) = v[t];

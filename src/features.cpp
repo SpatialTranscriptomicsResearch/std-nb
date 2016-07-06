@@ -39,11 +39,9 @@ void Model<Variable::Feature, Kind::Gamma>::initialize_factor(size_t t) {
 
 template <>
 void Model<Variable::Feature, Kind::Dirichlet>::initialize_factor(size_t t) {
-  std::vector<double> a(G);
-  for (size_t g = 0; g < G; ++g)
-    a[g] = prior.alpha(g,t);
-  auto x
-      = sample_dirichlet<Float>(a, EntropySource::rngs[omp_get_thread_num()]);
+  auto x = sample_dirichlet<Float>(prior.alpha.begin_col(t),
+                                   prior.alpha.end_col(t),
+                                   EntropySource::rngs[omp_get_thread_num()]);
   for (size_t g = 0; g < G; ++g)
     matrix(g, t) = x[g];
 }
