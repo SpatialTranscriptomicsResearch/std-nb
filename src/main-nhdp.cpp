@@ -14,6 +14,9 @@
 #include "nhdp.hpp"
 #include "hierarchical_kmeans.hpp"
 
+#define _GNU_SOURCE
+#include <fenv.h>
+
 using namespace std;
 namespace PF = PoissonFactorization;
 
@@ -333,6 +336,8 @@ int main(int argc, char **argv) {
     model.add_hierarchy(0, hierarchy, 100);
   }
 
+  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+  // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 
   vector<size_t> colSums(model.S, 0);
   for (size_t s = 0; s < model.S; ++s)
