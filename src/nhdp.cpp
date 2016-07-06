@@ -97,10 +97,25 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
             == 0)
           zeros.push_back(k);
 
-      for(auto k: zeros)
-      // for (size_t k = 0; k < K + 1; ++k)
-        // if (alpha[k] == 0)
+      if (true) {
+        vector<size_t> still_zeros;
+        for (auto k : zeros)
+          if ((alpha[k]
+               = counts_type(children[k]) + desc_counts_type(children[k]))
+              == 0)
+            still_zeros.push_back(k);
+        for (auto k : still_zeros)
+          alpha[k] = parameters.tree_alpha / still_zeros.size();
+
+        double z_zero = 0;
+        for (auto k : zeros)
+          z_zero += alpha[k];
+        for (auto k : zeros)
+          alpha[k] *= parameters.tree_alpha / z_zero;
+      } else {
+        for (auto k : zeros)
           alpha[k] = parameters.tree_alpha / zeros.size();
+      }
 
       for (size_t k = 0; k < K + 1; ++k)
         LOG(debug) << "alpha[" << k << "] = " << alpha[k];
