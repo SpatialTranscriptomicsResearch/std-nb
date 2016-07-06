@@ -221,6 +221,7 @@ string nHDP::to_dot() const {
   ss << "digraph {\n";
   list<size_t> types;
   types.push_back(0);
+  size_t total = 0;
   while (not types.empty()) {
     size_t t = types.front();
     types.pop_front();
@@ -230,7 +231,10 @@ string nHDP::to_dot() const {
     size_t y = 0;
     for (size_t s = 0; s < S; ++s)
       y += desc_counts_spot_type(s, t);
-    ss << t << " [label=\"Factor " << t << "\\n" << x << "\"];\n";
+    if (t == 0)
+      total = x + y;
+    ss << t << " [label=\"Factor " << t << "\\n" << x << " " << 100.0 * x / total
+       << "%\\n" << (x + y) << " " << 100.0 * (x + y) / total << "%\"];\n";
     for (auto child : children_of[t]) {
       types.push_back(child);
       tt << t << " -> " << child << "\n";
