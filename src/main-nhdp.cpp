@@ -129,6 +129,31 @@ std::pair<size_t, size_t> draw_read(const Counts &data,
   return make_pair(g, s);
 }
 
+void store(const PF::nHDP &model, const Counts &data, const string &suffix="") {
+  vector<string> type_names;
+  for (size_t t = 0; t < model.T; ++t)
+    type_names.push_back("Factor " + to_string(t + 1));
+
+  ofstream os("nhdp-model" + suffix + ".dot");
+  os << model.to_dot();
+  os = ofstream("nhdp-features" + suffix + ".txt");
+  print(os, model.counts_gene_type, data.row_names, type_names);
+  os = ofstream("nhdp-tree-features" + suffix + ".txt");
+  print(os, model.desc_counts_gene_type, data.row_names, type_names);
+  os = ofstream("nhdp-mix" + suffix + ".txt");
+  print(os, model.counts_spot_type, data.col_names, type_names);
+  os = ofstream("nhdp-tree-mix" + suffix + ".txt");
+  print(os, model.desc_counts_spot_type, data.col_names, type_names);
+
+  os = ofstream("nhdp-tree-children.txt");
+  for(size_t t = 0; t < model.T; ++t) {
+    os << t << ":";
+    for(auto child: model.children_of[t])
+      os << " " << child;
+    os << endl;
+  }
+}
+
 int main(int argc, char **argv) {
   EntropySource::seed();
 
@@ -306,13 +331,6 @@ int main(int argc, char **argv) {
     model.add_hierarchy(0, hierarchy, 100);
   }
 
-  vector<string> type_names;
-  for (size_t t = 0; t < options.num_factors; ++t)
-    type_names.push_back("Factor " + to_string(t + 1));
-
-  // ofstream os("nhdp-features_inital.txt");
-  // print(os, model.counts_gene_type, data.row_names, type_names);
-  // os.close();
 
   vector<size_t> colSums(model.S, 0);
   for (size_t s = 0; s < model.S; ++s)
@@ -325,18 +343,11 @@ int main(int argc, char **argv) {
               << " spot " << data.col_names[read.second];
     LOG(info) << "G = " << model.G << " S = " << model.S << " T = " << model.T;
     model.register_read(read.first, read.second, not options.posterior_switches);
+    if(i > 0 and i % 100000 == 0)
+      store(model, data, "-iter" + to_string(i));
   }
 
-  ofstream os("nhdp-model.dot");
-  os << model.to_dot();
-  os = ofstream("nhdp-features.txt");
-  print(os, model.counts_gene_type, data.row_names, type_names);
-  os = ofstream("nhdp-tree-features.txt");
-  print(os, model.desc_counts_gene_type, data.row_names, type_names);
-  os = ofstream("nhdp-mix.txt");
-  print(os, model.counts_spot_type, data.col_names, type_names);
-  os = ofstream("nhdp-tree-mix.txt");
-  print(os, model.desc_counts_spot_type, data.col_names, type_names);
+  store(model, data, "-final");
 
   return EXIT_SUCCESS;
 }
