@@ -14,6 +14,8 @@ struct nHDP {
     Float mix_beta = 1;
 
     Float tree_alpha = 0.001;
+
+    bool empty_root = false;
   };
 
   /** number of genes */
@@ -34,7 +36,7 @@ struct nHDP {
    * factors */
   Matrix desc_counts_gene_type, desc_counts_spot_type;
 
-  Vector counts_type;
+  Vector counts_type, desc_counts_type;
 
   nHDP(size_t g, size_t s, size_t t, const Parameters &params);
 

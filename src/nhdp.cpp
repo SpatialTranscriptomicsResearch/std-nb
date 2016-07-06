@@ -19,6 +19,7 @@ nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
       desc_counts_gene_type(G, maxT, arma::fill::zeros),
       desc_counts_spot_type(S, maxT, arma::fill::zeros),
       counts_type(maxT, arma::fill::zeros),
+      desc_counts_type(maxT, arma::fill::zeros),
       parent_of(maxT),
       children_of(maxT) {}
 
@@ -60,47 +61,75 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
     for (auto child : children)
       types.push_back(child);
 
-    Float u;
-    if (independent_switches)
-      u = sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
-    else
-      u = sample_beta<Float>(counts_spot_type(s, t) + parameters.mix_alpha,
-                             desc_counts_spot_type(s, t) + parameters.mix_beta);
+    if (parameters.empty_root and t == 0) {
+      for (auto child : children)
+        p[child] = 1;
+      p[T + t] = 1;
+      p[t] = 0;
+    } else {
+      Float u;
+      if (independent_switches)
+        u = sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
+      else
+        u = sample_beta<Float>(
+            counts_spot_type(s, t) + parameters.mix_alpha,
+            desc_counts_spot_type(s, t) + parameters.mix_beta);
 
-    p[t] *= u;
-    for (auto child : children)
-      p[child] = 1 - u;
-    p[T + t] = 1 - u;
+      LOG(verbose) << "u = " << u;
 
-    LOG(verbose) << "u = " << u;
+      for (auto child : children)
+        p[child] = (1 - u) * p[t];
+      p[T + t] = (1 - u) * p[t];
+      p[t] *= u;
+    }
 
-    vector<Float> alpha(K + 1, 0);
-    size_t zeros = 0;
-    for (size_t k = 0; k < K; ++k)
-      if ((alpha[k] = counts_spot_type(s, children[k])
-                      + desc_counts_spot_type(s, children[k]))
-          == 0)
-        zeros++;
+    if (K > 0) {
+      vector<Float> alpha(K + 1, 0);
+      vector<size_t> zeros;
+      zeros.push_back(K);
+      for (size_t k = 0; k < K; ++k)
+        /*
+        if ((alpha[k] = counts_type(children[k])
+                        + desc_counts_type(children[k]))
+        */
+        if ((alpha[k] = counts_spot_type(s, children[k])
+                        + desc_counts_spot_type(s, children[k]))
+            == 0)
+          zeros.push_back(k);
 
-    zeros++;
+      for(auto k: zeros)
+      // for (size_t k = 0; k < K + 1; ++k)
+        // if (alpha[k] == 0)
+          alpha[k] = parameters.tree_alpha / zeros.size();
 
-    if (zeros > 1)
       for (size_t k = 0; k < K + 1; ++k)
-        if (alpha[k] == 0)
-          alpha[k] = parameters.tree_alpha / zeros;
+        LOG(debug) << "alpha[" << k << "] = " << alpha[k];
 
-    for (size_t k = 0; k < K + 1; ++k)
-      LOG(debug) << "alpha[" << k << "] = " << alpha[k];
+      const bool do_dirichlet_distribution = false;
+      if (do_dirichlet_distribution) {
+        auto p_transition = sample_dirichlet<Float>(begin(alpha), end(alpha),
+                                                    EntropySource::rng);
 
-    auto p_transition = sample_dirichlet<Float>(alpha, EntropySource::rng);
+        for (size_t k = 0; k < K + 1; ++k)
+          LOG(debug) << "p_transition[" << k << "] = " << p_transition[k];
 
-    for (size_t k = 0; k < K + 1; ++k)
-      LOG(debug) << "p_transition[" << k << "] = " << p_transition[k];
-
-    p[T + t] *= p_transition[K];
-    for (size_t k = 0; k < K; ++k)
-      p[children[k]] *= p_transition[k];
+        p[T + t] *= p_transition[K];
+        for (size_t k = 0; k < K; ++k)
+          p[children[k]] *= p_transition[k];
+      } else {
+        double z = 0;
+        for (auto &a : alpha)
+          z += a;
+        for (size_t k = 0; k < K; ++k)
+          p[children[k]] *= alpha[k] / z;
+        p[T + t] *= alpha[K] / z;
+      }
+    }
   }
+
+  if (parameters.empty_root)
+    assert(p[0] == 0);
+    // p[0] = 0;
 
   for (size_t t = T; t < 2 * T; ++t)
     if (p[t] > 0)
@@ -153,6 +182,7 @@ void nHDP::register_read(size_t g, size_t s, bool independent_switches) {
     t = parent_of[t];
     desc_counts_spot_type(s, t)++;
     desc_counts_gene_type(g, t)++;
+    desc_counts_type(t)++;
     LOG(debug) << "Assigning to desc_counts_spot_type of t = " << t << ": " << desc_counts_spot_type(s, t);
     LOG(debug) << "Assigning to desc_counts_gene_type of t = " << t << ": " << desc_counts_gene_type(g, t);
   }

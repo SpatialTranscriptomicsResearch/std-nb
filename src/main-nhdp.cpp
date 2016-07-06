@@ -206,6 +206,8 @@ int main(int argc, char **argv) {
      "Perform split/merge steps.")
     ("kmeans,k", po::bool_switch(&options.kmeans),
      "Perform hierarchical K-means for initialization.")
+    ("empty", po::bool_switch(&parameters.empty_root),
+     "Don't let the root node contribute.")
     ("switches", po::bool_switch(&options.posterior_switches),
      "Don't sample activation switches independently but from the posterior.")
     ("output,o", po::value(&options.output),
@@ -313,8 +315,8 @@ int main(int argc, char **argv) {
 
   if (options.kmeans) {
     list<size_t> levels;
-    levels.push_back(5);
-    levels.push_back(5);
+    levels.push_back(20);
+    levels.push_back(10);
     levels.push_back(5);
     PF::Matrix fm(model.G, model.S);
     for (size_t s = 0; s < model.S; ++s) {
