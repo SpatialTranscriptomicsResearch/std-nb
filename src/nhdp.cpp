@@ -100,9 +100,10 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
       if (true) {
         vector<size_t> still_zeros;
         for (auto k : zeros)
-          if ((alpha[k]
-               = counts_type(children[k]) + desc_counts_type(children[k]))
-              == 0)
+          if (k == K
+              or (alpha[k]
+                  = counts_type(children[k]) + desc_counts_type(children[k]))
+                     == 0)
             still_zeros.push_back(k);
         for (auto k : still_zeros)
           alpha[k] = parameters.tree_alpha / still_zeros.size();
