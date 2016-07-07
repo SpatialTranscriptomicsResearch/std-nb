@@ -47,6 +47,7 @@ struct nHDP {
 
   size_t add_node(size_t parent);
 
+  std::vector<Float> compute_prior(size_t s, bool independent_switches) const;
   size_t sample_type(size_t g, size_t s, bool independent_switches) const;
   void register_read(size_t g, size_t s, bool independent_switches);
 

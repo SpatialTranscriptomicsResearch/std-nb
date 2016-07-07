@@ -32,9 +32,7 @@ void nHDP::add_hierarchy(size_t t, const Hierarchy &hierarchy,
   }
 }
 
-size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
-  LOG(verbose) << "Sample type for gene " << g << " in spot " << s;
-
+vector<Float> nHDP::compute_prior(size_t s, bool independent_switches) const {
   // the first T components of the vector represent probabilities for the currently active factors
   // the second T components of the vector represent probabilities for new possible factors
   vector<Float> p(2 * T, 0);
@@ -84,10 +82,6 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
       vector<size_t> zeros;
       zeros.push_back(K);
       for (size_t k = 0; k < K; ++k)
-        /*
-        if ((alpha[k] = counts_type(children[k])
-                        + desc_counts_type(children[k]))
-        */
         if ((alpha[k] = counts_spot_type(s, children[k])
                         + desc_counts_spot_type(s, children[k]))
             == 0)
@@ -141,7 +135,6 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
 
   if (parameters.empty_root)
     assert(p[0] == 0);
-    // p[0] = 0;
 
   for (size_t t = T; t < 2 * T; ++t)
     if (p[t] > 0)
@@ -149,6 +142,14 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
 
   for (size_t t = 0; t < 2 * T; ++t)
     LOG(verbose) << "p[" << t << "] = " << p[t];
+
+  return p;
+}
+
+size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
+  LOG(verbose) << "Sample type for gene " << g << " in spot " << s;
+
+  vector<Float> p = compute_prior(s, independent_switches);
 
   for (size_t t = 0; t < T; ++t)
     p[t]
