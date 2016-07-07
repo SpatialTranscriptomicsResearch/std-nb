@@ -61,27 +61,23 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
     for (auto child : children)
       types.push_back(child);
 
-    if (parameters.empty_root and t == 0) {
-      for (auto child : children)
-        p[child] = 1;
-      p[T + t] = 1;
-      p[t] = 0;
-    } else {
-      Float u;
+    Float u;
+    if (parameters.empty_root and t == 0)
+      u = 0;
+    else {
       if (independent_switches)
         u = sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
       else
         u = sample_beta<Float>(
             counts_spot_type(s, t) + parameters.mix_alpha,
             desc_counts_spot_type(s, t) + parameters.mix_beta);
-
-      LOG(verbose) << "u = " << u;
-
-      for (auto child : children)
-        p[child] = (1 - u) * p[t];
-      p[T + t] = (1 - u) * p[t];
-      p[t] *= u;
     }
+    LOG(verbose) << "u = " << u;
+
+    for (auto child : children)
+      p[child] = (1 - u) * p[t];
+    p[T + t] = (1 - u) * p[t];
+    p[t] *= u;
 
     if (K > 0) {
       vector<Float> alpha(K + 1, 0);
