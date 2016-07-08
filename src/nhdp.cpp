@@ -351,7 +351,7 @@ Vector nHDP::sample_transitions(size_t s) const {
   return p;
 }
 
-nHDP nHDP::sample(const IMatrix &counts) const {
+nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
   LOG(info) << "Performing sampling";
   nHDP model = *this;
   model.counts_gene_type.fill(0);
@@ -366,7 +366,7 @@ nHDP nHDP::sample(const IMatrix &counts) const {
 
   for (size_t s = 0; s < S; ++s) {
     LOG(info) << "Performing sampling for spot " << s;
-    auto switches = sample_switches(s, true, false);
+    auto switches = sample_switches(s, independent_switches, false);
     auto transitions = sample_transitions(s);
     LOG(debug) << "switches = " << switches;
     LOG(debug) << "transitions = " << transitions;

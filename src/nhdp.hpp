@@ -56,7 +56,7 @@ struct nHDP {
                      bool update_ancestors);
   void update_ancestors();
 
-  nHDP sample(const IMatrix &counts) const;
+  nHDP sample(const IMatrix &counts, bool independent_switches) const;
   Matrix sample_gene_expression() const;
   Vector sample_transitions(size_t s) const;
 
