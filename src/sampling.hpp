@@ -15,7 +15,7 @@ struct RandomDistribution {
 };
 
 template <class T, class Iter>
-std::vector<T> sample_multinomial(size_t n, Iter begin, const Iter end,
+std::vector<T> sample_multinomial(size_t n, const Iter begin, const Iter end,
                                   std::mt19937 &rng = EntropySource::rng) {
   std::vector<T> x(std::distance(begin, end), 0);
   Iter p = begin;
@@ -59,7 +59,7 @@ T sample_beta(double alpha, double beta,
 }
 
 template <class Y, class Iter>
-std::vector<Y> sample_dirichlet(Iter begin, const Iter end,
+std::vector<Y> sample_dirichlet(const Iter begin, const Iter end,
                                 std::mt19937 &rng = EntropySource::rng) {
   const size_t K = std::distance(begin, end);
   std::vector<Y> p(K, 0);
