@@ -40,7 +40,8 @@ struct nHDP {
 
   nHDP(size_t g, size_t s, size_t t, const Parameters &params);
 
-  void add_hierarchy(size_t t, const Hierarchy &hierarchy, double concentration);
+  void add_hierarchy(size_t t, const Hierarchy &hierarchy,
+                     double concentration);
 
   std::vector<size_t> parent_of;
   std::vector<std::vector<size_t>> children_of;
@@ -51,7 +52,8 @@ struct nHDP {
   Vector compute_prior(size_t s, bool independent_switches) const;
   size_t sample_type(size_t g, size_t s, bool independent_switches) const;
   void register_read(size_t g, size_t s, bool independent_switches);
-  void register_read(size_t g, size_t s, size_t t, size_t n, bool update_ancestors);
+  void register_read(size_t g, size_t s, size_t t, size_t n,
+                     bool update_ancestors);
   void update_ancestors();
 
   nHDP sample(const IMatrix &counts) const;
@@ -59,6 +61,21 @@ struct nHDP {
   Vector sample_transitions(size_t s) const;
 
   std::string to_dot(double threshold = 0) const;
+
+  template <typename Iter>
+  void add_levels(size_t t, const Iter begin, const Iter end) {
+    if (begin != end) {
+      auto iter = begin;
+      n = *iter;
+      iter++;
+      for (size_t i = 0; u < n; ++u) {
+        T++;
+        children_of[t].push_back(T);
+        parent_of[T] = tt;
+        add_levels(T, iter, end);
+      }
+    }
+  }
 };
 
 template <typename Iter>
