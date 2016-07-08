@@ -339,19 +339,30 @@ int main(int argc, char **argv) {
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 
-  vector<size_t> colSums(model.S, 0);
-  for (size_t s = 0; s < model.S; ++s)
-    for (size_t g = 0; g < model.G; ++g)
-      colSums[s] += data.counts(g, s);
+  if (true) {
+    for (size_t i = 0; i < options.num_steps; ++i) {
+      LOG(info) << "Iteration " << i;
+      model = model.sample(data.counts);
+      if (i > 0 and i % 10 == 0)
+        store(model, data, "-iter" + to_string(i));
+    }
+  } else {
+    vector<size_t> colSums(model.S, 0);
+    for (size_t s = 0; s < model.S; ++s)
+      for (size_t g = 0; g < model.G; ++g)
+        colSums[s] += data.counts(g, s);
 
-  for (size_t i = 0; i < options.num_steps; ++i) {
-    auto read = draw_read(data, colSums);
-    LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
-              << " spot " << data.col_names[read.second];
-    LOG(info) << "G = " << model.G << " S = " << model.S << " T = " << model.T;
-    model.register_read(read.first, read.second, not options.posterior_switches);
-    if(i > 0 and i % 100000 == 0)
-      store(model, data, "-iter" + to_string(i));
+    for (size_t i = 0; i < options.num_steps; ++i) {
+      auto read = draw_read(data, colSums);
+      LOG(info) << "Iteration " << i << " gene " << data.row_names[read.first]
+                << " spot " << data.col_names[read.second];
+      LOG(info) << "G = " << model.G << " S = " << model.S
+                << " T = " << model.T;
+      model.register_read(read.first, read.second,
+                          not options.posterior_switches);
+      if (i > 0 and i % 100000 == 0)
+        store(model, data, "-iter" + to_string(i));
+    }
   }
 
   store(model, data, "-final");

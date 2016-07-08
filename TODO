@@ -68,6 +68,11 @@ hierarchical dirichlet features
 a two-level hierarchy
 
 when sampling a novel type (i.e. one that isn't already present in the global hierarchy) then sample a dirichlet-multinomial as dirichlet prior for it, with a similar scaling as the initial factors
+currently, the nHDP results in trees with a lot of weight on a single branch; it would be good to get more balanced trees instead!
+it would be possible to sample multionomially for all counts of a gene in a spot
+Kmeans: use a gaussian mixture approach, rather than 'hard' K-means
+
+do bagged updates
 
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 

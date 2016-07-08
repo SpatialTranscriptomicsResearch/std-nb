@@ -47,12 +47,28 @@ struct nHDP {
 
   size_t add_node(size_t parent);
 
-  std::vector<Float> compute_prior(size_t s, bool independent_switches) const;
+  Vector sample_switches(size_t s, bool independent_switches, bool extra) const;
+  Vector compute_prior(size_t s, bool independent_switches) const;
   size_t sample_type(size_t g, size_t s, bool independent_switches) const;
   void register_read(size_t g, size_t s, bool independent_switches);
+  void register_read(size_t g, size_t s, size_t t, size_t n, bool update_ancestors);
+  void update_ancestors();
+
+  nHDP sample(const IMatrix &counts) const;
+  Matrix sample_gene_expression() const;
+  Vector sample_transitions(size_t s) const;
 
   std::string to_dot(double threshold = 0) const;
 };
+
+template <typename Iter>
+void normalize(const Iter begin, const Iter end) {
+  double z = 0;
+  for(Iter iter = begin; iter != end; ++iter)
+    z += *iter;
+  for(Iter iter = begin; iter != end; ++iter)
+    *iter /= z;
+}
 }
 
 #endif
