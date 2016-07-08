@@ -66,14 +66,10 @@ struct nHDP {
   void add_levels(size_t t, const Iter begin, const Iter end) {
     if (begin != end) {
       auto iter = begin;
-      n = *iter;
+      auto n = *iter;
       iter++;
-      for (size_t i = 0; u < n; ++u) {
-        T++;
-        children_of[t].push_back(T);
-        parent_of[T] = tt;
-        add_levels(T, iter, end);
-      }
+      for (size_t i = 0; i < n; ++i)
+        add_levels(add_node(t), iter, end);
     }
   }
 };
