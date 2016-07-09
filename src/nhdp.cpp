@@ -280,7 +280,7 @@ Matrix nHDP::sample_gene_expression() const {
 }
 
 Vector nHDP::sample_transitions(size_t s) const {
-  LOG(info) << "Sampling transition probabilities for spot " << s;
+  LOG(verbose) << "Sampling transition probabilities for spot " << s;
   Vector p(T, arma::fill::zeros);
 
   list<size_t> types;
@@ -350,7 +350,7 @@ Vector nHDP::sample_transitions(size_t s) const {
   for (size_t t = 0; t < T; ++t)
     LOG(verbose) << "p[" << t << "] = " << p[t];
 
-  LOG(info) << "Done: Sampling transition probabilities for spot " << s;
+  LOG(verbose) << "Done: Sampling transition probabilities for spot " << s;
   return p;
 }
 
