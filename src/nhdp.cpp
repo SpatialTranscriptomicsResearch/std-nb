@@ -215,7 +215,8 @@ size_t nHDP::sample_type(size_t g, size_t s, bool independent_switches) const {
                                             end(p))(EntropySource::rng);
 }
 
-void nHDP::register_read(size_t g, size_t s, size_t t, size_t n, bool update_ancestors) {
+void nHDP::register_read(size_t g, size_t s, size_t t, size_t n,
+                         bool update_ancestors) {
   counts_gene_type(g, t) += n;
   counts_spot_type(s, t) += n;
   counts_type(t) += n;
@@ -367,22 +368,43 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
   // sample gene expression profile
   Matrix phi = sample_gene_expression();
 
-  for (size_t s = 0; s < S; ++s) {
-    LOG(info) << "Performing sampling for spot " << s;
-    auto switches = sample_switches(s, independent_switches, false);
-    auto transitions = sample_transitions(s);
-    LOG(debug) << "switches = " << switches;
-    LOG(debug) << "transitions = " << transitions;
-    auto p_tree = switches % transitions;
-    LOG(debug) << "P(tree) = " << p_tree;
-    // sample statistics
-    for (size_t g = 0; g < G; ++g) {
-      Vector p = p_tree % phi.row(g).t();
-      normalize(begin(p), end(p));
-      auto split_counts
-          = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
-      for (size_t t = 0; t < T; ++t)
-        model.register_read(g, s, t, split_counts[t], false);
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    IMatrix c_gene_type(G, T, arma::fill::zeros);
+    IMatrix c_spot_type(S, T, arma::fill::zeros);
+    IVector c_type(T, arma::fill::zeros);
+#pragma omp for
+    for (size_t s = 0; s < S; ++s) {
+      LOG(info) << "Performing sampling for spot " << s;
+      auto switches = sample_switches(s, independent_switches, false);
+      auto transitions = sample_transitions(s);
+      LOG(debug) << "switches = " << switches;
+      LOG(debug) << "transitions = " << transitions;
+      auto p_tree = switches % transitions;
+      LOG(debug) << "P(tree) = " << p_tree;
+      // sample statistics
+      for (size_t g = 0; g < G; ++g) {
+        Vector p = p_tree % phi.row(g).t();
+        normalize(begin(p), end(p));
+        auto split_counts
+            = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
+        for (size_t t = 0; t < T; ++t) {
+          c_gene_type(g, t) += split_counts[t];
+          c_spot_type(s, t) += split_counts[t];
+          c_type(t) += split_counts[t];
+        }
+      }
+    }
+
+#pragma omp critical
+    {
+      for (size_t t = 0; t < T; ++t) {
+        for (size_t g = 0; g < G; ++g)
+          model.counts_gene_type(g, t) += c_gene_type(g, t);
+        for (size_t s = 0; s < S; ++s)
+          model.counts_spot_type(s, t) += c_spot_type(s, t);
+        model.counts_type(t) += c_type(t);
+      }
     }
   }
   model.update_ancestors();
@@ -390,7 +412,8 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
 }
 
 /*
-void nHDP::register_reads(size_t s,  const Vector reads, bool independent_switches) {
+void nHDP::register_reads(size_t s,  const Vector reads, bool
+independent_switches) {
   LOG(verbose) << "Register reads in spot " << s
                << ", G = " << G << " S = " << S << " T = " << T;
 
