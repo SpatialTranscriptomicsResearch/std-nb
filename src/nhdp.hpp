@@ -77,9 +77,9 @@ struct nHDP {
 template <typename Iter>
 void normalize(const Iter begin, const Iter end) {
   double z = 0;
-  for(Iter iter = begin; iter != end; ++iter)
+  for (Iter iter = begin; iter != end; ++iter)
     z += *iter;
-  for(Iter iter = begin; iter != end; ++iter)
+  for (Iter iter = begin; iter != end; ++iter)
     *iter /= z;
 }
 }
