@@ -411,19 +411,6 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
   return model;
 }
 
-/*
-void nHDP::register_reads(size_t s,  const Vector reads, bool
-independent_switches) {
-  LOG(verbose) << "Register reads in spot " << s
-               << ", G = " << G << " S = " << S << " T = " << T;
-
-  vector<Float> p = compute_prior(s, independent_switches);
-
-  for(size_t g = 0; g < G; ++g)
-    register_reads(g, s, reads[g], p);
-}
-*/
-
 size_t nHDP::add_node(size_t parent) {
   if (T == maxT) {
     LOG(fatal) << "Reached maximum number of factors!";
