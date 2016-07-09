@@ -9,11 +9,11 @@ using namespace std;
 
 namespace PoissonFactorization {
 
-nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
+nHDP::nHDP(size_t g, size_t s, size_t t_, const Parameters &params)
     : G(g),
       S(s),
       T(1),
-      maxT(t),
+      maxT(t_),
       parameters(params),
       counts_gene_type(G, maxT, arma::fill::zeros),
       counts_spot_type(S, maxT, arma::fill::zeros),
