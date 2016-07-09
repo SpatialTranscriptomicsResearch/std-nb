@@ -383,17 +383,18 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
       auto p_tree = switches % transitions;
       LOG(debug) << "P(tree) = " << p_tree;
       // sample statistics
-      for (size_t g = 0; g < G; ++g) {
-        Vector p = p_tree % phi.row(g).t();
-        normalize(begin(p), end(p));
-        auto split_counts
-            = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
-        for (size_t t = 0; t < T; ++t) {
-          c_gene_type(g, t) += split_counts[t];
-          c_spot_type(s, t) += split_counts[t];
-          c_type(t) += split_counts[t];
+      for (size_t g = 0; g < G; ++g)
+        if (counts(g, s) > 0) {
+          Vector p = p_tree % phi.row(g).t();
+          normalize(begin(p), end(p));
+          auto split_counts
+              = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
+          for (size_t t = 0; t < T; ++t) {
+            c_gene_type(g, t) += split_counts[t];
+            c_spot_type(s, t) += split_counts[t];
+            c_type(t) += split_counts[t];
+          }
         }
-      }
     }
 
 #pragma omp critical
