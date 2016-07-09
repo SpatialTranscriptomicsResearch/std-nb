@@ -162,6 +162,7 @@ int main(int argc, char **argv) {
 
   Options options;
 
+  vector<size_t> levels;
   PF::nHDP::Parameters parameters;
 
   string config_path;
@@ -205,6 +206,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("levels,l", po::value(&levels),
+     "Initialize tree topology as a complete tree with the given number of children acress the first few levels.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
     ("kmeans,k", po::bool_switch(&options.kmeans),
@@ -334,7 +337,8 @@ int main(int argc, char **argv) {
         fm, PF::Vector(model.G, arma::fill::zeros), begin(levels), end(levels));
 
     model.add_hierarchy(0, hierarchy, 100);
-  }
+  } else
+    model.add_levels(0, begin(levels), end(levels));
 
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
