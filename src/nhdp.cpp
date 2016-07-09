@@ -22,7 +22,10 @@ nHDP::nHDP(size_t g, size_t s, size_t t, const Parameters &params)
       counts_type(maxT, arma::fill::zeros),
       desc_counts_type(maxT, arma::fill::zeros),
       parent_of(maxT),
-      children_of(maxT) {}
+      children_of(maxT) {
+  for (size_t t = 0; t < T; ++t)
+    parent_of[t] = t;
+}
 
 void nHDP::add_hierarchy(size_t t, const Hierarchy &hierarchy,
                          double concentration) {
