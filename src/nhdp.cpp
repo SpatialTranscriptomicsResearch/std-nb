@@ -310,8 +310,6 @@ Vector nHDP::sample_transitions(size_t s) const {
 
     if (K > 0) {
       vector<Float> alpha(K, 0);
-      vector<size_t> zeros;
-      zeros.push_back(K);
       for (size_t k = 0; k < K; ++k) {
         alpha[k] = counts_spot_type(s, children[k])
                    + desc_counts_spot_type(s, children[k]);
