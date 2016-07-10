@@ -155,6 +155,9 @@ void store(const PF::nHDP &model, const Counts &data, const string &suffix="") {
       os << " " << child;
     os << endl;
   }
+  os = ofstream("nhdp-tree-parent.txt");
+  for(size_t t = 0; t < model.T; ++t)
+    os << t << "\t" << model.parent_of[t] << endl;
 }
 
 int main(int argc, char **argv) {
