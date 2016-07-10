@@ -370,6 +370,14 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
 
   double l = 0;
 
+  // prepare a random order of the samples
+  // The purpose of this is to guarantee an even balancing of the work load
+  // across the threads. In default order it would be uneven because spots of
+  // different experiment do not have the same relative frequency of zeros.
+  vector<size_t> order(S);
+  iota(begin(order), end(order), 0);
+  shuffle(begin(order), end(order), EntropySource::rng);
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     IMatrix c_gene_type(G, T, arma::fill::zeros);
@@ -377,7 +385,8 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
     IVector c_type(T, arma::fill::zeros);
     double ll = 0;
 #pragma omp for
-    for (size_t s = 0; s < S; ++s) {
+    for (size_t s_ = 0; s_ < S; ++s_) {
+      size_t s = order[s_];
       LOG(info) << "Performing sampling for spot " << s;
       auto switches = sample_switches(s, independent_switches, false);
       auto transitions = sample_transitions(s);
