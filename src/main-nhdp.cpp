@@ -320,10 +320,6 @@ int main(int argc, char **argv) {
                  parameters);
 
   if (options.kmeans) {
-    list<size_t> levels;
-    levels.push_back(20);
-    levels.push_back(10);
-    levels.push_back(5);
     PF::Matrix fm(model.G, model.S);
     for (size_t s = 0; s < model.S; ++s) {
       double z = 0;
