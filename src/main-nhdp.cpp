@@ -347,7 +347,7 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < options.num_steps; ++i) {
       LOG(info) << "Iteration " << i;
       model = model.sample(data.counts, not options.posterior_switches);
-      if (i > 0 and i % 10 == 0)
+      if (i > 0 and i % options.report_interval == 0)
         store(model, data, "-iter" + to_string(i));
     }
   } else {
