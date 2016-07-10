@@ -146,7 +146,7 @@ void store(const PF::nHDP &model, const Counts &data, const string &prefix = "",
   print(os, model.desc_counts_gene_type, data.row_names, type_names);
   os = ofstream(stem + "-mix.txt");
   print(os, model.counts_spot_type, data.col_names, type_names);
-  os = ofstream(stem + "-tree-mix.txt");
+  os = ofstream(stem + "-mix-desc.txt");
   print(os, model.desc_counts_spot_type, data.col_names, type_names);
 
   os = ofstream(stem + "-tree-children.txt");
