@@ -132,31 +132,32 @@ std::pair<size_t, size_t> draw_read(const Counts &data,
   return make_pair(g, s);
 }
 
-void store(const PF::nHDP &model, const Counts &data, const string &suffix="") {
+void store(const PF::nHDP &model, const Counts &data, const string &prefix = "",
+           const string &suffix = "") {
   vector<string> type_names;
   for (size_t t = 0; t < model.T; ++t)
     type_names.push_back("Factor " + to_string(t + 1));
-
-  ofstream os("nhdp-model" + suffix + ".dot");
+  string stem = prefix + "nhdp" + suffix;
+  ofstream os(stem + "-model" + suffix + ".dot");
   os << model.to_dot();
-  os = ofstream("nhdp-features" + suffix + ".txt");
+  os = ofstream(stem + "-features.txt");
   print(os, model.counts_gene_type, data.row_names, type_names);
-  os = ofstream("nhdp-tree-features" + suffix + ".txt");
+  os = ofstream(stem + "-features-desc.txt");
   print(os, model.desc_counts_gene_type, data.row_names, type_names);
-  os = ofstream("nhdp-mix" + suffix + ".txt");
+  os = ofstream(stem + "-mix.txt");
   print(os, model.counts_spot_type, data.col_names, type_names);
-  os = ofstream("nhdp-tree-mix" + suffix + ".txt");
+  os = ofstream(stem + "-tree-mix.txt");
   print(os, model.desc_counts_spot_type, data.col_names, type_names);
 
-  os = ofstream("nhdp-tree-children.txt");
-  for(size_t t = 0; t < model.T; ++t) {
+  os = ofstream(stem + "-tree-children.txt");
+  for (size_t t = 0; t < model.T; ++t) {
     os << t << ":";
-    for(auto child: model.children_of[t])
+    for (auto child : model.children_of[t])
       os << " " << child;
     os << endl;
   }
-  os = ofstream("nhdp-tree-parent.txt");
-  for(size_t t = 0; t < model.T; ++t)
+  os = ofstream(stem + "-tree-parent.txt");
+  for (size_t t = 0; t < model.T; ++t)
     os << t << "\t" << model.parent_of[t] << endl;
 }
 
@@ -347,7 +348,7 @@ int main(int argc, char **argv) {
       LOG(info) << "Iteration " << i;
       model = model.sample(data.counts, not options.posterior_switches);
       if (i > 0 and i % options.report_interval == 0)
-        store(model, data, "-iter" + to_string(i));
+        store(model, data, options.output, "-iter" + to_string(i));
     }
   } else {
     vector<size_t> colSums(model.S, 0);
@@ -364,11 +365,11 @@ int main(int argc, char **argv) {
       model.register_read(read.first, read.second,
                           not options.posterior_switches);
       if (i > 0 and i % 100000 == 0)
-        store(model, data, "-iter" + to_string(i));
+        store(model, data, options.output, "-iter" + to_string(i));
     }
   }
 
-  store(model, data, "-final");
+  store(model, data, options.output, "-final");
 
   return EXIT_SUCCESS;
 }
