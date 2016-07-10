@@ -240,9 +240,11 @@ void nHDP::update_ancestors() {
     t--;
     size_t parent = parent_of[t];
     if (parent != t) {
-      desc_counts_spot_type.col(parent) += counts_spot_type.col(t);
-      desc_counts_gene_type.col(parent) += counts_gene_type.col(t);
-      desc_counts_type(parent) += counts_type(t);
+      desc_counts_spot_type.col(parent)
+          += counts_spot_type.col(t) + desc_counts_spot_type.col(t);
+      desc_counts_gene_type.col(parent)
+          += counts_gene_type.col(t) + desc_counts_gene_type.col(t);
+      desc_counts_type(parent) += counts_type(t) + desc_counts_type(t);
     }
   }
 }
