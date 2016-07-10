@@ -368,11 +368,14 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
   // sample gene expression profile
   Matrix phi = sample_gene_expression();
 
+  double l = 0;
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     IMatrix c_gene_type(G, T, arma::fill::zeros);
     IMatrix c_spot_type(S, T, arma::fill::zeros);
     IVector c_type(T, arma::fill::zeros);
+    double ll = 0;
 #pragma omp for
     for (size_t s = 0; s < S; ++s) {
       LOG(info) << "Performing sampling for spot " << s;
@@ -390,6 +393,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
           auto split_counts
               = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
           for (size_t t = 0; t < T; ++t) {
+            ll += split_counts[t] * log(p(t));
             c_gene_type(g, t) += split_counts[t];
             c_spot_type(s, t) += split_counts[t];
             c_type(t) += split_counts[t];
@@ -399,6 +403,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
 
 #pragma omp critical
     {
+      l += ll;
       for (size_t t = 0; t < T; ++t) {
         for (size_t g = 0; g < G; ++g)
           model.counts_gene_type(g, t) += c_gene_type(g, t);
@@ -409,6 +414,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
     }
   }
   model.update_ancestors();
+  LOG(info) << "Log-likelihood = " << l;
   return model;
 }
 
