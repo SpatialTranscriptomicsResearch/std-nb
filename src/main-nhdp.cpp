@@ -14,7 +14,9 @@
 #include "nhdp.hpp"
 #include "hierarchical_kmeans.hpp"
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <fenv.h>
 
 using namespace std;
