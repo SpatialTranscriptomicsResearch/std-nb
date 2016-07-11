@@ -355,8 +355,10 @@ int main(int argc, char **argv) {
       model = model.sample(data.counts, not options.posterior_switches);
       if (i > 0 and i % options.report_interval == 0)
         store(model, data, options.output, "-iter" + to_string(i));
+      if (i > 0 and i % (options.report_interval * 10) == 0)
+        store(cumul_model, data, options.output, "-cumul-iter" + to_string(i));
     }
-    store(cumul_model, data, options.output, "-cumul");
+    store(cumul_model, data, options.output, "-cumul-final");
   } else {
     vector<size_t> colSums(model.S, 0);
     for (size_t s = 0; s < model.S; ++s)
