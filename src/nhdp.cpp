@@ -399,6 +399,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
         if (counts(g, s) > 0) {
           Vector p = p_tree % phi.row(g).t();
           normalize(begin(p), end(p));
+          // TODO consider sorting
           auto split_counts
               = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
           for (size_t t = 0; t < T; ++t) {
