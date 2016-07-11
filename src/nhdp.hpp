@@ -72,6 +72,7 @@ struct nHDP {
         add_levels(add_node(t), iter, end);
     }
   }
+  nHDP &operator+=(const nHDP &m);
 };
 
 template <typename Iter>

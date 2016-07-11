@@ -39,6 +39,7 @@ struct Options {
   vector<string> tsv_paths;
   size_t num_factors = 1000;
   size_t num_steps = 2000;
+  size_t burn_in = 50;
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
@@ -346,12 +347,16 @@ int main(int argc, char **argv) {
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 
   if (true) {
+    PF::nHDP cumul_model = model;
     for (size_t i = 0; i < options.num_steps; ++i) {
       LOG(info) << "Iteration " << i;
+      if (i >= options.burn_in)
+        cumul_model += model;
       model = model.sample(data.counts, not options.posterior_switches);
       if (i > 0 and i % options.report_interval == 0)
         store(model, data, options.output, "-iter" + to_string(i));
     }
+    store(cumul_model, data, options.output, "-cumul");
   } else {
     vector<size_t> colSums(model.S, 0);
     for (size_t s = 0; s < model.S; ++s)

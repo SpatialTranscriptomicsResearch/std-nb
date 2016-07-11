@@ -488,4 +488,14 @@ string nHDP::to_dot(double threshold) const {
   ss << "}\n";
   return ss.str();
 }
+
+nHDP &nHDP::operator+=(const nHDP &m) {
+  counts_gene_type += m.counts_gene_type;
+  desc_counts_gene_type += m.desc_counts_gene_type;
+  counts_spot_type += m.counts_spot_type;
+  desc_counts_spot_type += m.desc_counts_spot_type;
+  counts_type += m.counts_type;
+  desc_counts_type += m.desc_counts_type;
+  return *this;
+}
 }
