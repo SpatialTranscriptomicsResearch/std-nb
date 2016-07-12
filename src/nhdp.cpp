@@ -374,7 +374,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
   // prepare a random order of the samples
   // The purpose of this is to guarantee an even balancing of the work load
   // across the threads. In default order it would be uneven because spots of
-  // different experiment do not have the same relative frequency of zeros.
+  // different experiments do not have the same relative frequency of zeros.
   vector<size_t> order(S);
   iota(begin(order), end(order), 0);
   shuffle(begin(order), end(order), EntropySource::rng);
