@@ -209,6 +209,8 @@ int main(int argc, char **argv) {
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
+    ("burn,b", po::value(&options.burn_in)->default_value(options.burn_in),
+     "Number of iterations to discard before accumulating statistics.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
