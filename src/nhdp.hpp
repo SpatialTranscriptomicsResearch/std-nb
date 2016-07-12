@@ -1,6 +1,7 @@
 #ifndef NHDP_HPP
 #define NHDP_HPP
 
+#include <random>
 #include "types.hpp"
 #include "hierarchical_kmeans.hpp"
 
@@ -48,7 +49,8 @@ struct nHDP {
 
   size_t add_node(size_t parent);
 
-  Vector sample_switches(size_t s, bool independent_switches, bool extra) const;
+  Vector sample_switches(size_t s, bool independent_switches, bool extra,
+                         std::mt19937 &rng) const;
   Vector compute_prior(size_t s, bool independent_switches) const;
   size_t sample_type(size_t g, size_t s, bool independent_switches) const;
   void register_read(size_t g, size_t s, bool independent_switches);
@@ -58,7 +60,7 @@ struct nHDP {
 
   nHDP sample(const IMatrix &counts, bool independent_switches) const;
   Matrix sample_gene_expression() const;
-  Vector sample_transitions(size_t s) const;
+  Vector sample_transitions(size_t s, std::mt19937 &rng) const;
 
   std::string to_dot(double threshold = 0) const;
 

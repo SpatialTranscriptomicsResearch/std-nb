@@ -36,8 +36,8 @@ void nHDP::add_hierarchy(size_t t, const Hierarchy &hierarchy,
   }
 }
 
-Vector nHDP::sample_switches(size_t s, bool independent_switches,
-                             bool extra) const {
+Vector nHDP::sample_switches(size_t s, bool independent_switches, bool extra,
+                             mt19937 &rng) const {
   // the first T components of the vector represent probabilities for the
   // currently active factors
   // the second T components of the vector represent probabilities for new
@@ -68,12 +68,12 @@ Vector nHDP::sample_switches(size_t s, bool independent_switches,
       current_u = 0;
     else {
       if (independent_switches)
-        current_u
-            = sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
+        current_u = sample_beta<Float>(parameters.mix_alpha,
+                                       parameters.mix_beta, rng);
       else
         current_u = sample_beta<Float>(
             counts_spot_type(s, t) + parameters.mix_alpha,
-            desc_counts_spot_type(s, t) + parameters.mix_beta);
+            desc_counts_spot_type(s, t) + parameters.mix_beta, rng);
     }
     LOG(verbose) << "current_u = " << current_u;
 
@@ -87,7 +87,8 @@ Vector nHDP::sample_switches(size_t s, bool independent_switches,
   if (extra)
     for (size_t t = T; t < 2 * T; ++t)
       if (u[t] > 0)
-        u[t] *= sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta);
+        u[t] *= sample_beta<Float>(parameters.mix_alpha, parameters.mix_beta,
+                                   rng);
 
   return u;
 }
@@ -95,7 +96,7 @@ Vector nHDP::sample_switches(size_t s, bool independent_switches,
 Vector nHDP::compute_prior(size_t s, bool independent_switches) const {
   // the first T components of the vector represent probabilities for the currently active factors
   // the second T components of the vector represent probabilities for new possible factors
-  Vector p = sample_switches(s, independent_switches, true);
+  Vector p = sample_switches(s, independent_switches, true, EntropySource::rng);
 
   list<size_t> types;
   types.push_front(0);
@@ -273,8 +274,8 @@ Matrix nHDP::sample_gene_expression() const {
     Vector alpha = counts_gene_type.col(t) + parameters.feature_alpha;
 
     // LOG(verbose) << "Alpha = " << t;
-    auto col
-        = sample_dirichlet<Float>(begin(alpha), end(alpha), EntropySource::rng);
+    auto col = sample_dirichlet<Float>(
+        begin(alpha), end(alpha), EntropySource::rngs[omp_get_thread_num()]);
     for (size_t g = 0; g < G; ++g)
       phi(g, t) = col[g];
   }
@@ -282,7 +283,7 @@ Matrix nHDP::sample_gene_expression() const {
   return phi;
 }
 
-Vector nHDP::sample_transitions(size_t s) const {
+Vector nHDP::sample_transitions(size_t s, mt19937 &rng) const {
   LOG(verbose) << "Sampling transition probabilities for spot " << s;
   Vector p(T, arma::fill::zeros);
 
@@ -323,7 +324,7 @@ Vector nHDP::sample_transitions(size_t s) const {
       const bool do_dirichlet_distribution = true;
       if (do_dirichlet_distribution) {
         auto p_transition = sample_dirichlet<Float>(begin(alpha), end(alpha),
-                                                    EntropySource::rng);
+                                                    rng);
 
         for (size_t k = 0; k < K; ++k)
           LOG(debug) << "p_transition[" << k << "] = " << p_transition[k];
@@ -383,13 +384,14 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
     IMatrix c_gene_type(G, T, arma::fill::zeros);
     IMatrix c_spot_type(S, T, arma::fill::zeros);
     IVector c_type(T, arma::fill::zeros);
+    auto rng = EntropySource::rngs[omp_get_thread_num()];
     double ll = 0;
 #pragma omp for
     for (size_t s_ = 0; s_ < S; ++s_) {
       size_t s = order[s_];
       LOG(info) << "Sampling for spot " << s;
-      auto switches = sample_switches(s, independent_switches, false);
-      auto transitions = sample_transitions(s);
+      auto switches = sample_switches(s, independent_switches, false, rng);
+      auto transitions = sample_transitions(s, rng);
       LOG(debug) << "switches = " << switches;
       LOG(debug) << "transitions = " << transitions;
       auto p_tree = switches % transitions;
@@ -401,7 +403,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
           normalize(begin(p), end(p));
           // TODO consider sorting
           auto split_counts
-              = sample_multinomial<size_t>(counts(g, s), begin(p), end(p));
+              = sample_multinomial<size_t>(counts(g, s), begin(p), end(p), rng);
           for (size_t t = 0; t < T; ++t) {
             if (split_counts[t] > 0) {
               ll += split_counts[t] * log(p(t));
