@@ -39,7 +39,7 @@ struct Options {
   vector<string> tsv_paths;
   size_t num_factors = 1000;
   size_t num_steps = 2000;
-  size_t burn_in = 50;
+  size_t burn_in = 100;
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
