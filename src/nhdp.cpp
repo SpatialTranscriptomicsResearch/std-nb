@@ -406,12 +406,13 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
               = sample_multinomial<size_t>(counts(g, s), begin(p), end(p), rng);
           for (size_t t = 0; t < T; ++t) {
             if (split_counts[t] > 0) {
-              ll += split_counts[t] * log(p(t));
+              ll += split_counts[t] * log(p(t)) - lgamma(split_counts[t] + 1);
               c_gene_type(g, t) += split_counts[t];
               c_spot_type(s, t) += split_counts[t];
               c_type(t) += split_counts[t];
             }
           }
+          ll += lgamma(counts(g, s) + 1);
         }
     }
 
