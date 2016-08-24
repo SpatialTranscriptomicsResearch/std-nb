@@ -88,3 +88,5 @@ less important:
   - the speed-up was marginal in a manual test it went from 2:05 min to 2:00 (round about...). unfortunately I forgot whether I used all or only the top 1000 genes; some speed-ups only become apparent with more parameters!
 * use profile-generate / profile-use gcc flags
 * enforcing medians as alternative to means
+
+* print out some sort of Bayesian summary
