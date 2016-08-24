@@ -144,13 +144,13 @@ void store(const PF::nHDP &model, const Counts &data, const string &prefix = "",
   ofstream os(stem + "-model" + suffix + ".dot");
   os << model.to_dot();
   os = ofstream(stem + "-features.txt");
-  print(os, model.counts_gene_type, data.row_names, type_names);
+  print(os, model.counts_gene_type.cols(0, model.T - 1) , data.row_names, type_names);
   os = ofstream(stem + "-features-desc.txt");
-  print(os, model.desc_counts_gene_type, data.row_names, type_names);
+  print(os, model.desc_counts_gene_type.cols(0, model.T - 1), data.row_names, type_names);
   os = ofstream(stem + "-mix.txt");
-  print(os, model.counts_spot_type, data.col_names, type_names);
+  print(os, model.counts_spot_type.cols(0, model.T - 1), data.col_names, type_names);
   os = ofstream(stem + "-mix-desc.txt");
-  print(os, model.desc_counts_spot_type, data.col_names, type_names);
+  print(os, model.desc_counts_spot_type.cols(0, model.T - 1), data.col_names, type_names);
 
   os = ofstream(stem + "-tree-children.txt");
   for (size_t t = 0; t < model.T; ++t) {
