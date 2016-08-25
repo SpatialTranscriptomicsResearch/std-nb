@@ -29,10 +29,12 @@ struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
+  size_t num_burn_in = 200;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
+  vector<double> quantiles;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool perform_splitmerge = false;
@@ -79,10 +81,112 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
+// TODO automatically determine return type
+template <typename Iter>
+vector<double> get_quantiles(const Iter begin, const Iter end, const vector<double> &quantiles) {
+  vector<double> res;
+  sort(begin, end);
+  const size_t N = std::distance(begin, end);
+  for(auto quantile: quantiles)
+    res.push_back(*(begin + size_t((N-1) * quantile)));
+  return res;
+}
+
+// TODO implement for features and weights
+template <typename T_>
+vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quantiles) {
+  const size_t M = models.size();
+  const size_t Q = quantiles.size();
+
+  const size_t G = models.begin()->G;
+  const size_t S = models.begin()->S;
+  const size_t T = models.begin()->T;
+  const size_t E = models.begin()->E;
+
+  const size_t GT = G * T;
+  const size_t ST = S * T;
+
+  vector<T_> quantile_models(Q, *models.begin());
+
+  // contributions_gene_type
+  {
+    PF::IMatrix v(M, GT, arma::fill::zeros);
+    for (size_t m = 0; m < M; ++m)
+      for (size_t gt = 0; gt < GT; ++gt)
+        v(m, gt) = models[m].contributions_gene_type(gt);
+
+    for (size_t gt = 0; gt < GT; ++gt) {
+      auto percentiles = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
+      for (size_t q = 0; q < Q; ++q)
+        quantile_models[q].contributions_gene_type(gt) = percentiles[q];
+    }
+  }
+
+  // contributions_spot_type
+  {
+    PF::IMatrix v(M, ST, arma::fill::zeros);
+    for (size_t m = 0; m < M; ++m)
+      for (size_t st = 0; st < ST; ++st)
+        v(m, st) = models[m].contributions_spot_type(st);
+
+    for (size_t st = 0; st < ST; ++st) {
+      auto percentiles = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
+      for (size_t q = 0; q < Q; ++q)
+        quantile_models[q].contributions_spot_type(st) = percentiles[q];
+    }
+  }
+
+  // contributions_gene
+  {
+    PF::IMatrix v(M, G, arma::fill::zeros);
+    for (size_t m = 0; m < M; ++m)
+      for (size_t g = 0; g < G; ++g)
+        v(m, g) = models[m].contributions_gene(g);
+
+    for (size_t g = 0; g < G; ++g) {
+      auto percentiles = get_quantiles(v.begin_col(g), v.end_col(g), quantiles);
+      for (size_t q = 0; q < Q; ++q)
+        quantile_models[q].contributions_gene(g) = percentiles[q];
+    }
+  }
+
+  // contributions_spot
+  {
+    PF::IMatrix v(M, S, arma::fill::zeros);
+    for (size_t m = 0; m < M; ++m)
+      for (size_t s = 0; s < S; ++s)
+        v(m, s) = models[m].contributions_spot(s);
+
+    for (size_t s = 0; s < S; ++s) {
+      auto percentiles = get_quantiles(v.begin_col(s), v.end_col(s), quantiles);
+      for (size_t q = 0; q < Q; ++q)
+        quantile_models[q].contributions_spot(s) = percentiles[q];
+    }
+  }
+
+  // contributions_experiment
+  {
+    PF::IMatrix v(M, E, arma::fill::zeros);
+    for (size_t m = 0; m < M; ++m)
+      for (size_t e = 0; e < E; ++e)
+        v(m, e) = models[m].contributions_experiment(e);
+
+    for (size_t e = 0; e < E; ++e) {
+      auto percentiles = get_quantiles(v.begin_col(e), v.end_col(e), quantiles);
+      for (size_t q = 0; q < Q; ++q)
+        quantile_models[q].contributions_experiment(e) = percentiles[q];
+    }
+  }
+
+  return quantile_models;
+}
+
 template <typename T>
 void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
+  vector<T> models;
+  models.push_back(pfa);
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
@@ -93,7 +197,15 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
       pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
+    // if(iteration > options.num_burn_in)
+    //   models.push_back(pfa);
   }
+  /*
+  auto quantile_models = mcmc_quantiles(models, options.quantiles);
+  for (size_t q = 0; q < options.quantiles.size(); ++q)
+    quantile_models[q].store(data, options.output + "quantile"
+                                       + to_string(options.quantiles[q]) + "_");
+  */
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
   pfa.store(data, options.output, true);
@@ -144,6 +256,8 @@ int main(int argc, char **argv) {
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
+    ("burn,b", po::value(&options.num_burn_in)->default_value(options.num_burn_in),
+     "Length of burn-in period: number of iterations to discard before integrating parameter samples.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
@@ -168,6 +282,8 @@ int main(int argc, char **argv) {
      "Activate usage of the experiment scaling variables.")
     ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
      "Which sampling steps to perform.")
+    ("quant,q", po::value<vector<double>>(&options.quantiles)->default_value({0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}, "0,0.05,0.25,0.5,0.75,0.95,1.0"),
+     "Which quantiles to report for each parameter.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
