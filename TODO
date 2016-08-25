@@ -73,6 +73,7 @@ it would be possible to sample multionomially for all counts of a gene in a spot
 Kmeans: use a gaussian mixture approach, rather than 'hard' K-means
 
 do bagged updates
+consider re-setting the mixing counts from time to time
 
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
