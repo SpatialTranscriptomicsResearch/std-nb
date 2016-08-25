@@ -14,7 +14,6 @@ using namespace std;
 namespace PF = PoissonFactorization;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
-const bool activate_quantiles = false;
 
 vector<string> gen_alpha_labels() {
   vector<string> v;
@@ -30,7 +29,7 @@ struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
-  size_t num_burn_in = 200;
+  int num_burn_in = -1;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
@@ -237,11 +236,10 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = "
                 << pfa.log_likelihood_poisson_counts(data.counts);
-    if (activate_quantiles)
-      if (iteration > options.num_burn_in)
-        models.push_back(pfa);
+    if (options.num_burn_in >= 0 and iteration > options.num_burn_in)
+      models.push_back(pfa);
   }
-  if (activate_quantiles) {
+  if (options.num_burn_in >= 0) {
     auto quantile_models = mcmc_quantiles(models, options.quantiles);
     for (size_t q = 0; q < options.quantiles.size(); ++q)
       quantile_models[q].store(
@@ -300,7 +298,7 @@ int main(int argc, char **argv) {
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
     ("burn,b", po::value(&options.num_burn_in)->default_value(options.num_burn_in),
-     "Length of burn-in period: number of iterations to discard before integrating parameter samples.")
+     "Length of burn-in period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
