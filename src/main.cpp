@@ -14,6 +14,7 @@ using namespace std;
 namespace PF = PoissonFactorization;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
+const bool activate_quantiles = false;
 
 vector<string> gen_alpha_labels() {
   vector<string> v;
@@ -224,18 +225,22 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (iteration % options.report_interval == 0)
       pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
     if (options.compute_likelihood)
-      LOG(info) << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
-    // if(iteration > options.num_burn_in)
-    //   models.push_back(pfa);
+      LOG(info) << "Log-likelihood = "
+                << pfa.log_likelihood_poisson_counts(data.counts);
+    if (activate_quantiles)
+      if (iteration > options.num_burn_in)
+        models.push_back(pfa);
   }
-  /*
-  auto quantile_models = mcmc_quantiles(models, options.quantiles);
-  for (size_t q = 0; q < options.quantiles.size(); ++q)
-    quantile_models[q].store(data, options.output + "quantile"
-                                       + to_string(options.quantiles[q]) + "_");
-  */
+  if (activate_quantiles) {
+    auto quantile_models = mcmc_quantiles(models, options.quantiles);
+    for (size_t q = 0; q < options.quantiles.size(); ++q)
+      quantile_models[q].store(
+          data,
+          options.output + "quantile" + to_string(options.quantiles[q]) + "_");
+  }
   if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
+    LOG(info) << "Final log-likelihood = "
+              << pfa.log_likelihood_poisson_counts(data.counts);
   pfa.store(data, options.output, true);
 }
 
