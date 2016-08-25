@@ -84,18 +84,20 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
 
 // TODO automatically determine return type
 template <typename Iter>
-vector<double> get_quantiles(const Iter begin, const Iter end, const vector<double> &quantiles) {
+vector<double> get_quantiles(const Iter begin, const Iter end,
+                             const vector<double> &quantiles) {
   vector<double> res;
   sort(begin, end);
   const size_t N = std::distance(begin, end);
-  for(auto quantile: quantiles)
-    res.push_back(*(begin + size_t((N-1) * quantile)));
+  for (auto quantile : quantiles)
+    res.push_back(*(begin + size_t((N - 1) * quantile)));
   return res;
 }
 
 // TODO implement for features and weights
 template <typename T_>
-vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quantiles) {
+vector<T_> mcmc_quantiles(const vector<T_> &models,
+                          const vector<double> &quantiles) {
   const size_t M = models.size();
   const size_t Q = quantiles.size();
 
@@ -117,7 +119,8 @@ vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quanti
         v(m, gt) = models[m].contributions_gene_type(gt);
 
     for (size_t gt = 0; gt < GT; ++gt) {
-      auto percentiles = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
+      auto percentiles
+          = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
       for (size_t q = 0; q < Q; ++q)
         quantile_models[q].contributions_gene_type(gt) = percentiles[q];
     }
@@ -131,7 +134,8 @@ vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quanti
         v(m, st) = models[m].contributions_spot_type(st);
 
     for (size_t st = 0; st < ST; ++st) {
-      auto percentiles = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
+      auto percentiles
+          = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
       for (size_t q = 0; q < Q; ++q)
         quantile_models[q].contributions_spot_type(st) = percentiles[q];
     }
@@ -187,7 +191,8 @@ vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quanti
         v(m, gt) = models[m].features.matrix(gt);
 
     for (size_t gt = 0; gt < GT; ++gt) {
-      auto percentiles = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
+      auto percentiles
+          = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
       for (size_t q = 0; q < Q; ++q)
         quantile_models[q].features.matrix(gt) = percentiles[q];
     }
@@ -201,7 +206,8 @@ vector<T_> mcmc_quantiles(const vector<T_> &models, const vector<double> &quanti
         v(m, st) = models[m].weights.matrix(st);
 
     for (size_t st = 0; st < ST; ++st) {
-      auto percentiles = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
+      auto percentiles
+          = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
       for (size_t q = 0; q < Q; ++q)
         quantile_models[q].weights.matrix(st) = percentiles[q];
     }
