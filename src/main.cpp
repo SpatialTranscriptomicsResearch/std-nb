@@ -94,7 +94,11 @@ vector<double> get_quantiles(const Iter begin, const Iter end,
   return res;
 }
 
-// TODO implement for features and weights
+// TODO implement for:
+//  * weighted_theta
+//  * spot_scaling
+//  * experiment_scaling
+//  * Gamma priors
 template <typename T_>
 vector<T_> mcmc_quantiles(const vector<T_> &models,
                           const vector<double> &quantiles) {
