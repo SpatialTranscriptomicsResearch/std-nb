@@ -1,8 +1,8 @@
 #ifndef METROPOLIS_HASTINGS_HPP
 #define METROPOLIS_HASTINGS_HPP
 
-#include <random>
 #include <iostream>
+#include <random>
 #include "log.hpp"
 #include "sampling.hpp"
 
@@ -48,8 +48,8 @@ struct MetropolisHastings {
         break;
       }
     }
-    LOG(debug) << "Left MCMC " << (accept ? "" : "un") << "successfully after "
-               << (n_iter_initial - n_iter) << " iterations.";
+    LOG(debug) << "Performed  " << (n_iter_initial - n_iter)
+               << " MCMC sampling iterations.";
     return accepted;
   }
 };
