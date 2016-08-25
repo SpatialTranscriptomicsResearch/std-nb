@@ -64,6 +64,10 @@ enum class ForceMean {
   Experiment = 8
 };
 
+inline constexpr ForceMean operator!(ForceMean x) {
+  return static_cast<ForceMean>(!static_cast<int>(x));
+}
+
 inline constexpr ForceMean operator&(ForceMean x, ForceMean y) {
   return static_cast<ForceMean>(static_cast<int>(x) & static_cast<int>(y));
 }

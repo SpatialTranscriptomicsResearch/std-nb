@@ -455,6 +455,11 @@ int main(int argc, char **argv) {
             << " distribution for the mixing weights.";
 
   using Kind = PF::Partial::Kind;
+
+  // deactivate spot mean forcing if the mixing type is Dirichlet
+  if (options.mixing_type == Kind::Dirichlet)
+    parameters.enforce_mean = parameters.enforce_mean & (!PF::ForceMean::Spot);
+
   switch (options.feature_type) {
     case Kind::Dirichlet: {
       switch (options.mixing_type) {
