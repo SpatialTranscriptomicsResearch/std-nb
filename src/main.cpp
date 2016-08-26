@@ -189,7 +189,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = "
                 << pfa.log_likelihood_poisson_counts(data.counts);
-    if (options.num_burn_in >= 0 and iteration > options.num_burn_in)
+    if (options.num_burn_in >= 0 and static_cast<int>(iteration) > options.num_burn_in)
       models.push_back(pfa);
   }
   if (options.num_burn_in >= 0) {
