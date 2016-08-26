@@ -93,10 +93,28 @@ vector<double> get_quantiles(const Iter begin, const Iter end,
   return res;
 }
 
+template <typename T, typename M_>
+void proc_member_quantiles(const vector<T> &models, M_ T::*member,
+                          const vector<double> &quantiles,
+                          vector<T> &quantile_models) {
+  const size_t M = models.size();
+  const size_t Q = quantile_models.size();
+  const size_t X = (models.front().*member).n_elem;
+  M_ mat(M, X, arma::fill::zeros);
+  for (size_t m = 0; m < M; ++m)
+    for (size_t x = 0; x < X; ++x)
+      mat(m, x) = (models[m].*member)(x);
+
+  for (size_t x = 0; x < X; ++x) {
+    auto percentiles
+        = get_quantiles(mat.begin_col(x), mat.end_col(x), quantiles);
+    for (size_t q = 0; q < Q; ++q)
+      (quantile_models[q].*member)(x) = percentiles[q];
+  }
+}
+
 // TODO implement for:
 //  * weighted_theta
-//  * spot_scaling
-//  * experiment_scaling
 //  * Gamma priors
 template <typename T_>
 vector<T_> mcmc_quantiles(const vector<T_> &models,
@@ -107,84 +125,19 @@ vector<T_> mcmc_quantiles(const vector<T_> &models,
   const size_t G = models.begin()->G;
   const size_t S = models.begin()->S;
   const size_t T = models.begin()->T;
-  const size_t E = models.begin()->E;
 
   const size_t GT = G * T;
   const size_t ST = S * T;
 
   vector<T_> quantile_models(Q, *models.begin());
 
-  // contributions_gene_type
-  {
-    PF::IMatrix v(M, GT, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t gt = 0; gt < GT; ++gt)
-        v(m, gt) = models[m].contributions_gene_type(gt);
-
-    for (size_t gt = 0; gt < GT; ++gt) {
-      auto percentiles
-          = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].contributions_gene_type(gt) = percentiles[q];
-    }
-  }
-
-  // contributions_spot_type
-  {
-    PF::IMatrix v(M, ST, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t st = 0; st < ST; ++st)
-        v(m, st) = models[m].contributions_spot_type(st);
-
-    for (size_t st = 0; st < ST; ++st) {
-      auto percentiles
-          = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].contributions_spot_type(st) = percentiles[q];
-    }
-  }
-
-  // contributions_gene
-  {
-    PF::IMatrix v(M, G, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t g = 0; g < G; ++g)
-        v(m, g) = models[m].contributions_gene(g);
-
-    for (size_t g = 0; g < G; ++g) {
-      auto percentiles = get_quantiles(v.begin_col(g), v.end_col(g), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].contributions_gene(g) = percentiles[q];
-    }
-  }
-
-  // contributions_spot
-  {
-    PF::IMatrix v(M, S, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t s = 0; s < S; ++s)
-        v(m, s) = models[m].contributions_spot(s);
-
-    for (size_t s = 0; s < S; ++s) {
-      auto percentiles = get_quantiles(v.begin_col(s), v.end_col(s), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].contributions_spot(s) = percentiles[q];
-    }
-  }
-
-  // contributions_experiment
-  {
-    PF::IMatrix v(M, E, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t e = 0; e < E; ++e)
-        v(m, e) = models[m].contributions_experiment(e);
-
-    for (size_t e = 0; e < E; ++e) {
-      auto percentiles = get_quantiles(v.begin_col(e), v.end_col(e), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].contributions_experiment(e) = percentiles[q];
-    }
-  }
+  proc_member_quantiles(models, &T_::contributions_gene_type, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::contributions_spot_type, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::contributions_gene, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::contributions_spot, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::contributions_experiment, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::spot, quantiles, quantile_models);
+  proc_member_quantiles(models, &T_::experiment_scaling, quantiles, quantile_models);
 
   // features
   {
