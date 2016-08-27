@@ -1,5 +1,4 @@
 #include <cstdlib>
-#include <iterator>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -80,28 +79,6 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
       break;
   }
   return os;
-}
-
-/**
- * Retrieve specified quantiles from a container
- *
- * Side effect: sorts the container
- * TODO automatically determine return type
- *
- * @param begin Iterator pointing to the first value
- * @param begin Iterator pointing past the last value
- * @param quantiles Quantiles to retrieve. Must be >= 0 and <= 1.
- * @return A vector with the quantile values
- */
-template <typename Iter>
-vector<typename std::iterator_traits<Iter>::value_type> get_quantiles(
-    const Iter begin, const Iter end, const vector<double> &quantiles) {
-  vector<typename std::iterator_traits<Iter>::value_type> res;
-  sort(begin, end);
-  const size_t N = std::distance(begin, end);
-  for (auto quantile : quantiles)
-    res.push_back(*(begin + size_t((N - 1) * quantile)));
-  return res;
 }
 
 template <typename T, typename M_>

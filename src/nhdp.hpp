@@ -2,8 +2,8 @@
 #define NHDP_HPP
 
 #include <random>
-#include "types.hpp"
 #include "hierarchical_kmeans.hpp"
+#include "types.hpp"
 
 namespace PoissonFactorization {
 
@@ -76,15 +76,6 @@ struct nHDP {
   }
   nHDP &operator+=(const nHDP &m);
 };
-
-template <typename Iter>
-void normalize(const Iter begin, const Iter end) {
-  double z = 0;
-  for (Iter iter = begin; iter != end; ++iter)
-    z += *iter;
-  for (Iter iter = begin; iter != end; ++iter)
-    *iter /= z;
-}
 }
 
 #endif

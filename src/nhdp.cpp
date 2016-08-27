@@ -1,4 +1,5 @@
 #include <list>
+#include "aux.hpp"
 #include "entropy.hpp"
 #include "log.hpp"
 #include "parallel.hpp"
@@ -260,7 +261,7 @@ void nHDP::register_read(size_t g, size_t s, bool independent_switches) {
     t = add_node(parent);
   }
 
-  LOG(info) << "gene " << g << " spot " << s << " -> type " << t;
+  LOG(verbose) << "gene " << g << " spot " << s << " -> type " << t;
 
   register_read(g, s, t, 1, true);
 }
@@ -270,7 +271,7 @@ Matrix nHDP::sample_gene_expression() const {
   Matrix phi(G, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t) {
-    LOG(info) << "Sampling gene expression for type " << t;
+    LOG(verbose) << "Sampling gene expression for type " << t;
     Vector alpha = counts_gene_type.col(t) + parameters.feature_alpha;
 
     // LOG(verbose) << "Alpha = " << t;
@@ -389,7 +390,7 @@ nHDP nHDP::sample(const IMatrix &counts, bool independent_switches) const {
 #pragma omp for
     for (size_t s_ = 0; s_ < S; ++s_) {
       size_t s = order[s_];
-      LOG(info) << "Sampling for spot " << s;
+      LOG(verbose) << "Sampling for spot " << s;
       auto switches = sample_switches(s, independent_switches, false, rng);
       auto transitions = sample_transitions(s, rng);
       LOG(debug) << "switches = " << switches;
