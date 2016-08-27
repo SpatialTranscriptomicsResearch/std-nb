@@ -141,7 +141,7 @@ vector<T_> mcmc_quantiles(const vector<T_> &models,
 
   // features
   {
-    PF::IMatrix v(M, GT, arma::fill::zeros);
+    PF::Matrix v(M, GT, arma::fill::zeros);
     for (size_t m = 0; m < M; ++m)
       for (size_t gt = 0; gt < GT; ++gt)
         v(m, gt) = models[m].features.matrix(gt);
@@ -156,7 +156,7 @@ vector<T_> mcmc_quantiles(const vector<T_> &models,
 
   // mixing weights
   {
-    PF::IMatrix v(M, ST, arma::fill::zeros);
+    PF::Matrix v(M, ST, arma::fill::zeros);
     for (size_t m = 0; m < M; ++m)
       for (size_t st = 0; st < ST; ++st)
         v(m, st) = models[m].weights.matrix(st);
