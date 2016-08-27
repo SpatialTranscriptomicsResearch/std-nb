@@ -106,8 +106,8 @@ vector<typename std::iterator_traits<Iter>::value_type> get_quantiles(
 
 template <typename T, typename M_>
 void proc_member_quantiles(const vector<T> &models, M_ T::*member,
-                          const vector<double> &quantiles,
-                          vector<T> &quantile_models) {
+                           const vector<double> &quantiles,
+                           vector<T> &quantile_models) {
   const size_t M = models.size();
   const size_t Q = quantile_models.size();
   const size_t X = (models.front().*member).n_elem;
@@ -117,10 +117,9 @@ void proc_member_quantiles(const vector<T> &models, M_ T::*member,
       mat(m, x) = (models[m].*member)(x);
 
   for (size_t x = 0; x < X; ++x) {
-    auto percentiles
-        = get_quantiles(mat.begin_col(x), mat.end_col(x), quantiles);
+    auto quants = get_quantiles(mat.begin_col(x), mat.end_col(x), quantiles);
     for (size_t q = 0; q < Q; ++q)
-      (quantile_models[q].*member)(x) = percentiles[q];
+      (quantile_models[q].*member)(x) = quants[q];
   }
 }
 
