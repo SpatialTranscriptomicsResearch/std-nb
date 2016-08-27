@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include <iterator>
 #include <exception>
 #include <iostream>
 #include <string>
@@ -93,9 +94,9 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
  * @return A vector with the quantile values
  */
 template <typename Iter>
-vector<double> get_quantiles(const Iter begin, const Iter end,
-                             const vector<double> &quantiles) {
-  vector<double> res;
+vector<typename std::iterator_traits<Iter>::value_type> get_quantiles(
+    const Iter begin, const Iter end, const vector<double> &quantiles) {
+  vector<typename std::iterator_traits<Iter>::value_type> res;
   sort(begin, end);
   const size_t N = std::distance(begin, end);
   for (auto quantile : quantiles)
