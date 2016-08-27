@@ -81,7 +81,17 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-// TODO automatically determine return type
+/**
+ * Retrieve specified quantiles from a container
+ *
+ * Side effect: sorts the container
+ * TODO automatically determine return type
+ *
+ * @param begin Iterator pointing to the first value
+ * @param begin Iterator pointing past the last value
+ * @param quantiles Quantiles to retrieve. Must be >= 0 and <= 1.
+ * @return A vector with the quantile values
+ */
 template <typename Iter>
 vector<double> get_quantiles(const Iter begin, const Iter end,
                              const vector<double> &quantiles) {
