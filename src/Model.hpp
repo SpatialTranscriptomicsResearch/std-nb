@@ -675,12 +675,9 @@ Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
   const bool show_timing = false;
   // TODO: use init_factors
   Model<feat_kind, mix_kind> sub_model(counts, t, parameters);
-  for (size_t s = 0; s < S; ++s) {
-    sub_model.spot[s] = spot[s];
-    sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
-  }
-  for (size_t e = 0; e < E; ++e)
-    sub_model.experiment_scaling[e] = experiment_scaling[e];
+  sub_model.spot = spot;
+  sub_model.experiment_scaling_long = experiment_scaling_long;
+  sub_model.experiment_scaling = experiment_scaling;
 
   if (print_sub_model_cnt)
     sub_model.store(counts,
