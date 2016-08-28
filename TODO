@@ -91,3 +91,5 @@ less important:
 * enforcing medians as alternative to means
 
 * print out some sort of Bayesian summary
+ -> percentiles: 0%, 5%, 25%, 50%, 75%, 95%, 100%
+ -> mean and variance
