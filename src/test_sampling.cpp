@@ -1,7 +1,9 @@
 #include "sampling.hpp"
 #include <iostream>
 
+#ifndef _GNU_SOURCE
 #define _GNU_SOURCE
+#endif
 #include <fenv.h>
 
 using namespace std;
