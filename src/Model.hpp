@@ -27,6 +27,7 @@ namespace PoissonFactorization {
 #define print_sub_model_cnt false  // TODO make configurable
 
 const size_t num_sub_gibbs_split = 10;
+// TODO consider lowering the number of Gibbs steps when merging with Dirichlet factors
 const size_t num_sub_gibbs_merge = 10;
 const bool consider_factor_likel = false;
 const size_t sub_model_cnt = 10;
