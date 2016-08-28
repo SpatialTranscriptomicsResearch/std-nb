@@ -90,8 +90,8 @@ struct Model {
   void lift_sub_model(const Model<variable, kind> &sub_model, size_t t1,
                       size_t t2) {
     prior.lift_sub_model(sub_model.prior, t1, t2);
-    for (size_t s = 0; s < S; ++s)
-      matrix(s, t1) = sub_model.matrix(s, t2);
+    for (size_t x = 0; x < matrix.n_rows; ++x)
+      matrix(x, t1) = sub_model.matrix(x, t2);
   }
 };
 
