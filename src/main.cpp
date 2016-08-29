@@ -13,6 +13,8 @@
 using namespace std;
 namespace PF = PoissonFactorization;
 
+const bool use_quantiles = false;
+
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 vector<string> gen_alpha_labels() {
@@ -29,7 +31,7 @@ struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
-  int num_burn_in = -1;
+  int num_burn_in = 200;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
@@ -164,6 +166,8 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
   vector<T> models;
+  T sum_model = pfa * 0;
+  T sumsq_model = pfa * 0;
   models.push_back(pfa);
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
@@ -176,15 +180,27 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = "
                 << pfa.log_likelihood_poisson_counts(data.counts);
-    if (options.num_burn_in >= 0 and static_cast<int>(iteration) > options.num_burn_in)
-      models.push_back(pfa);
+    if (options.num_burn_in >= 0
+        and static_cast<int>(iteration) > options.num_burn_in) {
+      sum_model = sum_model + pfa;
+      sumsq_model = sumsq_model + pfa * pfa;
+      if (use_quantiles)
+        models.push_back(pfa);
+    }
   }
   if (options.num_burn_in >= 0) {
-    auto quantile_models = mcmc_quantiles(models, options.quantiles);
-    for (size_t q = 0; q < options.quantiles.size(); ++q)
-      quantile_models[q].store(
-          data,
-          options.output + "quantile" + to_string(options.quantiles[q]) + "_");
+    size_t n = options.num_steps - options.num_burn_in;
+    T var_model = (sumsq_model - sum_model * sum_model / n) / (n - 1);
+    sum_model = sum_model / n;
+    sum_model.store(data, options.output + "mean_");
+    var_model.store(data, options.output + "variance_");
+    if (use_quantiles) {
+      auto quantile_models = mcmc_quantiles(models, options.quantiles);
+      for (size_t q = 0; q < options.quantiles.size(); ++q)
+        quantile_models[q].store(data, options.output + "quantile"
+                                           + to_string(options.quantiles[q])
+                                           + "_");
+    }
   }
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
