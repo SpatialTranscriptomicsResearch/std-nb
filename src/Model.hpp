@@ -142,7 +142,7 @@ private:
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(
     std::ostream &os,
-    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa);
+    const Model<feat_kind, mix_kind> &pfa);
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
@@ -895,7 +895,7 @@ void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(
     std::ostream &os,
-    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa) {
+    const Model<feat_kind, mix_kind> &pfa) {
   os << "Poisson Factorization "
      << "G = " << pfa.G << " "
      << "S = " << pfa.S << " "
