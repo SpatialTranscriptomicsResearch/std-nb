@@ -941,18 +941,18 @@ Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
                                      const Model<feat_kind, mix_kind> &b) {
   Model<feat_kind, mix_kind> model = a;
 
-  model.contributions_gene_type *= b.contributions_gene_type;
-  model.contributions_spot_type *= b.contributions_spot_type;
-  model.contributions_gene *= b.contributions_gene;
-  model.contributions_spot *= b.contributions_spot;
-  model.contributions_experiment *= b.contributions_experiment;
+  model.contributions_gene_type %= b.contributions_gene_type;
+  model.contributions_spot_type %= b.contributions_spot_type;
+  model.contributions_gene %= b.contributions_gene;
+  model.contributions_spot %= b.contributions_spot;
+  model.contributions_experiment %= b.contributions_experiment;
 
-  model.spot *= b.spot;
-  model.experiment_scaling *= b.experiment_scaling;
-  model.experiment_scaling_long *= b.experiment_scaling_long;
+  model.spot %= b.spot;
+  model.experiment_scaling %= b.experiment_scaling;
+  model.experiment_scaling_long %= b.experiment_scaling_long;
 
-  model.features.matrix *= b.features.matrix;
-  model.weights.matrix *= b.weights.matrix;
+  model.features.matrix %= b.features.matrix;
+  model.weights.matrix %= b.weights.matrix;
 
   return model;
 }
