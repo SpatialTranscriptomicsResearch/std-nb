@@ -75,6 +75,9 @@ Kmeans: use a gaussian mixture approach, rather than 'hard' K-means
 do bagged updates
 consider re-setting the mixing counts from time to time
 
+consider performing a dirichlet process in which the observations are count vectors
+implement the HDP
+
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
 less important:
