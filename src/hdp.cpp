@@ -175,7 +175,8 @@ HDP HDP::sample(const IMatrix &counts) const {
             }
           }
           if(split_counts[T] > 0) {
-            auto t = add_factor();
+            // auto t = add_factor(); TODO
+            size_t t = 0; // TODO
             c_gene_type(g, t) += split_counts[t];
             c_spot_type(s, t) += split_counts[t];
             c_type(t) += split_counts[t];
