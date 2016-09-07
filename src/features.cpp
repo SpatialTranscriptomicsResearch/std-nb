@@ -71,6 +71,15 @@ void Model<Variable::Feature, Kind::Dirichlet>::initialize() {
 
 template <>
 // TODO ensure no NaNs or infinities are generated
+double Model<Variable::Feature, Kind::Gamma>::log_likelihood(
+    const IMatrix &counts) const {
+  double l = 0;
+  for (size_t t = 0; t < T; ++t)
+    l += log_likelihood_factor(counts, t);
+  return l;
+}
+template <>
+// TODO ensure no NaNs or infinities are generated
 double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
     const IMatrix &counts, size_t t) const {
   double l = 0;
@@ -97,6 +106,17 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
 template <>
 // TODO ensure no NaNs or infinities are generated
 // TODO check whether using OMP is actually faster here!
+double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood(
+    const IMatrix &counts) const {
+  double l = 0;
+  for(size_t t = 0; t < T; ++t)
+    l += log_likelihood_factor(counts, t);
+  return l;
+}
+
+template <>
+// TODO ensure no NaNs or infinities are generated
+// TODO check whether using OMP is actually faster here!
 double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
     const IMatrix &counts, size_t t) const {
   std::vector<Float> p(G);
@@ -107,7 +127,7 @@ double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
   std::vector<Float> alpha(G);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
-    alpha[g] = prior.alpha(g,t);
+    alpha[g] = prior.alpha(g,t) + prior.alpha_prior;
 
   return log_dirichlet(p, alpha);
 }

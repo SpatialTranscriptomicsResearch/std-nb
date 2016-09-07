@@ -79,6 +79,16 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
 
 template <>
 // TODO ensure no NaNs or infinities are generated
+double Model<Variable::Mix, Kind::HierGamma>::log_likelihood(
+    const IMatrix &counts) const {
+  double l = 0;
+  for (size_t t = 0; t < T; ++t)
+    l += log_likelihood_factor(counts, t);
+  return l;
+}
+
+template <>
+// TODO ensure no NaNs or infinities are generated
 double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
     const IMatrix &counts, size_t t) const {
   double l = 0;
@@ -104,6 +114,28 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
 
   l += log_beta_neg_odds(prior.p(t), parameters.hyperparameters.theta_p_1,
                          parameters.hyperparameters.theta_p_2);
+
+  return l;
+}
+
+template <>
+// TODO ensure no NaNs or infinities are generated
+double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood(
+    const IMatrix &counts) const {
+  double l = 0;
+
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s) {
+    vector<double> p(T);
+    for (size_t t = 0; t < T; ++t)
+      p[t] = matrix(s,t);
+
+    vector<double> a(T);
+    for (size_t t = 0; t < T; ++t)
+      a[t] = counts(s,t) + prior.alpha_prior;
+
+    l += log_dirichlet(p, a);
+  }
 
   return l;
 }

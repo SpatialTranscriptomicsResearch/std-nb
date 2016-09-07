@@ -302,9 +302,9 @@ double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
-  double l = 0;
-  for (size_t t = 0; t < T; ++t)
-    l += log_likelihood_factor(counts, t);
+  double l_features = features.log_likelihood(contributions_gene_type);
+  double l_mix = weights.log_likelihood(contributions_spot_type);
+  double l = l_features + l_mix;
 
   for (size_t s = 0; s < S; ++s)
     l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
@@ -316,7 +316,8 @@ double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
                      1.0 / parameters.hyperparameters.experiment_b);
   }
 
-  l += log_likelihood_poisson_counts(counts);
+  double poisson_logl = log_likelihood_poisson_counts(counts);
+  l += poisson_logl;
 
   return l;
 }

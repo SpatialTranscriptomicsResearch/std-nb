@@ -85,6 +85,7 @@ struct Model {
   };
 
   double log_likelihood_factor(const IMatrix &counts, size_t t) const;
+  double log_likelihood(const IMatrix &counts) const;
   // TODO
 
   void lift_sub_model(const Model<variable, kind> &sub_model, size_t t1,
