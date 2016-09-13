@@ -2,17 +2,17 @@
 #define MODEL_HPP
 
 #include <random>
+#include "PartialModel.hpp"
+#include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
+#include "io.hpp"
+#include "log.hpp"
+#include "metropolis_hastings.hpp"
+#include "odds.hpp"
 #include "parallel.hpp"
 #include "parameters.hpp"
-#include "compression.hpp"
-#include "log.hpp"
-#include "PartialModel.hpp"
-#include "io.hpp"
-#include "metropolis_hastings.hpp"
 #include "pdist.hpp"
-#include "odds.hpp"
 #include "priors.hpp"
 #include "sampling.hpp"
 #include "stats.hpp"
@@ -160,9 +160,8 @@ Model<feat_kind, mix_kind> operator/(const Model<feat_kind, mix_kind> &a,
                                      double x);
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(
-    std::ostream &os,
-    const Model<feat_kind, mix_kind> &pfa);
+std::ostream &operator<<(std::ostream &os,
+                         const Model<feat_kind, mix_kind> &pfa);
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
@@ -382,7 +381,8 @@ void Model<feat_kind, mix_kind>::sample_contributions_sub(
     rel_rate[t] /= z;
   lambda_gene_spot(g, s) = z;
   if (counts(g, s) > 0) {
-    auto v = sample_multinomial<Int>(counts(g, s), begin(rel_rate), end(rel_rate), rng);
+    auto v = sample_multinomial<Int>(counts(g, s), begin(rel_rate),
+                                     end(rel_rate), rng);
     for (size_t t = 0; t < T; ++t) {
       contrib_gene_type(g, t) += v[t];
       contrib_spot_type(s, t) += v[t];
@@ -576,7 +576,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
                                               bool timing) {
   Timer timer;
   if (flagged(which & Target::contributions)) {
-    if(parameters.variational)
+    if (parameters.variational)
       sample_contributions_variational(data.counts);
     else
       sample_contributions(data.counts);
@@ -914,9 +914,8 @@ void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(
-    std::ostream &os,
-    const Model<feat_kind, mix_kind> &pfa) {
+std::ostream &operator<<(std::ostream &os,
+                         const Model<feat_kind, mix_kind> &pfa) {
   os << "Poisson Factorization "
      << "G = " << pfa.G << " "
      << "S = " << pfa.S << " "
