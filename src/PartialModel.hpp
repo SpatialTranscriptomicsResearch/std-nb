@@ -75,11 +75,15 @@ struct Model {
   template <typename M>
   void sample(const M &partmodel, const IMatrix &contributions,
               const Vector &spot, const Vector &experiment);
+
+  std::string gen_path_stem(const std::string &prefix) const {
+    return prefix + to_lower(to_string(variable) + "-" + to_string(kind));
+  };
+
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const {
-    std::string path = to_string(variable) + "-" + to_string(kind);
-    path = prefix + to_lower(path);
+    const auto path = gen_path_stem(prefix);
     write_matrix(matrix, path + ".txt", spot_names, factor_names);
     prior.store(path, spot_names, factor_names);
   };
