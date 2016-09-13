@@ -1,3 +1,4 @@
+#include <stdexcept>
 #include "verbosity.hpp"
 
 using namespace std;
