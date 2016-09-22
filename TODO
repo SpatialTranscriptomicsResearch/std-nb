@@ -78,6 +78,8 @@ consider re-setting the mixing counts from time to time
 consider performing a dirichlet process in which the observations are count vectors
 implement the HDP
 
+drop template-based approach in favor of inheritance
+
 * is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
 
 less important:
@@ -96,3 +98,5 @@ less important:
 * print out some sort of Bayesian summary
  -> percentiles: 0%, 5%, 25%, 50%, 75%, 95%, 100%
  -> mean and variance
+
+if gamma mixture proportions are used then the spot scaling should probably be deactivated
