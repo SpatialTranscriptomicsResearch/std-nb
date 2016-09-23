@@ -188,7 +188,8 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
         models.push_back(pfa);
     }
   }
-  if (options.num_burn_in >= 0) {
+  if (options.num_burn_in >= 0
+      and static_cast<int>(options.num_steps) > options.num_burn_in) {
     size_t n = options.num_steps - options.num_burn_in;
     T var_model = (sumsq_model - sum_model * sum_model / n) / (n - 1);
     sum_model = sum_model / n;
