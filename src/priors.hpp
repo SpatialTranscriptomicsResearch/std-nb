@@ -21,10 +21,14 @@ struct Gamma {
   Gamma(size_t G_, size_t S_, size_t T_, const Parameters &params);
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
-  /* This is a simple Metropolis-Hastings sampling scheme */
+  /* This chooses first r then p by maximum likelihood */
   void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
               const Vector &spot_scaling,
               const Vector &experiment_scaling_long);
+  /* This is a simple Metropolis-Hastings sampling scheme */
+  void sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
+                   const Vector &spot_scaling,
+                   const Vector &experiment_scaling_long);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
