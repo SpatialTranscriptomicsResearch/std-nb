@@ -789,7 +789,7 @@ void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
   LOG(debug) << "ll_split_previous = " << ll_previous
              << " ll_split_updated = " << ll_updated;
   if (gibbs_test(ll_updated, ll_previous)) {
-    LOG(info) << "Split step accecpted";
+    LOG(info) << "Split step accepted";
   } else {
     *this = previous;
     LOG(info) << "Split step rejected";
