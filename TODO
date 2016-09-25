@@ -100,3 +100,8 @@ less important:
  -> mean and variance
 
 if gamma mixture proportions are used then the spot scaling should probably be deactivated
+
+feature-side hierarchy:
+basically, introduce a plate for gene, type, and experiment.
+Let it's structure be identical to that of the gene and type plate.
+I.e. then we have \lambda_{gst} = \phi_{gt} \phi_{gte} \theta{st} \sigma{s} maybe times \sigma{e}
