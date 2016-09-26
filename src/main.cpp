@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <exception>
+#include <fenv.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -162,7 +163,7 @@ vector<T_> mcmc_quantiles(const vector<T_> &models,
 }
 
 template <typename T>
-void perform_gibbs_sampling(const Counts &data, T &pfa,
+void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
   vector<T> models;
@@ -173,13 +174,15 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
     LOG(info) << "Performing iteration " << iteration;
-    pfa.gibbs_sample(data, options.sample_these, options.timing);
+    pfa.gibbs_sample(options.sample_these);
     LOG(info) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0)
-      pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
+      pfa.store(options.output + "iter" + to_string(iteration) + "_");
+    /* TODO reactivate
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = "
                 << pfa.log_likelihood_poisson_counts(data.counts);
+    */
     if (options.num_burn_in >= 0
         and static_cast<int>(iteration) > options.num_burn_in) {
       sum_model = sum_model + pfa;
@@ -193,23 +196,29 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
     size_t n = options.num_steps - options.num_burn_in;
     T var_model = (sumsq_model - sum_model * sum_model / n) / (n - 1);
     sum_model = sum_model / n;
-    sum_model.store(data, options.output + "mean_");
-    var_model.store(data, options.output + "variance_");
+    sum_model.store(options.output + "mean_");
+    var_model.store(options.output + "variance_");
+    /* TODO reactivate
     if (use_quantiles) {
       auto quantile_models = mcmc_quantiles(models, options.quantiles);
       for (size_t q = 0; q < options.quantiles.size(); ++q)
-        quantile_models[q].store(data, options.output + "quantile"
+        quantile_models[q].store(options.output + "quantile"
                                            + to_string(options.quantiles[q])
                                            + "_");
     }
+    */
   }
+  /* TODO reactivate
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood_poisson_counts(data.counts);
-  pfa.store(data, options.output, true);
+  */
+  pfa.store(options.output);
 }
 
 int main(int argc, char **argv) {
+  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+
   EntropySource::seed();
 
   Options options;
@@ -404,6 +413,8 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
+  auto data_sets = data.split_experiments();
+
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";
   LOG(info) << "Using " << options.mixing_type
@@ -419,14 +430,18 @@ int main(int argc, char **argv) {
     case Kind::Dirichlet: {
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
+          /* TODO reactivate
           PF::Model<Kind::Dirichlet, Kind::Dirichlet> pfa(
               data, options.num_factors, parameters);
           perform_gibbs_sampling(data, pfa, options);
+          */
         } break;
         case Kind::HierGamma: {
+          /* TODO reactivate
           PF::Model<Kind::Dirichlet, Kind::HierGamma> pfa(
-              data, options.num_factors, parameters);
-          perform_gibbs_sampling(data, pfa, options);
+              data_sets, options.num_factors, parameters);
+          perform_gibbs_sampling(data_sets, pfa, options);
+          */
         } break;
         default:
           throw std::runtime_error("Error: Mixing type '"
@@ -438,14 +453,16 @@ int main(int argc, char **argv) {
     case Kind::Gamma: {
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
+          /* TODO reactivate
           PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(data, options.num_factors,
                                                       parameters);
           perform_gibbs_sampling(data, pfa, options);
+          */
         } break;
         case Kind::HierGamma: {
-          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(data, options.num_factors,
+          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(data_sets, options.num_factors,
                                                       parameters);
-          perform_gibbs_sampling(data, pfa, options);
+          perform_gibbs_sampling(data_sets, pfa, options);
         } break;
         default:
           throw std::runtime_error("Error: Mixing type '"

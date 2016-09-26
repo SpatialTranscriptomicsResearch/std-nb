@@ -28,7 +28,7 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize_factor(size_t t) {
   // initialize Θ
   LOG(debug) << "Initializing Θ";
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
+  for (size_t s = 0; s < dim1; ++s)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     matrix(s, t) = std::gamma_distribution<Float>(
         prior.r(t), 1 / prior.p(t))(EntropySource::rng);
@@ -39,24 +39,24 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
   assert(false);
   throw(std::runtime_error("Not implemented!"));
   // TODO implement
-  std::vector<double> a(S);
-  for (size_t s = 0; s < S; ++s)
+  std::vector<double> a(dim1);
+  for (size_t s = 0; s < dim1; ++s)
     a[s] = prior.alpha[s];
   auto x = sample_dirichlet<Float>(begin(a), end(a),
                                    EntropySource::rngs[omp_get_thread_num()]);
-  // for (size_t s = 0; s < S; ++s)
+  // for (size_t s = 0; s < dim1; ++s)
   //   phi(g, t) = x[g];
 }
 
 template <>
 void Model<Variable::Mix, Kind::HierGamma>::initialize() {
-  matrix = Matrix(S, T);
+  matrix = Matrix(dim1, dim2);
   // initialize Θ
   LOG(debug) << "Initializing Θ from Gamma distribution";
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
+  for (size_t s = 0; s < dim1; ++s) {
     const size_t thread_num = omp_get_thread_num();
-    for (size_t t = 0; t < T; ++t)
+    for (size_t t = 0; t < dim2; ++t)
       // NOTE: std::gamma_distribution takes a shape and scale parameter
       matrix(s, t) = std::gamma_distribution<Float>(
           prior.r(t), 1 / prior.p(t))(EntropySource::rngs[thread_num]);
@@ -65,14 +65,14 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize() {
 
 template <>
 void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
-  matrix = Matrix(S, T);
+  matrix = Matrix(dim1, dim2);
   LOG(debug) << "Initializing Θ from Dirichlet distribution" << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
+  for (size_t s = 0; s < dim1; ++s) {
     const size_t thread_num = omp_get_thread_num();
     auto x = sample_dirichlet<Float>(begin(prior.alpha), end(prior.alpha),
                                      EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < T; ++t)
+    for (size_t t = 0; t < dim2; ++t)
       matrix(s, t) = x[t];
   }
 }
@@ -82,7 +82,7 @@ template <>
 double Model<Variable::Mix, Kind::HierGamma>::log_likelihood(
     const IMatrix &counts) const {
   double l = 0;
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < dim2; ++t)
     l += log_likelihood_factor(counts, t);
   return l;
 }
@@ -94,7 +94,7 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
+  for (size_t s = 0; s < dim1; ++s) {
     // NOTE: log_gamma takes a shape and scale parameter
     auto cur = log_gamma(matrix(s, t), prior.r(t), 1.0 / prior.p(t));
     if (false and cur > 0)
@@ -125,13 +125,13 @@ double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood(
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    vector<double> p(T);
-    for (size_t t = 0; t < T; ++t)
+  for (size_t s = 0; s < dim1; ++s) {
+    vector<double> p(dim2);
+    for (size_t t = 0; t < dim2; ++t)
       p[t] = matrix(s,t);
 
-    vector<double> a(T);
-    for (size_t t = 0; t < T; ++t)
+    vector<double> a(dim2);
+    for (size_t t = 0; t < dim2; ++t)
       a[t] = counts(s,t) + prior.alpha_prior;
 
     l += log_dirichlet(p, a);
@@ -146,9 +146,9 @@ double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
     const IMatrix &counts, size_t t) const {
   // TODO
   assert(false);
-  std::vector<Float> p(S);
+  std::vector<Float> p(dim1);
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
+  for (size_t s = 0; s < dim1; ++s)
     p[s] = matrix(s, t);
 
   return log_dirichlet(p, prior.alpha);

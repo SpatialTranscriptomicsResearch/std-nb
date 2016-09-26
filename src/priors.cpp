@@ -32,16 +32,15 @@ double compute_conditional(const pair<Float, Float> &x, Int count_sum,
          + lgamma(current_r + count_sum) - lgamma(current_r);
 }
 
-Gamma::Gamma(size_t G_, size_t S_, size_t T_, const Parameters &params)
-    : G(G_), S(S_), T(T_), r(G, T), p(G, T), parameters(params) {
+Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
+    : dim1(dim1_), dim2(dim2_), r(dim1, dim2), p(dim1, dim2), parameters(params) {
   initialize_r();
   initialize_p();
 }
 
 Gamma::Gamma(const Gamma &other)
-    : G(other.G),
-      S(other.S),
-      T(other.T),
+    : dim1(other.dim1),
+      dim2(other.dim2),
       r(other.r),
       p(other.p),
       parameters(other.parameters) {}
@@ -50,9 +49,9 @@ void Gamma::initialize_r() {
   // initialize r_phi
   LOG(debug) << "Initializing R of Φ.";
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
+  for (size_t g = 0; g < dim1; ++g) {
     const size_t thread_num = omp_get_thread_num();
-    for (size_t t = 0; t < T; ++t)
+    for (size_t t = 0; t < dim2; ++t)
       // NOTE: std::gamma_distribution takes a shape and scale parameter
       r(g, t) = std::gamma_distribution<Float>(
           parameters.hyperparameters.phi_r_1,
@@ -64,27 +63,13 @@ void Gamma::initialize_p() {
   // initialize p_phi
   LOG(debug) << "Initializing P of Φ.";
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
+  for (size_t g = 0; g < dim1; ++g) {
     const size_t thread_num = omp_get_thread_num();
-    for (size_t t = 0; t < T; ++t)
+    for (size_t t = 0; t < dim2; ++t)
       p(g, t) = prob_to_neg_odds(sample_beta<Float>(
           parameters.hyperparameters.phi_p_1,
           parameters.hyperparameters.phi_p_2, EntropySource::rngs[thread_num]));
   }
-}
-
-template <typename F, typename... Args>
-size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
-  size_t n = 0;
-  double f = fnc(x, args...);
-  while (fabs(f) > eps) {
-    f = fnc(x, args...);
-    double df = dfnc(x, args...);
-    LOG(verbose) << "f = " << f << " df = " << df;
-    x -= f / df;
-    n++;
-  }
-  return n;
 }
 
 double fnc(double r, double x) {
@@ -95,52 +80,9 @@ double dfnc(double r, double x) {
   return trigamma(r+x) - trigamma(r) + 1/r - 1/(r+x);
 }
 
-void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
-                   const Vector &spot_scaling,
-                   const Vector &experiment_scaling_long) {
-  LOG(info) << "Sampling P and R of Φ using maximum likelihood.";
-
-  for (size_t t = 0; t < T; ++t) {
-    Float weight_sum = 0;
-    for (size_t s = 0; s < S; ++s) {
-      Float x = theta(s, t) * spot_scaling[s];
-      if (parameters.activate_experiment_scaling)
-        x *= experiment_scaling_long[s];
-      weight_sum += x;
-    }
-
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
-      const Int count_sum = contributions_gene_type(g, t);
-      LOG(verbose) << "count_sum = " << count_sum;
-      LOG(verbose) << "weight_sum = " << weight_sum;
-      LOG(verbose) << "r(" << g << ", " << t << ") = " << r(g,t);
-      LOG(verbose) << "p(" << g << ", " << t << ") = " << p(g,t);
-      /*
-      double x = r(g,t) / count_sum; // TODO add pseudo-counts?
-      // x = theta / (theta + gamma);
-      // x * (theta + gamma) = theta;
-      // x * theta + x * gamma = theta;
-      // x * gamma = theta - x * theta;
-      // gamma = (theta - x * theta) / x;
-      p(g,t) = weight_sum * (1 - x) / x;
-      */
-
-      const double pseudo_cnt = 1e-6;
-      // size_t num_steps = solve_newton(1e-6, bla, dbla, r(g, t), count_sum,
-      //                                 log(p(g, t)) - log(p(g, t) + weight_sum));
-      size_t num_steps = solve_newton(1e-6, fnc, dfnc, r(g, t), count_sum);
-      p(g, t) = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
-      LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g,t);
-      LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g,t);
-      LOG(verbose) << "number of steps = " << num_steps << endl;
-    }
-  }
-}
-
 void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
                    const Vector &spot_scaling,
-                   const Vector &experiment_scaling_long) {
+                   Float experiment_scaling) {
   LOG(info) << "Sampling P and R of Φ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -150,18 +92,18 @@ void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_typ
     return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
   };
 
-  for (size_t t = 0; t < T; ++t) {
+  for (size_t t = 0; t < theta.n_cols; ++t) {
     Float weight_sum = 0;
-    for (size_t s = 0; s < S; ++s) {
+    for (size_t s = 0; s < theta.n_rows; ++s) {
       Float x = theta(s, t) * spot_scaling[s];
       if (parameters.activate_experiment_scaling)
-        x *= experiment_scaling_long[s];
+        x *= experiment_scaling;
       weight_sum += x;
     }
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
 
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
+    for (size_t g = 0; g < dim1; ++g) {
       const Int count_sum = contributions_gene_type(g, t);
       const size_t thread_num = omp_get_thread_num();
       auto res = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
@@ -182,33 +124,30 @@ void Gamma::store(const std::string &prefix,
 }
 
 void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
-  for (size_t g = 0; g < G; ++g) {
+  for (size_t g = 0; g < dim1; ++g) {
     r(g, t1) = sub_model.r(g, t2);
     p(g, t1) = sub_model.p(g, t2);
   }
 }
 
-Dirichlet::Dirichlet(size_t g, size_t s, size_t t,
-                     const Parameters &parameters)
-    : G(g),
-      S(s),
-      T(t),
+Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
+    : dim1(dim1_),
+      dim2(dim2_),
       alpha_prior(parameters.hyperparameters.alpha),
-      alpha(G, T) {
+      alpha(dim1, dim2) {
   alpha.fill(alpha_prior);
 }
 
 Dirichlet::Dirichlet(const Dirichlet &other)
-    : G(other.G),
-      S(other.S),
-      T(other.T),
+    : dim1(other.dim1),
+      dim2(other.dim2),
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &theta,
                        const IMatrix &contributions_gene_type,
                        const Vector &spot_scaling,
-                       const Vector &experiment_scaling_long) const {}
+                       Float experiment_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &gene_names,
@@ -255,16 +194,15 @@ double compute_conditional(const pair<Float, Float> &x,
   return r;
 }
 
-Gamma::Gamma(size_t G_, size_t S_, size_t T_, const Parameters &params)
-    : G(G_), S(S_), T(T_), r(T), p(T), parameters(params) {
+Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
+    : dim1(dim1_), dim2(dim2_), r(dim2), p(dim2), parameters(params) {
   initialize_r();
   initialize_p();
 }
 
 Gamma::Gamma(const Gamma &other)
-    : G(other.G),
-      S(other.S),
-      T(other.T),
+    : dim1(other.dim1),
+      dim2(other.dim2),
       r(other.r),
       p(other.p),
       parameters(other.parameters) {}
@@ -272,7 +210,7 @@ Gamma::Gamma(const Gamma &other)
 void Gamma::initialize_r() {
   // initialize r_theta
   LOG(debug) << "Initializing R of Θ.";
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < dim2; ++t)
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     r[t] = std::gamma_distribution<Float>(
         parameters.hyperparameters.theta_r_1,
@@ -282,7 +220,7 @@ void Gamma::initialize_r() {
 void Gamma::initialize_p() {
   // initialize p_theta
   LOG(debug) << "Initializing P of Θ.";
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < dim2; ++t)
     if (false)  // TODO make this CLI-switchable
       p[t] = prob_to_neg_odds(
           sample_beta<Float>(parameters.hyperparameters.theta_p_1,
@@ -293,7 +231,7 @@ void Gamma::initialize_p() {
 
 void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
                    const Vector &spot_scaling,
-                   const Vector &experiment_scaling_long) {
+                   Float experiment_scaling) {
   LOG(info) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -303,21 +241,21 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
     return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
   };
 
-  for (size_t t = 0; t < T; ++t) {
+  for (size_t t = 0; t < phi.n_cols; ++t) {
     Float weight_sum = 0;
 #pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
+    for (size_t g = 0; g < phi.n_rows; ++g)
       weight_sum += phi(g, t);
     MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
 
-    std::vector<Int> count_sums(S, 0);
-    std::vector<Float> weight_sums(S, 0);
+    std::vector<Int> count_sums(dim1, 0);
+    std::vector<Float> weight_sums(dim1, 0);
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s) {
+    for (size_t s = 0; s < dim1; ++s) {
       count_sums[s] = contributions_spot_type(s, t);
       weight_sums[s] = weight_sum * spot_scaling[s];
       if (parameters.activate_experiment_scaling)
-        weight_sums[s] *= experiment_scaling_long[s];
+        weight_sums[s] *= experiment_scaling;
     }
     auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]), parameters.n_iter,
                          EntropySource::rng, gen, compute_conditional,
@@ -339,25 +277,23 @@ void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
   p(t1) = sub_model.p(t2);
 }
 
-Dirichlet::Dirichlet(size_t G_, size_t S_, size_t T_,
+Dirichlet::Dirichlet(size_t dim1_, size_t dim2_,
                      const Parameters &parameters)
-    : G(G_),
-      S(S_),
-      T(T_),
+    : dim1(dim1_),
+      dim2(dim2_),
       alpha_prior(parameters.hyperparameters.alpha),
-      alpha(G, alpha_prior) {}
+      alpha(dim1, alpha_prior) {}
 
 Dirichlet::Dirichlet(const Dirichlet &other)
-    : G(other.G),
-      S(other.S),
-      T(other.T),
+    : dim1(other.dim1),
+      dim2(other.dim2),
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &theta,
                        const IMatrix &contributions_gene_type,
                        const Vector &spot_scaling,
-                       const Vector &experiment_scaling_long) const {}
+                       Float experiment_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &spot_names,
