@@ -25,6 +25,9 @@ struct Gamma {
   void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
               const Vector &spot_scaling,
               const Vector &experiment_scaling_long);
+  void sample_ml(const Matrix &theta, const IMatrix &contributions_gene_type,
+              const Vector &spot_scaling,
+              const Vector &experiment_scaling_long);
   /* This is a simple Metropolis-Hastings sampling scheme */
   void sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
                    const Vector &spot_scaling,

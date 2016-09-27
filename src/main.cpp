@@ -264,6 +264,8 @@ int main(int argc, char **argv) {
      "Sample contribution marginals. This is faster but less accurate.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
+    ("phi_mh", po::bool_switch(&parameters.phi_prior_metropolis_hastings),
+     "Do not use maximum likelihood to determine the priors of Φ, but use Metropolis-Hastings instead.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),

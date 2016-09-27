@@ -95,9 +95,10 @@ double dfnc(double r, double x) {
   return trigamma(r+x) - trigamma(r) + 1/r - 1/(r+x);
 }
 
-void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
-                   const Vector &spot_scaling,
-                   const Vector &experiment_scaling_long) {
+void Gamma::sample_ml(const Matrix &theta,
+                      const IMatrix &contributions_gene_type,
+                      const Vector &spot_scaling,
+                      const Vector &experiment_scaling_long) {
   LOG(info) << "Sampling P and R of Φ using maximum likelihood.";
 
   for (size_t t = 0; t < T; ++t) {
@@ -114,8 +115,8 @@ void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
       const Int count_sum = contributions_gene_type(g, t);
       LOG(verbose) << "count_sum = " << count_sum;
       LOG(verbose) << "weight_sum = " << weight_sum;
-      LOG(verbose) << "r(" << g << ", " << t << ") = " << r(g,t);
-      LOG(verbose) << "p(" << g << ", " << t << ") = " << p(g,t);
+      LOG(verbose) << "r(" << g << ", " << t << ") = " << r(g, t);
+      LOG(verbose) << "p(" << g << ", " << t << ") = " << p(g, t);
       /*
       double x = r(g,t) / count_sum; // TODO add pseudo-counts?
       // x = theta / (theta + gamma);
@@ -128,14 +129,26 @@ void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
 
       const double pseudo_cnt = 1e-6;
       // size_t num_steps = solve_newton(1e-6, bla, dbla, r(g, t), count_sum,
-      //                                 log(p(g, t)) - log(p(g, t) + weight_sum));
+      //                                 log(p(g, t)) - log(p(g, t) +
+      //                                 weight_sum));
       size_t num_steps = solve_newton(1e-6, fnc, dfnc, r(g, t), count_sum);
       p(g, t) = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
-      LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g,t);
-      LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g,t);
+      LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
+      LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
       LOG(verbose) << "number of steps = " << num_steps << endl;
     }
   }
+}
+
+void Gamma::sample(const Matrix &theta, const IMatrix &contributions_gene_type,
+                   const Vector &spot_scaling,
+                   const Vector &experiment_scaling_long) {
+  if (parameters.phi_prior_metropolis_hastings)
+    return sample_mh(theta, contributions_gene_type, spot_scaling,
+                     experiment_scaling_long);
+  else
+    return sample_ml(theta, contributions_gene_type, spot_scaling,
+                     experiment_scaling_long);
 }
 
 void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
