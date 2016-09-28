@@ -23,10 +23,6 @@
 
 namespace PoissonFactorization {
 
-#define DEFAULT_SEPARATOR "\t"
-#define DEFAULT_LABEL ""
-#define print_sub_model_cnt false  // TODO make configurable
-
 const size_t num_sub_gibbs_split = 10;
 // TODO consider lowering the number of Gibbs steps when merging with Dirichlet factors
 const size_t num_sub_gibbs_merge = 10;
@@ -76,9 +72,10 @@ struct Model {
 
   Model(const std::vector<Counts> &data, const size_t T,
         const Parameters &parameters);
+  // TODO implement loading of Experiment
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
-  //
+
   void add_experiment(const Counts &data);
 
   void store(const std::string &prefix) const;
@@ -213,35 +210,6 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
   }
   */
 }
-
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
-                                  const Parameters &parameters_)
-    : G(c.counts.n_rows),
-      S(c.counts.n_cols),
-      T(num_lines(paths.r_theta)),
-      E(c.experiment_names.size()),
-      parameters(parameters_),
-      contributions_gene_type(parse_file<IMatrix>(paths.contributions_gene_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_gene(parse_file<IVector>(paths.contributions_gene, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      features(G, S, T, parameters), // TODO deactivate
-      weights(G, S, T, parameters), // TODO deactivate
-      // features(parse_file<Matrix>(paths.features, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
-      // theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
-      // r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      // p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      spot(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      experiment_scaling_long(S) {
-  update_experiment_scaling_long(c);
-
-  LOG(debug) << *this;
-}
-*/
 
 /* TODO reactivate
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
