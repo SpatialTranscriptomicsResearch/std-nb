@@ -112,3 +112,5 @@ Exponential distributions could be used, and estimation be performed by MH.
 
 It might also be nice to have the same kind of hierarchical structure on the mixing side
 Like that it would be possible for the theta priors to share information across groups.
+
+The same generalized beta prime / compound gamma distributions could be used to sample the 2nd prior of the mixing weights as is used for the 2nd prior of the mixing components.
