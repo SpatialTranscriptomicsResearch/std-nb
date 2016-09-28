@@ -102,6 +102,7 @@ Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
   for (auto &experiment : experiments) {
     Vector theta_t = experiment.marginalize_spots();
     for (size_t t = 0; t < T; ++t)
+#pragma omp parallel for if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
         expected(g, t) += experiment.phi(g, t) * theta_t(t);
   }
