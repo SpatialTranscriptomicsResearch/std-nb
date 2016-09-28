@@ -533,8 +533,9 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &var_phi,
   if (flagged(which & Target::theta))
     weights.sample(*this, var_phi);
 
-  if (sample_global_phi_priors)
+  if (sample_local_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
+      // TODO FIXME make this work!
       features.prior.sample(*this, var_phi);
 
   if (flagged(which & Target::phi))
