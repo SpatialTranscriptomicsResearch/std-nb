@@ -77,8 +77,7 @@ template <typename F, typename... Args>
 size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
   size_t n = 0;
   double f = fnc(x, args...);
-  while (fabs(f) > eps) {
-    f = fnc(x, args...);
+  while (fabs(f = fnc(x, args...)) > eps) {
     double df = dfnc(x, args...);
     LOG(verbose) << "f = " << f << " df = " << df;
     x -= f / df;
