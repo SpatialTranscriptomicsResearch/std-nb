@@ -101,7 +101,7 @@ struct Model {
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
   // TODO use a matrix valued expression
-  Matrix expected = features.prior.p;
+  Matrix expected(G, T, arma::fill::zeros);
   for (auto &experiment : experiments) {
     Vector theta_t = experiment.marginalize_spots();
     for (size_t t = 0; t < T; ++t)

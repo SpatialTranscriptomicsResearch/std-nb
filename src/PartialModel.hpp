@@ -145,20 +145,25 @@ void Model<Variable::Feature, Kind::Gamma>::sample(
   LOG(info) << "Sampling Φ from Gamma distribution";
 
   // TODO do this:
-  // Matrix observed = prior.r + experiment.contributions_gene_type;
-  Matrix observed = prior.r;
-  for (size_t x = 0; x < dim1; ++x)
-    for (size_t y = 0; y < dim2; ++y)
-      observed(x, y) += experiment.contributions_gene_type(x, y);
+  Matrix observed = prior.r + experiment.contributions_gene_type;
 
-  double sum = 0;
-  for (size_t x = 0; x < dim1; ++x)
-    for (size_t y = 0; y < dim2; ++y)
-      sum += prior.r(x,y);
+  if (true ) {
+    double sum = 0;
+    for (size_t x = 0; x < dim1; ++x)
+      for (size_t y = 0; y < dim2; ++y)
+        sum += prior.r(x,y);
 
-  LOG(debug) << "sum of priors = " << sum;
+    LOG(debug) << "sum of r priors = " << sum;
 
-  Matrix expected = experiment.expected_gene_type(args...);
+    sum = 0;
+    for (size_t x = 0; x < dim1; ++x)
+      for (size_t y = 0; y < dim2; ++y)
+        sum += prior.p(x,y);
+
+    LOG(debug) << "sum of p priors = " << sum;
+  }
+
+  Matrix expected = prior.p + experiment.expected_gene_type(args...);
 
   perform_sampling(observed, expected);
 

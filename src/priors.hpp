@@ -98,7 +98,7 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
           auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), count_sum,
                                         p(g, t), weight_sum);
           LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
-          LOG(debug) << "number of steps = " << num_steps << std::endl;
+          LOG(debug) << "number of steps = " << num_steps;
         }
 
         p(g, t) = sample_compound_gamma(
@@ -109,16 +109,17 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
         assert(r(g, t) >= 0);
         assert(p(g, t) >= 0);
 
-      /*
-      const double pseudo_cnt = 1e-6;
-      auto p_ml = r(g, t) / count_sum * weight_sum;
-      auto p_ml_ps
-          = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
+        LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
 
-      LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
-      LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
-      LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
-      */
+        if (count_sum > 0) {
+          const double pseudo_cnt = 1e-6;
+          auto p_ml = r(g, t) / count_sum * weight_sum;
+          auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
+
+          LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
+          LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
+        }
+        LOG(verbose) << std::endl;
       }
     }
   }

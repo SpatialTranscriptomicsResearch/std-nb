@@ -107,10 +107,10 @@ Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
     const Matrix &var_phi) const {
   Vector theta_t = marginalize_spots();
   // TODO use a matrix valued expression
-  Matrix expected = features.prior.p;
+  Matrix expected(G, T, arma::fill::zeros);
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      expected(g, t) += var_phi(g, t) * theta_t(t);
+      expected(g, t) = var_phi(g, t) * theta_t(t);
   return expected;
 };
 
