@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <exception>
+#include <fenv.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -210,6 +211,7 @@ void perform_gibbs_sampling(const Counts &data, T &pfa,
 }
 
 int main(int argc, char **argv) {
+  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   EntropySource::seed();
 
   Options options;
