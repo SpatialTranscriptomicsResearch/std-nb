@@ -111,14 +111,15 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
 
         LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
 
-        if (count_sum > 0) {
-          const double pseudo_cnt = 1e-6;
-          auto p_ml = r(g, t) / count_sum * weight_sum;
-          auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
+        if (false)
+          if (count_sum > 0) {
+            const double pseudo_cnt = 1e-6;
+            auto p_ml = r(g, t) / count_sum * weight_sum;
+            auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
 
-          LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
-          LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
-        }
+            LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
+            LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
+          }
         LOG(verbose) << std::endl;
       }
     }

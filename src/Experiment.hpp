@@ -27,7 +27,7 @@ namespace PoissonFactorization {
 #define DEFAULT_LABEL ""
 #define print_sub_model_cnt false  // TODO make configurable
 
-const bool sample_global_phi_priors = false;
+const bool sample_global_phi_priors = true;
 const bool sample_local_phi_priors = false;
 
 bool gibbs_test(Float nextG, Float G, Float temperature = 50);
