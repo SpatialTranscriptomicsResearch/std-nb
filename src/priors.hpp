@@ -80,7 +80,6 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
       for (size_t g = 0; g < dim1; ++g) {
         const Int count_sum = experiment.contributions_gene_type(g, t);
         const Float weight_sum = expected_gene_type(g, t);
-        // const Float weight_sum = theta_t[t] * experiment.phi(g,t) // TODO FIXME check;
         LOG(debug) << "count_sum = " << count_sum;
         LOG(debug) << "weight_sum = " << weight_sum;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
