@@ -41,7 +41,6 @@ struct Options {
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool perform_splitmerge = false;
-  bool timing = true;
   size_t top = 0;
   PF::Target sample_these = PF::DefaultTarget();
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
@@ -282,8 +281,6 @@ int main(int argc, char **argv) {
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("timing", po::bool_switch(&options.timing),
-     "Print out timing information.")
     ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
      "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),

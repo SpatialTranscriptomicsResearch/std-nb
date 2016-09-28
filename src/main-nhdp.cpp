@@ -48,7 +48,6 @@ struct Options {
   bool compute_likelihood = false;
   bool perform_splitmerge = false;
   bool posterior_switches = false;
-  bool timing = true;
   size_t top = 0;
   // PF::Target sample_these = PF::DefaultTarget();
   // PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
@@ -89,26 +88,6 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
       break;
   }
   return os;
-}
-
-template <typename T>
-void perform_gibbs_sampling(const Counts &data, T &pfa,
-                            const Options &options) {
-  LOG(info) << "Initial model" << endl << pfa;
-  for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
-    // if (iteration > pfa.parameters.enforce_iter)
-    //   pfa.parameters.enforce_mean = PF::ForceMean::None;
-    LOG(info) << "Performing iteration " << iteration;
-    // pfa.gibbs_sample(data, options.sample_these, options.timing);
-    LOG(info) << "Current model" << endl << pfa;
-    if (iteration % options.report_interval == 0)
-      pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
-    if (options.compute_likelihood)
-      LOG(info) << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
-  }
-  if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
-  pfa.store(data, options.output, true);
 }
 
 ostream &print(ostream &os, const PF::Matrix &m,
@@ -231,8 +210,6 @@ int main(int argc, char **argv) {
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("timing", po::bool_switch(&options.timing),
-     "Print out timing information.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
