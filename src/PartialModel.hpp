@@ -141,11 +141,10 @@ template <typename Experiment, typename... Args>
 void Model<Variable::Feature, Kind::Gamma>::sample(
     const Experiment &experiment,
     const Args&... args) {
-    // const typename Experiment::features_t &global_features) {
   LOG(info) << "Sampling Φ from Gamma distribution";
 
   // TODO do this:
-  Matrix observed = prior.r + experiment.contributions_gene_type;
+  Matrix observed = experiment.contributions_gene_type;
 
   if (true ) {
     double sum = 0;
@@ -163,9 +162,9 @@ void Model<Variable::Feature, Kind::Gamma>::sample(
     LOG(debug) << "sum of p priors = " << sum;
   }
 
-  Matrix expected = prior.p + experiment.expected_gene_type(args...);
+  Matrix expected = experiment.expected_gene_type(args...);
 
-  perform_sampling(observed, expected);
+  perform_sampling(prior.r + observed, prior.p + expected);
 
   // enforce means if necessary
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
