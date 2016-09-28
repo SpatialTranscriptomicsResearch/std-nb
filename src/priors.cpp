@@ -79,8 +79,12 @@ size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
   double f = fnc(x, args...);
   while (fabs(f = fnc(x, args...)) > eps) {
     double df = dfnc(x, args...);
-    LOG(verbose) << "f = " << f << " df = " << df;
-    x -= f / df;
+    LOG(verbose) << "x = " << x << " f = " << f << " df = " << df;
+    double ratio = f / df;
+    if(ratio > x)
+      x /= 2;
+    else
+      x -= f / df;
     n++;
   }
   return n;
@@ -111,20 +115,34 @@ void Gamma::sample_ml(const Matrix &theta,
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
-      const Int count_sum = contributions_gene_type(g, t);
-      LOG(verbose) << "count_sum = " << count_sum;
-      LOG(verbose) << "weight_sum = " << weight_sum;
-      LOG(verbose) << "r(" << g << ", " << t << ") = " << r(g, t);
-      LOG(verbose) << "p(" << g << ", " << t << ") = " << p(g, t);
-      /*
-      double x = r(g,t) / count_sum; // TODO add pseudo-counts?
-      // x = theta / (theta + gamma);
-      // x * (theta + gamma) = theta;
-      // x * theta + x * gamma = theta;
-      // x * gamma = theta - x * theta;
-      // gamma = (theta - x * theta) / x;
-      p(g,t) = weight_sum * (1 - x) / x;
-      */
+      const auto count_sum = contributions_gene_type(g, t);
+      const auto thread_num = omp_get_thread_num();
+      if (count_sum > 0) {
+        LOG(verbose) << "count_sum = " << count_sum;
+        LOG(verbose) << "weight_sum = " << weight_sum;
+        LOG(verbose) << "r(" << g << ", " << t << ") = " << r(g, t);
+        LOG(verbose) << "p(" << g << ", " << t << ") = " << p(g, t);
+
+        auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), count_sum, p(g,t), weight_sum);
+        // auto num_steps = solve_newton(1e-6, fnc, dfnc, r(g, t), count_sum);
+        LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
+        LOG(verbose) << "number of steps = " << num_steps << endl;
+      } else {
+        // NOTE: std::gamma_distribution takes a shape and scale parameter
+        r(g, t) = std::gamma_distribution<Float>(
+            parameters.hyperparameters.phi_r_1,
+            1 / parameters.hyperparameters.phi_r_2)(
+            EntropySource::rngs[thread_num]);
+      }
+      assert(r(g,t) >= 0);
+
+      p(g, t) = sample_compound_gamma(
+          parameters.hyperparameters.phi_p_1 + r(g, t),
+          parameters.hyperparameters.phi_p_2 + count_sum,
+          weight_sum,
+          EntropySource::rngs[thread_num]);
+
+      assert(p(g,t) >= 0);
 
       const double pseudo_cnt = 1e-6;
       // size_t num_steps = solve_newton(1e-6, bla, dbla, r(g, t), count_sum,
