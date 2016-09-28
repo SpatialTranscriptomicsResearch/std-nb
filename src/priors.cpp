@@ -90,6 +90,14 @@ size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
   return n;
 }
 
+double fnc2(double r, double x, double gamma, double theta) {
+  return digamma(r+x) - digamma(r) + log(gamma) - log(theta+gamma);
+}
+
+double dfnc2(double r, double x, double gamma, double theta) {
+  return trigamma(r+x) - trigamma(r);
+}
+
 double fnc(double r, double x) {
   return digamma(r+x) - digamma(r) + log(r) - log(r+x);
 }
@@ -144,15 +152,16 @@ void Gamma::sample_ml(const Matrix &theta,
 
       assert(p(g,t) >= 0);
 
+      /*
       const double pseudo_cnt = 1e-6;
-      // size_t num_steps = solve_newton(1e-6, bla, dbla, r(g, t), count_sum,
-      //                                 log(p(g, t)) - log(p(g, t) +
-      //                                 weight_sum));
-      size_t num_steps = solve_newton(1e-6, fnc, dfnc, r(g, t), count_sum);
-      p(g, t) = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
-      LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
+      auto p_ml = r(g, t) / count_sum * weight_sum;
+      auto p_ml_ps
+          = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
+
       LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
-      LOG(verbose) << "number of steps = " << num_steps << endl;
+      LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
+      LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
+      */
     }
   }
 }
