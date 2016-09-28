@@ -143,10 +143,10 @@ void Model<Variable::Feature, Kind::Gamma>::sample(
     const Args&... args) {
   LOG(info) << "Sampling Φ from Gamma distribution";
 
-  Matrix observed = experiment.contributions_gene_type;
-  Matrix expected = experiment.expected_gene_type(args...);
+  Matrix observed = prior.r + experiment.contributions_gene_type;
+  Matrix expected = prior.p + experiment.expected_gene_type(args...);
 
-  perform_sampling(prior.r + observed, prior.p + expected);
+  perform_sampling(observed, expected);
 
   // enforce means if necessary
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
