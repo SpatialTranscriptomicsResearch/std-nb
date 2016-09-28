@@ -336,80 +336,6 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
   }
 }
 
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-*/
-/** sample count decomposition */
-/* TODO reactivate
-void Model<feat_kind, mix_kind>::sample_contributions_variational(
-    const IMatrix &counts) {
-  LOG(info) << "Sampling contribution marginals";
-  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
-  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
-  lambda_gene_spot = Matrix(G, S, arma::fill::zeros);
-  Matrix rate_gene_type(G, T, arma::fill::zeros);
-  Matrix rate_spot_type(S, T, arma::fill::zeros);
-
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    Matrix rate_spot_type_(S, T, arma::fill::zeros);
-    Vector lambda(T);
-#pragma omp for
-    for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s) {
-        double factor = spot(s);
-        if (parameters.activate_experiment_scaling)
-          factor *= experiment_scaling_long[s];
-        double z = 0;
-        for (size_t t = 0; t < T; ++t)
-          z += lambda[t] = phi(g, t) * theta(s, t) * factor;
-        lambda_gene_spot(g, s) = z;
-        if (counts(g, s) > 0)
-          for (size_t t = 0; t < T; ++t) {
-            const double x = lambda[t] / z * counts(g, s);
-            rate_gene_type(g, t) += x;
-            rate_spot_type_(s, t) += x;
-          }
-      }
-#pragma omp critical
-    { rate_spot_type += rate_spot_type_; }
-  }
-
-#pragma omp parallel if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
-    const size_t thread_num = omp_get_thread_num();
-    std::vector<Float> a(T);
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += a[t] = rate_gene_type(g, t);
-    for (size_t t = 0; t < T; ++t)
-      a[t] /= z;
-
-    // LOG(info) << "contributions_gene(" << g << ") = " << contributions_gene[g];
-    auto v = sample_multinomial<Int>(contributions_gene(g), begin(a), end(a),
-                                     EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < T; ++t)
-      contributions_gene_type(g, t) = v[t];
-  }
-
-#pragma omp parallel if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    const size_t thread_num = omp_get_thread_num();
-    std::vector<Float> a(T);
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += a[t] = rate_spot_type(s, t);
-    for (size_t t = 0; t < T; ++t)
-      a[t] /= z;
-
-    auto v = sample_multinomial<Int>(contributions_spot(s), begin(a), end(a),
-                                     EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < T; ++t)
-      contributions_spot_type(s, t) = v[t];
-  }
-}
-*/
-
 /** sample experiment scaling factors */
 /* TODO reactivate
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -461,11 +387,6 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
   for (auto &experiment : experiments)
     if (flagged(which & Target::contributions))
-      /* TODO reactivate
-      if (parameters.variational)
-        sample_contributions_variational(data.counts);
-      else
-      */
       experiment.sample_contributions(features.matrix);
   update_contributions();
 

@@ -101,7 +101,6 @@ struct Parameters {
    */
   size_t enforce_iter = 10;
   bool activate_experiment_scaling = false;
-  bool variational = false;
   bool phi_prior_metropolis_hastings = false;
   bool store_lambda = false;
   Hyperparameters hyperparameters;
