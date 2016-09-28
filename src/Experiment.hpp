@@ -79,7 +79,7 @@ struct Experiment {
 
   Matrix weighted_theta() const;
 
-  void gibbs_sample(const Matrix &var_phi, Target which);
+  void gibbs_sample(const Matrix &global_phi, Target which);
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &var_phi);
@@ -485,12 +485,12 @@ void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
 */
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &var_phi,
+void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
                                                           Target which) {
   // TODO reactivate
   if (false)
     if (flagged(which & Target::contributions))
-      sample_contributions(var_phi);
+      sample_contributions(global_phi);
 
   /* TODO reactivate
   if (flagged(which & Target::experiment))
@@ -499,22 +499,22 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &var_phi,
   */
 
   if (flagged(which & (Target::theta_r | Target::theta_p)))
-    weights.prior.sample(features.matrix % var_phi, contributions_spot_type,
+    weights.prior.sample(features.matrix % global_phi, contributions_spot_type,
                          spot, experiment_scaling);
 
   if (flagged(which & Target::theta))
-    weights.sample(*this, var_phi);
+    weights.sample(*this, global_phi);
 
   if (sample_local_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
       // TODO FIXME make this work!
-      features.prior.sample(*this, var_phi);
+      features.prior.sample(*this, global_phi);
 
   if (flagged(which & Target::phi))
-    features.sample(*this, var_phi);
+    features.sample(*this, global_phi);
 
   if (flagged(which & Target::spot))
-    sample_spot(var_phi);
+    sample_spot(global_phi);
 }
 
 /* TODO reactivate
