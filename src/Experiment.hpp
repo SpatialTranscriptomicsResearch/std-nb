@@ -77,7 +77,7 @@ struct Experiment {
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
 
-  Matrix weighted_theta() const;
+  Matrix weighted_theta(const Matrix &global_phi) const;
 
   void gibbs_sample(const Matrix &global_phi, Target which);
 
@@ -92,7 +92,7 @@ struct Experiment {
 
   Vector marginalize_genes(const Matrix &var_phi) const;
   Vector marginalize_spots() const;
-  void store(const std::string &prefix) const;
+  void store(const std::string &prefix, const features_t &global_features) const;
 
   // computes a matrix M(g,t)
   // with M(g,t) = prior.p(g,t) + var_phi(g,t) sum_s theta(s,t) sigma(s)
@@ -292,12 +292,12 @@ features[e].log_likelihood(experiments_contributions_gene_type);
 */
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::weighted_theta() const {
+Matrix Experiment<feat_kind, mix_kind>::weighted_theta(const Matrix &global_phi) const {
   Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += phi(g, t);
+      x += phi(g, t) * global_phi(g, t);
     for (size_t s = 0; s < S; ++s) {
       m(s, t) *= x * spot(s);
       if (parameters.activate_experiment_scaling)
@@ -309,7 +309,7 @@ Matrix Experiment<feat_kind, mix_kind>::weighted_theta() const {
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::store(
-    const std::string &prefix) const {
+    const std::string &prefix, const features_t &global_features) const {
   std::vector<std::string> factor_names;
   for (size_t t = 1; t <= T; ++t)
     factor_names.push_back("Factor " + std::to_string(t));
@@ -318,7 +318,7 @@ void Experiment<feat_kind, mix_kind>::store(
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_matrix(weighted_theta(), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_matrix(weighted_theta(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
   /* TODO reactivate
   write_vector(experiment_scaling, prefix + "experiment-scaling.txt", counts.experiment_names);
   */

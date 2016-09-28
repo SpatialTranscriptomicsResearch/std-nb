@@ -301,7 +301,7 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment" + std::to_string(e) + "-";
-    experiments[e].store(exp_prefix);
+    experiments[e].store(exp_prefix, features);
   }
 }
 
