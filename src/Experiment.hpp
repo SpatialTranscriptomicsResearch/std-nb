@@ -499,8 +499,8 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &var_phi,
   */
 
   if (flagged(which & (Target::theta_r | Target::theta_p)))
-    weights.prior.sample(features.matrix, contributions_spot_type, spot,
-                         experiment_scaling);
+    weights.prior.sample(features.matrix % var_phi, contributions_spot_type,
+                         spot, experiment_scaling);
 
   if (flagged(which & Target::theta))
     weights.sample(*this, var_phi);
