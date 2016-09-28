@@ -106,5 +106,9 @@ basically, introduce a plate for gene, type, and experiment.
 Let it's structure be identical to that of the gene and type plate.
 I.e. then we have \lambda_{gst} = \phi_{gt} \phi_{gte} \theta{st} \sigma{s} maybe times \sigma{e}
 
-it might also be nice to have the same kind of hierarchical structure on the mixing side
-like that it would be possible for the theta priors to share information across groups.
+It might be nice to turn the experiment-specific hyper-parameters into random variables
+This might be feasible because we have so many parameters sharing that parameter.
+Exponential distributions could be used, and estimation be performed by MH.
+
+It might also be nice to have the same kind of hierarchical structure on the mixing side
+Like that it would be possible for the theta priors to share information across groups.

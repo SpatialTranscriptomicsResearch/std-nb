@@ -14,6 +14,13 @@ struct RandomDistribution {
   // static std::uniform_real_distribution<double> Probability;
 };
 
+template <typename T>
+T sample_compound_gamma(T a, T b, T c, std::mt19937 &rng) {
+  // NOTE: gamma_distribution takes a shape and scale parameter
+  return std::gamma_distribution<T>(
+      a, 1/std::gamma_distribution<>(b, 1/c)(rng))(rng);
+}
+
 template <class T, class Iter>
 std::vector<T> sample_multinomial(size_t n, const Iter begin, const Iter end,
                                   std::mt19937 &rng = EntropySource::rng) {

@@ -72,6 +72,14 @@ void Gamma::initialize_p() {
   }
 }
 
+double fnc2(double r, double x, double gamma, double theta) {
+  return digamma(r+x) - digamma(r) + log(gamma) - log(theta+gamma);
+}
+
+double dfnc2(double r, double x, double gamma, double theta) {
+  return trigamma(r+x) - trigamma(r);
+}
+
 double fnc(double r, double x) {
   return digamma(r+x) - digamma(r) + log(r) - log(r+x);
 }
