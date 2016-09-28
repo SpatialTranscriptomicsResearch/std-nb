@@ -33,6 +33,8 @@ const bool consider_factor_likel = false;
 const size_t sub_model_cnt = 10;
 // static size_t sub_model_cnt; // TODO
 const double local_phi_scaling_factor = 50;
+const bool sample_global_prior_priors = false;
+const bool sample_local_prior_priors = false;
 
 bool gibbs_test(Float nextG, Float G, Float temperature = 50);
 size_t num_lines(const std::string &path);
@@ -852,7 +854,7 @@ void Model<feat_kind, mix_kind>::Experiment::gibbs_sample(const Matrix &var_phi,
   if (flagged(which & Target::theta))
     weights.sample(*this, var_phi);
 
-  if (false)
+  if (sample_global_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
       features.prior.sample(*this, var_phi);
 
@@ -880,7 +882,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
   // update_contributions();
 
   // TODO FIXME implement
-  if (false)
+  if (sample_local_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
       features.prior.sample(*this);
 
