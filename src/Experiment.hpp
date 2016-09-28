@@ -350,7 +350,8 @@ void Experiment<feat_kind, mix_kind>::store(
   /* TODO reactivate
   write_vector(experiment_scaling, prefix + "experiment-scaling.txt", counts.experiment_names);
   */
-  write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
+  if (parameters.store_lambda)
+    write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);

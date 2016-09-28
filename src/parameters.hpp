@@ -103,6 +103,7 @@ struct Parameters {
   bool activate_experiment_scaling = false;
   bool variational = false;
   bool phi_prior_metropolis_hastings = false;
+  bool store_lambda = false;
   Hyperparameters hyperparameters;
 };
 
