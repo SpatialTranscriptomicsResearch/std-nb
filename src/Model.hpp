@@ -91,7 +91,7 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
       features(G, T, parameters) {
-  LOG(info) << "G = " << G << " T = " << T << " E = " << E;
+  LOG(verbose) << "G = " << G << " T = " << T << " E = " << E;
   for (auto &counts : c)
     add_experiment(counts);
   update_contributions();
@@ -114,10 +114,11 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
-  for (auto &experiment : experiments)
-    if (flagged(which & Target::contributions))
+  if (flagged(which & Target::contributions)) {
+    for (auto &experiment : experiments)
       experiment.sample_contributions(features.matrix);
-  update_contributions();
+    update_contributions();
+  }
 
   // for (auto &experiment : experiments)
   //   experiment.gibbs_sample(features.matrix, which);
@@ -138,10 +139,8 @@ void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood() const {
   double l = features.log_likelihood(contributions_gene_type);
-
   for(auto &experiment: experiments)
     l += experiment.log_likelihood();
-
   return l;
 }
 
