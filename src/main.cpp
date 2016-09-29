@@ -18,16 +18,6 @@ const bool use_quantiles = false;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
-vector<string> gen_alpha_labels() {
-  vector<string> v;
-  for (char y = 'A'; y <= 'Z'; ++y) v.push_back(string() + y);
-  for (char y = 'a'; y <= 'z'; ++y) v.push_back(string() + y);
-  for (char y = '0'; y <= '9'; ++y) v.push_back(string() + y);
-  return v;
-}
-
-const vector<string> alphabetic_labels = gen_alpha_labels();
-
 struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
@@ -365,40 +355,16 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  vector<string> labels;
-  switch (options.labeling) {
-    case Options::Labeling::None:
-      labels = vector<string>(options.tsv_paths.size(), "");
-      break;
-    case Options::Labeling::Path:
-      labels = options.tsv_paths;
-      break;
-    case Options::Labeling::Alpha:
-      labels = alphabetic_labels;
-      break;
-    case Options::Labeling::Auto:
-      if (options.tsv_paths.size() > 1)
-        labels = alphabetic_labels;
-      else
-        labels = vector<string>(options.tsv_paths.size(), "");
-      break;
-  }
-
-  if (labels.size() < options.tsv_paths.size()) {
-    LOG(warning) << "Warning: too few labels available! Using paths as labels.";
-    labels = options.tsv_paths;
-  }
-
   if (options.perform_splitmerge)
     options.sample_these
         = options.sample_these | PoissonFactorization::Target::merge_split;
 
-  Counts data(options.tsv_paths[0], labels[0]);
+  Counts data(options.tsv_paths[0]);
   for (size_t i = 1; i < options.tsv_paths.size(); ++i)
     if (options.intersect)
-      data = data * Counts(options.tsv_paths[i], labels[i]);
+      data = data * Counts(options.tsv_paths[i]);
     else
-      data = data + Counts(options.tsv_paths[i], labels[i]);
+      data = data + Counts(options.tsv_paths[i]);
 
   if (options.top > 0)
     data.select_top(options.top);

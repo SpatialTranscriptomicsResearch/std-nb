@@ -16,11 +16,11 @@ using IMatrix = PF::IMatrix;
 using Matrix = PF::Matrix;
 using Vector = PF::Vector;
 
-Counts::Counts(const string &path, const string &label, const string &separator)
+Counts::Counts(const string &path, const string &separator)
     : row_names(),
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
-                                 col_names, label)),
+                                 col_names, "")),
       experiments(counts.n_cols, 0),
       experiment_names(1, path) {}
 
