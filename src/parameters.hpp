@@ -91,8 +91,6 @@ struct Parameters {
   double n_iter = 100;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
-  /** Std. dev. for proposition scaling in Metropolis-Hastings sampling */
-  double prop_sd = 0.5;
   /** Whether to enforce certain means or sums */
   ForceMean enforce_mean = ForceMean::Spot | ForceMean::Experiment;
   /** How long to enforce certain means or sums

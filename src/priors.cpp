@@ -108,7 +108,7 @@ void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_typ
         x *= experiment_scaling;
       weight_sum += x;
     }
-    MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
+    MetropolisHastings mh(parameters.temperature);
 
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < dim1; ++g) {
@@ -254,7 +254,7 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
 #pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
     for (size_t g = 0; g < phi.n_rows; ++g)
       weight_sum += phi(g, t);
-    MetropolisHastings mh(parameters.temperature, parameters.prop_sd);
+    MetropolisHastings mh(parameters.temperature);
 
     std::vector<Int> count_sums(dim1, 0);
     std::vector<Float> weight_sums(dim1, 0);

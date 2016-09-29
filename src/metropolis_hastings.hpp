@@ -7,13 +7,11 @@
 #include "sampling.hpp"
 
 struct MetropolisHastings {
-  inline static double boltzdist(double dG, double T) { return exp(-dG / T); };
+  inline static double boltzdist(double dG, double T) { return exp(dG / T); };
 
   double temperature;
-  double prop_sd;
-  // std::normal_distribution<double> rnorm;
 
-  MetropolisHastings(double temp, double prop_sd_);
+  MetropolisHastings(double temp);
 
   template <typename T, typename RNG, typename Gen, typename Score,
             typename... Args>
@@ -24,8 +22,6 @@ struct MetropolisHastings {
     T accepted = current;
     bool accept = false;
     while (n_iter--) {
-      // const double f = exp(rnorm(rng));
-      // const T proposition = current * f;
       const T proposition = generate(current, rng);
       const auto propsition_score = fnc(proposition, args...);
 
@@ -35,7 +31,7 @@ struct MetropolisHastings {
       } else {
         const auto dG = propsition_score - current_score;
         const double rnd = RandomDistribution::Uniform(rng);
-        const double prob = std::min<double>(1.0, boltzdist(-dG, temperature));
+        const double prob = std::min<double>(1.0, boltzdist(dG, temperature));
         if (std::isnan(propsition_score) == 0 and (dG > 0 or rnd <= prob)) {
           accept = true;
           LOG(debug) << "Accepted!";

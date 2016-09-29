@@ -7,6 +7,7 @@
 #include "parallel.hpp"
 #include "odds.hpp"
 #include "sampling.hpp"
+#include "metropolis_hastings.hpp"
 #include "parameters.hpp"
 #include "types.hpp"
 
@@ -67,11 +68,24 @@ double dfnc(double r, double x);
 double fnc2(double r, double x, double gamma, double theta);
 double dfnc2(double r, double x, double gamma, double theta);
 
+inline double log_normal_generator(double x, std::mt19937 &rng) {
+  return x * exp(std::normal_distribution<Float>(0, 1)(rng));
+}
+
+inline double score(double r, double p, double observed, double expected,
+                    double h1, double h2) {
+  double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p) - (r + observed) * log(p + expected);
+  double prior_term = log_gamma(r, h1, h2);
+  return nb_term + prior_term;
+}
+
 template <typename Type, typename... Args>
-void Gamma::sample(const Type &experiment, const Args&... args) {
-  LOG(info) << "Sampling P and R of Φ using maximum likelihood and from the posterior, respectively.";
+void Gamma::sample(const Type &experiment, const Args &... args) {
+  LOG(info) << "Sampling P and R of Φ using maximum likelihood and from the "
+               "posterior, respectively.";
 
   auto expected_gene_type = experiment.expected_gene_type(args...);
+  MetropolisHastings mh(parameters.temperature);
   for (size_t t = 0; t < experiment.T; ++t) {
 #pragma omp parallel if (DO_PARALLEL)
     {
@@ -84,20 +98,27 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
         LOG(debug) << "weight_sum = " << weight_sum;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
         LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
-        if (count_sum == 0) {
-          r(g, t) = std::gamma_distribution<Float>(
-              parameters.hyperparameters.phi_r_1,
-              1 / parameters.hyperparameters.phi_r_2)(
-              EntropySource::rngs[thread_num]);
+        if (not parameters.phi_prior_metropolis_hastings) {
+          if (count_sum == 0) {
+            r(g, t) = std::gamma_distribution<Float>(
+                parameters.hyperparameters.phi_r_1,
+                1 / parameters.hyperparameters.phi_r_2)(
+                EntropySource::rngs[thread_num]);
+          } else {
+            // TODO should this be deactivated?
+            // // set to arithmetic mean of current value and 1
+            r(g, t) = (1 + r(g, t)) / 2;
+            auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), count_sum,
+                                          p(g, t), weight_sum);
+            LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
+            LOG(debug) << "number of steps = " << num_steps;
+          }
         } else {
-          // TODO should this be deactivated?
-          // // set to arithmetic mean of current value and 1
-          r(g, t) = (1 + r(g, t)) / 2;
-          // size_t num_steps = solve_newton(1e-6, fnc, dfnc, r(g, t), count_sum);
-          auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), count_sum,
-                                        p(g, t), weight_sum);
-          LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
-          LOG(debug) << "number of steps = " << num_steps;
+          r(g, t) = mh.sample(r(g, t), parameters.n_iter,
+                              EntropySource::rngs[thread_num],
+                              log_normal_generator, score, p(g, t), count_sum,
+                              weight_sum, parameters.hyperparameters.phi_r_1,
+                              parameters.hyperparameters.phi_r_2);
         }
 
         p(g, t) = sample_compound_gamma(
@@ -114,10 +135,12 @@ void Gamma::sample(const Type &experiment, const Args&... args) {
           if (count_sum > 0) {
             const double pseudo_cnt = 1e-6;
             auto p_ml = r(g, t) / count_sum * weight_sum;
-            auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt) * (weight_sum + pseudo_cnt);
+            auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt)
+                           * (weight_sum + pseudo_cnt);
 
             LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
-            LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml << " " << p_ml_ps;
+            LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
+                      << " " << p_ml_ps;
           }
         LOG(verbose) << std::endl;
       }
