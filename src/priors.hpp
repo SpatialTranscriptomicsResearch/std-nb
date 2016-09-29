@@ -74,8 +74,10 @@ inline double log_normal_generator(double x, std::mt19937 &rng) {
 
 inline double score(double r, double p, double observed, double expected,
                     double h1, double h2) {
-  double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p) - (r + observed) * log(p + expected);
-  double prior_term = log_gamma(r, h1, h2);
+  double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p)
+                   - (r + observed) * log(p + expected);
+  // NOTE: log_gamma takes a shape and scale parameter
+  double prior_term = log_gamma(r, h1, 1 / h2);
   return nb_term + prior_term;
 }
 

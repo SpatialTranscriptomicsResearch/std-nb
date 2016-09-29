@@ -215,6 +215,7 @@ double Experiment<feat_kind, mix_kind>::log_likelihood() const {
   double l = l_features + l_mix;
 
   for (size_t s = 0; s < S; ++s)
+    // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
                    1.0 / parameters.hyperparameters.spot_b);
 
