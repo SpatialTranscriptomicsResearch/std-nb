@@ -98,10 +98,6 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
   LOG(info) << "G = " << G << " T = " << T << " E = " << E;
   for (auto &counts : c)
     add_experiment(counts);
-  // TODO FIXME
-  features.matrix.fill(1);
-  features.prior.r.fill(1);
-  features.prior.p.fill(1);
   update_contributions();
 }
 
