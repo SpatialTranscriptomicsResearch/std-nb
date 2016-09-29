@@ -23,27 +23,13 @@
 
 namespace PoissonFactorization {
 
-const size_t num_sub_gibbs_split = 10;
-// TODO consider lowering the number of Gibbs steps when merging with Dirichlet factors
-const size_t num_sub_gibbs_merge = 10;
-const bool consider_factor_likel = false;
-const size_t sub_model_cnt = 10;
-// static size_t sub_model_cnt; // TODO
 const double local_phi_scaling_factor = 50;
-
-size_t num_lines(const std::string &path);
 
 template <Partial::Kind feat_kind = Partial::Kind::Gamma,
           Partial::Kind mix_kind = Partial::Kind::HierGamma>
 struct Model {
   using features_t = Partial::Model<Partial::Variable::Feature, feat_kind>;
-  using weights_t = Partial::Model<Partial::Variable::Mix, mix_kind>;
   using experiment_t = Experiment<feat_kind, mix_kind>;
-
-  // computes a matrix M(g,t)
-  // with M(g,t) = prior.p(g,t) + \sum_e var_phi(e)(g,t) sum_{s \in S_e}
-  // theta(s,t) sigma(s)
-  Matrix expected_gene_type() const;
 
   // TODO consider const
   /** number of genes */
@@ -65,109 +51,38 @@ struct Model {
   features_t features;
   // TODO consider weights_t global_weights;
 
-  void update_contributions();
-
-  inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
-  inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
-
   Model(const std::vector<Counts> &data, const size_t T,
         const Parameters &parameters);
   // TODO implement loading of Experiment
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
 
-  void add_experiment(const Counts &data);
-
   void store(const std::string &prefix) const;
-
-  double log_likelihood() const;
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(Target which);
 
+  double log_likelihood() const;
   /* TODO reactivate
   double posterior_expectation_poisson(size_t g, size_t s) const;
   Matrix posterior_expectations_poisson() const;
   */
+
+  inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
+  inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
+
+  // computes a matrix M(g,t)
+  // with M(g,t) = prior.p(g,t) + \sum_e var_phi(e)(g,t) sum_{s \in S_e}
+  // theta(s,t) sigma(s)
+  Matrix expected_gene_type() const;
+
+  void update_contributions();
+  void add_experiment(const Counts &data);
 };
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
-  // TODO use a matrix valued expression
-  Matrix expected(G, T, arma::fill::zeros);
-  for (auto &experiment : experiments) {
-    Vector theta_t = experiment.marginalize_spots();
-    for (size_t t = 0; t < T; ++t)
-#pragma omp parallel for if (DO_PARALLEL)
-      for (size_t g = 0; g < G; ++g)
-        expected(g, t) += experiment.phi(g, t) * theta_t(t);
-  }
-  return expected;
-}
-
-/*
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::marginalize_genes() const {
-  Matrix intensities(features.E, features.T, arma::fill::zeros);
-  for (size_t e = 0; e < E; ++e) {
-    auto col = experiments[e].marginalize_genes(features);
-    for (size_t g = 0; g < features.G; ++g)
-      intensities(e, g) = col(g);
-  }
-  return intensities;
-};
-*/
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b);
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator+(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b);
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator-(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b);
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
-                                     double x);
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator/(const Model<feat_kind, mix_kind> &a,
-                                     double x);
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(std::ostream &os,
                          const Model<feat_kind, mix_kind> &pfa);
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::update_contributions() {
-  contributions_gene_type.fill(0);
-  contributions_gene.fill(0);
-  for (auto &experiment : experiments)
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g) {
-      contributions_gene(g) += experiment.contributions_gene(g);
-      for (size_t t = 0; t < T; ++t)
-        contributions_gene_type(g, t)
-            += experiment.contributions_gene_type(g, t);
-    }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::add_experiment(const Counts &counts) {
-  Parameters experiment_parameters = parameters;
-  parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
-  experiments.push_back({counts, T, experiment_parameters});
-  experiments.rbegin()->features.matrix.fill(1);
-  experiments.rbegin()->features.prior.r.fill(local_phi_scaling_factor);
-  experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
-}
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
@@ -188,34 +103,6 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
   features.prior.r.fill(1);
   features.prior.p.fill(1);
   update_contributions();
-
-  /* TODO reactivate
-  if (parameters.activate_experiment_scaling) {
-    // initialize experiment scaling factors
-    LOG(debug) << "Initializing experiment scaling.";
-    experiment_scaling = Vector(E, arma::fill::zeros);
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling(c.experiments[s]) += contributions_spot(s);
-    Float z = 0;
-    for (size_t e = 0; e < E; ++e)
-      z += experiment_scaling(e);
-    z /= E;
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling(e) /= z;
-    // copy the experiment scaling parameters into the spot-indexed vector
-    update_experiment_scaling_long(c);
-  }
-  */
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood() const {
-  double l = features.log_likelihood(contributions_gene_type);
-
-  for(auto &experiment: experiments)
-    l += experiment.log_likelihood();
-
-  return l;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -232,53 +119,6 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
     experiments[e].store(exp_prefix, features);
   }
 }
-
-/** sample experiment scaling factors */
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
-  LOG(info) << "Sampling experiment scaling factors";
-
-  auto phi_marginal = marginalize_genes(features, experiment_features);
-  std::vector<Float> intensity_sums(E, 0);
-  // TODO: improve parallelism
-  for (size_t s = 0; s < S; ++s) {
-    double x = 0;
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-    for (size_t t = 0; t < T; ++t)
-      x += phi_marginal(experiment_of(s), t) * theta(s, t);
-    x *= spot[s];
-    intensity_sums[data.experiments[s]] += x;
-  }
-
-  for (size_t e = 0; e < E; ++e) {
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    experiment_scaling[e] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.experiment_a + contributions_experiment(e),
-        1.0 / (parameters.hyperparameters.experiment_b + intensity_sums[e]))(
-        EntropySource::rng);
-    LOG(debug) << "new experiment_scaling[" << e
-               << "]=" << experiment_scaling[e];
-  }
-
-  // copy the experiment scaling parameters into the spot-indexed vector
-  update_experiment_scaling_long(data);
-
-  if ((parameters.enforce_mean & ForceMean::Experiment) != ForceMean::None) {
-    double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      z += experiment_scaling_long[s];
-    z /= S;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling_long[s] /= z;
-
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling[e] /= z;
-  }
-}
-*/
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
@@ -311,8 +151,6 @@ double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
   for (size_t t = 0; t < T; ++t)
     x += phi(g, t) * theta(s, t);
   x *= spot[s];
-  if (parameters.activate_experiment_scaling)
-    x *= experiment_scaling_long[s];
   return x;
 }
 
@@ -327,6 +165,70 @@ Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
 */
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+double Model<feat_kind, mix_kind>::log_likelihood() const {
+  double l = features.log_likelihood(contributions_gene_type);
+
+  for(auto &experiment: experiments)
+    l += experiment.log_likelihood();
+
+  return l;
+}
+
+/*
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::marginalize_genes() const {
+  Matrix intensities(features.E, features.T, arma::fill::zeros);
+  for (size_t e = 0; e < E; ++e) {
+    auto col = experiments[e].marginalize_genes(features);
+    for (size_t g = 0; g < features.G; ++g)
+      intensities(e, g) = col(g);
+  }
+  return intensities;
+};
+*/
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
+  // TODO use a matrix valued expression
+  Matrix expected(G, T, arma::fill::zeros);
+  for (auto &experiment : experiments) {
+    Vector theta_t = experiment.marginalize_spots();
+    for (size_t t = 0; t < T; ++t)
+#pragma omp parallel for if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g)
+        expected(g, t) += experiment.phi(g, t) * theta_t(t);
+  }
+  return expected;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+void Model<feat_kind, mix_kind>::update_contributions() {
+  contributions_gene_type.fill(0);
+  contributions_gene.fill(0);
+  for (auto &experiment : experiments)
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g) {
+      contributions_gene(g) += experiment.contributions_gene(g);
+      for (size_t t = 0; t < T; ++t)
+        contributions_gene_type(g, t)
+            += experiment.contributions_gene_type(g, t);
+    }
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+void Model<feat_kind, mix_kind>::add_experiment(const Counts &counts) {
+  Parameters experiment_parameters = parameters;
+  parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
+  experiments.push_back({counts, T, experiment_parameters});
+  experiments.rbegin()->features.matrix.fill(1);
+  experiments.rbegin()->features.prior.r.fill(local_phi_scaling_factor);
+  experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(std::ostream &os,
                          const Model<feat_kind, mix_kind> &model) {
   os << "Poisson Factorization "
@@ -337,7 +239,6 @@ std::ostream &operator<<(std::ostream &os,
   if (verbosity >= Verbosity::verbose) {
     print_matrix_head(os, model.features.matrix, "Φ");
     os << model.features.prior;
-    // TODO reactivate printing of experiment scaling factors
   }
   for (auto &experiment : model.experiments)
     os << experiment;

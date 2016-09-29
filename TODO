@@ -118,3 +118,4 @@ The same generalized beta prime / compound gamma distributions could be used to 
 Ressurect:
  * experiment-specific phi prior estimation
  * posterior / variance calculation
+ * experiment scaling

@@ -102,12 +102,9 @@ void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_typ
 
   for (size_t t = 0; t < theta.n_cols; ++t) {
     Float weight_sum = 0;
-    for (size_t s = 0; s < theta.n_rows; ++s) {
-      Float x = theta(s, t) * spot_scaling[s];
-      if (parameters.activate_experiment_scaling)
-        x *= experiment_scaling;
-      weight_sum += x;
-    }
+    for (size_t s = 0; s < theta.n_rows; ++s)
+      weight_sum += theta(s, t) * spot_scaling[s];
+
     MetropolisHastings mh(parameters.temperature);
 
 #pragma omp parallel for if (DO_PARALLEL)
@@ -262,8 +259,6 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
     for (size_t s = 0; s < dim1; ++s) {
       count_sums[s] = contributions_spot_type(s, t);
       weight_sums[s] = weight_sum * spot_scaling[s];
-      if (parameters.activate_experiment_scaling)
-        weight_sums[s] *= experiment_scaling;
     }
     auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]), parameters.n_iter,
                          EntropySource::rng, gen, compute_conditional,

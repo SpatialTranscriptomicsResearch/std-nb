@@ -21,11 +21,8 @@ istream &operator>>(istream &is, ForceMean &force) {
       force |= ForceMean::Phi;
     else if (token == "spot")
       force |= ForceMean::Spot;
-    else if (token == "experiment")
-      force |= ForceMean::Experiment;
     else if (token == "default")
-      force |= ForceMean::Theta | ForceMean::Phi | ForceMean::Spot |
-               ForceMean::Experiment;
+      force |= ForceMean::Theta | ForceMean::Phi | ForceMean::Spot;
     else
       throw runtime_error("Error: could not parse mean forcing options'" +
                           token + "'.");
@@ -48,10 +45,6 @@ ostream &operator<<(ostream &os, const ForceMean &force) {
     }
     if ((force & ForceMean::Spot) != ForceMean::None) {
       os << (first ? "" : ",") << "Spot";
-      first = false;
-    }
-    if ((force & ForceMean::Experiment) != ForceMean::None) {
-      os << (first ? "" : ",") << "Experiment";
       first = false;
     }
   }

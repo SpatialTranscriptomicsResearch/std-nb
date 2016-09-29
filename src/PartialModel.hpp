@@ -214,18 +214,15 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(
 
   // TODO make use of perform_sampling
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s) {
-    Float scale = experiment.spot[s];
-    if (parameters.activate_experiment_scaling)
-      scale *= experiment.experiment_scaling;
+  for (size_t s = 0; s < dim1; ++s)
     for (size_t t = 0; t < dim2; ++t)
       // NOTE: std::gamma_distribution takes a shape and scale parameter
       matrix(s, t) = std::max<Float>(
           std::numeric_limits<Float>::denorm_min(),
           std::gamma_distribution<Float>(
               prior.r[t] + experiment.contributions_spot_type(s, t),
-              1.0 / (prior.p[t] + intensities[t] * scale))(EntropySource::rng));
-  }
+              1.0 / (prior.p[t] + intensities[t] * experiment.spot[s]))(
+              EntropySource::rng));
   if ((parameters.enforce_mean & ForceMean::Theta) != ForceMean::None)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < dim1; ++s) {

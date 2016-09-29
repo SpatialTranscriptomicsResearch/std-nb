@@ -283,8 +283,6 @@ int main(int argc, char **argv) {
      "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
-     "Activate usage of the experiment scaling variables.")
     ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
      "Which sampling steps to perform.")
     ("quant,q", po::value<vector<double>>(&options.quantiles)->default_value({0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}, "0,0.05,0.25,0.5,0.75,0.95,1.0"),
@@ -314,11 +312,7 @@ int main(int argc, char **argv) {
     ("spot_1", po::value(&parameters.hyperparameters.spot_a)->default_value(parameters.hyperparameters.spot_a),
      "Gamma prior 1 of the spot scaling parameter.")
     ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
-     "Gamma prior 2 of the spot scaling parameter.")
-    ("exp_1", po::value(&parameters.hyperparameters.experiment_a)->default_value(parameters.hyperparameters.experiment_a),
-     "Gamma prior 1 of the experiment scaling parameter.")
-    ("exp_2", po::value(&parameters.hyperparameters.experiment_b)->default_value(parameters.hyperparameters.experiment_b),
-     "Gamma prior 2 of the experiment scaling parameter.");
+     "Gamma prior 2 of the spot scaling parameter.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),

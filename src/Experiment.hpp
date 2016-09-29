@@ -23,18 +23,11 @@
 
 namespace PoissonFactorization {
 
-bool gibbs_test(Float nextG, Float G, Float temperature = 50);
-size_t num_lines(const std::string &path);
-
 template <Partial::Kind feat_kind = Partial::Kind::Gamma,
           Partial::Kind mix_kind = Partial::Kind::HierGamma>
 struct Experiment {
   using features_t = Partial::Model<Partial::Variable::Feature, feat_kind>;
   using weights_t = Partial::Model<Partial::Variable::Mix, mix_kind>;
-
-  Experiment(const Counts &counts, const size_t T,
-             const Parameters &parameters);
-// TODO implement loading of Experiment
 
   Counts data;
 
@@ -64,8 +57,16 @@ struct Experiment {
   /** spot scaling vector */
   Vector spot;
 
-  /** experiment scaling vector */
-  Float experiment_scaling;
+  Experiment(const Counts &counts, const size_t T,
+             const Parameters &parameters);
+// TODO implement loading of Experiment
+
+  void store(const std::string &prefix, const features_t &global_features) const;
+
+  void gibbs_sample(const Matrix &global_phi, Target which);
+
+  double log_likelihood() const;
+  double log_likelihood_poisson_counts() const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -75,106 +76,23 @@ struct Experiment {
 
   Matrix weighted_theta(const Matrix &global_phi) const;
 
-  void gibbs_sample(const Matrix &global_phi, Target which);
-
-  /** sample spot scaling factors */
-  void sample_spot(const Matrix &var_phi);
-
   /** sample count decomposition */
   void sample_contributions(const Matrix &var_phi);
+  /** sub-routine for count decomposition sampling */
   void sample_contributions_sub(const Matrix &var_phi, size_t g, size_t s,
                                 RNG &rng, IMatrix &contrib_gene_type,
                                 IMatrix &contrib_spot_type);
 
+  /** sample spot scaling factors */
+  void sample_spot(const Matrix &var_phi);
+
   Vector marginalize_genes(const Matrix &var_phi) const;
   Vector marginalize_spots() const;
-  void store(const std::string &prefix, const features_t &global_features) const;
 
   // computes a matrix M(g,t)
   // with M(g,t) = prior.p(g,t) + var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type(const Matrix &var_phi) const;
-
-  double log_likelihood() const;
-  double log_likelihood_poisson_counts() const;
 };
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood() const {
-  double l_features = features.log_likelihood(contributions_gene_type);
-  double l_mix = weights.log_likelihood(contributions_spot_type);
-
-  double l = l_features + l_mix;
-
-  for (size_t s = 0; s < S; ++s)
-    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
-                   1.0 / parameters.hyperparameters.spot_b);
-  if (parameters.activate_experiment_scaling) {
-    l += log_gamma(experiment_scaling, parameters.hyperparameters.experiment_a,
-                   1.0 / parameters.hyperparameters.experiment_b);
-  }
-
-  double poisson_logl = log_likelihood_poisson_counts();
-  l += poisson_logl;
-
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
-  double l = 0;
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot(s);
-      if (parameters.activate_experiment_scaling)
-        rate *= experiment_scaling;
-      auto cur = log_poisson(data.counts(g, s), rate);
-      if (std::isinf(cur) or std::isnan(cur))
-        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
-                     << " counts = " << data.counts(g, s)
-                     << " lambda = " << lambda_gene_spot(g, s)
-                     << " rate = " << rate;
-      l += cur;
-    }
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
-    const Matrix &var_phi) const {
-  Vector theta_t = marginalize_spots();
-  // TODO use a matrix valued expression
-  Matrix expected(G, T, arma::fill::zeros);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      expected(g, t) = var_phi(g, t) * theta_t(t);
-  return expected;
-};
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
-    const Matrix &var_phi) const {
-  Vector intensities(T, arma::fill::zeros);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g)
-      intensities(t) += phi(g, t) * var_phi(g, t);
-  return intensities;
-};
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
-  Vector intensities(T, arma::fill::zeros);
-  // TODO improve parallelism
-  for (size_t s = 0; s < S; ++s) {
-    Float prod = spot[s];
-    if (parameters.activate_experiment_scaling)
-      prod *= experiment_scaling;
-    for (size_t t = 0; t < T; ++t)
-      intensities[t] += theta(s, t) * prod;
-  }
-  return intensities;
-}
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Experiment<feat_kind, mix_kind>::Experiment(
@@ -191,10 +109,9 @@ Experiment<feat_kind, mix_kind>::Experiment(
       features(G, T, parameters),
       weights(S, T, parameters),
       lambda_gene_spot(G, S, arma::fill::zeros),
-      spot(S, arma::fill::ones),
-      experiment_scaling(1) {
-  LOG(info) << "G = " << G << " S = " << S << " T = " << T;
-/* TODO consider reactivate
+      spot(S, arma::fill::ones) {
+  LOG(verbose) << "G = " << G << " S = " << S << " T = " << T;
+/* TODO consider to reactivate
 if (false) {
   // initialize:
   //  * contributions_gene_type
@@ -205,64 +122,30 @@ if (false) {
 }
 */
 
-// initialize:
-//  * contributions_spot
+// initialize contributions_spot
 //  TODO use initializer list together with a sums and a colSums function
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t g = 0; g < G; ++g)
       contributions_spot(s) += data.counts(g, s);
 
+// initialize contributions_gene
 //  TODO use initializer list together with a rowSums function
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       contributions_gene(g) += data.counts(g, s);
 
-  /*
-  if (parameters.activate_experiment_scaling) {
-    // initialize experiment scaling factors
-    LOG(debug) << "Initializing experiment scaling.";
-    experiment_scaling = Vector(E, arma::fill::zeros);
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling(c.experiments[s]) += contributions_spot(s);
-    Float z = 0;
-    for (size_t e = 0; e < E; ++e)
-      z += experiment_scaling(e);
-    z /= E;
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling(e) /= z;
-  }
-  */
-
   // initialize spot scaling factors
   {
     LOG(debug) << "Initializing spot scaling.";
     Float z = 0;
     for (size_t s = 0; s < S; ++s)
-      z += spot(s) = contributions_spot(s) / experiment_scaling;
+      z += spot(s) = contributions_spot(s);
     z /= S;
     for (size_t s = 0; s < S; ++s)
       spot(s) /= z;
   }
-}
-
-// TODO implement loading of Experiment
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::weighted_theta(const Matrix &global_phi) const {
-  Matrix m = weights.matrix;
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-    for (size_t g = 0; g < G; ++g)
-      x += phi(g, t) * global_phi(g, t);
-    for (size_t s = 0; s < S; ++s) {
-      m(s, t) *= x * spot(s);
-      if (parameters.activate_experiment_scaling)
-        m(s, t) *= experiment_scaling;
-    }
-  }
-  return m;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -277,9 +160,6 @@ void Experiment<feat_kind, mix_kind>::store(
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
   write_matrix(weighted_theta(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
-  /* TODO reactivate
-  write_vector(experiment_scaling, prefix + "experiment-scaling.txt", counts.experiment_names);
-  */
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -297,14 +177,113 @@ void Experiment<feat_kind, mix_kind>::store(
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
+                                                          Target which) {
+  // TODO reactivate
+  if (false)
+    if (flagged(which & Target::contributions))
+      sample_contributions(global_phi);
+
+  if (flagged(which & (Target::theta_r | Target::theta_p)))
+    weights.prior.sample(features.matrix % global_phi, contributions_spot_type,
+                         spot, 1); // TODO drop the last functio nargument
+
+  if (flagged(which & Target::theta))
+    weights.sample(*this, global_phi);
+
+  if (parameters.sample_local_phi_priors)
+    if (flagged(which & (Target::phi_r | Target::phi_p)))
+      // TODO FIXME make this work!
+      features.prior.sample(*this, global_phi);
+
+  if (flagged(which & Target::phi))
+    features.sample(*this, global_phi);
+
+  if (flagged(which & Target::spot))
+    sample_spot(global_phi);
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+double Experiment<feat_kind, mix_kind>::log_likelihood() const {
+  double l_features = features.log_likelihood(contributions_gene_type);
+  double l_mix = weights.log_likelihood(contributions_spot_type);
+
+  double l = l_features + l_mix;
+
+  for (size_t s = 0; s < S; ++s)
+    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
+                   1.0 / parameters.hyperparameters.spot_b);
+
+  double poisson_logl = log_likelihood_poisson_counts();
+  l += poisson_logl;
+
+  return l;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
+  double l = 0;
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      double rate = lambda_gene_spot(g, s) * spot(s);
+      auto cur = log_poisson(data.counts(g, s), rate);
+      if (std::isinf(cur) or std::isnan(cur))
+        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
+                     << " counts = " << data.counts(g, s)
+                     << " lambda = " << lambda_gene_spot(g, s)
+                     << " rate = " << rate;
+      l += cur;
+    }
+  return l;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Experiment<feat_kind, mix_kind>::weighted_theta(const Matrix &global_phi) const {
+  Matrix m = weights.matrix;
+  for (size_t t = 0; t < T; ++t) {
+    Float x = 0;
+    for (size_t g = 0; g < G; ++g)
+      x += phi(g, t) * global_phi(g, t);
+    for (size_t s = 0; s < S; ++s)
+      m(s, t) *= x * spot(s);
+  }
+  return m;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+/** sample count decomposition */
+void Experiment<feat_kind, mix_kind>::sample_contributions(
+    const Matrix &var_phi) {
+  LOG(info) << "Sampling contributions";
+  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
+  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
+    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
+    const size_t thread_num = omp_get_thread_num();
+#pragma omp for
+    for (size_t g = 0; g < G; ++g)
+      for (size_t s = 0; s < S; ++s)
+        sample_contributions_sub(var_phi, g, s, EntropySource::rngs[thread_num],
+                                 contrib_gene_type, contrib_spot_type);
+#pragma omp critical
+    {
+      contributions_gene_type += contrib_gene_type;
+      contributions_spot_type += contrib_spot_type;
+    }
+  }
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::sample_contributions_sub(
     const Matrix &var_phi, size_t g, size_t s, RNG &rng,
     IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
-  // NOTE: in principle, lambda[g][s][t] is proportional to both
-  // spot[s] and experiment_scaling[s]. However, these terms would
-  // cancel. Thus, we do not multiply them in here.
+  // NOTE: in principle, lambda[g][s][t] is proportional to spot[s].
+  // However, this term would cancel. Thus, we don't respect it here.
   for (size_t t = 0; t < T; ++t)
     z += rel_rate[t] = phi(g, t) * var_phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
@@ -334,31 +313,6 @@ void Experiment<feat_kind, mix_kind>::sample_contributions_sub(
   }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-/** sample count decomposition */
-void Experiment<feat_kind, mix_kind>::sample_contributions(
-    const Matrix &var_phi) {
-  LOG(info) << "Sampling contributions";
-  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
-  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
-    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
-    const size_t thread_num = omp_get_thread_num();
-#pragma omp for
-    for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s)
-        sample_contributions_sub(var_phi, g, s, EntropySource::rngs[thread_num],
-                                 contrib_gene_type, contrib_spot_type);
-#pragma omp critical
-    {
-      contributions_gene_type += contrib_gene_type;
-      contributions_spot_type += contrib_spot_type;
-    }
-  }
-}
-
 /** sample spot scaling factors */
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::sample_spot(
@@ -370,8 +324,6 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t)
       intensity_sum += phi_marginal(t) * theta(s, t);
-    if (parameters.activate_experiment_scaling)
-      intensity_sum *= experiment_scaling;
 
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     spot[s] = std::gamma_distribution<Float>(
@@ -390,86 +342,6 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
     for (size_t s = 0; s < S; ++s)
       spot[s] /= z;
   }
-}
-
-/** sample experiment scaling factors */
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
-  LOG(info) << "Sampling experiment scaling factors";
-
-  auto phi_marginal = marginalize_genes(features, experiment_features);
-  std::vector<Float> intensity_sums(E, 0);
-  // TODO: improve parallelism
-  for (size_t s = 0; s < S; ++s) {
-    double x = 0;
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-    for (size_t t = 0; t < T; ++t)
-      x += phi_marginal(experiment_of(s), t) * theta(s, t);
-    x *= spot[s];
-    intensity_sums[data.experiments[s]] += x;
-  }
-
-  for (size_t e = 0; e < E; ++e) {
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    experiment_scaling[e] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.experiment_a + contributions_experiment(e),
-        1.0 / (parameters.hyperparameters.experiment_b + intensity_sums[e]))(
-        EntropySource::rng);
-    LOG(debug) << "new experiment_scaling[" << e
-               << "]=" << experiment_scaling[e];
-  }
-
-  // copy the experiment scaling parameters into the spot-indexed vector
-  update_experiment_scaling_long(data);
-
-  if ((parameters.enforce_mean & ForceMean::Experiment) != ForceMean::None) {
-    double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      z += experiment_scaling_long[s];
-    z /= S;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling_long[s] /= z;
-
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling[e] /= z;
-  }
-}
-*/
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
-                                                          Target which) {
-  // TODO reactivate
-  if (false)
-    if (flagged(which & Target::contributions))
-      sample_contributions(global_phi);
-
-  /* TODO reactivate
-  if (flagged(which & Target::experiment))
-    if (parameters.activate_experiment_scaling)
-      sample_experiment_scaling(data);
-  */
-
-  if (flagged(which & (Target::theta_r | Target::theta_p)))
-    weights.prior.sample(features.matrix % global_phi, contributions_spot_type,
-                         spot, experiment_scaling);
-
-  if (flagged(which & Target::theta))
-    weights.sample(*this, global_phi);
-
-  if (parameters.sample_local_phi_priors)
-    if (flagged(which & (Target::phi_r | Target::phi_p)))
-      // TODO FIXME make this work!
-      features.prior.sample(*this, global_phi);
-
-  if (flagged(which & Target::phi))
-    features.sample(*this, global_phi);
-
-  if (flagged(which & Target::spot))
-    sample_spot(global_phi);
 }
 
 /* TODO reactivate
@@ -496,6 +368,39 @@ Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
 */
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
+    const Matrix &var_phi) const {
+  Vector intensities(T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t)
+    for (size_t g = 0; g < G; ++g)
+      intensities(t) += phi(g, t) * var_phi(g, t);
+  return intensities;
+};
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
+  Vector intensities(T, arma::fill::zeros);
+  // TODO improve parallelism
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t)
+      intensities[t] += theta(s, t) * spot[s];
+  return intensities;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
+    const Matrix &var_phi) const {
+  Vector theta_t = marginalize_spots();
+  // TODO use a matrix valued expression
+  Matrix expected(G, T, arma::fill::zeros);
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      expected(g, t) = var_phi(g, t) * theta_t(t);
+  return expected;
+};
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(std::ostream &os,
                          const Experiment<feat_kind, mix_kind> &experiment) {
   os << "Experiment "
@@ -511,9 +416,6 @@ std::ostream &operator<<(std::ostream &os,
     os << experiment.weights.prior;
 
     print_vector_head(os, experiment.spot, "Spot scaling factors");
-    if (experiment.parameters.activate_experiment_scaling)
-      print_vector_head(os, experiment.experiment_scaling,
-                        "Experiment scaling factors");
     */
   }
 
@@ -532,9 +434,6 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.contributions_spot %= b.contributions_spot;
 
   experiment.spot %= b.spot;
-  // NOTE: need to use operator* for experiment_scaling, where for the other
-  // things we need operator%
-  experiment.experiment_scaling *= b.experiment_scaling;
 
   experiment.features.matrix %= b.features.matrix;
   experiment.weights.matrix %= b.weights.matrix;
@@ -554,7 +453,6 @@ Experiment<feat_kind, mix_kind> operator+(
   experiment.contributions_spot += b.contributions_spot;
 
   experiment.spot += b.spot;
-  experiment.experiment_scaling += b.experiment_scaling;
 
   experiment.features.matrix += b.features.matrix;
   experiment.weights.matrix += b.weights.matrix;
@@ -574,7 +472,6 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.contributions_spot -= b.contributions_spot;
 
   experiment.spot -= b.spot;
-  experiment.experiment_scaling -= b.experiment_scaling;
 
   experiment.features.matrix -= b.features.matrix;
   experiment.weights.matrix -= b.weights.matrix;
@@ -593,7 +490,6 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.contributions_spot *= x;
 
   experiment.spot *= x;
-  experiment.experiment_scaling *= x;
 
   experiment.features.matrix *= x;
   experiment.weights.matrix *= x;
@@ -612,7 +508,6 @@ Experiment<feat_kind, mix_kind> operator/(
   experiment.contributions_spot /= x; // TODO note that this is inaccurate due to integer division
 
   experiment.spot /= x;
-  experiment.experiment_scaling /= x;
 
   experiment.features.matrix /= x;
   experiment.weights.matrix /= x;
@@ -631,7 +526,6 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.contributions_spot -= x;
 
   experiment.spot -= x;
-  experiment.experiment_scaling -= x;
 
   experiment.features.matrix -= x;
   experiment.weights.matrix -= x;

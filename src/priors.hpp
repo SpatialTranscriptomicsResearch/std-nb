@@ -158,7 +158,7 @@ struct Dirichlet {
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
   void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
-              const Vector &spot_scaling, Float experiment_scaling) const;
+              const Vector &spot_scaling, Float experiment_scaling) const; // TODO drop experiment scaling
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names) const;
