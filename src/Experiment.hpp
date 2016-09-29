@@ -23,9 +23,6 @@
 
 namespace PoissonFactorization {
 
-const bool sample_global_phi_priors = true;
-const bool sample_local_phi_priors = false;
-
 bool gibbs_test(Float nextG, Float G, Float temperature = 50);
 size_t num_lines(const std::string &path);
 
@@ -505,7 +502,7 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
   if (flagged(which & Target::theta))
     weights.sample(*this, global_phi);
 
-  if (sample_local_phi_priors)
+  if (parameters.sample_local_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
       // TODO FIXME make this work!
       features.prior.sample(*this, global_phi);

@@ -363,7 +363,7 @@ void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
   //   experiment.gibbs_sample(features.matrix, which);
   // update_contributions();
 
-  if (sample_global_phi_priors)
+  if (not parameters.skip_global_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
       // TODO FIXME make this work!
       features.prior.sample(*this);

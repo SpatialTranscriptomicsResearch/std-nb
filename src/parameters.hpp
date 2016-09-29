@@ -100,6 +100,8 @@ struct Parameters {
   size_t enforce_iter = 10;
   bool activate_experiment_scaling = false;
   bool phi_prior_metropolis_hastings = false;
+  bool skip_global_phi_priors = false;
+  bool sample_local_phi_priors = true;
   bool store_lambda = false;
   Hyperparameters hyperparameters;
 };

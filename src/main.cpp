@@ -272,6 +272,10 @@ int main(int argc, char **argv) {
      "Perform split/merge steps.")
     ("phi_mh", po::bool_switch(&parameters.phi_prior_metropolis_hastings),
      "Do not use maximum likelihood to determine the priors of Φ, but use Metropolis-Hastings instead.")
+    ("localphi", po::bool_switch(&parameters.sample_local_phi_priors),
+     "Sample the local feature priors.")
+    ("noglobalphi", po::bool_switch(&parameters.skip_global_phi_priors),
+     "Do not sample the global feature priors.")
     ("lambda", po::bool_switch(&parameters.store_lambda),
      "Store to disk the lambda matrix for genes and types every time parameters are written. "
      "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
