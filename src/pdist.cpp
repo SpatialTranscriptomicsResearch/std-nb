@@ -50,3 +50,16 @@ double log_negative_binomial(size_t x, double r, double p1, double p2) {
   double logp = log(p1 + p2);
   return lgamma(x + r) - lgamma(x+1) - lgamma(r) + x * (log(p1) - logp) + r * (log(p2) - logp);
 }
+
+double log_generalized_beta_prime(double x, double alpha, double beta, double p,
+                                  double q) {
+  return log(p) + (alpha * p - 1) * log(x / q)
+         - (alpha + beta) * log(1 + pow(x / q, p)) - log(q)
+         + lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta);
+}
+
+double log_generalized_beta_prime(double x, double alpha, double beta,
+                                  double q) {
+  return (alpha - 1) * log(x / q) - (alpha + beta) * log(1 + x / q) - log(q)
+         + lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta);
+}

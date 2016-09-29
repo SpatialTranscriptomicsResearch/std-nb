@@ -51,6 +51,10 @@ double log_beta(double p, double alpha, double beta);
 double log_beta_odds(double x, double alpha, double beta);
 /** Beta probability density function for odds x=(1-p)/p given shape parameters alpha and beta */
 double log_beta_neg_odds(double x, double alpha, double beta);
+/** Generalized beta prime probability density function for parameters alpha, beta, p, and q */
+double log_generalized_beta_prime(double x, double alpha, double beta, double p, double q);
+/** Generalized beta prime probability density function for parameters alpha, beta, and q, where p=1 */
+double log_generalized_beta_prime(double x, double alpha, double beta, double q);
 /** Dirichlet probability density function for a probability distribution p given a vector of concentration aparameters alpha */
 double log_dirichlet(const std::vector<double> &p,
                      const std::vector<double> &alpha);
