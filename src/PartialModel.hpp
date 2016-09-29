@@ -86,9 +86,9 @@ struct Model {
     prior.store(path, spot_names, factor_names);
   };
 
+  // TODO consider dropping the counts argument; it's only used by the Dirichlet models
   double log_likelihood_factor(const IMatrix &counts, size_t t) const;
   double log_likelihood(const IMatrix &counts) const;
-  // TODO
 
   void lift_sub_model(const Model<variable, kind> &sub_model, size_t t1,
                       size_t t2) {

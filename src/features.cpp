@@ -78,6 +78,7 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood(
     l += log_likelihood_factor(counts, t);
   return l;
 }
+
 template <>
 // TODO ensure no NaNs or infinities are generated
 double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
@@ -97,6 +98,7 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < dim1; ++g)
+    // TODO FIXME this needs to use the generalized beta prime distribution
     l += log_beta_neg_odds(prior.p(g, t), parameters.hyperparameters.phi_p_1,
                            parameters.hyperparameters.phi_p_2);
 

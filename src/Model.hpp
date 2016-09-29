@@ -80,11 +80,7 @@ struct Model {
 
   void store(const std::string &prefix) const;
 
-  /* TODO reactivate
   double log_likelihood(const IMatrix &counts) const;
-  double log_likelihood_factor(const IMatrix &counts, size_t t) const;
-  double log_likelihood_poisson_counts(const IMatrix &counts) const;
-  */
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(Target which);
@@ -212,83 +208,15 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
   */
 }
 
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-// TODO ensure no NaNs or infinities are generated
-double Model<feat_kind, mix_kind>::Experiment::log_likelihood_factor(
-    size_t t, Model<feat_kind, mix_kind>::features_t global_features) const {
-  // TODO use global features
-  assert(0);
-  double l = features.log_likelihood_factor(counts, t)
-             + weights.log_likelihood_factor(counts, t);
-
-  if (std::isnan(l) or std::isinf(l))
-    LOG(warning) << "Warning: log likelihoood contribution of factor " << t
-                 << " = " << l;
-
-  LOG(debug) << "ll_X = " << l;
-
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-// TODO ensure no NaNs or infinities are generated
-double Model<feat_kind, mix_kind>::log_likelihood_factor(size_t t) const {
-  double l = 0;
-  for (auto &experiment : experiments)
-    l += experiment.log_likelihood_factor(t, features);
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
-    const IMatrix &counts) const {
-  double l = 0;
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot(s);
-      if (parameters.activate_experiment_scaling)
-        rate *= experiment_scaling_long(s);
-      auto cur = log_poisson(counts(g, s), rate);
-      if (std::isinf(cur) or std::isnan(cur))
-        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
-                     << " counts = " << counts(g, s)
-                     << " lambda = " << lambda_gene_spot(g, s)
-                     << " rate = " << rate;
-      l += cur;
-    }
-  return l;
-}
-
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
-  double l_features = features.log_likelihood(contributions_gene_type);
-  double l_mix = weights.log_likelihood(contributions_spot_type);
+  double l = features.log_likelihood(contributions_gene_type);
 
-  double l_experiment_features = 0;
-  for(size_t e = 0; e < E; ++e)
-    l_experiment_features +=
-features[e].log_likelihood(experiments_contributions_gene_type);
-
-  double l = l_features + l_experiment_features + l_mix;
-
-  for (size_t s = 0; s < S; ++s)
-    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
-                   1.0 / parameters.hyperparameters.spot_b);
-  if (parameters.activate_experiment_scaling) {
-    for (size_t e = 0; e < E; ++e)
-      l += log_gamma(experiment_scaling(e),
-                     parameters.hyperparameters.experiment_a,
-                     1.0 / parameters.hyperparameters.experiment_b);
-  }
-
-  double poisson_logl = log_likelihood_poisson_counts(counts);
-  l += poisson_logl;
+  for(auto &experiment: experiments)
+    l += experiment.log_likelihood(counts);
 
   return l;
 }
-*/
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
