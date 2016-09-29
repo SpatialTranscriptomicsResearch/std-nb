@@ -94,13 +94,12 @@ struct Experiment {
   // with M(g,t) = prior.p(g,t) + var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type(const Matrix &var_phi) const;
 
-  double log_likelihood(const IMatrix &counts) const;
-  double log_likelihood_poisson_counts(const IMatrix &counts) const;
+  double log_likelihood() const;
+  double log_likelihood_poisson_counts() const;
 };
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood(
-    const IMatrix &counts) const {
+double Experiment<feat_kind, mix_kind>::log_likelihood() const {
   double l_features = features.log_likelihood(contributions_gene_type);
   double l_mix = weights.log_likelihood(contributions_spot_type);
 
@@ -114,15 +113,14 @@ double Experiment<feat_kind, mix_kind>::log_likelihood(
                    1.0 / parameters.hyperparameters.experiment_b);
   }
 
-  double poisson_logl = log_likelihood_poisson_counts(counts);
+  double poisson_logl = log_likelihood_poisson_counts();
   l += poisson_logl;
 
   return l;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts(
-    const IMatrix &counts) const {
+double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -130,10 +128,10 @@ double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts(
       double rate = lambda_gene_spot(g, s) * spot(s);
       if (parameters.activate_experiment_scaling)
         rate *= experiment_scaling;
-      auto cur = log_poisson(counts(g, s), rate);
+      auto cur = log_poisson(data.counts(g, s), rate);
       if (std::isinf(cur) or std::isnan(cur))
         LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
-                     << " counts = " << counts(g, s)
+                     << " counts = " << data.counts(g, s)
                      << " lambda = " << lambda_gene_spot(g, s)
                      << " rate = " << rate;
       l += cur;

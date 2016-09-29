@@ -177,11 +177,8 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     LOG(info) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0)
       pfa.store(options.output + "iter" + to_string(iteration) + "_");
-    /* TODO reactivate
     if (options.compute_likelihood)
-      LOG(info) << "Log-likelihood = "
-                << pfa.log_likelihood_poisson_counts(data.counts);
-    */
+      LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
     if (options.num_burn_in >= 0
         and static_cast<int>(iteration) > options.num_burn_in) {
       sum_model = sum_model + pfa;
@@ -207,11 +204,8 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     }
     */
   }
-  /* TODO reactivate
   if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = "
-              << pfa.log_likelihood_poisson_counts(data.counts);
-  */
+    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   pfa.store(options.output);
 }
 

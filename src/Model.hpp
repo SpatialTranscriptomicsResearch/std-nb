@@ -80,7 +80,7 @@ struct Model {
 
   void store(const std::string &prefix) const;
 
-  double log_likelihood(const IMatrix &counts) const;
+  double log_likelihood() const;
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(Target which);
@@ -209,11 +209,11 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
+double Model<feat_kind, mix_kind>::log_likelihood() const {
   double l = features.log_likelihood(contributions_gene_type);
 
   for(auto &experiment: experiments)
-    l += experiment.log_likelihood(counts);
+    l += experiment.log_likelihood();
 
   return l;
 }

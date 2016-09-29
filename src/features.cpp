@@ -103,8 +103,8 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
       l += log_beta_neg_odds(prior.p(g, t), parameters.hyperparameters.phi_p_1,
                              parameters.hyperparameters.phi_p_2);
       // l += log_generalized_beta_prime(prior.p(g, t),
-      //     parameters.hyperparameters.phi_p_1 + prior.r(g, t),
-      //     parameters.hyperparameters.phi_p_2 + observed, // observed =
+      //     parameters.hyperparameters.phi_p_1,
+      //     parameters.hyperparameters.phi_p_2,
       //     experiment.contributions_gene_type(g, t);
       //     expected); // experiment.expected_gene_type(...);
 
