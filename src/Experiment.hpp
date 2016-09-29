@@ -50,7 +50,6 @@ struct Experiment {
   /** hidden contributions to the count data due to the different factors */
   IMatrix contributions_gene_type, contributions_spot_type;
   IVector contributions_gene, contributions_spot;
-  Int contributions_experiment;
 
   /** factor loading matrix */
   features_t features;
@@ -191,7 +190,6 @@ Experiment<feat_kind, mix_kind>::Experiment(
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
       contributions_spot(S, arma::fill::zeros),
-      contributions_experiment(0),
       features(G, T, parameters),
       weights(S, T, parameters),
       lambda_gene_spot(G, S, arma::fill::zeros),
@@ -211,14 +209,11 @@ if (false) {
 
 // initialize:
 //  * contributions_spot
-//  * contributions_experiment
 //  TODO use initializer list together with a sums and a colSums function
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
-    for (size_t g = 0; g < G; ++g) {
+    for (size_t g = 0; g < G; ++g)
       contributions_spot(s) += data.counts(g, s);
-      contributions_experiment += data.counts(g, s);
-    }
 
 //  TODO use initializer list together with a rowSums function
 #pragma omp parallel for if (DO_PARALLEL)
@@ -293,9 +288,6 @@ void Experiment<feat_kind, mix_kind>::store(
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-  /* TODO reactivate
-  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
-  */
   /* TODO reactivate
   if (false and mean_and_variance) {
     write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt", gene_names, spot_names);
@@ -540,7 +532,6 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.contributions_spot_type %= b.contributions_spot_type;
   experiment.contributions_gene %= b.contributions_gene;
   experiment.contributions_spot %= b.contributions_spot;
-  experiment.contributions_experiment %= b.contributions_experiment;
 
   experiment.spot %= b.spot;
   // NOTE: need to use operator* for experiment_scaling, where for the other
@@ -563,7 +554,6 @@ Experiment<feat_kind, mix_kind> operator+(
   experiment.contributions_spot_type += b.contributions_spot_type;
   experiment.contributions_gene += b.contributions_gene;
   experiment.contributions_spot += b.contributions_spot;
-  experiment.contributions_experiment += b.contributions_experiment;
 
   experiment.spot += b.spot;
   experiment.experiment_scaling += b.experiment_scaling;
@@ -584,7 +574,6 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.contributions_spot_type -= b.contributions_spot_type;
   experiment.contributions_gene -= b.contributions_gene;
   experiment.contributions_spot -= b.contributions_spot;
-  experiment.contributions_experiment -= b.contributions_experiment;
 
   experiment.spot -= b.spot;
   experiment.experiment_scaling -= b.experiment_scaling;
@@ -604,7 +593,6 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.contributions_spot_type *= x;
   experiment.contributions_gene *= x;
   experiment.contributions_spot *= x;
-  experiment.contributions_experiment *= x;
 
   experiment.spot *= x;
   experiment.experiment_scaling *= x;
@@ -624,7 +612,6 @@ Experiment<feat_kind, mix_kind> operator/(
   experiment.contributions_spot_type /= x; // TODO note that this is inaccurate due to integer division
   experiment.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
   experiment.contributions_spot /= x; // TODO note that this is inaccurate due to integer division
-  experiment.contributions_experiment /= x; // TODO note that this is inaccurate due to integer division
 
   experiment.spot /= x;
   experiment.experiment_scaling /= x;
@@ -644,7 +631,6 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.contributions_spot_type -= x;
   experiment.contributions_gene -= x;
   experiment.contributions_spot -= x;
-  experiment.contributions_experiment -= x;
 
   experiment.spot -= x;
   experiment.experiment_scaling -= x;
