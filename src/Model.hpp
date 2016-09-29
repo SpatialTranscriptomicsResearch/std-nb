@@ -145,19 +145,6 @@ double Model<feat_kind, mix_kind>::log_likelihood() const {
   return l;
 }
 
-/*
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::marginalize_genes() const {
-  Matrix intensities(features.E, features.T, arma::fill::zeros);
-  for (size_t e = 0; e < E; ++e) {
-    auto col = experiments[e].marginalize_genes(features);
-    for (size_t g = 0; g < features.G; ++g)
-      intensities(e, g) = col(g);
-  }
-  return intensities;
-};
-*/
-
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
   Matrix expected(G, T, arma::fill::zeros);

@@ -244,7 +244,7 @@ double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
 
 /* TODO reactivate
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
+double Experiment<feat_kind, mix_kind>::posterior_expectation_poisson(
     size_t g, size_t s) const {
   double x = 0;
   for (size_t t = 0; t < T; ++t)
@@ -256,7 +256,7 @@ double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
+Matrix Experiment<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
