@@ -506,6 +506,31 @@ Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
 */
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+std::ostream &operator<<(std::ostream &os,
+                         const Experiment<feat_kind, mix_kind> &experiment) {
+  os << "Experiment "
+     << "G = " << experiment.G << " "
+     << "S = " << experiment.S << " "
+     << "T = " << experiment.T << std::endl;
+
+  if (verbosity >= Verbosity::verbose) {
+    print_matrix_head(os, experiment.features.matrix, "Φ");
+    print_matrix_head(os, experiment.weights.matrix, "Θ");
+    /* TODO reactivate
+    os << experiment.features.prior;
+    os << experiment.weights.prior;
+
+    print_vector_head(os, experiment.spot, "Spot scaling factors");
+    if (experiment.parameters.activate_experiment_scaling)
+      print_vector_head(os, experiment.experiment_scaling,
+                        "Experiment scaling factors");
+    */
+  }
+
+  return os;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Experiment<feat_kind, mix_kind> operator*(
     const Experiment<feat_kind, mix_kind> &a,
     const Experiment<feat_kind, mix_kind> &b) {
@@ -518,6 +543,8 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.contributions_experiment %= b.contributions_experiment;
 
   experiment.spot %= b.spot;
+  // NOTE: need to use operator* for experiment_scaling, where for the other
+  // things we need operator%
   experiment.experiment_scaling *= b.experiment_scaling;
 
   experiment.features.matrix %= b.features.matrix;
@@ -593,11 +620,11 @@ Experiment<feat_kind, mix_kind> operator/(
     const Experiment<feat_kind, mix_kind> &a, double x) {
   Experiment<feat_kind, mix_kind> experiment = a;
 
-  experiment.contributions_gene_type /= x;
-  experiment.contributions_spot_type /= x;
-  experiment.contributions_gene /= x;
-  experiment.contributions_spot /= x;
-  experiment.contributions_experiment /= x;
+  experiment.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
+  experiment.contributions_spot_type /= x; // TODO note that this is inaccurate due to integer division
+  experiment.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
+  experiment.contributions_spot /= x; // TODO note that this is inaccurate due to integer division
+  experiment.contributions_experiment /= x; // TODO note that this is inaccurate due to integer division
 
   experiment.spot /= x;
   experiment.experiment_scaling /= x;
@@ -626,31 +653,6 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.weights.matrix -= x;
 
   return experiment;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(std::ostream &os,
-                         const Experiment<feat_kind, mix_kind> &experiment) {
-  os << "Experiment "
-     << "G = " << experiment.G << " "
-     << "S = " << experiment.S << " "
-     << "T = " << experiment.T << std::endl;
-
-  if (verbosity >= Verbosity::verbose) {
-    print_matrix_head(os, experiment.features.matrix, "Φ");
-    print_matrix_head(os, experiment.weights.matrix, "Θ");
-    /* TODO reactivate
-    os << experiment.features.prior;
-    os << experiment.weights.prior;
-
-    print_vector_head(os, experiment.spot, "Spot scaling factors");
-    if (experiment.parameters.activate_experiment_scaling)
-      print_vector_head(os, experiment.experiment_scaling,
-                        "Experiment scaling factors");
-    */
-  }
-
-  return os;
 }
 }
 

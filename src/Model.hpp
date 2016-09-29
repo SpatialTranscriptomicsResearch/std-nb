@@ -337,11 +337,7 @@ std::ostream &operator<<(std::ostream &os,
   if (verbosity >= Verbosity::verbose) {
     print_matrix_head(os, model.features.matrix, "Φ");
     os << model.features.prior;
-    /* TODO reactivate
-    if (model.parameters.activate_experiment_scaling)
-      print_vector_head(os, model.experiment_scaling,
-                        "Experiment scaling factors");
-    */
+    // TODO reactivate printing of experiment scaling factors
   }
   for (auto &experiment : model.experiments)
     os << experiment;
@@ -410,8 +406,8 @@ Model<feat_kind, mix_kind> operator/(const Model<feat_kind, mix_kind> &a,
                                      double x) {
   Model<feat_kind, mix_kind> model = a;
 
-  model.contributions_gene_type /= x;
-  model.contributions_gene /= x;
+  model.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
+  model.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
   model.features.matrix /= x;
   for (auto &experiment : model.experiments)
     experiment = experiment / x;
