@@ -68,6 +68,10 @@ struct Experiment {
   double log_likelihood() const;
   double log_likelihood_poisson_counts() const;
 
+  /* TODO reactivate
+  double posterior_expectation_poisson(size_t g, size_t s) const;
+  Matrix posterior_expectations_poisson() const;
+  */
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
 
@@ -186,7 +190,7 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
 
   if (flagged(which & (Target::theta_r | Target::theta_p)))
     weights.prior.sample(features.matrix % global_phi, contributions_spot_type,
-                         spot, 1); // TODO drop the last functio nargument
+                         spot, 1); // TODO drop the last function argument
 
   if (flagged(which & Target::theta))
     weights.sample(*this, global_phi);
@@ -237,6 +241,29 @@ double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
     }
   return l;
 }
+
+/* TODO reactivate
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
+    size_t g, size_t s) const {
+  double x = 0;
+  for (size_t t = 0; t < T; ++t)
+    x += phi(g, t) * theta(s, t);
+  x *= spot[s];
+  if (parameters.activate_experiment_scaling)
+    x *= experiment_scaling_long[s];
+  return x;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
+  Matrix m(G, S);
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      m(g, s) = posterior_expectation_poisson(g, s);
+  return m;
+}
+*/
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Experiment<feat_kind, mix_kind>::weighted_theta(const Matrix &global_phi) const {
@@ -344,29 +371,6 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
   }
 }
 
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
-    size_t g, size_t s) const {
-  double x = 0;
-  for (size_t t = 0; t < T; ++t)
-    x += phi(g, t) * theta(s, t);
-  x *= spot[s];
-  if (parameters.activate_experiment_scaling)
-    x *= experiment_scaling_long[s];
-  return x;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_expectation_poisson(g, s);
-  return m;
-}
-*/
-
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
     const Matrix &var_phi) const {
@@ -381,9 +385,9 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
   Vector intensities(T, arma::fill::zeros);
-  // TODO improve parallelism
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t)
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t)
+    for (size_t s = 0; s < S; ++s)
       intensities[t] += theta(s, t) * spot[s];
   return intensities;
 }
@@ -392,8 +396,8 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
     const Matrix &var_phi) const {
   Vector theta_t = marginalize_spots();
-  // TODO use a matrix valued expression
   Matrix expected(G, T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
       expected(g, t) = var_phi(g, t) * theta_t(t);

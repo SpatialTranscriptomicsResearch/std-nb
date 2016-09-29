@@ -63,10 +63,6 @@ struct Model {
   void gibbs_sample(Target which);
 
   double log_likelihood() const;
-  /* TODO reactivate
-  double posterior_expectation_poisson(size_t g, size_t s) const;
-  Matrix posterior_expectations_poisson() const;
-  */
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -139,27 +135,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
     experiment.gibbs_sample(features.matrix, which);
 }
 
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
-    size_t g, size_t s) const {
-  double x = 0;
-  for (size_t t = 0; t < T; ++t)
-    x += phi(g, t) * theta(s, t);
-  x *= spot[s];
-  return x;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_expectation_poisson(g, s);
-  return m;
-}
-*/
-
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Model<feat_kind, mix_kind>::log_likelihood() const {
   double l = features.log_likelihood(contributions_gene_type);
@@ -185,7 +160,6 @@ Matrix Model<feat_kind, mix_kind>::marginalize_genes() const {
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
-  // TODO use a matrix valued expression
   Matrix expected(G, T, arma::fill::zeros);
   for (auto &experiment : experiments) {
     Vector theta_t = experiment.marginalize_spots();
