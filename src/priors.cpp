@@ -89,11 +89,10 @@ double dfnc(double r, double x) {
 }
 
 void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
-                   const Vector &spot_scaling,
-                   Float experiment_scaling) {
+                   const Vector &spot_scaling) {
   LOG(info) << "Sampling P and R of Φ";
 
-  auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
+  auto gen = [](const std::pair<Float, Float> &x, std::mt19937 &rng) {
     std::normal_distribution<double> rnorm;
     const double f1 = exp(rnorm(rng));
     const double f2 = exp(rnorm(rng));
@@ -151,8 +150,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
 
 void Dirichlet::sample(const Matrix &theta,
                        const IMatrix &contributions_gene_type,
-                       const Vector &spot_scaling,
-                       Float experiment_scaling) const {}
+                       const Vector &spot_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &gene_names,
@@ -235,8 +233,7 @@ void Gamma::initialize_p() {
 }
 
 void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
-                   const Vector &spot_scaling,
-                   Float experiment_scaling) {
+                   const Vector &spot_scaling) {
   LOG(info) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -295,8 +292,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
 
 void Dirichlet::sample(const Matrix &theta,
                        const IMatrix &contributions_gene_type,
-                       const Vector &spot_scaling,
-                       Float experiment_scaling) const {}
+                       const Vector &spot_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &spot_names,
