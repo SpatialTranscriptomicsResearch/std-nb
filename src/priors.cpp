@@ -13,23 +13,23 @@ namespace PoissonFactorization {
 namespace PRIOR {
 namespace PHI {
 
-double compute_conditional(const pair<Float, Float> &x, Int count_sum,
-                           Float weight_sum,
+double compute_conditional(const pair<Float, Float> &x, Int observed,
+                           Float expected,
                            const Hyperparameters &hyperparameters) {
-  const Float current_r = x.first;
-  const Float current_p = x.second;
-  return log_beta_neg_odds(current_p, hyperparameters.phi_p_1,
+  const Float r = x.first;
+  const Float p = x.second;
+  return log_beta_neg_odds(p, hyperparameters.phi_p_1,
                            hyperparameters.phi_p_2)
          // NOTE: gamma_distribution takes a shape and scale parameter
-         + log_gamma(current_r, hyperparameters.phi_r_1,
+         + log_gamma(r, hyperparameters.phi_r_1,
                      1 / hyperparameters.phi_r_2)
          // The next lines are part of the negative binomial distribution.
          // The other factors aren't needed as they don't depend on either of
          // r[g][t] and p[g][t], and thus would cancel when computing the score
          // ratio.
-         + current_r * log(current_p)
-         - (current_r + count_sum) * log(current_p + weight_sum)
-         + lgamma(current_r + count_sum) - lgamma(current_r);
+         + r * log(p)
+         - (r + observed) * log(p + expected)
+         + lgamma(r + observed) - lgamma(r);
 }
 
 Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
