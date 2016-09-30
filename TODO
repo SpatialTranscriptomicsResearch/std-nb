@@ -122,3 +122,5 @@ Ressurect:
 
 Determine how similar the "real" local gene expression profiles (the component-wise product of local and global phi matrices) really are to the global ones.
 Consider using such a similarity measure to determine homogeneity amongst the "real" local profiles, identifying outliers and associating them with other global profiles.
+
+Fix the likelihood calculation of phi's p prior
