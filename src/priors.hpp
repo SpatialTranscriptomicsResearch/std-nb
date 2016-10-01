@@ -27,13 +27,13 @@ struct Gamma {
   Gamma(size_t dim1_, size_t dim2_, const Parameters &params);
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
-  /* This chooses first r then p by maximum likelihood */
+  /* This chooses first r with Metropolis-Hastings then p from the posterior */
   template <typename Type, typename... Args>
   void sample(const Type& experiment, const Args&... args);
 
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
-                 const Vector &spot_scaling);
+  template <typename Type, typename... Args>
+  void sample_mh(const Type& experiment, const Args&... args);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
@@ -85,7 +85,7 @@ inline double score(double r, double p, double observed, double expected,
 
 template <typename Type, typename... Args>
 void Gamma::sample(const Type &experiment, const Args &... args) {
-  LOG(info) << "Sampling P and R of Φ using maximum likelihood and from the "
+  LOG(info) << "Sampling R and P of Φ using Metropolis-Hastings and from the "
                "posterior, respectively.";
 
   auto expected_gene_type = experiment.expected_gene_type(args...);
@@ -95,7 +95,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
     {
       const size_t thread_num = omp_get_thread_num();
 #pragma omp for
-      for (size_t g = 0; g < dim1; ++g) {
+      for (size_t g = 0; g < experiment.G; ++g) {
         const Int count_sum = experiment.contributions_gene_type(g, t);
         const Float weight_sum = expected_gene_type(g, t);
         LOG(debug) << "count_sum = " << count_sum;
@@ -151,6 +151,58 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
     }
   }
 }
+
+template <typename T>
+double compute_conditional(const std::pair<Float, Float> &x, Int observed,
+                           Float expected,
+                           const Hyperparameters &hyperparameters) {
+  const Float r = x.first;
+  const Float p = x.second;
+  return log_beta_neg_odds(p, hyperparameters.phi_p_1, hyperparameters.phi_p_2)
+         // NOTE: gamma_distribution takes a shape and scale parameter
+         + log_gamma(r, hyperparameters.phi_r_1, 1 / hyperparameters.phi_r_2)
+         // The next lines are part of the negative binomial distribution.
+         // The other factors aren't needed as they don't depend on either of
+         // r(g,t) and p(g,t), and thus would cancel when computing the score
+         // ratio.
+         + r * log(p)
+         - (r + observed) * log(p + expected)
+         + lgamma(r + observed) - lgamma(r);
+}
+
+template <typename Type, typename... Args>
+void Gamma::sample_mh(const Type &experiment, const Args &... args) {
+  LOG(info) << "Sampling P and R of Φ";
+
+  auto gen = [](const std::pair<Float, Float> &x, std::mt19937 &rng) {
+    std::normal_distribution<double> rnorm;
+    const double f1 = exp(rnorm(rng));
+    const double f2 = exp(rnorm(rng));
+    return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
+  };
+
+  auto expected_gene_type = experiment.expected_gene_type(args...);
+  MetropolisHastings mh(parameters.temperature);
+
+  for (size_t t = 0; t < expected_gene_type.n_cols; ++t)
+#pragma omp parallel if (DO_PARALLEL)
+    {
+      const size_t thread_num = omp_get_thread_num();
+#pragma omp for
+    for (size_t g = 0; g < experiment.G; ++g) {
+      const Int count_sum = experiment.contributions_gene_type(g, t);
+      const Float weight_sum = expected_gene_type(g, t);
+
+      auto res = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
+                           parameters.n_iter, EntropySource::rngs[thread_num],
+                           gen, compute_conditional, count_sum, weight_sum,
+                           parameters.hyperparameters);
+      r(g, t) = res.first;
+      p(g, t) = res.second;
+    }
+  }
+}
+
 
 struct Dirichlet {
   size_t dim1, dim2;

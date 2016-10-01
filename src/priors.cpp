@@ -13,25 +13,6 @@ namespace PoissonFactorization {
 namespace PRIOR {
 namespace PHI {
 
-double compute_conditional(const pair<Float, Float> &x, Int observed,
-                           Float expected,
-                           const Hyperparameters &hyperparameters) {
-  const Float r = x.first;
-  const Float p = x.second;
-  return log_beta_neg_odds(p, hyperparameters.phi_p_1,
-                           hyperparameters.phi_p_2)
-         // NOTE: gamma_distribution takes a shape and scale parameter
-         + log_gamma(r, hyperparameters.phi_r_1,
-                     1 / hyperparameters.phi_r_2)
-         // The next lines are part of the negative binomial distribution.
-         // The other factors aren't needed as they don't depend on either of
-         // r[g][t] and p[g][t], and thus would cancel when computing the score
-         // ratio.
-         + r * log(p)
-         - (r + observed) * log(p + expected)
-         + lgamma(r + observed) - lgamma(r);
-}
-
 Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
     : dim1(dim1_), dim2(dim2_), r(dim1, dim2), p(dim1, dim2), parameters(params) {
   initialize_r();
@@ -86,38 +67,6 @@ double fnc(double r, double x) {
 
 double dfnc(double r, double x) {
   return trigamma(r+x) - trigamma(r) + 1/r - 1/(r+x);
-}
-
-void Gamma::sample_mh(const Matrix &theta, const IMatrix &contributions_gene_type,
-                   const Vector &spot_scaling) {
-  LOG(info) << "Sampling P and R of Φ";
-
-  auto gen = [](const std::pair<Float, Float> &x, std::mt19937 &rng) {
-    std::normal_distribution<double> rnorm;
-    const double f1 = exp(rnorm(rng));
-    const double f2 = exp(rnorm(rng));
-    return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
-  };
-
-  for (size_t t = 0; t < theta.n_cols; ++t) {
-    Float weight_sum = 0;
-    for (size_t s = 0; s < theta.n_rows; ++s)
-      weight_sum += theta(s, t) * spot_scaling[s];
-
-    MetropolisHastings mh(parameters.temperature);
-
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < dim1; ++g) {
-      const Int count_sum = contributions_gene_type(g, t);
-      const size_t thread_num = omp_get_thread_num();
-      auto res = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
-                           parameters.n_iter, EntropySource::rngs[thread_num],
-                           gen, compute_conditional, count_sum, weight_sum,
-                           parameters.hyperparameters);
-      r(g, t) = res.first;
-      p(g, t) = res.second;
-    }
-  }
 }
 
 void Gamma::store(const std::string &prefix,
