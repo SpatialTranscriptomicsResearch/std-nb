@@ -78,8 +78,6 @@ struct Experiment {
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
 
-  Matrix weighted_theta(const Matrix &global_phi) const;
-
   /** sample count decomposition */
   void sample_contributions(const Matrix &var_phi);
   /** sub-routine for count decomposition sampling */
@@ -94,8 +92,11 @@ struct Experiment {
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = prior.p(g,t) + var_phi(g,t) sum_s theta(s,t) sigma(s)
+  // with M(g,t) = phi(g,t) var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type(const Matrix &var_phi) const;
+  // computes a matrix M(s,t)
+  // with M(s,t) = theta(s,t) sigma(s) sum_g phi(g,t) var_phi(g,t)
+  Matrix expected_spot_type(const Matrix &global_phi) const;
 };
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -163,7 +164,8 @@ void Experiment<feat_kind, mix_kind>::store(
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_matrix(weighted_theta(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_matrix(expected_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -265,19 +267,6 @@ Matrix Experiment<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   return m;
 }
 */
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::weighted_theta(const Matrix &global_phi) const {
-  Matrix m = weights.matrix;
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-    for (size_t g = 0; g < G; ++g)
-      x += phi(g, t) * global_phi(g, t);
-    for (size_t s = 0; s < S; ++s)
-      m(s, t) *= x * spot(s);
-  }
-  return m;
-}
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 /** sample count decomposition */
@@ -391,6 +380,19 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
     for (size_t s = 0; s < S; ++s)
       intensities[t] += theta(s, t) * spot[s];
   return intensities;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(const Matrix &global_phi) const {
+  Matrix m = weights.matrix;
+  for (size_t t = 0; t < T; ++t) {
+    Float x = 0;
+    for (size_t g = 0; g < G; ++g)
+      x += phi(g, t) * global_phi(g, t);
+    for (size_t s = 0; s < S; ++s)
+      m(s, t) *= x * spot(s);
+  }
+  return m;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
