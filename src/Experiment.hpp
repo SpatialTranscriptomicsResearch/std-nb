@@ -386,7 +386,20 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(const Matrix &global_phi) const {
+Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
+    const Matrix &var_phi) const {
+  Vector theta_t = marginalize_spots();
+  Matrix expected(G, T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      expected(g, t) = var_phi(g, t) * theta_t(t);
+  return expected;
+};
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
+    const Matrix &global_phi) const {
   Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
@@ -413,18 +426,6 @@ Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
   }
   return vs;
 }
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
-    const Matrix &var_phi) const {
-  Vector theta_t = marginalize_spots();
-  Matrix expected(G, T, arma::fill::zeros);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      expected(g, t) = var_phi(g, t) * theta_t(t);
-  return expected;
-};
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(std::ostream &os,
