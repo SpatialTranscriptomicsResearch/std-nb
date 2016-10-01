@@ -97,6 +97,9 @@ struct Experiment {
   // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g phi(g,t) var_phi(g,t)
   Matrix expected_spot_type(const Matrix &global_phi) const;
+
+  std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
+                                                  double threshold = 1.0) const;
 };
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -393,6 +396,22 @@ Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(const Matrix &global_
       m(s, t) *= x * spot(s);
   }
   return m;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+std::vector<std::vector<size_t>>
+Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
+                                                double threshold) const {
+  auto w = expected_spot_type(global_phi);
+  std::vector<std::vector<size_t>> vs;
+  for (size_t s = 0; s < S; ++s) {
+    std::vector<size_t> v;
+    for (size_t t = 0; t < T; ++t)
+      if (w(s, t) > threshold)
+        v.push_back(t);
+    vs.push_back(v);
+  }
+  return vs;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
