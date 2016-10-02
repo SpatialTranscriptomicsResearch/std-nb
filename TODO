@@ -119,7 +119,6 @@ The same generalized beta prime / compound gamma distributions could be used to 
 
 Ressurect:
  * experiment-specific phi prior estimation
- * posterior / variance calculation
  * experiment scaling
 
 Determine how similar the "real" local gene expression profiles (the component-wise product of local and global phi matrices) really are to the global ones.
