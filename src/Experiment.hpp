@@ -168,7 +168,8 @@ void Experiment<feat_kind, mix_kind>::store(
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
   write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
-  write_matrix(features.matrix % explained_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
+  Matrix profiles = features.matrix % explained_gene_type(global_features.matrix);
+  write_matrix(profiles, prefix + "weighted-features.txt", gene_names, factor_names);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
