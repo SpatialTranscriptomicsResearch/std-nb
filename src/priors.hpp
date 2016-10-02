@@ -72,12 +72,12 @@ inline double log_normal_generator(double x, std::mt19937 &rng) {
   return x * exp(std::normal_distribution<Float>(0, 1)(rng));
 }
 
-inline double score(double r, double p, double observed, double expected,
+inline double score(double r, double p, double observed, double explained,
                     double h1, double h2) {
   double nb_term
-      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + expected));
+      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + explained));
   // double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p)
-  //                  - (r + observed) * log(p + expected);
+  //                  - (r + observed) * log(p + explained);
   // NOTE: log_gamma takes a shape and scale parameter
   double prior_term = log_gamma(r, h1, 1 / h2);
   return nb_term + prior_term;
@@ -88,7 +88,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
   LOG(info) << "Sampling R and P of Φ using Metropolis-Hastings and from the "
                "posterior, respectively.";
 
-  auto expected_gene_type = experiment.expected_gene_type(args...);
+  auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
   for (size_t t = 0; t < experiment.T; ++t) {
 #pragma omp parallel if (DO_PARALLEL)
@@ -96,10 +96,10 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
       const size_t thread_num = omp_get_thread_num();
 #pragma omp for
       for (size_t g = 0; g < experiment.G; ++g) {
-        const Int count_sum = experiment.contributions_gene_type(g, t);
-        const Float weight_sum = expected_gene_type(g, t);
-        LOG(debug) << "count_sum = " << count_sum;
-        LOG(debug) << "weight_sum = " << weight_sum;
+        const Int observed = experiment.contributions_gene_type(g, t);
+        const Float explained = explained_gene_type(g, t);
+        LOG(debug) << "observed = " << observed;
+        LOG(debug) << "explained = " << explained;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
         LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
         if (not parameters.phi_prior_metropolis_hastings) {
@@ -112,22 +112,22 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
             // TODO should this be deactivated?
             // // set to arithmetic mean of current value and 1
             r(g, t) = (1 + r(g, t)) / 2;
-            auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), count_sum,
-                                          p(g, t), weight_sum);
+            auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), observed,
+                                          p(g, t), explained);
             LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
             LOG(debug) << "number of steps = " << num_steps;
           }
         } else {
           r(g, t) = mh.sample(r(g, t), parameters.n_iter,
                               EntropySource::rngs[thread_num],
-                              log_normal_generator, score, p(g, t), count_sum,
-                              weight_sum, parameters.hyperparameters.phi_r_1,
+                              log_normal_generator, score, p(g, t), observed,
+                              explained, parameters.hyperparameters.phi_r_1,
                               parameters.hyperparameters.phi_r_2);
         }
 
         p(g, t) = sample_compound_gamma(
             parameters.hyperparameters.phi_p_1 + r(g, t),
-            parameters.hyperparameters.phi_p_2 + count_sum, weight_sum,
+            parameters.hyperparameters.phi_p_2 + observed, explained,
             EntropySource::rngs[thread_num]);
 
         assert(r(g, t) >= 0);
@@ -136,11 +136,11 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
         LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
 
         if (false)
-          if (count_sum > 0) {
+          if (observed > 0) {
             const double pseudo_cnt = 1e-6;
-            auto p_ml = r(g, t) / count_sum * weight_sum;
-            auto p_ml_ps = r(g, t) / (count_sum + pseudo_cnt)
-                           * (weight_sum + pseudo_cnt);
+            auto p_ml = r(g, t) / observed * explained;
+            auto p_ml_ps = r(g, t) / (observed + pseudo_cnt)
+                           * (explained + pseudo_cnt);
 
             LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
             LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
@@ -153,11 +153,11 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
 }
 
 template <typename T>
-double compute_conditional(const std::pair<Float, Float> &x, Int observed,
-                           Float expected,
+double compute_conditional(const std::pair<T, T> &x, Int observed,
+                           Float explained,
                            const Hyperparameters &hyperparameters) {
-  const Float r = x.first;
-  const Float p = x.second;
+  const T r = x.first;
+  const T p = x.second;
   return log_beta_neg_odds(p, hyperparameters.phi_p_1, hyperparameters.phi_p_2)
          // NOTE: gamma_distribution takes a shape and scale parameter
          + log_gamma(r, hyperparameters.phi_r_1, 1 / hyperparameters.phi_r_2)
@@ -165,44 +165,46 @@ double compute_conditional(const std::pair<Float, Float> &x, Int observed,
          // The other factors aren't needed as they don't depend on either of
          // r(g,t) and p(g,t), and thus would cancel when computing the score
          // ratio.
-         + r * log(p)
-         - (r + observed) * log(p + expected)
+         + r * log(p) - (r + observed) * log(p + explained)
          + lgamma(r + observed) - lgamma(r);
 }
+
+template <typename T>
+std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
+                                    std::mt19937 &rng) {
+  std::normal_distribution<double> rnorm;
+  const double f1 = exp(rnorm(rng));
+  const double f2 = exp(rnorm(rng));
+  return {f1 * x.first, f2 * x.second};
+  // return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
+};
 
 template <typename Type, typename... Args>
 void Gamma::sample_mh(const Type &experiment, const Args &... args) {
   LOG(info) << "Sampling P and R of Φ";
 
-  auto gen = [](const std::pair<Float, Float> &x, std::mt19937 &rng) {
-    std::normal_distribution<double> rnorm;
-    const double f1 = exp(rnorm(rng));
-    const double f2 = exp(rnorm(rng));
-    return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
-  };
-
-  auto expected_gene_type = experiment.expected_gene_type(args...);
+  auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
 
-  for (size_t t = 0; t < expected_gene_type.n_cols; ++t)
+  for (size_t t = 0; t < explained_gene_type.n_cols; ++t)
 #pragma omp parallel if (DO_PARALLEL)
-    {
-      const size_t thread_num = omp_get_thread_num();
+  {
+    const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < experiment.G; ++g) {
-      const Int count_sum = experiment.contributions_gene_type(g, t);
-      const Float weight_sum = expected_gene_type(g, t);
+      const Int observed = experiment.contributions_gene_type(g, t);
+      const Float explained = explained_gene_type(g, t);
 
-      auto res = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
-                           parameters.n_iter, EntropySource::rngs[thread_num],
-                           gen, compute_conditional, count_sum, weight_sum,
-                           parameters.hyperparameters);
+      auto res
+          = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
+                      parameters.n_iter, EntropySource::rngs[thread_num],
+                      gen_log_normal_pair<Float>, compute_conditional<Float>,
+                      observed, explained, parameters.hyperparameters);
       r(g, t) = res.first;
       p(g, t) = res.second;
     }
   }
 }
-
 
 struct Dirichlet {
   size_t dim1, dim2;

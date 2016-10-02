@@ -98,7 +98,7 @@ struct Model {
   }
 
   template <typename Type>
-  void perform_sampling(const Type &observed, const Type &expected) {
+  void perform_sampling(const Type &observed, const Type &explained) {
 #pragma omp parallel if (DO_PARALLEL)
     {
       const size_t thread_num = omp_get_thread_num();
@@ -106,8 +106,8 @@ struct Model {
       for (size_t x = 0; x < observed.n_elem; ++x) {
         // NOTE: gamma_distribution takes a shape and scale parameter
         matrix[x] = std::gamma_distribution<Float>(
-            observed[x], 1.0 / expected[x])(EntropySource::rngs[thread_num]);
-        LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x] << " expected[" << x << "] = " << expected[x] << " -> " << matrix[x];
+            observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
+        LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x] << " explained[" << x << "] = " << explained[x] << " -> " << matrix[x];
       }
     }
   }
@@ -144,9 +144,9 @@ void Model<Variable::Feature, Kind::Gamma>::sample(
   LOG(info) << "Sampling Φ from Gamma distribution";
 
   Matrix observed = prior.r + experiment.contributions_gene_type;
-  Matrix expected = prior.p + experiment.expected_gene_type(args...);
+  Matrix explained = prior.p + experiment.explained_gene_type(args...);
 
-  perform_sampling(observed, expected);
+  perform_sampling(observed, explained);
 
   // enforce means if necessary
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)

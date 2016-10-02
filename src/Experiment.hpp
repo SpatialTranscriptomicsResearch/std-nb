@@ -93,10 +93,10 @@ struct Experiment {
 
   // computes a matrix M(g,t)
   // with M(g,t) = phi(g,t) var_phi(g,t) sum_s theta(s,t) sigma(s)
-  Matrix expected_gene_type(const Matrix &var_phi) const;
+  Matrix explained_gene_type(const Matrix &var_phi) const;
   // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g phi(g,t) var_phi(g,t)
-  Matrix expected_spot_type(const Matrix &global_phi) const;
+  Matrix explained_spot_type(const Matrix &global_phi) const;
 
   std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
                                                   double threshold = 1.0) const;
@@ -167,27 +167,24 @@ void Experiment<feat_kind, mix_kind>::store(
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
-  write_matrix(expected_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
+  write_matrix(explained_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_matrix(explained_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-  /* TODO reactivate
-  if (false and mean_and_variance) {
-    write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt", gene_names, spot_names);
-    // TODO reactivate
-    // write_matrix(posterior_expectations(), prefix + "means.txt", gene_names, spot_names);
-    // write_matrix(posterior_variances(), prefix + "variances.txt", gene_names, spot_names);
+  if (false) {
+    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson.txt", gene_names, spot_names);
+    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected.txt", gene_names, spot_names);
+    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance.txt", gene_names, spot_names);
   }
-  */
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
-                                                          Target which) {
+                                                   Target which) {
   // TODO reactivate
   if (false)
     if (flagged(which & Target::contributions))
@@ -292,7 +289,7 @@ Matrix Experiment<feat_kind,
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 /** sample count decomposition */
 void Experiment<feat_kind, mix_kind>::sample_contributions(
-    const Matrix &var_phi) {
+    const Matrix &global_phi) {
   LOG(info) << "Sampling contributions";
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
   contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
@@ -304,7 +301,7 @@ void Experiment<feat_kind, mix_kind>::sample_contributions(
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
-        sample_contributions_sub(var_phi, g, s, EntropySource::rngs[thread_num],
+        sample_contributions_sub(global_phi, g, s, EntropySource::rngs[thread_num],
                                  contrib_gene_type, contrib_spot_type);
 #pragma omp critical
     {
@@ -316,34 +313,20 @@ void Experiment<feat_kind, mix_kind>::sample_contributions(
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::sample_contributions_sub(
-    const Matrix &var_phi, size_t g, size_t s, RNG &rng,
+    const Matrix &global_phi, size_t g, size_t s, RNG &rng,
     IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
-  // NOTE: in principle, lambda[g][s][t] is proportional to spot[s].
+  // NOTE: in principle, lambda(g,s,t) is proportional to spot(s).
   // However, this term would cancel. Thus, we don't respect it here.
   for (size_t t = 0; t < T; ++t)
-    z += rel_rate[t] = phi(g, t) * var_phi(g, t) * theta(s, t);
+    z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
   lambda_gene_spot(g, s) = z;
   if (data.counts(g, s) > 0) {
     auto v = sample_multinomial<Int>(data.counts(g, s), begin(rel_rate),
                                      end(rel_rate), rng);
-    /*
-    LOG(debug) << "contribution_sub g = " << g << " s = " << s << " n = " <<
-    data.counts(g,s);
-    for(size_t t = 0; t < T; ++t)
-      LOG(debug) << "theta[" << t << "] = " << theta(s,t);
-    for(size_t t = 0; t < T; ++t)
-      LOG(debug) << "phi[" << t << "] = " << phi(g,t);
-    for(size_t t = 0; t < T; ++t)
-      LOG(debug) << "var_phi.matrix[" << t << "] = " << var_phi(g,t);
-    for(size_t t = 0; t < T; ++t)
-      LOG(debug) << " p[" << t << "] = " << rel_rate[t];
-    for(size_t t = 0; t < T; ++t)
-      LOG(debug) << " v[" << t << "] = " << v[t];
-    */
     for (size_t t = 0; t < T; ++t) {
       contrib_gene_type(g, t) += v[t];
       contrib_spot_type(s, t) += v[t];
@@ -384,12 +367,12 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
-    const Matrix &var_phi) const {
+    const Matrix &global_phi) const {
   Vector intensities(T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      intensities(t) += phi(g, t) * var_phi(g, t);
+      intensities(t) += phi(g, t) * global_phi(g, t);
   return intensities;
 };
 
@@ -404,19 +387,19 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_gene_type(
-    const Matrix &var_phi) const {
+Matrix Experiment<feat_kind, mix_kind>::explained_gene_type(
+    const Matrix &global_phi) const {
   Vector theta_t = marginalize_spots();
-  Matrix expected(G, T, arma::fill::zeros);
+  Matrix explained(G, T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      expected(g, t) = var_phi(g, t) * theta_t(t);
-  return expected;
+      explained(g, t) = global_phi(g, t) * theta_t(t);
+  return explained;
 };
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
+Matrix Experiment<feat_kind, mix_kind>::explained_spot_type(
     const Matrix &global_phi) const {
   Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
@@ -433,7 +416,7 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::vector<std::vector<size_t>>
 Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
                                                 double threshold) const {
-  auto w = expected_spot_type(global_phi);
+  auto w = explained_spot_type(global_phi);
   std::vector<std::vector<size_t>> vs;
   for (size_t s = 0; s < S; ++s) {
     std::vector<size_t> v;

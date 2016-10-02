@@ -68,9 +68,8 @@ struct Model {
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
 
   // computes a matrix M(g,t)
-  // with M(g,t) = prior.p(g,t) + \sum_e var_phi(e)(g,t) sum_{s \in S_e}
-  // theta(s,t) sigma(s)
-  Matrix expected_gene_type() const;
+  // with M(g,t) = sum_e local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+  Matrix explained_gene_type() const;
 
   void update_contributions();
   void add_experiment(const Counts &data);
@@ -126,7 +125,6 @@ void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
 
   if (not parameters.skip_global_phi_priors)
     if (flagged(which & (Target::phi_r | Target::phi_p)))
-      // TODO FIXME make this work!
       features.prior.sample(*this);
 
   if (flagged(which & Target::phi))
@@ -144,17 +142,19 @@ double Model<feat_kind, mix_kind>::log_likelihood() const {
   return l;
 }
 
+// computes a matrix M(g,t)
+// with M(g,t) = sum_e local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::expected_gene_type() const {
-  Matrix expected(G, T, arma::fill::zeros);
+Matrix Model<feat_kind, mix_kind>::explained_gene_type() const {
+  Matrix explained(G, T, arma::fill::zeros);
   for (auto &experiment : experiments) {
     Vector theta_t = experiment.marginalize_spots();
     for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
-        expected(g, t) += experiment.phi(g, t) * theta_t(t);
+        explained(g, t) += experiment.phi(g, t) * theta_t(t);
   }
-  return expected;
+  return explained;
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
