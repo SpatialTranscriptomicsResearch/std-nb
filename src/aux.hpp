@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <iterator>
 #include <string>
+#include <sstream>
 #include <vector>
 
 /**
@@ -13,6 +14,15 @@
  * @return lower case copy of x
  */
 std::string to_lower(std::string x);
+
+template <typename T>
+std::string to_string_embedded(const T &t, size_t w, char symbol='0') {
+  std::stringstream ss;
+  ss.fill(symbol);
+  ss.width(w);
+  ss << t;
+  return ss.str();
+}
 
 /**
  * Divide by the sum to compute relative proportions
