@@ -30,7 +30,6 @@ struct Options {
   vector<double> quantiles;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
-  bool perform_splitmerge = false;
   size_t top = 0;
   PF::Target sample_these = PF::DefaultTarget();
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
@@ -252,8 +251,6 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
-    ("split,s", po::bool_switch(&options.perform_splitmerge),
-     "Perform split/merge steps.")
     ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
      "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
@@ -356,10 +353,6 @@ int main(int argc, char **argv) {
   LOG(info) << exec_info.datetime;
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
-
-  if (options.perform_splitmerge)
-    options.sample_these
-        = options.sample_these | PoissonFactorization::Target::merge_split;
 
   Counts data(options.tsv_paths[0]);
   for (size_t i = 1; i < options.tsv_paths.size(); ++i)

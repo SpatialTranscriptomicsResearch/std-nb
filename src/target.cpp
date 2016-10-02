@@ -43,12 +43,8 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "spot";
       first = false;
     }
-    if (flagged(which & Target::experiment)) {
-      os << (first ? "" : ",") << "experiment";
-      first = false;
-    }
-    if (flagged(which & Target::merge_split)) {
-      os << (first ? "" : ",") << "merge_split";
+    if (flagged(which & Target::baseline)) {
+      os << (first ? "" : ",") << "baseline";
       first = false;
     }
   }
@@ -84,10 +80,8 @@ istream &operator>>(istream &is, Target &which) {
       which = which | Target::theta_p;
     else if (token == "spot")
       which = which | Target::spot;
-    else if (token == "experiment")
-      which = which | Target::experiment;
-    else if (token == "merge_split")
-      which = which | Target::merge_split;
+    else if (token == "baseline")
+      which = which | Target::baseline;
     else
       throw(runtime_error("Unknown sampling token: " + token));
   }

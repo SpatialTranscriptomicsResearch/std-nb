@@ -15,8 +15,7 @@ enum class Target {
   theta_r = 1 << 5,
   theta_p = 1 << 6,
   spot = 1 << 7,
-  experiment = 1 << 8,
-  merge_split = 1 << 9,
+  baseline = 1 << 8,
 };
 
 std::ostream &operator<<(std::ostream &os, const Target &which);
@@ -36,13 +35,13 @@ inline constexpr Target operator^(Target a, Target b) {
 
 inline constexpr Target
 operator~(Target a) {
-  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 10) - 1));
+  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 9) - 1));
 }
 
 inline constexpr Target DefaultTarget() {
   return Target::contributions | Target::phi | Target::phi_r | Target::phi_p
          | Target::theta | Target::theta_r | Target::theta_p | Target::spot
-         | Target::experiment;
+         | Target::baseline;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }

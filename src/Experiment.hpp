@@ -46,6 +46,7 @@ struct Experiment {
 
   /** factor loading matrix */
   features_t features;
+  features_t baseline_feature;
 
   /** factor score matrix */
   weights_t weights;
@@ -74,6 +75,8 @@ struct Experiment {
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
+  inline Float &baseline_phi(size_t g) { return baseline_feature.matrix(g, 0); };
+  inline Float baseline_phi(size_t g) const { return baseline_feature.matrix(g, 0); };
 
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
@@ -88,15 +91,21 @@ struct Experiment {
   /** sample spot scaling factors */
   void sample_spot(const Matrix &var_phi);
 
+  /** sample baseline feature */
+  void sample_baseline(const Matrix &var_phi);
+
   Vector marginalize_genes(const Matrix &var_phi) const;
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = var_phi(g,t) sum_s theta(s,t) sigma(s)
+  // with M(g,t) = baseline_phi(g) var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix explained_gene_type(const Matrix &var_phi) const;
   // computes a matrix M(s,t)
-  // with M(s,t) = theta(s,t) sigma(s) sum_g phi(g,t) var_phi(g,t)
+  // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) var_phi(g,t)
   Matrix expected_spot_type(const Matrix &global_phi) const;
+  // computes a vector V(g)
+  // with V(g) = sum_t phi(g,t) var_phi(g,t) sum_s theta(s,t) sigma(s)
+  Vector explained_gene(const Matrix &var_phi) const;
 
   std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
                                                   double threshold = 1.0) const;
@@ -115,6 +124,7 @@ Experiment<feat_kind, mix_kind>::Experiment(
       contributions_gene(G, arma::fill::zeros),
       contributions_spot(S, arma::fill::zeros),
       features(G, T, parameters),
+      baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
@@ -165,6 +175,7 @@ void Experiment<feat_kind, mix_kind>::store(
   auto &gene_names = data.row_names;
   auto &spot_names = data.col_names;
   features.store(prefix, gene_names, factor_names);
+  baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"});
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
   write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
@@ -191,9 +202,13 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
     if (flagged(which & Target::contributions))
       sample_contributions(global_phi);
 
-  if (flagged(which & (Target::theta_r | Target::theta_p)))
-    weights.prior.sample(features.matrix % global_phi, contributions_spot_type,
-                         spot);
+  if (flagged(which & (Target::theta_r | Target::theta_p))) {
+    Matrix feature_matrix = features.matrix % global_phi;
+    for(size_t g = 0; g < G; ++g)
+      for(size_t t = 0; t < T; ++t)
+        feature_matrix(g,t) *= baseline_phi(g);
+    weights.prior.sample(feature_matrix, contributions_spot_type, spot);
+  }
 
   if (flagged(which & Target::theta))
     weights.sample(*this, global_phi);
@@ -208,12 +223,16 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
 
   if (flagged(which & Target::spot))
     sample_spot(global_phi);
+
+  if (flagged(which & Target::baseline))
+    sample_baseline(global_phi);
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 double Experiment<feat_kind, mix_kind>::log_likelihood() const {
   double l_features = features.log_likelihood(contributions_gene_type);
   double l_mix = weights.log_likelihood(contributions_spot_type);
+  // TODO respect baseline feature
 
   double l = l_features + l_mix;
 
@@ -366,6 +385,37 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
   }
 }
 
+/** sample baseline feature */
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+void Experiment<feat_kind, mix_kind>::sample_baseline(
+    const Matrix &global_phi) {
+  LOG(info) << "Sampling baseline feature from Gamma distribution";
+
+  // TODO add CLI switch
+  const double prior1 = 50;
+  const double prior2 = 50;
+  Vector observed(G, arma::fill::zeros);
+  for(size_t g = 0; g < G; ++g)
+    observed(g) = prior1 + contributions_gene[g];
+  Vector explained = prior2 + explained_gene(global_phi);
+
+  baseline_feature.perform_sampling(observed, explained);
+
+  /*
+  // enforce means if necessary
+  if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
+    for (size_t t = 0; t < dim2; ++t) {
+        double z = 0;
+#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
+        for (size_t g = 0; g < dim1; ++g)
+          z += matrix(g, t);
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t g = 0; g < dim1; ++g)
+          matrix(g, t) = matrix(g, t) / z * phi_scaling;
+    }
+    */
+}
+
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
     const Matrix &global_phi) const {
@@ -373,7 +423,7 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
     for (size_t g = 0; g < G; ++g)
-      intensities(t) += phi(g, t) * global_phi(g, t);
+      intensities(t) += baseline_phi(g) * phi(g, t) * global_phi(g, t);
   return intensities;
 };
 
@@ -395,7 +445,20 @@ Matrix Experiment<feat_kind, mix_kind>::explained_gene_type(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t) = global_phi(g, t) * theta_t(t);
+      explained(g, t) = baseline_phi(g) * global_phi(g, t) * theta_t(t);
+  return explained;
+};
+
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Vector Experiment<feat_kind, mix_kind>::explained_gene(
+    const Matrix &global_phi) const {
+  Vector theta_t = marginalize_spots();
+  Vector explained(G, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      explained(g) += phi(g,t) * global_phi(g, t) * theta_t(t);
   return explained;
 };
 
@@ -406,7 +469,7 @@ Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += phi(g, t) * global_phi(g, t);
+      x += baseline_phi(g) * phi(g, t) * global_phi(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
@@ -438,9 +501,11 @@ std::ostream &operator<<(std::ostream &os,
      << "T = " << experiment.T << std::endl;
 
   if (verbosity >= Verbosity::verbose) {
+    print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
     print_matrix_head(os, experiment.features.matrix, "Φ");
     print_matrix_head(os, experiment.weights.matrix, "Θ");
     /* TODO reactivate
+    os << experiment.baseline_feature.prior;
     os << experiment.features.prior;
     os << experiment.weights.prior;
 
@@ -465,6 +530,7 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.spot %= b.spot;
 
   experiment.features.matrix %= b.features.matrix;
+  experiment.baseline_feature.matrix %= b.baseline_feature.matrix;
   experiment.weights.matrix %= b.weights.matrix;
 
   return experiment;
@@ -484,6 +550,7 @@ Experiment<feat_kind, mix_kind> operator+(
   experiment.spot += b.spot;
 
   experiment.features.matrix += b.features.matrix;
+  experiment.baseline_feature.matrix += b.baseline_feature.matrix;
   experiment.weights.matrix += b.weights.matrix;
 
   return experiment;
@@ -503,6 +570,7 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.spot -= b.spot;
 
   experiment.features.matrix -= b.features.matrix;
+  experiment.baseline_feature.matrix -= b.baseline_feature.matrix;
   experiment.weights.matrix -= b.weights.matrix;
 
   return experiment;
@@ -521,6 +589,7 @@ Experiment<feat_kind, mix_kind> operator*(
   experiment.spot *= x;
 
   experiment.features.matrix *= x;
+  experiment.baseline_feature.matrix *= x;
   experiment.weights.matrix *= x;
 
   return experiment;
@@ -539,6 +608,7 @@ Experiment<feat_kind, mix_kind> operator/(
   experiment.spot /= x;
 
   experiment.features.matrix /= x;
+  experiment.baseline_feature.matrix /= x;
   experiment.weights.matrix /= x;
 
   return experiment;
@@ -557,6 +627,7 @@ Experiment<feat_kind, mix_kind> operator-(
   experiment.spot -= x;
 
   experiment.features.matrix -= x;
+  experiment.baseline_feature.matrix -= x;
   experiment.weights.matrix -= x;
 
   return experiment;
