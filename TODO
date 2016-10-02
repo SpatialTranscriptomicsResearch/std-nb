@@ -133,3 +133,7 @@ Write DGE analysis code
    - several approaches exist:
      > arg min sum log FC
      > arg min Jensen-Shannon divergence
+
+Add an experiment-dependent factor to the gene expression profiles?
+i.e.:
+lamba_gst = phi_gt global_phi_gt experiment_phi_g theta_st sigma_s
