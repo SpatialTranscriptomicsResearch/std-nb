@@ -92,11 +92,11 @@ struct Experiment {
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = phi(g,t) var_phi(g,t) sum_s theta(s,t) sigma(s)
+  // with M(g,t) = var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix explained_gene_type(const Matrix &var_phi) const;
   // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g phi(g,t) var_phi(g,t)
-  Matrix explained_spot_type(const Matrix &global_phi) const;
+  Matrix expected_spot_type(const Matrix &global_phi) const;
 
   std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
                                                   double threshold = 1.0) const;
@@ -167,8 +167,8 @@ void Experiment<feat_kind, mix_kind>::store(
   features.store(prefix, gene_names, factor_names);
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_matrix(explained_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
-  write_matrix(explained_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
+  write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
+  write_matrix(features.matrix % explained_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -399,7 +399,7 @@ Matrix Experiment<feat_kind, mix_kind>::explained_gene_type(
 };
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::explained_spot_type(
+Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
     const Matrix &global_phi) const {
   Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
@@ -416,7 +416,7 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::vector<std::vector<size_t>>
 Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
                                                 double threshold) const {
-  auto w = explained_spot_type(global_phi);
+  auto w = expected_spot_type(global_phi);
   std::vector<std::vector<size_t>> vs;
   for (size_t s = 0; s < S; ++s) {
     std::vector<size_t> v;
