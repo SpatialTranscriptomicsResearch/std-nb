@@ -68,7 +68,7 @@ struct Model {
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
 
   // computes a matrix M(g,t)
-  // with M(g,t) = sum_e local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+  // with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix explained_gene_type() const;
 
   void update_contributions();
@@ -143,7 +143,7 @@ double Model<feat_kind, mix_kind>::log_likelihood() const {
 }
 
 // computes a matrix M(g,t)
-// with M(g,t) = sum_e local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+// with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Model<feat_kind, mix_kind>::explained_gene_type() const {
   Matrix explained(G, T, arma::fill::zeros);
@@ -152,7 +152,7 @@ Matrix Model<feat_kind, mix_kind>::explained_gene_type() const {
     for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
-        explained(g, t) += experiment.phi(g, t) * theta_t(t);
+        explained(g, t) += experiment.baseline_phi(g) * experiment.phi(g, t) * theta_t(t);
   }
   return explained;
 }
