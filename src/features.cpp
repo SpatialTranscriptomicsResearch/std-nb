@@ -90,13 +90,14 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(matrix(g, t), prior.r(g, t), 1.0 / prior.p(g, t));
 
+  if (parameters.respect_phi_prior_likelihood)
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t g = 0; g < dim1; ++g)
-    // NOTE: log_gamma takes a shape and scale parameter
-    l += log_gamma(prior.r(g, t), parameters.hyperparameters.phi_r_1,
-                   1.0 / parameters.hyperparameters.phi_r_2);
+    for (size_t g = 0; g < dim1; ++g)
+      // NOTE: log_gamma takes a shape and scale parameter
+      l += log_gamma(prior.r(g, t), parameters.hyperparameters.phi_r_1,
+                     1.0 / parameters.hyperparameters.phi_r_2);
 
-  if (false)
+  if (parameters.respect_phi_prior_likelihood)
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < dim1; ++g)
       // TODO FIXME this needs to use the generalized beta prime distribution

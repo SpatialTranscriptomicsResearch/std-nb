@@ -256,6 +256,8 @@ int main(int argc, char **argv) {
      "Perform split/merge steps.")
     ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
      "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
+    ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
+     "Respect the likelihood contributions of the feature priors.")
     ("localphi", po::bool_switch(&parameters.sample_local_phi_priors),
      "Sample the local feature priors.")
     ("noglobalphi", po::bool_switch(&parameters.skip_global_phi_priors),
