@@ -92,7 +92,7 @@ struct Parameters {
    * anything else is the given number of iterations
    */
   size_t enforce_iter = 10;
-  bool phi_prior_metropolis_hastings = false;
+  bool phi_prior_maximum_likelihood = false;
   bool skip_global_phi_priors = false;
   bool sample_local_phi_priors = false;
   bool store_lambda = false;

@@ -102,8 +102,8 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
         LOG(debug) << "explained = " << explained;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
         LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
-        if (not parameters.phi_prior_metropolis_hastings) {
-          if (count_sum == 0) {
+        if (parameters.phi_prior_maximum_likelihood) {
+          if (observed == 0) {
             r(g, t) = std::gamma_distribution<Float>(
                 parameters.hyperparameters.phi_r_1,
                 1 / parameters.hyperparameters.phi_r_2)(

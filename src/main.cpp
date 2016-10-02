@@ -254,8 +254,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("split,s", po::bool_switch(&options.perform_splitmerge),
      "Perform split/merge steps.")
-    ("phi_mh", po::bool_switch(&parameters.phi_prior_metropolis_hastings),
-     "Do not use maximum likelihood to determine the priors of Φ, but use Metropolis-Hastings instead.")
+    ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
+     "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("localphi", po::bool_switch(&parameters.sample_local_phi_priors),
      "Sample the local feature priors.")
     ("noglobalphi", po::bool_switch(&parameters.skip_global_phi_priors),
