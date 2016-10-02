@@ -106,6 +106,8 @@ basically, introduce a plate for gene, type, and experiment.
 Let it's structure be identical to that of the gene and type plate.
 I.e. then we have \lambda_{gst} = \phi_{gt} \phi_{gte} \theta{st} \sigma{s} maybe times \sigma{e}
 
+Terminology: "groups" are what I formerly called "experiments".
+
 It might be nice to turn the experiment-specific hyper-parameters into random variables
 This might be feasible because we have so many parameters sharing that parameter.
 Exponential distributions could be used, and estimation be performed by MH.
@@ -124,3 +126,11 @@ Determine how similar the "real" local gene expression profiles (the component-w
 Consider using such a similarity measure to determine homogeneity amongst the "real" local profiles, identifying outliers and associating them with other global profiles.
 
 Fix the likelihood calculation of phi's p prior
+
+Write DGE analysis code
+ * compare all factors with each other within each experiment
+ * requires code to compute the distribution
+ * the question of the baselines arises
+   - several approaches exist:
+     > arg min sum log FC
+     > arg min Jensen-Shannon divergence
