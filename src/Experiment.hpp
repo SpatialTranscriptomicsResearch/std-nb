@@ -68,10 +68,10 @@ struct Experiment {
   double log_likelihood() const;
   double log_likelihood_poisson_counts() const;
 
-  /* TODO reactivate
-  double posterior_expectation_poisson(size_t g, size_t s) const;
   Matrix posterior_expectations_poisson() const;
-  */
+  Matrix posterior_expectations_negative_multinomial(const features_t &global_features) const;
+  Matrix posterior_variances_negative_multinomial(const features_t &global_features) const;
+
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
 
@@ -248,28 +248,46 @@ double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
   return l;
 }
 
-/* TODO reactivate
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::posterior_expectation_poisson(
-    size_t g, size_t s) const {
-  double x = 0;
-  for (size_t t = 0; t < T; ++t)
-    x += phi(g, t) * theta(s, t);
-  x *= spot[s];
-  if (parameters.activate_experiment_scaling)
-    x *= experiment_scaling_long[s];
-  return x;
-}
-
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Matrix Experiment<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_expectation_poisson(g, s);
+      m(g, s) = lambda_gene_spot(g, s) * spot(s);
   return m;
 }
-*/
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix
+Experiment<feat_kind, mix_kind>::posterior_expectations_negative_multinomial(const features_t &global_features)
+    const {
+  Matrix m(G, S, arma::fill::zeros);
+#pragma omp parallel for
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      for (size_t t = 0; t < T; ++t) {
+        m(g, s) += global_features.prior.r(g, t) / global_features.prior.p(g, t)
+                   * phi(g, t) * theta(s, t) * spot(s);
+      }
+  return m;
+}
+
+template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+Matrix Experiment<feat_kind,
+                  mix_kind>::posterior_variances_negative_multinomial(const features_t &global_features) const {
+  Matrix m(G, S, arma::fill::zeros);
+#pragma omp parallel for
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s)
+      for (size_t t = 0; t < T; ++t) {
+        double x = phi(g, t) * theta(s, t) * spot(s);
+        m(g, s) += x * (x + global_features.prior.p(g, t))
+                   * global_features.prior.r(g, t)
+                   / global_features.prior.p(g, t)
+                   / global_features.prior.p(g, t);
+      }
+  return m;
+}
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 /** sample count decomposition */
