@@ -44,8 +44,6 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
     a[s] = prior.alpha[s];
   auto x = sample_dirichlet<Float>(begin(a), end(a),
                                    EntropySource::rngs[omp_get_thread_num()]);
-  // for (size_t s = 0; s < dim1; ++s)
-  //   phi(g, t) = x[g];
 }
 
 template <>
