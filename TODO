@@ -134,6 +134,15 @@ Write DGE analysis code
      > arg min sum log FC
      > arg min Jensen-Shannon divergence
 
-Add an experiment-dependent factor to the gene expression profiles?
-i.e.:
-lamba_gst = phi_gt global_phi_gt experiment_phi_g theta_st sigma_s
+Verify the implementation of the experiment-dependent baseline feature
+i.e.: lamba_gst = phi_gt global_phi_gt experiment_phi_g theta_st sigma_s
+
+Re-implent dirichlet features and mixing weights
+
+Modularize calling modes:
+ * only global
+ * only local
+ * both
+In each case, for the local features, we are NOT learning the priors
+
+Study mean vs CV plots
