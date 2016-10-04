@@ -64,7 +64,7 @@ struct Experiment {
 
   void store(const std::string &prefix, const features_t &global_features) const;
 
-  void gibbs_sample(const Matrix &global_phi, Target which);
+  void gibbs_sample(const Matrix &global_phi);
 
   double log_likelihood() const;
   double log_likelihood_poisson_counts() const;
@@ -164,6 +164,28 @@ if (false) {
     for (size_t s = 0; s < S; ++s)
       spot(s) /= z;
   }
+
+  if (not flagged(parameters.which & Target::theta_prior)) {
+    weights.prior.r.fill(1);
+    weights.prior.p.fill(1);
+  }
+
+  if (not flagged(parameters.which & Target::theta))
+    weights.matrix.fill(1);
+
+  if (not flagged(parameters.which & Target::phi_prior_local)) {
+    features.prior.r.fill(1);
+    features.prior.p.fill(1);
+  }
+
+  if (not flagged(parameters.which & Target::phi_local))
+    features.matrix.fill(1);
+
+  if (not flagged(parameters.which & Target::spot))
+    spot.fill(1);
+
+  if (not flagged(parameters.which & Target::baseline))
+    baseline_feature.matrix.fill(1);
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -195,14 +217,13 @@ void Experiment<feat_kind, mix_kind>::store(
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
-                                                   Target which) {
+void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
   // TODO reactivate
   if (false)
-    if (flagged(which & Target::contributions))
+    if (flagged(parameters.which & Target::contributions))
       sample_contributions(global_phi);
 
-  if (flagged(which & (Target::theta_r | Target::theta_p))) {
+  if (flagged(parameters.which & Target::theta_prior)) {
     Matrix feature_matrix = features.matrix % global_phi;
     for(size_t g = 0; g < G; ++g)
       for(size_t t = 0; t < T; ++t)
@@ -210,21 +231,20 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi,
     weights.prior.sample(feature_matrix, contributions_spot_type, spot);
   }
 
-  if (flagged(which & Target::theta))
+  if (flagged(parameters.which & Target::theta))
     weights.sample(*this, global_phi);
 
-  if (parameters.sample_local_phi_priors)
-    if (flagged(which & (Target::phi_r | Target::phi_p)))
-      // TODO FIXME make this work!
-      features.prior.sample(*this, global_phi);
+  if (flagged(parameters.which & Target::phi_prior_local))
+    // TODO FIXME make this work!
+    features.prior.sample(*this, global_phi);
 
-  if (flagged(which & Target::phi))
+  if (flagged(parameters.which & Target::phi_local))
     features.sample(*this, global_phi);
 
-  if (flagged(which & Target::spot))
+  if (flagged(parameters.which & Target::spot))
     sample_spot(global_phi);
 
-  if (flagged(which & Target::baseline))
+  if (flagged(parameters.which & Target::baseline))
     sample_baseline(global_phi);
 }
 

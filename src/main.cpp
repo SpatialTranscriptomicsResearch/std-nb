@@ -30,8 +30,9 @@ struct Options {
   vector<double> quantiles;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
+  bool no_local_gene_expression = false;
+  bool sample_local_phi_priors = false;
   size_t top = 0;
-  PF::Target sample_these = PF::DefaultTarget();
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
 };
@@ -162,7 +163,7 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
     LOG(info) << "Performing iteration " << iteration;
-    pfa.gibbs_sample(options.sample_these);
+    pfa.gibbs_sample();
     LOG(info) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0)
       pfa.store(options.output + "iter" + to_string(iteration) + "_");
@@ -251,14 +252,14 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("nolocal", po::bool_switch(&options.no_local_gene_expression),
+     "Deactivate local gene expression profiles.")
     ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
      "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
      "Respect the likelihood contributions of the feature priors.")
-    ("localphi", po::bool_switch(&parameters.sample_local_phi_priors),
+    ("localphi", po::bool_switch(&options.sample_local_phi_priors),
      "Sample the local feature priors.")
-    ("noglobalphi", po::bool_switch(&parameters.skip_global_phi_priors),
-     "Do not sample the global feature priors.")
     ("lambda", po::bool_switch(&parameters.store_lambda),
      "Store to disk the lambda matrix for genes and types every time parameters are written. "
      "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
@@ -272,7 +273,7 @@ int main(int argc, char **argv) {
      "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
+    ("sample", po::value(&parameters.which)->default_value(parameters.which),
      "Which sampling steps to perform.")
     ("quant,q", po::value<vector<double>>(&options.quantiles)->default_value({0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}, "0,0.05,0.25,0.5,0.75,0.95,1.0"),
      "Which quantiles to report for each parameter.")
@@ -372,6 +373,14 @@ int main(int argc, char **argv) {
             << " distribution for the mixing weights.";
 
   using Kind = PF::Partial::Kind;
+
+  if (options.sample_local_phi_priors)
+    parameters.which = parameters.which | PF::Target::phi_prior_local;
+
+  if (options.no_local_gene_expression)
+    parameters.which
+        = parameters.which
+          & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
 
   // deactivate spot mean forcing if the mixing type is Dirichlet
   if (options.mixing_type == Kind::Dirichlet)

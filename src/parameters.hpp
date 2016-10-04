@@ -3,6 +3,7 @@
 
 #include <cstdint>
 #include "types.hpp"
+#include "target.hpp"
 
 namespace PoissonFactorization {
 struct Hyperparameters {
@@ -94,10 +95,9 @@ struct Parameters {
   size_t enforce_iter = 10;
   bool phi_prior_maximum_likelihood = false;
   bool respect_phi_prior_likelihood = false;
-  bool skip_global_phi_priors = false;
-  bool sample_local_phi_priors = false;
   bool store_lambda = false;
   Hyperparameters hyperparameters;
+  Target which = DefaultTarget();
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);

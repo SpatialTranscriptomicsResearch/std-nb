@@ -60,7 +60,7 @@ struct Model {
   void store(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(Target which);
+  void gibbs_sample();
 
   double log_likelihood() const;
 
@@ -94,6 +94,14 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
   for (auto &counts : c)
     add_experiment(counts);
   update_contributions();
+
+  if (not flagged(parameters.which & Target::phi_prior_local)) {
+    features.prior.r.fill(1);
+    features.prior.p.fill(1);
+  }
+
+  if (not flagged(parameters.which & Target::phi_local))
+    features.matrix.fill(1);
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
@@ -112,26 +120,25 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::gibbs_sample(Target which) {
-  if (flagged(which & Target::contributions)) {
+void Model<feat_kind, mix_kind>::gibbs_sample() {
+  if (flagged(parameters.which & Target::contributions)) {
     for (auto &experiment : experiments)
       experiment.sample_contributions(features.matrix);
     update_contributions();
   }
 
   // for (auto &experiment : experiments)
-  //   experiment.gibbs_sample(features.matrix, which);
+  //   experiment.gibbs_sample(features.matrix);
   // update_contributions();
 
-  if (not parameters.skip_global_phi_priors)
-    if (flagged(which & (Target::phi_r | Target::phi_p)))
-      features.prior.sample(*this);
+  if (flagged(parameters.which & Target::phi_prior))
+    features.prior.sample(*this);
 
-  if (flagged(which & Target::phi))
+  if (flagged(parameters.which & Target::phi))
     features.sample(*this);
 
   for (auto &experiment : experiments)
-    experiment.gibbs_sample(features.matrix, which);
+    experiment.gibbs_sample(features.matrix);
 }
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>

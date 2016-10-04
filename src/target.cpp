@@ -19,24 +19,24 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "phi";
       first = false;
     }
-    if (flagged(which & Target::phi_r)) {
-      os << (first ? "" : ",") << "phi_r";
+    if (flagged(which & Target::phi_prior)) {
+      os << (first ? "" : ",") << "phi_prior";
       first = false;
     }
-    if (flagged(which & Target::phi_p)) {
-      os << (first ? "" : ",") << "phi_p";
+    if (flagged(which & Target::phi_local)) {
+      os << (first ? "" : ",") << "phi_local";
+      first = false;
+    }
+    if (flagged(which & Target::phi_prior_local)) {
+      os << (first ? "" : ",") << "phi_prior_local";
       first = false;
     }
     if (flagged(which & Target::theta)) {
       os << (first ? "" : ",") << "theta";
       first = false;
     }
-    if (flagged(which & Target::theta_p)) {
-      os << (first ? "" : ",") << "theta_p";
-      first = false;
-    }
-    if (flagged(which & Target::theta_r)) {
-      os << (first ? "" : ",") << "theta_r";
+    if (flagged(which & Target::theta_prior)) {
+      os << (first ? "" : ",") << "theta_prior";
       first = false;
     }
     if (flagged(which & Target::spot)) {
@@ -63,21 +63,21 @@ istream &operator>>(istream &is, Target &which) {
     if (token == "contributions")
       which = which | Target::contributions;
     else if (token == "features")
-      which = which | Target::phi | Target::phi_r | Target::phi_p;
+      which = which | Target::phi | Target::phi_prior;
     else if (token == "mixing")
-      which = which | Target::theta | Target::theta_r | Target::theta_p;
+      which = which | Target::theta | Target::theta_prior;
     else if (token == "phi")
       which = which | Target::phi;
-    else if (token == "phi_r")
-      which = which | Target::phi_r;
-    else if (token == "phi_p")
-      which = which | Target::phi_p;
+    else if (token == "phi_prior")
+      which = which | Target::phi_prior;
+    else if (token == "phi_local")
+      which = which | Target::phi_local;
+    else if (token == "phi_prior_local")
+      which = which | Target::phi_prior_local;
     else if (token == "theta")
       which = which | Target::theta;
-    else if (token == "theta_r")
-      which = which | Target::theta_r;
-    else if (token == "theta_p")
-      which = which | Target::theta_p;
+    else if (token == "theta_prior")
+      which = which | Target::theta_prior;
     else if (token == "spot")
       which = which | Target::spot;
     else if (token == "baseline")
