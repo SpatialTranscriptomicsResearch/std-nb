@@ -95,12 +95,13 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
     add_experiment(counts);
   update_contributions();
 
-  if (not flagged(parameters.which & Target::phi_prior_local)) {
+  // TODO move this code into the classes for prior and features
+  if (not parameters.targeted(Target::phi_prior_local)) {
     features.prior.r.fill(1);
     features.prior.p.fill(1);
   }
 
-  if (not flagged(parameters.which & Target::phi_local))
+  if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
 }
 
@@ -121,7 +122,7 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
 
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Model<feat_kind, mix_kind>::gibbs_sample() {
-  if (flagged(parameters.which & Target::contributions)) {
+  if (parameters.targeted(Target::contributions)) {
     for (auto &experiment : experiments)
       experiment.sample_contributions(features.matrix);
     update_contributions();
@@ -131,10 +132,10 @@ void Model<feat_kind, mix_kind>::gibbs_sample() {
   //   experiment.gibbs_sample(features.matrix);
   // update_contributions();
 
-  if (flagged(parameters.which & Target::phi_prior))
+  if (parameters.targeted(Target::phi_prior))
     features.prior.sample(*this);
 
-  if (flagged(parameters.which & Target::phi))
+  if (parameters.targeted(Target::phi))
     features.sample(*this);
 
   for (auto &experiment : experiments)

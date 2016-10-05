@@ -97,7 +97,8 @@ struct Parameters {
   bool respect_phi_prior_likelihood = false;
   bool store_lambda = false;
   Hyperparameters hyperparameters;
-  Target which = DefaultTarget();
+  Target targets = DefaultTarget();
+  bool targeted(Target target) const;
 };
 
 std::istream &operator>>(std::istream &is, ForceMean &force);

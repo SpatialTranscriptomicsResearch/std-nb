@@ -162,23 +162,27 @@ Gamma::Gamma(const Gamma &other)
 void Gamma::initialize_r() {
   // initialize r_theta
   LOG(debug) << "Initializing R of Θ.";
-  for (size_t t = 0; t < dim2; ++t)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    r[t] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.theta_r_1,
-        1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
+  if (parameters.targeted(Target::theta_prior))
+    for (size_t t = 0; t < dim2; ++t)
+      // NOTE: std::gamma_distribution takes a shape and scale parameter
+      r[t] = std::gamma_distribution<Float>(
+          parameters.hyperparameters.theta_r_1,
+          1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
+  else
+    r.fill(1);
 }
 
 void Gamma::initialize_p() {
   // initialize p_theta
   LOG(debug) << "Initializing P of Θ.";
-  for (size_t t = 0; t < dim2; ++t)
-    if (false)  // TODO make this CLI-switchable
+  // TODO make this CLI-switchable
+  if (false and parameters.targeted(Target::theta_prior))
+    for (size_t t = 0; t < dim2; ++t)
       p[t] = prob_to_neg_odds(
           sample_beta<Float>(parameters.hyperparameters.theta_p_1,
                              parameters.hyperparameters.theta_p_2));
-    else
-      p[t] = 1;
+  else
+    p.fill(1);
 }
 
 void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,

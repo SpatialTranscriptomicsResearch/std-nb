@@ -165,26 +165,26 @@ if (false) {
       spot(s) /= z;
   }
 
-  if (not flagged(parameters.which & Target::theta_prior)) {
+  if (not parameters.targeted(Target::theta_prior)) {
     weights.prior.r.fill(1);
     weights.prior.p.fill(1);
   }
 
-  if (not flagged(parameters.which & Target::theta))
+  if (not parameters.targeted(Target::theta))
     weights.matrix.fill(1);
 
-  if (not flagged(parameters.which & Target::phi_prior_local)) {
+  if (not parameters.targeted(Target::phi_prior_local)) {
     features.prior.r.fill(1);
     features.prior.p.fill(1);
   }
 
-  if (not flagged(parameters.which & Target::phi_local))
+  if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
 
-  if (not flagged(parameters.which & Target::spot))
+  if (not parameters.targeted(Target::spot))
     spot.fill(1);
 
-  if (not flagged(parameters.which & Target::baseline))
+  if (not parameters.targeted(Target::baseline))
     baseline_feature.matrix.fill(1);
 }
 
@@ -220,10 +220,10 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
   // TODO reactivate
   if (false)
-    if (flagged(parameters.which & Target::contributions))
+    if (parameters.targeted(Target::contributions))
       sample_contributions(global_phi);
 
-  if (flagged(parameters.which & Target::theta_prior)) {
+  if (parameters.targeted(Target::theta_prior)) {
     Matrix feature_matrix = features.matrix % global_phi;
     for(size_t g = 0; g < G; ++g)
       for(size_t t = 0; t < T; ++t)
@@ -231,20 +231,20 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
     weights.prior.sample(feature_matrix, contributions_spot_type, spot);
   }
 
-  if (flagged(parameters.which & Target::theta))
+  if (parameters.targeted(Target::theta))
     weights.sample(*this, global_phi);
 
-  if (flagged(parameters.which & Target::phi_prior_local))
+  if (parameters.targeted(Target::phi_prior_local))
     // TODO FIXME make this work!
     features.prior.sample(*this, global_phi);
 
-  if (flagged(parameters.which & Target::phi_local))
+  if (parameters.targeted(Target::phi_local))
     features.sample(*this, global_phi);
 
-  if (flagged(parameters.which & Target::spot))
+  if (parameters.targeted(Target::spot))
     sample_spot(global_phi);
 
-  if (flagged(parameters.which & Target::baseline))
+  if (parameters.targeted(Target::baseline))
     sample_baseline(global_phi);
 }
 

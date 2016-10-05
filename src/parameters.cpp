@@ -50,4 +50,8 @@ ostream &operator<<(ostream &os, const ForceMean &force) {
   }
   return os;
 }
+
+bool Parameters::targeted(Target target) const {
+  return flagged(targets & target);
+}
 }

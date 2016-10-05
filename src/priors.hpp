@@ -240,7 +240,7 @@ struct Gamma {
   Vector p;
   Parameters parameters;
 
-  Gamma(size_t G_, size_t dim2_, const Parameters &params);
+  Gamma(size_t dim1_, size_t dim2_, const Parameters &params);
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */

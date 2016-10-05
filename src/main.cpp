@@ -273,7 +273,7 @@ int main(int argc, char **argv) {
      "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("sample", po::value(&parameters.which)->default_value(parameters.which),
+    ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
     ("quant,q", po::value<vector<double>>(&options.quantiles)->default_value({0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}, "0,0.05,0.25,0.5,0.75,0.95,1.0"),
      "Which quantiles to report for each parameter.")
@@ -375,11 +375,11 @@ int main(int argc, char **argv) {
   using Kind = PF::Partial::Kind;
 
   if (options.sample_local_phi_priors)
-    parameters.which = parameters.which | PF::Target::phi_prior_local;
+    parameters.targets = parameters.targets | PF::Target::phi_prior_local;
 
   if (options.no_local_gene_expression)
-    parameters.which
-        = parameters.which
+    parameters.targets
+        = parameters.targets
           & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
 
   // deactivate spot mean forcing if the mixing type is Dirichlet
