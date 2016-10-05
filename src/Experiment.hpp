@@ -165,11 +165,6 @@ if (false) {
       spot(s) /= z;
   }
 
-  if (not parameters.targeted(Target::theta_prior)) {
-    weights.prior.r.fill(1);
-    weights.prior.p.fill(1);
-  }
-
   if (not parameters.targeted(Target::theta))
     weights.matrix.fill(1);
 
