@@ -146,3 +146,5 @@ Modularize calling modes:
 In each case, for the local features, we are NOT learning the priors
 
 Study mean vs CV plots
+
+Make sure the subroutine call in Metropolis Hastings for the prior of theta is inlined!
