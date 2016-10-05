@@ -29,6 +29,7 @@ template <Partial::Kind feat_kind = Partial::Kind::Gamma,
           Partial::Kind mix_kind = Partial::Kind::HierGamma>
 struct Model {
   using features_t = Partial::Model<Partial::Variable::Feature, feat_kind>;
+  using weights_t = Partial::Model<Partial::Variable::Mix, mix_kind>;
   using experiment_t = Experiment<feat_kind, mix_kind>;
 
   // TODO consider const
@@ -50,6 +51,8 @@ struct Model {
   /** factor loading matrix */
   features_t features;
   // TODO consider weights_t global_weights;
+
+  typename weights_t::prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, const size_t T,
         const Parameters &parameters);
@@ -79,6 +82,13 @@ template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 std::ostream &operator<<(std::ostream &os,
                          const Model<feat_kind, mix_kind> &pfa);
 
+size_t sum_rows(const std::vector<Counts> &c) {
+  size_t n = 0;
+  for(auto &x: c)
+    n += x.counts.n_rows;
+  return n;
+}
+
 template <Partial::Kind feat_kind, Partial::Kind mix_kind>
 Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
                                   const Parameters &parameters_)
@@ -89,7 +99,8 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
-      features(G, T, parameters) {
+      features(G, T, parameters),
+      mix_prior(sum_rows(c), T, parameters) {
   LOG(verbose) << "G = " << G << " T = " << T << " E = " << E;
   for (auto &counts : c)
     add_experiment(counts);
@@ -126,6 +137,46 @@ void Model<feat_kind, mix_kind>::gibbs_sample() {
     for (auto &experiment : experiments)
       experiment.sample_contributions(features.matrix);
     update_contributions();
+  }
+
+  if (parameters.targeted(Target::theta_prior) and parameters.theta_global) {
+    size_t S = 0;
+    for (auto &experiment : experiments)
+      S += experiment.S;
+    Matrix feature_matrix(G, T, arma::fill::zeros);
+    for (auto &experiment : experiments) {
+      Matrix current_feature_matrix
+          = features.matrix % experiment.features.matrix;
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          current_feature_matrix(g, t) *= experiment.baseline_phi(g);
+      feature_matrix += current_feature_matrix;
+    }
+
+    IMatrix contr_spot_type(S, T);
+    size_t cumul_s = 0;
+    for (auto &experiment : experiments) {
+      for (size_t s = 0; s < experiment.S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          contr_spot_type(s + cumul_s, t)
+              = experiment.contributions_spot_type(s, t);
+      cumul_s += experiment.S;
+    }
+
+    Vector spot(S);
+    cumul_s = 0;
+    for (auto &experiment : experiments) {
+      for (size_t s = 0; s < experiment.S; ++s)
+        spot(s + cumul_s) = experiment.spot(s);
+      cumul_s += experiment.S;
+    }
+
+    mix_prior.sample(feature_matrix, contr_spot_type, spot);
+
+    for (auto &experiment : experiments) {
+      experiment.weights.prior.r = mix_prior.r;
+      experiment.weights.prior.p = mix_prior.p;
+    }
   }
 
   // for (auto &experiment : experiments)

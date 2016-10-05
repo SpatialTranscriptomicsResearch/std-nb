@@ -223,7 +223,7 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
     if (parameters.targeted(Target::contributions))
       sample_contributions(global_phi);
 
-  if (parameters.targeted(Target::theta_prior)) {
+  if (parameters.targeted(Target::theta_prior) and not parameters.theta_global) {
     Matrix feature_matrix = features.matrix % global_phi;
     for(size_t g = 0; g < G; ++g)
       for(size_t t = 0; t < T; ++t)

@@ -96,6 +96,7 @@ struct Parameters {
   bool phi_prior_maximum_likelihood = false;
   bool respect_phi_prior_likelihood = false;
   bool store_lambda = false;
+  bool theta_global = false;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
