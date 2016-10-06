@@ -153,18 +153,13 @@ void Model<feat_kind, mix_kind>::gibbs_sample() {
       feature_matrix += current_feature_matrix;
     }
 
-    IMatrix contr_spot_type(S, T);
-    size_t cumul_s = 0;
-    for (auto &experiment : experiments) {
-      for (size_t s = 0; s < experiment.S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          contr_spot_type(s + cumul_s, t)
-              = experiment.contributions_spot_type(s, t);
-      cumul_s += experiment.S;
-    }
+    IMatrix contr_spot_type(0, T);
+    for (auto &experiment : experiments)
+      contr_spot_type = arma::join_vert(contr_spot_type,
+                                        experiment.contributions_spot_type);
 
     Vector spot(S);
-    cumul_s = 0;
+    double cumul_s = 0;
     for (auto &experiment : experiments) {
       for (size_t s = 0; s < experiment.S; ++s)
         spot(s + cumul_s) = experiment.spot(s);
