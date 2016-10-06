@@ -203,10 +203,10 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
       weight_sum += phi(g, t);
     MetropolisHastings mh(parameters.temperature);
 
-    std::vector<Int> count_sums(dim1, 0);
-    std::vector<Float> weight_sums(dim1, 0);
+    std::vector<Int> count_sums(contributions_spot_type.n_rows, 0);
+    std::vector<Float> weight_sums(contributions_spot_type.n_rows, 0);
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s) {
+    for (size_t s = 0; s < contributions_spot_type.n_rows; ++s) {
       count_sums[s] = contributions_spot_type(s, t);
       weight_sums[s] = weight_sum * spot_scaling[s];
     }
