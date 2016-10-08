@@ -48,7 +48,6 @@ void Model<Variable::Feature, Kind::Dirichlet>::initialize_factor(size_t t) {
 
 template <>
 void Model<Variable::Feature, Kind::Gamma>::initialize() {
-  matrix = Matrix(dim1, dim2);
   LOG(debug) << "Initializing Φ from Gamma distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < dim1; ++g) {
@@ -62,7 +61,6 @@ void Model<Variable::Feature, Kind::Gamma>::initialize() {
 
 template <>
 void Model<Variable::Feature, Kind::Dirichlet>::initialize() {
-  matrix = Matrix(dim1, dim2);
   LOG(debug) << "Initializing Φ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < dim2; ++t)

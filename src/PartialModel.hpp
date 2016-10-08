@@ -56,9 +56,7 @@ struct Model {
   Model(size_t dim1_, size_t dim2_, const Parameters &params)
       : dim1(dim1_),
         dim2(dim2_),
-        // different nr. of rows for features and mixing weights;
-        // initialize construct this
-        // matrix(X, dim2),
+        matrix(dim1, dim2),
         parameters(params),
         prior(dim1, dim2, parameters) {
     initialize();

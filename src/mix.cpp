@@ -48,7 +48,6 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
 
 template <>
 void Model<Variable::Mix, Kind::HierGamma>::initialize() {
-  matrix = Matrix(dim1, dim2);
   // initialize Θ
   LOG(debug) << "Initializing Θ from Gamma distribution";
 #pragma omp parallel for if (DO_PARALLEL)
@@ -63,7 +62,6 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize() {
 
 template <>
 void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
-  matrix = Matrix(dim1, dim2);
   LOG(debug) << "Initializing Θ from Dirichlet distribution" << std::endl;
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s) {
