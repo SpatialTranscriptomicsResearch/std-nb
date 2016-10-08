@@ -39,8 +39,6 @@ struct Gamma {
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names) const;
 
-  void lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2);
-
 private:
   void initialize_r();
   void initialize_p();
@@ -220,8 +218,6 @@ struct Dirichlet {
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names) const;
-
-  void lift_sub_model(const Dirichlet &sub_model, size_t t1, size_t t2) const;
 };
 
 /** This routine doesn't print, for the same reason as sample() does nothing */
@@ -251,8 +247,6 @@ struct Gamma {
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const;
 
-  void lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2);
-
 private:
   void initialize_r();
   void initialize_p();
@@ -272,8 +266,6 @@ struct Dirichlet {
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names) const;
-
-  void lift_sub_model(const Dirichlet &sub_model, size_t t1, size_t t2) const;
 };
 
 /** This routine doesn't print, for the same reason as sampl() does nothing */

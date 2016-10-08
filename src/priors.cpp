@@ -76,13 +76,6 @@ void Gamma::store(const std::string &prefix,
   write_matrix(p, prefix + "_prior-p.txt", gene_names, factor_names);
 }
 
-void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
-  for (size_t g = 0; g < dim1; ++g) {
-    r(g, t1) = sub_model.r(g, t2);
-    p(g, t1) = sub_model.p(g, t2);
-  }
-}
-
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
     : dim1(dim1_),
       dim2(dim2_),
@@ -104,9 +97,6 @@ void Dirichlet::sample(const Matrix &theta,
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &gene_names,
                       const std::vector<std::string> &factor_names) const {}
-
-void Dirichlet::lift_sub_model(const Dirichlet &sub_model, size_t t1,
-                               size_t t2) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_matrix_head(os, x.r, "R of Φ");
@@ -225,11 +215,6 @@ void Gamma::store(const std::string &prefix,
   write_vector(p, prefix + "_prior-p.txt", factor_names);
 }
 
-void Gamma::lift_sub_model(const Gamma &sub_model, size_t t1, size_t t2) {
-  r(t1) = sub_model.r(t2);
-  p(t1) = sub_model.p(t2);
-}
-
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_,
                      const Parameters &parameters)
     : dim1(dim1_),
@@ -250,9 +235,6 @@ void Dirichlet::sample(const Matrix &theta,
 void Dirichlet::store(const std::string &prefix,
                       const std::vector<std::string> &spot_names,
                       const std::vector<std::string> &factor_names) const {}
-
-void Dirichlet::lift_sub_model(const Dirichlet &sub_model, size_t t1,
-                               size_t t2) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_vector_head(os, x.r, "R of Θ");

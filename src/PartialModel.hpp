@@ -88,13 +88,6 @@ struct Model {
   double log_likelihood_factor(const IMatrix &counts, size_t t) const;
   double log_likelihood(const IMatrix &counts) const;
 
-  void lift_sub_model(const Model<variable, kind> &sub_model, size_t t1,
-                      size_t t2) {
-    prior.lift_sub_model(sub_model.prior, t1, t2);
-    for (size_t x = 0; x < matrix.n_rows; ++x)
-      matrix(x, t1) = sub_model.matrix(x, t2);
-  }
-
   template <typename Type>
   void perform_sampling(const Type &observed, const Type &explained) {
 #pragma omp parallel if (DO_PARALLEL)
