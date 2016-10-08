@@ -422,7 +422,7 @@ int main(int argc, char **argv) {
           */
         } break;
         case Kind::HierGamma: {
-          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(data_sets, options.num_factors,
+          PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(data_sets, options.num_factors,
                                                       parameters);
           perform_gibbs_sampling(data_sets, pfa, options);
         } break;

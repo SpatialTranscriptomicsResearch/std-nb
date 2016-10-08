@@ -2,7 +2,8 @@
 #define EXPERIMENT_HPP
 
 #include <random>
-#include "PartialModel.hpp"
+#include "ModelType.hpp"
+#include "Paths.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
@@ -12,7 +13,6 @@
 #include "odds.hpp"
 #include "parallel.hpp"
 #include "parameters.hpp"
-#include "Paths.hpp"
 #include "pdist.hpp"
 #include "priors.hpp"
 #include "sampling.hpp"
@@ -23,11 +23,10 @@
 
 namespace PoissonFactorization {
 
-template <Partial::Kind feat_kind = Partial::Kind::Gamma,
-          Partial::Kind mix_kind = Partial::Kind::HierGamma>
+template <typename Type>
 struct Experiment {
-  using features_t = Partial::Model<Partial::Variable::Feature, feat_kind>;
-  using weights_t = Partial::Model<Partial::Variable::Mix, mix_kind>;
+  using features_t = typename Type::features_t;
+  using weights_t = typename Type::weights_t;
 
   Counts data;
 
@@ -60,9 +59,10 @@ struct Experiment {
 
   Experiment(const Counts &counts, const size_t T,
              const Parameters &parameters);
-// TODO implement loading of Experiment
+  // TODO implement loading of Experiment
 
-  void store(const std::string &prefix, const features_t &global_features) const;
+  void store(const std::string &prefix,
+             const features_t &global_features) const;
 
   void gibbs_sample(const Matrix &global_phi);
 
@@ -70,13 +70,19 @@ struct Experiment {
   double log_likelihood_poisson_counts() const;
 
   Matrix posterior_expectations_poisson() const;
-  Matrix posterior_expectations_negative_multinomial(const features_t &global_features) const;
-  Matrix posterior_variances_negative_multinomial(const features_t &global_features) const;
+  Matrix posterior_expectations_negative_multinomial(
+      const features_t &global_features) const;
+  Matrix posterior_variances_negative_multinomial(
+      const features_t &global_features) const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
-  inline Float &baseline_phi(size_t g) { return baseline_feature.matrix(g, 0); };
-  inline Float baseline_phi(size_t g) const { return baseline_feature.matrix(g, 0); };
+  inline Float &baseline_phi(size_t g) {
+    return baseline_feature.matrix(g, 0);
+  };
+  inline Float baseline_phi(size_t g) const {
+    return baseline_feature.matrix(g, 0);
+  };
 
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
@@ -111,9 +117,9 @@ struct Experiment {
                                                   double threshold = 1.0) const;
 };
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind>::Experiment(
-    const Counts &data_, const size_t T_, const Parameters &parameters_)
+template <typename Type>
+Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
+                             const Parameters &parameters_)
     : data(data_),
       G(data.counts.n_rows),
       S(data.counts.n_cols),
@@ -183,9 +189,9 @@ if (false) {
     baseline_feature.matrix.fill(1);
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::store(
-    const std::string &prefix, const features_t &global_features) const {
+template <typename Type>
+void Experiment<Type>::store(const std::string &prefix,
+                             const features_t &global_features) const {
   std::vector<std::string> factor_names;
   for (size_t t = 1; t <= T; ++t)
     factor_names.push_back("Factor " + std::to_string(t));
@@ -211,18 +217,19 @@ void Experiment<feat_kind, mix_kind>::store(
   }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
+template <typename Type>
+void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
   // TODO reactivate
   if (false)
     if (parameters.targeted(Target::contributions))
       sample_contributions(global_phi);
 
-  if (parameters.targeted(Target::theta_prior) and not parameters.theta_global) {
+  if (parameters.targeted(Target::theta_prior)
+      and not parameters.theta_global) {
     Matrix feature_matrix = features.matrix % global_phi;
-    for(size_t g = 0; g < G; ++g)
-      for(size_t t = 0; t < T; ++t)
-        feature_matrix(g,t) *= baseline_phi(g);
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        feature_matrix(g, t) *= baseline_phi(g);
     weights.prior.sample(feature_matrix, contributions_spot_type, spot);
   }
 
@@ -243,8 +250,8 @@ void Experiment<feat_kind, mix_kind>::gibbs_sample(const Matrix &global_phi) {
     sample_baseline(global_phi);
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood() const {
+template <typename Type>
+double Experiment<Type>::log_likelihood() const {
   double l_features = features.log_likelihood(contributions_gene_type);
   double l_mix = weights.log_likelihood(contributions_spot_type);
   // TODO respect baseline feature
@@ -262,8 +269,8 @@ double Experiment<feat_kind, mix_kind>::log_likelihood() const {
   return l;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
+template <typename Type>
+double Experiment<Type>::log_likelihood_poisson_counts() const {
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -280,8 +287,8 @@ double Experiment<feat_kind, mix_kind>::log_likelihood_poisson_counts() const {
   return l;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::posterior_expectations_poisson() const {
+template <typename Type>
+Matrix Experiment<Type>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
@@ -289,10 +296,9 @@ Matrix Experiment<feat_kind, mix_kind>::posterior_expectations_poisson() const {
   return m;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix
-Experiment<feat_kind, mix_kind>::posterior_expectations_negative_multinomial(const features_t &global_features)
-    const {
+template <typename Type>
+Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
+    const features_t &global_features) const {
   Matrix m(G, S, arma::fill::zeros);
 #pragma omp parallel for
   for (size_t g = 0; g < G; ++g)
@@ -304,9 +310,9 @@ Experiment<feat_kind, mix_kind>::posterior_expectations_negative_multinomial(con
   return m;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind,
-                  mix_kind>::posterior_variances_negative_multinomial(const features_t &global_features) const {
+template <typename Type>
+Matrix Experiment<Type>::posterior_variances_negative_multinomial(
+    const features_t &global_features) const {
   Matrix m(G, S, arma::fill::zeros);
 #pragma omp parallel for
   for (size_t g = 0; g < G; ++g)
@@ -321,10 +327,9 @@ Matrix Experiment<feat_kind,
   return m;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
+template <typename Type>
 /** sample count decomposition */
-void Experiment<feat_kind, mix_kind>::sample_contributions(
-    const Matrix &global_phi) {
+void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   LOG(info) << "Sampling contributions";
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
   contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
@@ -336,7 +341,8 @@ void Experiment<feat_kind, mix_kind>::sample_contributions(
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
-        sample_contributions_sub(global_phi, g, s, EntropySource::rngs[thread_num],
+        sample_contributions_sub(global_phi, g, s,
+                                 EntropySource::rngs[thread_num],
                                  contrib_gene_type, contrib_spot_type);
 #pragma omp critical
     {
@@ -346,10 +352,11 @@ void Experiment<feat_kind, mix_kind>::sample_contributions(
   }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::sample_contributions_sub(
-    const Matrix &global_phi, size_t g, size_t s, RNG &rng,
-    IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
+template <typename Type>
+void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
+                                                size_t g, size_t s, RNG &rng,
+                                                IMatrix &contrib_gene_type,
+                                                IMatrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda(g,s,t) is proportional to spot(s).
@@ -370,9 +377,8 @@ void Experiment<feat_kind, mix_kind>::sample_contributions_sub(
 }
 
 /** sample spot scaling factors */
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::sample_spot(
-    const Matrix &var_phi) {
+template <typename Type>
+void Experiment<Type>::sample_spot(const Matrix &var_phi) {
   LOG(info) << "Sampling spot scaling factors";
   auto phi_marginal = marginalize_genes(var_phi);
 #pragma omp parallel for if (DO_PARALLEL)
@@ -401,16 +407,15 @@ void Experiment<feat_kind, mix_kind>::sample_spot(
 }
 
 /** sample baseline feature */
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Experiment<feat_kind, mix_kind>::sample_baseline(
-    const Matrix &global_phi) {
+template <typename Type>
+void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
   LOG(info) << "Sampling baseline feature from Gamma distribution";
 
   // TODO add CLI switch
   const double prior1 = 50;
   const double prior2 = 50;
   Vector observed(G, arma::fill::zeros);
-  for(size_t g = 0; g < G; ++g)
+  for (size_t g = 0; g < G; ++g)
     observed(g) = prior1 + contributions_gene[g];
   Vector explained = prior2 + explained_gene(global_phi);
 
@@ -431,9 +436,8 @@ void Experiment<feat_kind, mix_kind>::sample_baseline(
     */
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
-    const Matrix &global_phi) const {
+template <typename Type>
+Vector Experiment<Type>::marginalize_genes(const Matrix &global_phi) const {
   Vector intensities(T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
@@ -442,8 +446,8 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_genes(
   return intensities;
 };
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
+template <typename Type>
+Vector Experiment<Type>::marginalize_spots() const {
   Vector intensities(T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t)
@@ -452,9 +456,8 @@ Vector Experiment<feat_kind, mix_kind>::marginalize_spots() const {
   return intensities;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::explained_gene_type(
-    const Matrix &global_phi) const {
+template <typename Type>
+Matrix Experiment<Type>::explained_gene_type(const Matrix &global_phi) const {
   Vector theta_t = marginalize_spots();
   Matrix explained(G, T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
@@ -464,22 +467,19 @@ Matrix Experiment<feat_kind, mix_kind>::explained_gene_type(
   return explained;
 };
 
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Vector Experiment<feat_kind, mix_kind>::explained_gene(
-    const Matrix &global_phi) const {
+template <typename Type>
+Vector Experiment<Type>::explained_gene(const Matrix &global_phi) const {
   Vector theta_t = marginalize_spots();
   Vector explained(G, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += phi(g,t) * global_phi(g, t) * theta_t(t);
+      explained(g) += phi(g, t) * global_phi(g, t) * theta_t(t);
   return explained;
 };
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
-    const Matrix &global_phi) const {
+template <typename Type>
+Matrix Experiment<Type>::expected_spot_type(const Matrix &global_phi) const {
   Matrix m = weights.matrix;
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
@@ -491,10 +491,9 @@ Matrix Experiment<feat_kind, mix_kind>::expected_spot_type(
   return m;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::vector<std::vector<size_t>>
-Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
-                                                double threshold) const {
+template <typename Type>
+std::vector<std::vector<size_t>> Experiment<Type>::active_factors(
+    const Matrix &global_phi, double threshold) const {
   auto w = expected_spot_type(global_phi);
   std::vector<std::vector<size_t>> vs;
   for (size_t s = 0; s < S; ++s) {
@@ -507,9 +506,8 @@ Experiment<feat_kind, mix_kind>::active_factors(const Matrix &global_phi,
   return vs;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(std::ostream &os,
-                         const Experiment<feat_kind, mix_kind> &experiment) {
+template <typename Type>
+std::ostream &operator<<(std::ostream &os, const Experiment<Type> &experiment) {
   os << "Experiment "
      << "G = " << experiment.G << " "
      << "S = " << experiment.S << " "
@@ -531,11 +529,10 @@ std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator*(
-    const Experiment<feat_kind, mix_kind> &a,
-    const Experiment<feat_kind, mix_kind> &b) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator*(const Experiment<Type> &a,
+                           const Experiment<Type> &b) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type %= b.contributions_gene_type;
   experiment.contributions_spot_type %= b.contributions_spot_type;
@@ -551,11 +548,10 @@ Experiment<feat_kind, mix_kind> operator*(
   return experiment;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator+(
-    const Experiment<feat_kind, mix_kind> &a,
-    const Experiment<feat_kind, mix_kind> &b) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator+(const Experiment<Type> &a,
+                           const Experiment<Type> &b) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type += b.contributions_gene_type;
   experiment.contributions_spot_type += b.contributions_spot_type;
@@ -571,11 +567,10 @@ Experiment<feat_kind, mix_kind> operator+(
   return experiment;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator-(
-    const Experiment<feat_kind, mix_kind> &a,
-    const Experiment<feat_kind, mix_kind> &b) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator-(const Experiment<Type> &a,
+                           const Experiment<Type> &b) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type -= b.contributions_gene_type;
   experiment.contributions_spot_type -= b.contributions_spot_type;
@@ -591,10 +586,9 @@ Experiment<feat_kind, mix_kind> operator-(
   return experiment;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator*(
-    const Experiment<feat_kind, mix_kind> &a, double x) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator*(const Experiment<Type> &a, double x) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type *= x;
   experiment.contributions_spot_type *= x;
@@ -610,10 +604,9 @@ Experiment<feat_kind, mix_kind> operator*(
   return experiment;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator/(
-    const Experiment<feat_kind, mix_kind> &a, double x) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator/(const Experiment<Type> &a, double x) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
   experiment.contributions_spot_type /= x; // TODO note that this is inaccurate due to integer division
@@ -629,10 +622,9 @@ Experiment<feat_kind, mix_kind> operator/(
   return experiment;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Experiment<feat_kind, mix_kind> operator-(
-    const Experiment<feat_kind, mix_kind> &a, double x) {
-  Experiment<feat_kind, mix_kind> experiment = a;
+template <typename Type>
+Experiment<Type> operator-(const Experiment<Type> &a, double x) {
+  Experiment<Type> experiment = a;
 
   experiment.contributions_gene_type -= x;
   experiment.contributions_spot_type -= x;

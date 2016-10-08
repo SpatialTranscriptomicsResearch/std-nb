@@ -2,12 +2,12 @@
 #define MODEL_HPP
 
 #include <random>
-#include "PartialModel.hpp"
+#include "Experiment.hpp"
+#include "ModelType.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
 #include "io.hpp"
-#include "Experiment.hpp"
 #include "log.hpp"
 #include "metropolis_hastings.hpp"
 #include "odds.hpp"
@@ -25,12 +25,11 @@ namespace PoissonFactorization {
 
 const double local_phi_scaling_factor = 50;
 
-template <Partial::Kind feat_kind = Partial::Kind::Gamma,
-          Partial::Kind mix_kind = Partial::Kind::HierGamma>
+template <typename Type>
 struct Model {
-  using features_t = Partial::Model<Partial::Variable::Feature, feat_kind>;
-  using weights_t = Partial::Model<Partial::Variable::Mix, mix_kind>;
-  using experiment_t = Experiment<feat_kind, mix_kind>;
+  using features_t = typename Type::features_t;
+  using weights_t = typename Type::weights_t;
+  using experiment_t = Experiment<Type>;
 
   // TODO consider const
   /** number of genes */
@@ -78,20 +77,19 @@ struct Model {
   void add_experiment(const Counts &data);
 };
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(std::ostream &os,
-                         const Model<feat_kind, mix_kind> &pfa);
+template <typename Type>
+std::ostream &operator<<(std::ostream &os, const Model<Type> &pfa);
 
 size_t sum_rows(const std::vector<Counts> &c) {
   size_t n = 0;
-  for(auto &x: c)
+  for (auto &x : c)
     n += x.counts.n_rows;
   return n;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
-                                  const Parameters &parameters_)
+template <typename Type>
+Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
+                const Parameters &parameters_)
     : G(c.begin()->counts.n_rows),  // TODO FIXME c could be empty
       T(T_),
       E(c.size()),
@@ -116,8 +114,8 @@ Model<feat_kind, mix_kind>::Model(const std::vector<Counts> &c, const size_t T_,
     features.matrix.fill(1);
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
+template <typename Type>
+void Model<Type>::store(const std::string &prefix) const {
   std::vector<std::string> factor_names;
   for (size_t t = 1; t <= T; ++t)
     factor_names.push_back("Factor " + std::to_string(t));
@@ -131,8 +129,8 @@ void Model<feat_kind, mix_kind>::store(const std::string &prefix) const {
   }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::gibbs_sample() {
+template <typename Type>
+void Model<Type>::gibbs_sample() {
   if (parameters.targeted(Target::contributions)) {
     for (auto &experiment : experiments)
       experiment.sample_contributions(features.matrix);
@@ -188,31 +186,32 @@ void Model<feat_kind, mix_kind>::gibbs_sample() {
     experiment.gibbs_sample(features.matrix);
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood() const {
+template <typename Type>
+double Model<Type>::log_likelihood() const {
   double l = features.log_likelihood(contributions_gene_type);
-  for(auto &experiment: experiments)
+  for (auto &experiment : experiments)
     l += experiment.log_likelihood();
   return l;
 }
 
 // computes a matrix M(g,t)
 // with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::explained_gene_type() const {
+template <typename Type>
+Matrix Model<Type>::explained_gene_type() const {
   Matrix explained(G, T, arma::fill::zeros);
   for (auto &experiment : experiments) {
     Vector theta_t = experiment.marginalize_spots();
     for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
       for (size_t g = 0; g < G; ++g)
-        explained(g, t) += experiment.baseline_phi(g) * experiment.phi(g, t) * theta_t(t);
+        explained(g, t)
+            += experiment.baseline_phi(g) * experiment.phi(g, t) * theta_t(t);
   }
   return explained;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::update_contributions() {
+template <typename Type>
+void Model<Type>::update_contributions() {
   contributions_gene_type.fill(0);
   contributions_gene.fill(0);
   for (auto &experiment : experiments)
@@ -225,8 +224,8 @@ void Model<feat_kind, mix_kind>::update_contributions() {
     }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::add_experiment(const Counts &counts) {
+template <typename Type>
+void Model<Type>::add_experiment(const Counts &counts) {
   Parameters experiment_parameters = parameters;
   parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
   parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
@@ -238,9 +237,8 @@ void Model<feat_kind, mix_kind>::add_experiment(const Counts &counts) {
   experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(std::ostream &os,
-                         const Model<feat_kind, mix_kind> &model) {
+template <typename Type>
+std::ostream &operator<<(std::ostream &os, const Model<Type> &model) {
   os << "Poisson Factorization "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
@@ -256,10 +254,9 @@ std::ostream &operator<<(std::ostream &os,
   return os;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b) {
-  Model<feat_kind, mix_kind> model = a;
+template <typename Type>
+Model<Type> operator*(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
 
   model.contributions_gene_type %= b.contributions_gene_type;
   model.contributions_gene %= b.contributions_gene;
@@ -270,10 +267,9 @@ Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
   return model;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator+(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b) {
-  Model<feat_kind, mix_kind> model = a;
+template <typename Type>
+Model<Type> operator+(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
 
   model.contributions_gene_type += b.contributions_gene_type;
   model.contributions_gene += b.contributions_gene;
@@ -284,10 +280,9 @@ Model<feat_kind, mix_kind> operator+(const Model<feat_kind, mix_kind> &a,
   return model;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator-(const Model<feat_kind, mix_kind> &a,
-                                     const Model<feat_kind, mix_kind> &b) {
-  Model<feat_kind, mix_kind> model = a;
+template <typename Type>
+Model<Type> operator-(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
 
   model.contributions_gene_type -= b.contributions_gene_type;
   model.contributions_gene -= b.contributions_gene;
@@ -298,10 +293,9 @@ Model<feat_kind, mix_kind> operator-(const Model<feat_kind, mix_kind> &a,
   return model;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
-                                     double x) {
-  Model<feat_kind, mix_kind> model = a;
+template <typename Type>
+Model<Type> operator*(const Model<Type> &a, double x) {
+  Model<Type> model = a;
 
   model.contributions_gene_type *= x;
   model.contributions_gene *= x;
@@ -312,10 +306,9 @@ Model<feat_kind, mix_kind> operator*(const Model<feat_kind, mix_kind> &a,
   return model;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> operator/(const Model<feat_kind, mix_kind> &a,
-                                     double x) {
-  Model<feat_kind, mix_kind> model = a;
+template <typename Type>
+Model<Type> operator/(const Model<Type> &a, double x) {
+  Model<Type> model = a;
 
   model.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
   model.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
