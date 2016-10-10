@@ -70,7 +70,7 @@ struct Model {
   void initialize();
 
   template <typename Experiment, typename... Args>
-  void sample(const Experiment &experiment, const Args&... args);
+  void sample(const Experiment &experiment, const Args &... args);
 
   std::string gen_path_stem(const std::string &prefix) const {
     return prefix + to_lower(to_string(variable) + "-" + to_string(kind));
@@ -129,9 +129,8 @@ double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
 /** sample phi */
 template <>
 template <typename Experiment, typename... Args>
-void Model<Variable::Feature, Kind::Gamma>::sample(
-    const Experiment &experiment,
-    const Args&... args) {
+void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
+                                                   const Args &... args) {
   LOG(info) << "Sampling Φ from Gamma distribution";
 
   Matrix observed = prior.r + experiment.contributions_gene_type;
@@ -142,13 +141,13 @@ void Model<Variable::Feature, Kind::Gamma>::sample(
   // enforce means if necessary
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
     for (size_t t = 0; t < dim2; ++t) {
-        double z = 0;
+      double z = 0;
 #pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-        for (size_t g = 0; g < dim1; ++g)
-          z += matrix(g, t);
+      for (size_t g = 0; g < dim1; ++g)
+        z += matrix(g, t);
 #pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < dim1; ++g)
-          matrix(g, t) = matrix(g, t) / z * phi_scaling;
+      for (size_t g = 0; g < dim1; ++g)
+        matrix(g, t) = matrix(g, t) / z * phi_scaling;
     }
 }
 
@@ -196,9 +195,8 @@ double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
 /** sample theta */
 template <>
 template <typename Experiment, typename... Args>
-void Model<Variable::Mix, Kind::HierGamma>::sample(
-    const Experiment &experiment,
-    const Args&... args) {
+void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
+                                                   const Args &... args) {
   LOG(info) << "Sampling Θ from Gamma distribution";
 
   const auto intensities = experiment.marginalize_genes(args...);
@@ -225,26 +223,22 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(
     }
 }
 
-/* TODO reactivate
 template <>
-template <typename M>
-void Model<Variable::Mix, Kind::Dirichlet>::sample(
-    const M &features, const IMatrix &contributions_spot_type,
-    const Vector &spot, const Vector &experiment,
-    const Model<Variable::Mix, Kind::Dirichlet> &other) {
+template <typename Experiment, typename... Args>
+void Model<Variable::Mix, Kind::Dirichlet>::sample(const Experiment &experiment,
+                                                   const Args &... args) {
   // TODO needs written-down proof; it's analogous to the case for the features
   LOG(info) << "Sampling Θ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s) {
     std::vector<Float> a(dim2, parameters.hyperparameters.alpha);
     for (size_t t = 0; t < dim2; ++t)
-      a[t] += contributions_spot_type(s, t);
+      a[t] += experiment.contributions_spot_type(s, t);
     auto theta_sample = sample_dirichlet<Float>(begin(a), end(a));
     for (size_t t = 0; t < dim2; ++t)
       matrix(s, t) = theta_sample[t];
   }
 }
-*/
 }
 }
 

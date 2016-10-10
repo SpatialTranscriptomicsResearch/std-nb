@@ -256,6 +256,8 @@ struct Dirichlet {
   size_t dim1, dim2;
   Float alpha_prior;
   std::vector<Float> alpha;
+  double r, p;  // these are just stub variables for consistency with Gamma;
+                // TODO improve this sloppy programming style
 
   Dirichlet(size_t G_, size_t dim2_, const Parameters &parameters);
   Dirichlet(const Dirichlet &other);

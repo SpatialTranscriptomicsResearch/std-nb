@@ -390,20 +390,17 @@ int main(int argc, char **argv) {
 
   switch (options.feature_type) {
     case Kind::Dirichlet: {
+      /* TODO reactivate
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
-          /* TODO reactivate
           PF::Model<Kind::Dirichlet, Kind::Dirichlet> pfa(
               data, options.num_factors, parameters);
           perform_gibbs_sampling(data, pfa, options);
-          */
         } break;
         case Kind::HierGamma: {
-          /* TODO reactivate
           PF::Model<Kind::Dirichlet, Kind::HierGamma> pfa(
               data_sets, options.num_factors, parameters);
           perform_gibbs_sampling(data_sets, pfa, options);
-          */
         } break;
         default:
           throw std::runtime_error("Error: Mixing type '"
@@ -411,19 +408,18 @@ int main(int argc, char **argv) {
                                    + "' not implemented.");
           break;
       }
+      */
     } break;
     case Kind::Gamma: {
       switch (options.mixing_type) {
         case Kind::Dirichlet: {
-          /* TODO reactivate
-          PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(data, options.num_factors,
-                                                      parameters);
-          perform_gibbs_sampling(data, pfa, options);
-          */
+          PF::Model<PF::ModelType<Kind::Gamma, Kind::Dirichlet>> pfa(
+              data_sets, options.num_factors, parameters);
+          perform_gibbs_sampling(data_sets, pfa, options);
         } break;
         case Kind::HierGamma: {
-          PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(data_sets, options.num_factors,
-                                                      parameters);
+          PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(
+              data_sets, options.num_factors, parameters);
           perform_gibbs_sampling(data_sets, pfa, options);
         } break;
         default:

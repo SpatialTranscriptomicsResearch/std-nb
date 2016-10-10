@@ -178,7 +178,6 @@ if (false) {
     features.prior.r.fill(1);
     features.prior.p.fill(1);
   }
-
   if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
 

@@ -215,18 +215,21 @@ void Gamma::store(const std::string &prefix,
   write_vector(p, prefix + "_prior-p.txt", factor_names);
 }
 
-Dirichlet::Dirichlet(size_t dim1_, size_t dim2_,
-                     const Parameters &parameters)
+Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
     : dim1(dim1_),
       dim2(dim2_),
       alpha_prior(parameters.hyperparameters.alpha),
-      alpha(dim1, alpha_prior) {}
+      alpha(dim1, alpha_prior),
+      r(1),
+      p(1) {}
 
 Dirichlet::Dirichlet(const Dirichlet &other)
     : dim1(other.dim1),
       dim2(other.dim2),
       alpha_prior(other.alpha_prior),
-      alpha(other.alpha) {}
+      alpha(other.alpha),
+      r(other.r),
+      p(other.p) {}
 
 void Dirichlet::sample(const Matrix &theta,
                        const IMatrix &contributions_gene_type,

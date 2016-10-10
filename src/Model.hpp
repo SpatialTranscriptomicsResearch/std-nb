@@ -64,6 +64,8 @@ struct Model {
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample();
 
+  void sample_global_theta_priors();
+
   double log_likelihood() const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
@@ -137,40 +139,8 @@ void Model<Type>::gibbs_sample() {
     update_contributions();
   }
 
-  if (parameters.targeted(Target::theta_prior) and parameters.theta_global) {
-    size_t S = 0;
-    for (auto &experiment : experiments)
-      S += experiment.S;
-    Matrix feature_matrix(G, T, arma::fill::zeros);
-    for (auto &experiment : experiments) {
-      Matrix current_feature_matrix
-          = features.matrix % experiment.features.matrix;
-      for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          current_feature_matrix(g, t) *= experiment.baseline_phi(g);
-      feature_matrix += current_feature_matrix;
-    }
-
-    IMatrix contr_spot_type(0, T);
-    for (auto &experiment : experiments)
-      contr_spot_type = arma::join_vert(contr_spot_type,
-                                        experiment.contributions_spot_type);
-
-    Vector spot(S);
-    double cumul_s = 0;
-    for (auto &experiment : experiments) {
-      for (size_t s = 0; s < experiment.S; ++s)
-        spot(s + cumul_s) = experiment.spot(s);
-      cumul_s += experiment.S;
-    }
-
-    mix_prior.sample(feature_matrix, contr_spot_type, spot);
-
-    for (auto &experiment : experiments) {
-      experiment.weights.prior.r = mix_prior.r;
-      experiment.weights.prior.p = mix_prior.p;
-    }
-  }
+  if (parameters.targeted(Target::theta_prior) and parameters.theta_global)
+    sample_global_theta_priors();
 
   // for (auto &experiment : experiments)
   //   experiment.gibbs_sample(features.matrix);
@@ -184,6 +154,44 @@ void Model<Type>::gibbs_sample() {
 
   for (auto &experiment : experiments)
     experiment.gibbs_sample(features.matrix);
+}
+
+template <typename Type>
+void Model<Type>::sample_global_theta_priors() {
+  size_t S = 0;
+  for (auto &experiment : experiments)
+    S += experiment.S;
+  Matrix feature_matrix(G, T, arma::fill::zeros);
+  for (auto &experiment : experiments) {
+    Matrix current_feature_matrix
+        = features.matrix % experiment.features.matrix;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        current_feature_matrix(g, t) *= experiment.baseline_phi(g);
+    feature_matrix += current_feature_matrix;
+  }
+
+  IMatrix contr_spot_type(0, T);
+  for (auto &experiment : experiments)
+    contr_spot_type
+        = arma::join_vert(contr_spot_type, experiment.contributions_spot_type);
+
+  Vector spot(S);
+  double cumul_s = 0;
+  for (auto &experiment : experiments) {
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t s = 0; s < experiment.S; ++s)
+      spot(s + cumul_s) = experiment.spot(s);
+    cumul_s += experiment.S;
+  }
+
+  mix_prior.sample(feature_matrix, contr_spot_type, spot);
+
+  for (auto &experiment : experiments) {
+    experiment.weights.prior.r = mix_prior.r;
+    experiment.weights.prior.p = mix_prior.p;
+  }
 }
 
 template <typename Type>
