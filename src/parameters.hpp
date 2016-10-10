@@ -87,7 +87,7 @@ struct Parameters {
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
   /** Whether to enforce certain means or sums */
-  ForceMean enforce_mean = ForceMean::Spot;
+  ForceMean enforce_mean = ForceMean::None;
   /** How long to enforce certain means or sums
    * 0 means forever
    * anything else is the given number of iterations
