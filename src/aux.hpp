@@ -2,6 +2,7 @@
 #define AUX_HPP
 
 #include <algorithm>
+#include <cmath>
 #include <iterator>
 #include <string>
 #include <sstream>
@@ -60,6 +61,18 @@ std::vector<typename std::iterator_traits<Iter>::value_type> get_quantiles(
   for (auto quantile : quantiles)
     res.push_back(*(begin + size_t((N - 1) * quantile)));
   return res;
+}
+
+/**
+ * Numerically stable way of computing the logarithm of the sum of the
+ * exponentials of two numbers.
+ */
+template <typename T>
+T logSumExp(T a, T b) {
+  if (a > b)
+    return log(1 + exp(b - a)) + a;
+  else
+    return log(1 + exp(a - b)) + b;
 }
 
 #endif

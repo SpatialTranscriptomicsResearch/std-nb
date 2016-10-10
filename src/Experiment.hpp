@@ -115,7 +115,22 @@ struct Experiment {
 
   std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
                                                   double threshold = 1.0) const;
+
+  Matrix pairwise_dge(const features_t &global_features) const;
+  Vector pairwise_dge_sub(const features_t &global_features, size_t t1,
+                          size_t t2) const;
+  Float pairwise_dge_sub(const features_t &global_features, size_t t1,
+                         size_t t2, size_t g, Float theta = 100,
+                         Float p = 0.5) const;
+
+  template <typename Fnc>
+  Matrix local_dge(Fnc fnc, const features_t &global_features) const;
+  template <typename Fnc>
+  Float local_dge_sub(Fnc fnc, const features_t &global_features, size_t t,
+                      size_t g, Float theta = 100, Float p = 0.5) const;
 };
+
+#include "ExperimentDGE.hpp"
 
 template <typename Type>
 Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
@@ -209,6 +224,31 @@ void Experiment<Type>::store(const std::string &prefix,
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
+
+  auto x = pairwise_dge(global_features);
+  std::vector<std::string> factor_pair_names;
+  for (size_t t1 = 0; t1 < T; ++t1)
+    for (size_t t2 = t1 + 1; t2 < T; ++t2)
+      factor_pair_names.push_back("Factor" + std::to_string(t1 + 1) + "-Factor"
+                                  + std::to_string(t2 + 1));
+  write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
+               gene_names, factor_pair_names);
+
+  write_matrix(
+      local_dge([](Float baseline, Float local) { return 1; }, global_features),
+      prefix + "differential_gene_expression_baseline_and_local.txt",
+      gene_names, factor_names);
+
+  write_matrix(local_dge([](Float baseline, Float local) { return local; },
+                         global_features),
+               prefix + "differential_gene_expression_baseline.txt", gene_names,
+               factor_names);
+
+  write_matrix(local_dge([](Float baseline, Float local) { return baseline; },
+                         global_features),
+               prefix + "differential_gene_expression_local.txt", gene_names,
+               factor_names);
+
   if (false) {
     write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson.txt", gene_names, spot_names);
     write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected.txt", gene_names, spot_names);
