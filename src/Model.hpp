@@ -55,7 +55,7 @@ struct Model {
 
   Model(const std::vector<Counts> &data, const size_t T,
         const Parameters &parameters);
-  // TODO implement loading of Experiment
+  // TODO implement loading of Model
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
 

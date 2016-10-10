@@ -270,7 +270,7 @@ struct Dirichlet {
              const std::vector<std::string> &factor_names) const;
 };
 
-/** This routine doesn't print, for the same reason as sampl() does nothing */
+/** This routine doesn't print, for the same reason as sample() does nothing */
 std::ostream &operator<<(std::ostream &os, const Gamma &x);
 std::ostream &operator<<(std::ostream &os, const Dirichlet &x);
 }
