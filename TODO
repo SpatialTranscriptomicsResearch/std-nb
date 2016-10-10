@@ -152,3 +152,8 @@ Make sure the subroutine call in Metropolis Hastings for the prior of theta is i
 Simplify template boiler plate code by contracting; i.e. form a template struct that carries the combined information of the two current template arguments, and expect the model / experiment etc template types to be instantiated with bespoke template struct.
 
 It might be good to test for each effective local factor, whether or not it would fit better to other global factors
+
+add a baseline mixing weight factor?
+then, what about global mixing weights?
+
+ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
