@@ -159,3 +159,8 @@ then, what about global mixing weights?
 ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
 
 Add CLI switch to do pairwise DGE
+
+Add a sampling mode for the end, in which the theta values are randomized, and then contributions and theta values are updated iteratively.
+This would be done multiple times, and the resulting theta matrix reported.
+Importantly, in doing so, everything feature-side, as well as the spot scaling variables, and global theta priors should not be touched.
+When local theta priors are used, then it's debatable whether those should be fixed or also randomized & updated.
