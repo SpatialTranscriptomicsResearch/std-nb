@@ -188,10 +188,8 @@ void Model<Type>::sample_global_theta_priors() {
 
   mix_prior.sample(feature_matrix, contr_spot_type, spot);
 
-  for (auto &experiment : experiments) {
-    experiment.weights.prior.r = mix_prior.r;
-    experiment.weights.prior.p = mix_prior.p;
-  }
+  for (auto &experiment : experiments)
+    experiment.weights.prior = mix_prior;
 }
 
 template <typename Type>
