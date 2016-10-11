@@ -60,6 +60,8 @@ struct Model {
   // &parameters);
 
   void store(const std::string &prefix) const;
+  void perform_pairwise_dge(const std::string &prefix) const;
+  void perform_local_dge(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample();
@@ -123,11 +125,32 @@ void Model<Type>::store(const std::string &prefix) const {
     factor_names.push_back("Factor " + std::to_string(t));
   auto &gene_names = experiments.begin()->data.row_names;
   features.store(prefix, gene_names, factor_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
-  write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt",
+               gene_names, factor_names);
+  write_vector(contributions_gene, prefix + "contributions_gene.txt",
+               gene_names);
   for (size_t e = 0; e < E; ++e) {
-    std::string exp_prefix = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+    std::string exp_prefix
+        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
     experiments[e].store(exp_prefix, features);
+  }
+}
+
+template <typename Type>
+void Model<Type>::perform_pairwise_dge(const std::string &prefix) const {
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix
+        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+    experiments[e].perform_pairwise_dge(exp_prefix, features);
+  }
+}
+
+template <typename Type>
+void Model<Type>::perform_local_dge(const std::string &prefix) const {
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix
+        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+    experiments[e].perform_local_dge(exp_prefix, features);
   }
 }
 

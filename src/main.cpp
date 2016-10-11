@@ -32,6 +32,7 @@ struct Options {
   bool compute_likelihood = false;
   bool no_local_gene_expression = false;
   bool sample_local_phi_priors = false;
+  bool perform_pairwise_dge = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -165,8 +166,12 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     LOG(info) << "Performing iteration " << iteration;
     pfa.gibbs_sample();
     LOG(info) << "Current model" << endl << pfa;
-    if (iteration % options.report_interval == 0)
+    if (iteration % options.report_interval == 0) {
       pfa.store(options.output + "iter" + to_string(iteration) + "_");
+      pfa.perform_local_dge(options.output + "iter" + to_string(iteration) + "_");
+      if (options.perform_pairwise_dge)
+        pfa.perform_pairwise_dge(options.output + "iter" + to_string(iteration) + "_");
+    }
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
     if (options.num_burn_in >= 0
@@ -252,6 +257,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
+     "Perform pairwise comparisons between all factors in each experiment.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
     ("nolocal", po::bool_switch(&options.no_local_gene_expression),

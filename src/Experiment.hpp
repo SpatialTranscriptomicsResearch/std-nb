@@ -63,6 +63,10 @@ struct Experiment {
 
   void store(const std::string &prefix,
              const features_t &global_features) const;
+  void perform_pairwise_dge(const std::string &prefix,
+                            const features_t &global_features) const;
+  void perform_local_dge(const std::string &prefix,
+                         const features_t &global_features) const;
 
   void gibbs_sample(const Matrix &global_phi);
 
@@ -224,19 +228,35 @@ void Experiment<Type>::store(const std::string &prefix,
   write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-
-  // TODO add CLI switch for this
   if (false) {
-    auto x = pairwise_dge(global_features);
-    std::vector<std::string> factor_pair_names;
-    for (size_t t1 = 0; t1 < T; ++t1)
-      for (size_t t2 = t1 + 1; t2 < T; ++t2)
-        factor_pair_names.push_back("Factor" + std::to_string(t1 + 1)
-                                    + "-Factor" + std::to_string(t2 + 1));
-    write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
-                 gene_names, factor_pair_names);
+    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson.txt", gene_names, spot_names);
+    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected.txt", gene_names, spot_names);
+    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance.txt", gene_names, spot_names);
   }
+}
 
+template <typename Type>
+void Experiment<Type>::perform_pairwise_dge(const std::string &prefix,
+                             const features_t &global_features) const {
+  // TODO add CLI switch for this
+  auto &gene_names = data.row_names;
+  auto x = pairwise_dge(global_features);
+  std::vector<std::string> factor_pair_names;
+  for (size_t t1 = 0; t1 < T; ++t1)
+    for (size_t t2 = t1 + 1; t2 < T; ++t2)
+      factor_pair_names.push_back("Factor" + std::to_string(t1 + 1)
+          + "-Factor" + std::to_string(t2 + 1));
+  write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
+      gene_names, factor_pair_names);
+}
+
+template <typename Type>
+void Experiment<Type>::perform_local_dge(const std::string &prefix,
+                             const features_t &global_features) const {
+  auto &gene_names = data.row_names;
+  std::vector<std::string> factor_names;
+  for (size_t t = 1; t <= T; ++t)
+    factor_names.push_back("Factor " + std::to_string(t));
   write_matrix(
       local_dge([](Float baseline, Float local) { return 1; }, global_features),
       prefix + "differential_gene_expression_baseline_and_local.txt",
@@ -251,12 +271,6 @@ void Experiment<Type>::store(const std::string &prefix,
                          global_features),
                prefix + "differential_gene_expression_local.txt", gene_names,
                factor_names);
-
-  if (false) {
-    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson.txt", gene_names, spot_names);
-    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected.txt", gene_names, spot_names);
-    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance.txt", gene_names, spot_names);
-  }
 }
 
 template <typename Type>
