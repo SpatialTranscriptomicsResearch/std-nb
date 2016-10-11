@@ -7,11 +7,12 @@ template <typename Type>
 template <typename Fnc>
 Matrix Experiment<Type>::local_dge(Fnc fnc,
                                    const features_t &global_features) const {
+  auto spot_weights = marginalize_spots();
   Matrix m(G, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      m(g, t) = local_dge_sub(fnc, global_features, t, g);
+      m(g, t) = local_dge_sub(fnc, global_features, g, t, spot_weights[t]);
   return m;
 }
 
@@ -19,7 +20,7 @@ template <typename Type>
 template <typename Fnc>
 Float Experiment<Type>::local_dge_sub(Fnc fnc,
                                       const features_t &global_features,
-                                      size_t t, size_t g, Float theta,
+                                      size_t g, size_t t, Float theta,
                                       Float p) const {
   const Float eps = 1e-6;
 
