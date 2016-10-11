@@ -70,9 +70,9 @@ std::vector<typename std::iterator_traits<Iter>::value_type> get_quantiles(
 template <typename T>
 T logSumExp(T a, T b) {
   if (a > b)
-    return log(1 + exp(b - a)) + a;
+    return a + log1p(exp(b - a));
   else
-    return log(1 + exp(a - b)) + b;
+    return b + log1p(exp(a - b));
 }
 
 #endif
