@@ -1,4 +1,4 @@
-* storing loading of models to and from files
+* loading of models from files
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
 * improve code for and CLI to freeze the scaling factors
@@ -13,18 +13,14 @@
   - the NB conditional posterior
   - the NM conditional posterior
   - the Poisson conditional posterior
-* write out for the split and merge steps before splitting / merging and those afterwards:
-  - the sub-counts
-  - the normalized theta matrices (and the other parameters, too!)
+* re-consider split and merge algorithm
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
 * add flag for consistent contribution marginals and expectation marginals
 * contribution initialization is unneeded if Gibbs sampling does that as a first step
 * experiment with splitting a single factor explaining everything
-* don't split/merge in initial iterations
 * compute perplexity, i.e. validation
 * automatically determine single experiments in analyze.r
-* use sub model lifting to initialize sub models for inspection of before / after effects of splitting and merging
 * store all iterations' parameters;
 * compute auto-correlation
 * print out acceptance / rejection statistics for MH parts
@@ -35,8 +31,6 @@
 * trans-experiment factors:
   - by using data in blocks corresponding to the experiments
   - alternative: make sense of trans-experiment profiles post-analysis
-* alternative to split / merge:
-  - multiple re-starts
 * experiment-wise mix-in of factors
   - like normal factors (with features and weights in the same matrices), but treated differently when sampling theta
 * use faster method for sampling from the Poisson distribution
@@ -54,14 +48,7 @@
 
 implement t1, t2, g1, g2, s1, s2 to set limits for sampling
 
-experiment-constant factors:
-* improve experiment handling
-* needs modification:
-  - PartialModel<Mix>::sample()
-  - Model::Model()
-  - Model::split()
-  - Model::merge()
-
+* experiment-constant factors?
 * what would be simpler than this is factors that are zero in the other samples, otherwise free
 
 hierarchical dirichlet features
@@ -157,8 +144,6 @@ add a baseline mixing weight factor?
 then, what about global mixing weights?
 
 ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
-
-Add CLI switch to do pairwise DGE
 
 Add a sampling mode for the end, in which the theta values are randomized, and then contributions and theta values are updated iteratively.
 This would be done multiple times, and the resulting theta matrix reported.
