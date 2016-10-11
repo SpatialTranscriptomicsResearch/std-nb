@@ -225,14 +225,17 @@ void Experiment<Type>::store(const std::string &prefix,
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
 
-  auto x = pairwise_dge(global_features);
-  std::vector<std::string> factor_pair_names;
-  for (size_t t1 = 0; t1 < T; ++t1)
-    for (size_t t2 = t1 + 1; t2 < T; ++t2)
-      factor_pair_names.push_back("Factor" + std::to_string(t1 + 1) + "-Factor"
-                                  + std::to_string(t2 + 1));
-  write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
-               gene_names, factor_pair_names);
+  // TODO add CLI switch for this
+  if (false) {
+    auto x = pairwise_dge(global_features);
+    std::vector<std::string> factor_pair_names;
+    for (size_t t1 = 0; t1 < T; ++t1)
+      for (size_t t2 = t1 + 1; t2 < T; ++t2)
+        factor_pair_names.push_back("Factor" + std::to_string(t1 + 1)
+                                    + "-Factor" + std::to_string(t2 + 1));
+    write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
+                 gene_names, factor_pair_names);
+  }
 
   write_matrix(
       local_dge([](Float baseline, Float local) { return 1; }, global_features),

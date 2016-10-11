@@ -157,3 +157,5 @@ add a baseline mixing weight factor?
 then, what about global mixing weights?
 
 ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
+
+Add CLI switch to do pairwise DGE
