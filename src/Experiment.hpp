@@ -126,8 +126,8 @@ struct Experiment {
   template <typename Fnc>
   Matrix local_dge(Fnc fnc, const features_t &global_features) const;
   template <typename Fnc>
-  Float local_dge_sub(Fnc fnc, const features_t &global_features, size_t t,
-                      size_t g, Float theta = 100, Float p = 0.5) const;
+  Float local_dge_sub(Fnc fnc, const features_t &global_features, size_t g,
+                      size_t t, Float theta, Float p = 0.5) const;
 };
 
 #include "ExperimentDGE.hpp"
