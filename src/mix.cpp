@@ -75,18 +75,17 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
 
 template <>
 // TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::HierGamma>::log_likelihood(
-    const IMatrix &counts) const {
+double Model<Variable::Mix, Kind::HierGamma>::log_likelihood() const {
   double l = 0;
   for (size_t t = 0; t < dim2; ++t)
-    l += log_likelihood_factor(counts, t);
+    l += log_likelihood_factor(t);
   return l;
 }
 
 template <>
 // TODO ensure no NaNs or infinities are generated
 double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const {
+    size_t t) const {
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
@@ -116,20 +115,15 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
 
 template <>
 // TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood(
-    const IMatrix &counts) const {
+double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood() const {
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s) {
     vector<double> p(dim2);
     for (size_t t = 0; t < dim2; ++t)
-      p[t] = matrix(s,t);
-
-    vector<double> a(dim2);
-    for (size_t t = 0; t < dim2; ++t)
-      a[t] = counts(s,t) + prior.alpha_prior;
-
+      p[t] = matrix(s, t);
+    vector<double> a(dim2, prior.alpha_prior);
     l += log_dirichlet(p, a);
   }
 
@@ -139,7 +133,7 @@ double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood(
 template <>
 // TODO ensure no NaNs or infinities are generated
 double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const {
+    size_t t) const {
   // TODO
   assert(false);
   std::vector<Float> p(dim1);

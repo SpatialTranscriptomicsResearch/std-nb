@@ -69,18 +69,17 @@ void Model<Variable::Feature, Kind::Dirichlet>::initialize() {
 
 template <>
 // TODO ensure no NaNs or infinities are generated
-double Model<Variable::Feature, Kind::Gamma>::log_likelihood(
-    const IMatrix &counts) const {
+double Model<Variable::Feature, Kind::Gamma>::log_likelihood() const {
   double l = 0;
   for (size_t t = 0; t < dim2; ++t)
-    l += log_likelihood_factor(counts, t);
+    l += log_likelihood_factor(t);
   return l;
 }
 
 template <>
 // TODO ensure no NaNs or infinities are generated
 double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const {
+    size_t t) const {
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
@@ -113,11 +112,10 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
 template <>
 // TODO ensure no NaNs or infinities are generated
 // TODO check whether using OMP is actually faster here!
-double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood(
-    const IMatrix &counts) const {
+double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood() const {
   double l = 0;
-  for(size_t t = 0; t < dim2; ++t)
-    l += log_likelihood_factor(counts, t);
+  for (size_t t = 0; t < dim2; ++t)
+    l += log_likelihood_factor(t);
   return l;
 }
 
@@ -125,7 +123,7 @@ template <>
 // TODO ensure no NaNs or infinities are generated
 // TODO check whether using OMP is actually faster here!
 double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const {
+    size_t t) const {
   std::vector<Float> p(dim1);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < dim1; ++g)
@@ -134,7 +132,7 @@ double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
   std::vector<Float> alpha(dim1);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < dim1; ++g)
-    alpha[g] = prior.alpha(g,t) + prior.alpha_prior;
+    alpha[g] = prior.alpha(g, t) + prior.alpha_prior;
 
   return log_dirichlet(p, alpha);
 }

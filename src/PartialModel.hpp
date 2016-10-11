@@ -84,9 +84,8 @@ struct Model {
     prior.store(path, spot_names, factor_names);
   };
 
-  // TODO consider dropping the counts argument; it's only used by the Dirichlet models
-  double log_likelihood_factor(const IMatrix &counts, size_t t) const;
-  double log_likelihood(const IMatrix &counts) const;
+  double log_likelihood_factor(size_t t) const;
+  double log_likelihood() const;
 
   template <typename Type>
   void perform_sampling(const Type &observed, const Type &explained) {
@@ -120,11 +119,11 @@ void Model<Variable::Feature, Kind::Dirichlet>::initialize();
 
 template <>
 double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const;
+    size_t t) const;
 
 template <>
 double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const;
+    size_t t) const;
 
 /** sample phi */
 template <>
@@ -186,11 +185,11 @@ void Model<Variable::Mix, Kind::Dirichlet>::initialize();
 
 template <>
 double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const;
+    size_t t) const;
 
 template <>
 double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
-    const IMatrix &counts, size_t t) const;
+    size_t t) const;
 
 /** sample theta */
 template <>

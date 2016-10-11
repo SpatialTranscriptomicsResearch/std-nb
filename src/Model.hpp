@@ -194,7 +194,7 @@ void Model<Type>::sample_global_theta_priors() {
 
 template <typename Type>
 double Model<Type>::log_likelihood() const {
-  double l = features.log_likelihood(contributions_gene_type);
+  double l = features.log_likelihood();
   for (auto &experiment : experiments)
     l += experiment.log_likelihood();
   return l;

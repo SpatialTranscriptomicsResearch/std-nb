@@ -294,9 +294,9 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
 
 template <typename Type>
 double Experiment<Type>::log_likelihood() const {
-  double l_features = features.log_likelihood(contributions_gene_type);
-  double l_baseline_feature = baseline_feature.log_likelihood(arma::conv_to<IMatrix>::from(contributions_gene));
-  double l_mix = weights.log_likelihood(contributions_spot_type);
+  double l_features = features.log_likelihood();
+  double l_baseline_feature = baseline_feature.log_likelihood();
+  double l_mix = weights.log_likelihood();
 
   double l = l_features + l_baseline_feature + l_mix;
 
