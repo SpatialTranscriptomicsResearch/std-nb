@@ -252,8 +252,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
-    ("globaltheta", po::bool_switch(&parameters.theta_global),
-     "Use global priors for the mixing weights.")
+    ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
+     "Use local priors for the mixing weights.")
     ("nolocal", po::bool_switch(&options.no_local_gene_expression),
      "Deactivate local gene expression profiles.")
     ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),

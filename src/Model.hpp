@@ -139,7 +139,8 @@ void Model<Type>::gibbs_sample() {
     update_contributions();
   }
 
-  if (parameters.targeted(Target::theta_prior) and parameters.theta_global)
+  if (parameters.targeted(Target::theta_prior)
+      and not parameters.theta_local_priors)
     sample_global_theta_priors();
 
   // for (auto &experiment : experiments)
