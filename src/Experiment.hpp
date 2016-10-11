@@ -312,6 +312,7 @@ double Experiment<Type>::log_likelihood() const {
   LOG(info) << "Local baseline feature log likelihood: " << l_baseline_feature;
   LOG(info) << "Factor activity log likelihood: " << l_mix;
   LOG(info) << "Spot scaling log likelihood: " << l_spot;
+  LOG(info) << "Counts log likelihood: " << l_poisson;
   LOG(info) << "Experiment log likelihood: " << l;
 
   return l;
