@@ -298,15 +298,21 @@ double Experiment<Type>::log_likelihood() const {
   double l_baseline_feature = baseline_feature.log_likelihood();
   double l_mix = weights.log_likelihood();
 
-  double l = l_features + l_baseline_feature + l_mix;
-
+  double l_spot = 0;
   for (size_t s = 0; s < S; ++s)
     // NOTE: log_gamma takes a shape and scale parameter
-    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
-                   1.0 / parameters.hyperparameters.spot_b);
+    l_spot += log_gamma(spot(s), parameters.hyperparameters.spot_a,
+                        1.0 / parameters.hyperparameters.spot_b);
 
-  double poisson_logl = log_likelihood_poisson_counts();
-  l += poisson_logl;
+  double l_poisson = log_likelihood_poisson_counts();
+
+  double l = l_features + l_baseline_feature + l_mix + l_spot + l_poisson;
+
+  LOG(info) << "Local feature log likelihood: " << l_features;
+  LOG(info) << "Local baseline feature log likelihood: " << l_baseline_feature;
+  LOG(info) << "Factor activity log likelihood: " << l_mix;
+  LOG(info) << "Spot scaling log likelihood: " << l_spot;
+  LOG(info) << "Experiment log likelihood: " << l;
 
   return l;
 }
