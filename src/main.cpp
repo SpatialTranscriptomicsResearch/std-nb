@@ -279,6 +279,8 @@ int main(int argc, char **argv) {
      "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
      "Respect the likelihood contributions of the feature priors.")
+    ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),
+     "Respect the likelihood contributions of the mixture priors.")
     ("localphi", po::bool_switch(&options.sample_local_phi_priors),
      "Sample the local feature priors.")
     ("lambda", po::bool_switch(&parameters.store_lambda),
