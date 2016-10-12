@@ -33,6 +33,7 @@ struct Options {
   bool no_local_gene_expression = false;
   bool sample_local_phi_priors = false;
   bool perform_pairwise_dge = false;
+  bool stochastic_gibbs = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -165,12 +166,13 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
     LOG(info) << "Performing iteration " << iteration;
-    if(iteration == 1) {
+    if (iteration == 1 or not options.stochastic_gibbs) {
       which_experiments.resize(data.size());
       std::iota(begin(which_experiments), end(which_experiments), 0);
     } else {
       which_experiments.resize(1);
-      which_experiments[0] = std::uniform_int_distribution<size_t>(0, data.size()-1)(EntropySource::rng);
+      which_experiments[0] = std::uniform_int_distribution<size_t>(
+          0, data.size() - 1)(EntropySource::rng);
     }
     pfa.gibbs_sample(which_experiments);
     LOG(info) << "Current model" << endl << pfa;
@@ -267,6 +269,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
      "Perform pairwise comparisons between all factors in each experiment.")
+    ("stochastic", po::bool_switch(&options.stochastic_gibbs),
+     "Perform stochastic Gibbs sampling by sampling contributions only for one randomly selected experiement per iteration.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
     ("nolocal", po::bool_switch(&options.no_local_gene_expression),
