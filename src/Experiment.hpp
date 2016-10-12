@@ -210,9 +210,7 @@ if (false) {
 template <typename Type>
 void Experiment<Type>::store(const std::string &prefix,
                              const features_t &global_features) const {
-  std::vector<std::string> factor_names;
-  for (size_t t = 1; t <= T; ++t)
-    factor_names.push_back("Factor " + std::to_string(t));
+  auto factor_names = form_factor_names(T);
   auto &gene_names = data.row_names;
   auto &spot_names = data.col_names;
   features.store(prefix, gene_names, factor_names);
@@ -254,9 +252,7 @@ template <typename Type>
 void Experiment<Type>::perform_local_dge(const std::string &prefix,
                              const features_t &global_features) const {
   auto &gene_names = data.row_names;
-  std::vector<std::string> factor_names;
-  for (size_t t = 1; t <= T; ++t)
-    factor_names.push_back("Factor " + std::to_string(t));
+  auto factor_names = form_factor_names(T);
   write_matrix(
       local_dge([](Float baseline, Float local) { return 1; }, global_features),
       prefix + "differential_gene_expression_baseline_and_local.txt",

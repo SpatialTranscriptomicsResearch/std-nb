@@ -75,4 +75,6 @@ T logSumExp(T a, T b) {
     return b + log1p(exp(a - b));
 }
 
+std::vector<std::string> form_factor_names(size_t n);
+
 #endif

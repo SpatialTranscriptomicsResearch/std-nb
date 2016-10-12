@@ -120,9 +120,7 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
 
 template <typename Type>
 void Model<Type>::store(const std::string &prefix) const {
-  std::vector<std::string> factor_names;
-  for (size_t t = 1; t <= T; ++t)
-    factor_names.push_back("Factor " + std::to_string(t));
+  auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->data.row_names;
   features.store(prefix, gene_names, factor_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt",
