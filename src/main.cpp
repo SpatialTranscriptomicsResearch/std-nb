@@ -160,11 +160,19 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
   T sum_model = pfa * 0;
   T sumsq_model = pfa * 0;
   models.push_back(pfa);
+  std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
       pfa.parameters.enforce_mean = PF::ForceMean::None;
     LOG(info) << "Performing iteration " << iteration;
-    pfa.gibbs_sample();
+    if(iteration == 1) {
+      which_experiments.resize(data.size());
+      std::iota(begin(which_experiments), end(which_experiments), 0);
+    } else {
+      which_experiments.resize(1);
+      which_experiments[0] = std::uniform_int_distribution<size_t>(0, data.size()-1)(EntropySource::rng);
+    }
+    pfa.gibbs_sample(which_experiments);
     LOG(info) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       pfa.store(options.output + "iter" + to_string(iteration) + "_");

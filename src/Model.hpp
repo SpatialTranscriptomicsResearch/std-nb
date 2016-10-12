@@ -64,7 +64,7 @@ struct Model {
   void perform_local_dge(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample();
+  void gibbs_sample(const std::vector<size_t> &which_experiments);
 
   void sample_global_theta_priors();
 
@@ -155,10 +155,10 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
 }
 
 template <typename Type>
-void Model<Type>::gibbs_sample() {
+void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
   if (parameters.targeted(Target::contributions)) {
-    for (auto &experiment : experiments)
-      experiment.sample_contributions(features.matrix);
+    for (auto &exp_idx : which_experiments)
+      experiments[exp_idx].sample_contributions(features.matrix);
     update_contributions();
   }
 
@@ -178,6 +178,9 @@ void Model<Type>::gibbs_sample() {
 
   for (auto &experiment : experiments)
     experiment.gibbs_sample(features.matrix);
+  // TODO consider as alternative
+  // for (auto &exp_idx : which_experiments)
+  //   experiments[exp_idx].gibbs_sample(features.matrix);
 }
 
 template <typename Type>
