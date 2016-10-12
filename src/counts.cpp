@@ -1,10 +1,10 @@
-#include <algorithm>
-#include <fstream>
-#include <exception>
-#include <unordered_map>
-#include <boost/tokenizer.hpp>
-#include "compression.hpp"
 #include "counts.hpp"
+#include <algorithm>
+#include <boost/tokenizer.hpp>
+#include <exception>
+#include <fstream>
+#include <unordered_map>
+#include "compression.hpp"
 #include "io.hpp"
 
 const bool counts_debugging = false;
@@ -161,7 +161,7 @@ void Counts::select_top(size_t n) {
   counts = new_counts;
 }
 
-std::vector<Counts> Counts::split_experiments() const {
+vector<Counts> Counts::split_experiments() const {
   const size_t E = experiment_names.size();
   const size_t G = row_names.size();
   const size_t S = col_names.size();
@@ -191,4 +191,21 @@ std::vector<Counts> Counts::split_experiments() const {
   }
 
   return split_counts;
+}
+
+vector<Counts> load_data(const vector<string> &paths, bool intersect,
+                         size_t top) {
+  if (paths.empty())
+    return {};
+  Counts data(paths[0]);
+  for (size_t i = 1; i < paths.size(); ++i)
+    if (intersect)
+      data = data * Counts(paths[i]);
+    else
+      data = data + Counts(paths[i]);
+
+  if (top > 0)
+    data.select_top(top);
+
+  return data.split_experiments();
 }

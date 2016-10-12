@@ -372,17 +372,7 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  Counts data(options.tsv_paths[0]);
-  for (size_t i = 1; i < options.tsv_paths.size(); ++i)
-    if (options.intersect)
-      data = data * Counts(options.tsv_paths[i]);
-    else
-      data = data + Counts(options.tsv_paths[i]);
-
-  if (options.top > 0)
-    data.select_top(options.top);
-
-  auto data_sets = data.split_experiments();
+  auto data_sets = load_data(options.tsv_paths, options.intersect, options.top);
 
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";

@@ -23,4 +23,7 @@ struct Counts {
   std::vector<Counts> split_experiments() const;
 };
 
+std::vector<Counts> load_data(const std::vector<std::string> &paths,
+                              bool intersect, size_t top);
+
 #endif
