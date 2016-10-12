@@ -20,7 +20,7 @@ template <typename Type>
 template <typename Fnc>
 Float Experiment<Type>::local_dge_sub(Fnc fnc,
                                       const features_t &global_features,
-                                      size_t g, size_t t, Float theta,
+                                      size_t g, size_t t, Float theta_,
                                       Float p) const {
   const Float eps = 1e-6;
 
@@ -33,10 +33,10 @@ Float Experiment<Type>::local_dge_sub(Fnc fnc,
   double cumsum = 0;
   while (cumsum < 2 - 2 * eps) {
     Float l1 = log_negative_binomial(x, global_features.prior.r(g, t),
-                                     baseline_phi(g) * phi(g, t) * theta,
+                                     baseline_phi(g) * phi(g, t) * theta_,
                                      global_features.prior.p(g, t));
     Float l2 = log_negative_binomial(x, global_features.prior.r(g, t),
-                                     fnc(baseline_phi(g), phi(g, t)) * theta,
+                                     fnc(baseline_phi(g), phi(g, t)) * theta_,
                                      global_features.prior.p(g, t));
 
     cumsum += exp(l1);
@@ -91,7 +91,7 @@ Vector Experiment<Type>::pairwise_dge_sub(const features_t &global_features,
 template <typename Type>
 Float Experiment<Type>::pairwise_dge_sub(const features_t &global_features,
                                          size_t t1, size_t t2, size_t g,
-                                         Float theta, Float p) const {
+                                         Float theta_, Float p) const {
   const Float eps = 1e-6;
 
   Float q = 1 - p;
@@ -104,10 +104,10 @@ Float Experiment<Type>::pairwise_dge_sub(const features_t &global_features,
   double cumsum = 0;
   while (cumsum < 2 - 2 * eps) {
     Float l1 = log_negative_binomial(x, global_features.prior.r(g, t1),
-                                     baseline_phi(g) * phi(g, t1) * theta,
+                                     baseline_phi(g) * phi(g, t1) * theta_,
                                      global_features.prior.p(g, t1));
     Float l2 = log_negative_binomial(x, global_features.prior.r(g, t2),
-                                     baseline_phi(g) * phi(g, t2) * theta,
+                                     baseline_phi(g) * phi(g, t2) * theta_,
                                      global_features.prior.p(g, t2));
 
     cumsum += exp(l1);
