@@ -154,13 +154,38 @@ vector<T_> mcmc_quantiles(const vector<T_> &models,
 }
 
 template <typename T>
+struct Moments {
+  long burn_in;
+  size_t n;
+  T sum;
+  T sumsq;
+  Moments(long burn_in_, const T &m) : burn_in(burn_in_), n(0), sum(m * 0), sumsq(m * 0) {
+  }
+  void update(long iteration, const T &m) {
+    if (burn_in >= 0 and iteration >= burn_in) {
+      sum = sum + m;
+      sumsq = sumsq + m * m;
+      n++;
+    }
+  }
+  void evaluate(const std::string &prefix) {
+    if (n > 1) {
+      T var = (sumsq - sum * sum / n) / (n - 1);
+      sum = sum / n;
+      sum.store(prefix + "mean_");
+      var.store(prefix + "variance_");
+    }
+  }
+};
+
+template <typename T>
 void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
-  vector<T> models;
-  T sum_model = pfa * 0;
-  T sumsq_model = pfa * 0;
-  models.push_back(pfa);
+  Moments<T> moments(options.num_burn_in,
+                     options.num_burn_in >= 0 ? pfa : T({}, 0, pfa.parameters));
+  // vector<T> models;
+  // models.push_back(pfa);
   std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
@@ -178,40 +203,33 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       pfa.store(options.output + "iter" + to_string(iteration) + "_");
-      pfa.perform_local_dge(options.output + "iter" + to_string(iteration) + "_");
-      if (options.perform_pairwise_dge)
+      if (options.perform_pairwise_dge) {
+        pfa.perform_local_dge(options.output + "iter" + to_string(iteration) + "_");
         pfa.perform_pairwise_dge(options.output + "iter" + to_string(iteration) + "_");
+      }
     }
     if (options.compute_likelihood)
       LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
-    if (options.num_burn_in >= 0
-        and static_cast<int>(iteration) > options.num_burn_in) {
-      sum_model = sum_model + pfa;
-      sumsq_model = sumsq_model + pfa * pfa;
-      if (use_quantiles)
-        models.push_back(pfa);
-    }
+    moments.update(iteration, pfa);
+    // if (use_quantiles)
+    //   models.push_back(pfa);
   }
-  if (options.num_burn_in >= 0
-      and static_cast<int>(options.num_steps) > options.num_burn_in) {
-    size_t n = options.num_steps - options.num_burn_in;
-    T var_model = (sumsq_model - sum_model * sum_model / n) / (n - 1);
-    sum_model = sum_model / n;
-    sum_model.store(options.output + "mean_");
-    var_model.store(options.output + "variance_");
-    /* TODO reactivate
-    if (use_quantiles) {
-      auto quantile_models = mcmc_quantiles(models, options.quantiles);
-      for (size_t q = 0; q < options.quantiles.size(); ++q)
-        quantile_models[q].store(options.output + "quantile"
-                                           + to_string(options.quantiles[q])
-                                           + "_");
-    }
-    */
+  moments.evaluate(options.output);
+  /* TODO reactivate
+  if (use_quantiles) {
+    auto quantile_models = mcmc_quantiles(models, options.quantiles);
+    for (size_t q = 0; q < options.quantiles.size(); ++q)
+      quantile_models[q].store(options.output + "quantile"
+                                         + to_string(options.quantiles[q])
+                                         + "_");
   }
+  */
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   pfa.store(options.output);
+  pfa.perform_local_dge(options.output);
+  if (options.perform_pairwise_dge)
+    pfa.perform_pairwise_dge(options.output);
 }
 
 int main(int argc, char **argv) {
