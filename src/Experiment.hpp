@@ -290,7 +290,7 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
 
   if (parameters.targeted(Target::phi_prior_local))
     // TODO FIXME make this work!
-    features.prior.sample(*this, global_phi);
+    features.prior.sample_mh(*this, global_phi);
 
   if (parameters.targeted(Target::phi_local))
     features.sample(*this, global_phi);

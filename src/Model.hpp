@@ -169,7 +169,7 @@ void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
   // update_contributions();
 
   if (parameters.targeted(Target::phi_prior))
-    features.prior.sample(*this);
+    features.prior.sample_mh(*this);
 
   if (parameters.targeted(Target::phi))
     features.sample(*this);
