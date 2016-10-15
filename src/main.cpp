@@ -175,7 +175,7 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
           0, data.size() - 1)(EntropySource::rng);
     }
     pfa.gibbs_sample(which_experiments);
-    LOG(info) << "Current model" << endl << pfa;
+    LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       pfa.store(options.output + "iter" + to_string(iteration) + "_");
       pfa.perform_local_dge(options.output + "iter" + to_string(iteration) + "_");

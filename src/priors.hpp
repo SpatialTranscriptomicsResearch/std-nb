@@ -50,7 +50,7 @@ size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
   double f = fnc(x, args...);
   while (fabs(f = fnc(x, args...)) > eps) {
     double df = dfnc(x, args...);
-    LOG(verbose) << "x = " << x << " f = " << f << " df = " << df;
+    LOG(debug) << "x = " << x << " f = " << f << " df = " << df;
     double ratio = f / df;
     if(ratio > x)
       x /= 2;
@@ -83,7 +83,7 @@ inline double score(double r, double p, double observed, double explained,
 
 template <typename Type, typename... Args>
 void Gamma::sample(const Type &experiment, const Args &... args) {
-  LOG(info) << "Sampling R and P of Φ using Metropolis-Hastings and from the "
+  LOG(verbose) << "Sampling R and P of Φ using Metropolis-Hastings and from the "
                "posterior, respectively.";
 
   auto explained_gene_type = experiment.explained_gene_type(args...);
@@ -112,7 +112,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
             r(g, t) = (1 + r(g, t)) / 2;
             auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), observed,
                                           p(g, t), explained);
-            LOG(verbose) << "r'(" << g << ", " << t << ") = " << r(g, t);
+            LOG(debug) << "r'(" << g << ", " << t << ") = " << r(g, t);
             LOG(debug) << "number of steps = " << num_steps;
           }
         } else {
@@ -131,7 +131,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
         assert(r(g, t) >= 0);
         assert(p(g, t) >= 0);
 
-        LOG(verbose) << "p'(" << g << ", " << t << ") = " << p(g, t);
+        LOG(debug) << "p'(" << g << ", " << t << ") = " << p(g, t);
 
         if (false)
           if (observed > 0) {
@@ -140,11 +140,11 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
             auto p_ml_ps = r(g, t) / (observed + pseudo_cnt)
                            * (explained + pseudo_cnt);
 
-            LOG(verbose) << "p*(" << g << ", " << t << ") = " << p_ml;
-            LOG(info) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
+            LOG(debug) << "p*(" << g << ", " << t << ") = " << p_ml;
+            LOG(debug) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
                       << " " << p_ml_ps;
           }
-        LOG(verbose) << std::endl;
+        LOG(debug) << std::endl;
       }
     }
   }
@@ -179,7 +179,7 @@ std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
 
 template <typename Type, typename... Args>
 void Gamma::sample_mh(const Type &experiment, const Args &... args) {
-  LOG(info) << "Sampling P and R of Φ";
+  LOG(verbose) << "Sampling P and R of Φ";
 
   auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);

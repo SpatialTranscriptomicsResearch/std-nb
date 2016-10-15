@@ -130,7 +130,7 @@ template <>
 template <typename Experiment, typename... Args>
 void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
                                                    const Args &... args) {
-  LOG(info) << "Sampling Φ from Gamma distribution";
+  LOG(verbose) << "Sampling Φ from Gamma distribution";
 
   Matrix observed = prior.r + experiment.contributions_gene_type;
   Matrix explained = prior.p + experiment.explained_gene_type(args...);
@@ -156,7 +156,7 @@ template <typename M>
 void Model<Variable::Feature, Kind::Dirichlet>::sample(
     const M &mix, const IMatrix &contributions_gene_type, const Vector &spot,
     const Vector &experiment, const Matrix &other) {
-  LOG(info) << "Sampling Φ from Dirichlet distribution";
+  LOG(verbose) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < dim2; ++t) {
     std::vector<Float> a(G, 0);
 #pragma omp parallel for if (DO_PARALLEL)
@@ -196,7 +196,7 @@ template <>
 template <typename Experiment, typename... Args>
 void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
                                                    const Args &... args) {
-  LOG(info) << "Sampling Θ from Gamma distribution";
+  LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const auto intensities = experiment.marginalize_genes(args...);
 
@@ -227,7 +227,7 @@ template <typename Experiment, typename... Args>
 void Model<Variable::Mix, Kind::Dirichlet>::sample(const Experiment &experiment,
                                                    const Args &... args) {
   // TODO needs written-down proof; it's analogous to the case for the features
-  LOG(info) << "Sampling Θ from Dirichlet distribution";
+  LOG(verbose) << "Sampling Θ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s) {
     std::vector<Float> a(dim2, parameters.hyperparameters.alpha);

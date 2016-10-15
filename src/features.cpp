@@ -106,6 +106,7 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
       //     experiment.contributions_gene_type(g, t);
       //     expected); // experiment.expected_gene_type(...);
 
+  LOG(verbose) << "Feature log likelihood factor " << t << ": " << l;
   return l;
 }
 

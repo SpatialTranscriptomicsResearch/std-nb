@@ -177,7 +177,7 @@ void Gamma::initialize_p() {
 
 void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
                    const Vector &spot_scaling) {
-  LOG(info) << "Sampling P and R of Θ";
+  LOG(verbose) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
     std::normal_distribution<double> rnorm;

@@ -153,7 +153,7 @@ Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
       weights(S, T, parameters),
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
-  LOG(verbose) << "G = " << G << " S = " << S << " T = " << T;
+  LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
 /* TODO consider to reactivate
 if (false) {
   // initialize:
@@ -318,12 +318,12 @@ double Experiment<Type>::log_likelihood() const {
 
   double l = l_features + l_baseline_feature + l_mix + l_spot + l_poisson;
 
-  LOG(info) << "Local feature log likelihood: " << l_features;
-  LOG(info) << "Local baseline feature log likelihood: " << l_baseline_feature;
-  LOG(info) << "Factor activity log likelihood: " << l_mix;
-  LOG(info) << "Spot scaling log likelihood: " << l_spot;
-  LOG(info) << "Counts log likelihood: " << l_poisson;
-  LOG(info) << "Experiment log likelihood: " << l;
+  LOG(verbose) << "Local feature log likelihood: " << l_features;
+  LOG(verbose) << "Local baseline feature log likelihood: " << l_baseline_feature;
+  LOG(verbose) << "Factor activity log likelihood: " << l_mix;
+  LOG(verbose) << "Spot scaling log likelihood: " << l_spot;
+  LOG(verbose) << "Counts log likelihood: " << l_poisson;
+  LOG(verbose) << "Experiment log likelihood: " << l;
 
   return l;
 }
@@ -389,7 +389,7 @@ Matrix Experiment<Type>::posterior_variances_negative_multinomial(
 template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
-  LOG(info) << "Sampling contributions";
+  LOG(verbose) << "Sampling contributions";
   contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
   contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
@@ -438,7 +438,7 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
 /** sample spot scaling factors */
 template <typename Type>
 void Experiment<Type>::sample_spot(const Matrix &var_phi) {
-  LOG(info) << "Sampling spot scaling factors";
+  LOG(verbose) << "Sampling spot scaling factors";
   auto phi_marginal = marginalize_genes(var_phi);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
@@ -468,7 +468,7 @@ void Experiment<Type>::sample_spot(const Matrix &var_phi) {
 /** sample baseline feature */
 template <typename Type>
 void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
-  LOG(info) << "Sampling baseline feature from Gamma distribution";
+  LOG(verbose) << "Sampling baseline feature from Gamma distribution";
 
   // TODO add CLI switch
   const double prior1 = 50;
@@ -572,7 +572,7 @@ std::ostream &operator<<(std::ostream &os, const Experiment<Type> &experiment) {
      << "S = " << experiment.S << " "
      << "T = " << experiment.T << std::endl;
 
-  if (verbosity >= Verbosity::verbose) {
+  if (verbosity >= Verbosity::debug) {
     print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
     print_matrix_head(os, experiment.features.matrix, "Φ");
     print_matrix_head(os, experiment.weights.matrix, "Θ");

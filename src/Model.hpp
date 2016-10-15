@@ -103,7 +103,7 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
       contributions_gene(G, arma::fill::zeros),
       features(G, T, parameters),
       mix_prior(sum_rows(c), T, parameters) {
-  LOG(verbose) << "G = " << G << " T = " << T << " E = " << E;
+  LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   for (auto &counts : c)
     add_experiment(counts);
   update_contributions();
@@ -220,7 +220,7 @@ void Model<Type>::sample_global_theta_priors() {
 template <typename Type>
 double Model<Type>::log_likelihood() const {
   double l = features.log_likelihood();
-  LOG(info) << "Global feature log likelihood: " << l;
+  LOG(verbose) << "Global feature log likelihood: " << l;
   for (auto &experiment : experiments)
     l += experiment.log_likelihood();
   return l;
@@ -276,7 +276,7 @@ std::ostream &operator<<(std::ostream &os, const Model<Type> &model) {
      << "T = " << model.T << " "
      << "E = " << model.E << std::endl;
 
-  if (verbosity >= Verbosity::verbose) {
+  if (verbosity >= Verbosity::debug) {
     print_matrix_head(os, model.features.matrix, "Φ");
     os << model.features.prior;
   }

@@ -54,7 +54,7 @@ Float Experiment<Type>::local_dge_sub(Fnc fnc,
     x++;
   }
 
-  // LOG(info) << "t = " << t << " g = " << g << " x = " << x;
+  // LOG(debug) << "t = " << t << " g = " << g << " x = " << x;
 
   return mi / log(2.0);
 }
@@ -80,7 +80,7 @@ Matrix Experiment<Type>::pairwise_dge(const features_t &global_features) const {
 template <typename Type>
 Vector Experiment<Type>::pairwise_dge_sub(const features_t &global_features,
                                           size_t t1, size_t t2) const {
-  LOG(info) << "Performing DGE for factor " << t1 << " and factor " << t2;
+  LOG(verbose) << "Performing DGE for factor " << t1 << " and factor " << t2;
   Vector v(G);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -126,7 +126,7 @@ Float Experiment<Type>::pairwise_dge_sub(const features_t &global_features,
     x++;
   }
 
-  // LOG(info) << "t1 = " << t1 << " t2 = " << t2 << " g = " << g << " x = " << x;
+  // LOG(debug) << "t1 = " << t1 << " t2 = " << t2 << " g = " << g << " x = " << x;
 
   return mi / log(2.0);
 }
