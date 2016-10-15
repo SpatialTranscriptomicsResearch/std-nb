@@ -2,13 +2,13 @@
 #define PRIORS_HPP
 
 #include <cstddef>
-#include "log.hpp"
 #include "entropy.hpp"
-#include "parallel.hpp"
-#include "odds.hpp"
-#include "sampling.hpp"
+#include "log.hpp"
 #include "metropolis_hastings.hpp"
+#include "odds.hpp"
+#include "parallel.hpp"
 #include "parameters.hpp"
+#include "sampling.hpp"
 #include "types.hpp"
 
 namespace PoissonFactorization {
@@ -29,11 +29,11 @@ struct Gamma {
   /** sample p_phi and r_phi */
   /* This chooses first r with Metropolis-Hastings then p from the posterior */
   template <typename Type, typename... Args>
-  void sample(const Type& experiment, const Args&... args);
+  void sample(const Type &experiment, const Args &... args);
 
   /* This is a simple Metropolis-Hastings sampling scheme */
   template <typename Type, typename... Args>
-  void sample_mh(const Type& experiment, const Args&... args);
+  void sample_mh(const Type &experiment, const Args &... args);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
@@ -52,7 +52,7 @@ size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
     double df = dfnc(x, args...);
     LOG(debug) << "x = " << x << " f = " << f << " df = " << df;
     double ratio = f / df;
-    if(ratio > x)
+    if (ratio > x)
       x /= 2;
     else
       x -= f / df;
@@ -83,8 +83,9 @@ inline double score(double r, double p, double observed, double explained,
 
 template <typename Type, typename... Args>
 void Gamma::sample(const Type &experiment, const Args &... args) {
-  LOG(verbose) << "Sampling R and P of Φ using Metropolis-Hastings and from the "
-               "posterior, respectively.";
+  LOG(verbose)
+      << "Sampling R and P of Φ using Metropolis-Hastings and from the "
+         "posterior, respectively.";
 
   auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
@@ -137,12 +138,12 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
           if (observed > 0) {
             const double pseudo_cnt = 1e-6;
             auto p_ml = r(g, t) / observed * explained;
-            auto p_ml_ps = r(g, t) / (observed + pseudo_cnt)
-                           * (explained + pseudo_cnt);
+            auto p_ml_ps
+                = r(g, t) / (observed + pseudo_cnt) * (explained + pseudo_cnt);
 
             LOG(debug) << "p*(" << g << ", " << t << ") = " << p_ml;
             LOG(debug) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
-                      << " " << p_ml_ps;
+                       << " " << p_ml_ps;
           }
         LOG(debug) << std::endl;
       }
