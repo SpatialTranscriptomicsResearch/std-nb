@@ -208,8 +208,15 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
         pfa.perform_pairwise_dge(options.output + "iter" + to_string(iteration) + "_");
       }
     }
-    if (options.compute_likelihood)
-      LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
+
+    if (options.compute_likelihood) {
+      if (verbosity >= Verbosity::verbose) {
+        LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
+      } else {
+        LOG(info) << "Observed Log-likelihood = " << pfa.log_likelihood_poisson_counts();
+      }
+    }
+
     moments.update(iteration, pfa);
     // if (use_quantiles)
     //   models.push_back(pfa);

@@ -69,6 +69,7 @@ struct Model {
   void sample_global_theta_priors();
 
   double log_likelihood() const;
+  double log_likelihood_poisson_counts() const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -222,6 +223,14 @@ void Model<Type>::sample_global_theta_priors() {
 
   for (auto &experiment : experiments)
     experiment.weights.prior = mix_prior;
+}
+
+template <typename Type>
+double Model<Type>::log_likelihood_poisson_counts() const {
+  double l = 0;
+  for (auto &experiment : experiments)
+    l += experiment.log_likelihood_poisson_counts();
+  return l;
 }
 
 template <typename Type>
