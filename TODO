@@ -156,3 +156,8 @@ When local theta priors are used, then it's debatable whether those should be fi
 Feature hierarchy: tree
 
 Perhaps such tree-shaped feature hierarchies might live in global scope, and one would keep the hierarchical experiment-local feature structure
+
+global baseline feature?
+sets of features with different priors; ones in which genes can be switched off, and other with broad support
+
+rename burn in -> warm up
