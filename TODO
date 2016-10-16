@@ -16,18 +16,16 @@
 * re-consider split and merge algorithm
 * for the splitting / merging:
   - independently also optimize the parameters without splitting / merging
+* experiment with splitting a single factor explaining everything
 * add flag for consistent contribution marginals and expectation marginals
 * contribution initialization is unneeded if Gibbs sampling does that as a first step
-* experiment with splitting a single factor explaining everything
 * compute perplexity, i.e. validation
 * automatically determine single experiments in analyze.r
 * store all iterations' parameters;
 * compute auto-correlation
 * print out acceptance / rejection statistics for MH parts
 * test likelihood optimization using ML
-* figure out what kind of splitting / merging proposal distribution is currently realized
 * consider hierarchies of factors
-* enable proper before / after printing for merging and splitting
 * trans-experiment factors:
   - by using data in blocks corresponding to the experiments
   - alternative: make sense of trans-experiment profiles post-analysis
@@ -141,7 +139,12 @@ Simplify template boiler plate code by contracting; i.e. form a template struct 
 It might be good to test for each effective local factor, whether or not it would fit better to other global factors
 
 add a baseline mixing weight factor?
+ * what would be the benefit of that?
+   - it would improve likelihood by pushing shared local regulation into the baseline rather than in each of the factor mixing weights.
+   - apart from complicated implications on the mixing rate, this should not change much how the weighted theta matrices look
+   - one could certainly try doing dim red on matrices that leave out the local baseline weights; but since each experiment's sample factor activity distribution around the baseline might differ due to shifting cell type composition entropy, it's unfortunately also unclear how much this might be of benefit for dimensionality reduction
 then, what about global mixing weights?
+Global baseline feature
 
 ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
 
@@ -150,7 +153,6 @@ This would be done multiple times, and the resulting theta matrix reported.
 Importantly, in doing so, everything feature-side, as well as the spot scaling variables, and global theta priors should not be touched.
 When local theta priors are used, then it's debatable whether those should be fixed or also randomized & updated.
 
-Global baseline feature
 Feature hierarchy: tree
 
-Baseline mixture
+Perhaps such tree-shaped feature hierarchies might live in global scope, and one would keep the hierarchical experiment-local feature structure
