@@ -91,10 +91,17 @@ size_t sum_rows(const std::vector<Counts> &c) {
   return n;
 }
 
+size_t max_row_number(const std::vector<Counts> &c) {
+  size_t x = 0;
+  for(auto &m: c)
+    x = std::max<size_t>(x, m.counts.n_rows);
+  return x;
+}
+
 template <typename Type>
 Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
                 const Parameters &parameters_)
-    : G(c.begin()->counts.n_rows),  // TODO FIXME c could be empty
+    : G(max_row_number(c)),
       T(T_),
       E(c.size()),
       experiments(),
