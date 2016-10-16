@@ -22,7 +22,7 @@ struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
-  int num_burn_in = 200;
+  long num_burn_in = -1;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
