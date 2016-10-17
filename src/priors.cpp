@@ -91,7 +91,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &theta,
-                       const IMatrix &contributions_gene_type,
+                       const Matrix &contributions_gene_type,
                        const Vector &spot_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,
@@ -113,7 +113,7 @@ ostream &operator<<(ostream &os, const Dirichlet &x) {
 namespace THETA {
 
 double compute_conditional(const pair<Float, Float> &x,
-                           const vector<Int> &count_sums,
+                           const vector<Float> &count_sums,
                            const vector<Float> &weight_sums,
                            const Hyperparameters &hyperparameters) {
   const size_t S = count_sums.size();
@@ -175,7 +175,7 @@ void Gamma::initialize_p() {
     p.fill(1);
 }
 
-void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
+void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
                    const Vector &spot_scaling) {
   LOG(verbose) << "Sampling P and R of Θ";
 
@@ -193,7 +193,7 @@ void Gamma::sample(const Matrix &phi, const IMatrix &contributions_spot_type,
       weight_sum += phi(g, t);
     MetropolisHastings mh(parameters.temperature);
 
-    std::vector<Int> count_sums(contributions_spot_type.n_rows, 0);
+    std::vector<Float> count_sums(contributions_spot_type.n_rows, 0);
     std::vector<Float> weight_sums(contributions_spot_type.n_rows, 0);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < contributions_spot_type.n_rows; ++s) {
@@ -228,7 +228,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &theta,
-                       const IMatrix &contributions_gene_type,
+                       const Matrix &contributions_gene_type,
                        const Vector &spot_scaling) const {}
 
 void Dirichlet::store(const std::string &prefix,

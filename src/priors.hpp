@@ -95,7 +95,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
       const size_t thread_num = omp_get_thread_num();
 #pragma omp for
       for (size_t g = 0; g < experiment.G; ++g) {
-        const Int observed = experiment.contributions_gene_type(g, t);
+        const Float observed = experiment.contributions_gene_type(g, t);
         const Float explained = explained_gene_type(g, t);
         LOG(debug) << "observed = " << observed;
         LOG(debug) << "explained = " << explained;
@@ -152,7 +152,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
 }
 
 template <typename T>
-double compute_conditional(const std::pair<T, T> &x, Int observed,
+double compute_conditional(const std::pair<T, T> &x, Float observed,
                            Float explained,
                            const Hyperparameters &hyperparameters) {
   const T r = x.first;
@@ -191,7 +191,7 @@ void Gamma::sample_mh(const Type &experiment, const Args &... args) {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < experiment.G; ++g) {
-      const Int observed = experiment.contributions_gene_type(g, t);
+      const Float observed = experiment.contributions_gene_type(g, t);
       const Float explained = explained_gene_type(g, t);
 
       auto res
@@ -214,7 +214,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &theta, const IMatrix &contributions_gene_type,
+  void sample(const Matrix &theta, const Matrix &contributions_gene_type,
               const Vector &spot_scaling) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
@@ -241,7 +241,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &phi, const IMatrix &contributions_spot_type,
+  void sample(const Matrix &phi, const Matrix &contributions_spot_type,
               const Vector &spot_scaling);
 
   void store(const std::string &prefix,
@@ -262,7 +262,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &phi, const IMatrix &contributions_spot_type,
+  void sample(const Matrix &phi, const Matrix &contributions_spot_type,
               const Vector &spot_scaling) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,

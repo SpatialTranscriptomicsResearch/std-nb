@@ -154,7 +154,7 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
 template <>
 template <typename M>
 void Model<Variable::Feature, Kind::Dirichlet>::sample(
-    const M &mix, const IMatrix &contributions_gene_type, const Vector &spot,
+    const M &mix, const Matrix &contributions_gene_type, const Vector &spot,
     const Vector &experiment, const Matrix &other) {
   LOG(verbose) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < dim2; ++t) {

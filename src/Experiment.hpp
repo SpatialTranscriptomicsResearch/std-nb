@@ -40,8 +40,8 @@ struct Experiment {
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
-  IMatrix contributions_gene_type, contributions_spot_type;
-  IVector contributions_gene, contributions_spot;
+  Matrix contributions_gene_type, contributions_spot_type;
+  Vector contributions_gene, contributions_spot;
 
   /** factor loading matrix */
   features_t features;
@@ -95,8 +95,8 @@ struct Experiment {
   void sample_contributions(const Matrix &var_phi);
   /** sub-routine for count decomposition sampling */
   void sample_contributions_sub(const Matrix &var_phi, size_t g, size_t s,
-                                RNG &rng, IMatrix &contrib_gene_type,
-                                IMatrix &contrib_spot_type);
+                                RNG &rng, Matrix &contrib_gene_type,
+                                Matrix &contrib_spot_type);
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &var_phi);
@@ -392,12 +392,12 @@ template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   LOG(verbose) << "Sampling contributions";
-  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
-  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
+  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
+  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
 #pragma omp parallel if (DO_PARALLEL)
   {
-    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
-    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
+    Matrix contrib_gene_type(G, T, arma::fill::zeros);
+    Matrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
@@ -416,8 +416,8 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
 template <typename Type>
 void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
                                                 size_t g, size_t s, RNG &rng,
-                                                IMatrix &contrib_gene_type,
-                                                IMatrix &contrib_spot_type) {
+                                                Matrix &contrib_gene_type,
+                                                Matrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda(g,s,t) is proportional to spot(s).
@@ -428,11 +428,19 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
     rel_rate[t] /= z;
   lambda_gene_spot(g, s) = z;
   if (data.counts(g, s) > 0) {
-    auto v = sample_multinomial<Int>(data.counts(g, s), begin(rel_rate),
-                                     end(rel_rate), rng);
-    for (size_t t = 0; t < T; ++t) {
-      contrib_gene_type(g, t) += v[t];
-      contrib_spot_type(s, t) += v[t];
+    if (true) {
+      for (size_t t = 0; t < T; ++t) {
+        double expected = data.counts(g, s) * rel_rate[t];
+        contrib_gene_type(g, t) += expected;
+        contrib_spot_type(s, t) += expected;
+      }
+    } else {
+      auto v = sample_multinomial<Int>(data.counts(g, s), begin(rel_rate),
+                                       end(rel_rate), rng);
+      for (size_t t = 0; t < T; ++t) {
+        contrib_gene_type(g, t) += v[t];
+        contrib_spot_type(s, t) += v[t];
+      }
     }
   }
 }
@@ -669,10 +677,10 @@ template <typename Type>
 Experiment<Type> operator/(const Experiment<Type> &a, double x) {
   Experiment<Type> experiment = a;
 
-  experiment.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
-  experiment.contributions_spot_type /= x; // TODO note that this is inaccurate due to integer division
-  experiment.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
-  experiment.contributions_spot /= x; // TODO note that this is inaccurate due to integer division
+  experiment.contributions_gene_type /= x;
+  experiment.contributions_spot_type /= x;
+  experiment.contributions_gene /= x;
+  experiment.contributions_spot /= x;
 
   experiment.spot /= x;
 

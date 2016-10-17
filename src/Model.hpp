@@ -44,8 +44,8 @@ struct Model {
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
-  IMatrix contributions_gene_type;
-  IVector contributions_gene;
+  Matrix contributions_gene_type;
+  Vector contributions_gene;
 
   /** factor loading matrix */
   features_t features;
@@ -205,7 +205,7 @@ void Model<Type>::sample_global_theta_priors() {
     feature_matrix += current_feature_matrix;
   }
 
-  IMatrix contr_spot_type(0, T);
+  Matrix contr_spot_type(0, T);
   for (auto &experiment : experiments)
     contr_spot_type
         = arma::join_vert(contr_spot_type, experiment.contributions_spot_type);
@@ -358,8 +358,8 @@ template <typename Type>
 Model<Type> operator/(const Model<Type> &a, double x) {
   Model<Type> model = a;
 
-  model.contributions_gene_type /= x; // TODO note that this is inaccurate due to integer division
-  model.contributions_gene /= x; // TODO note that this is inaccurate due to integer division
+  model.contributions_gene_type /= x;
+  model.contributions_gene /= x;
   model.features.matrix /= x;
   for (auto &experiment : model.experiments)
     experiment = experiment / x;
