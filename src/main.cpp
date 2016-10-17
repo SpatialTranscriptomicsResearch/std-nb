@@ -306,6 +306,8 @@ int main(int argc, char **argv) {
      "Respect the likelihood contributions of the feature priors.")
     ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),
      "Respect the likelihood contributions of the mixture priors.")
+    ("expcont", po::bool_switch(&parameters.expected_contributions),
+     "Dont sample x_{gst} contributions, but use expected values instead.")
     ("localphi", po::bool_switch(&options.sample_local_phi_priors),
      "Sample the local feature priors.")
     ("lambda", po::bool_switch(&parameters.store_lambda),

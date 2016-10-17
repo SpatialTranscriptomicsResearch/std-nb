@@ -96,6 +96,7 @@ struct Parameters {
   bool phi_prior_maximum_likelihood = false;
   bool respect_phi_prior_likelihood = false;
   bool respect_theta_prior_likelihood = false;
+  bool expected_contributions = false;
   bool store_lambda = false;
   bool theta_local_priors = false;
   Hyperparameters hyperparameters;

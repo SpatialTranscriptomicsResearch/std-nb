@@ -428,7 +428,7 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
     rel_rate[t] /= z;
   lambda_gene_spot(g, s) = z;
   if (data.counts(g, s) > 0) {
-    if (true) {
+    if (parameters.expected_contributions) {
       for (size_t t = 0; t < T; ++t) {
         double expected = data.counts(g, s) * rel_rate[t];
         contrib_gene_type(g, t) += expected;
