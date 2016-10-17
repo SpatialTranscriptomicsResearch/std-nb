@@ -276,6 +276,11 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
     if (parameters.targeted(Target::contributions))
       sample_contributions(global_phi);
 
+  // TODO add baseline prior
+
+  if (parameters.targeted(Target::baseline))
+    sample_baseline(global_phi);
+
   if (parameters.targeted(Target::theta_prior)
       and parameters.theta_local_priors) {
     Matrix feature_matrix = features.matrix % global_phi;
@@ -297,9 +302,6 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
 
   if (parameters.targeted(Target::spot))
     sample_spot(global_phi);
-
-  if (parameters.targeted(Target::baseline))
-    sample_baseline(global_phi);
 }
 
 template <typename Type>

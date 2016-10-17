@@ -161,3 +161,22 @@ global baseline feature?
 sets of features with different priors; ones in which genes can be switched off, and other with broad support
 
 rename burn in -> warm up
+
+reconsider order of sampling steps in Experiment.
+Could have:
+0. baseline prior
+1. baseline
+2. theta prior
+3. theta
+4. phi prior
+4. phi
+Alternatively:
+0. theta prior
+1. theta
+2. baseline prior
+3. baseline
+4. phi prior
+4. phi
+Up to now baseline was last, and by moving it forward perhaps its dynamics might be accelerated.
+
+Reconsider using expected values of contributions instead of a gibbs sample
