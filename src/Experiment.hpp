@@ -254,19 +254,18 @@ void Experiment<Type>::perform_local_dge(const std::string &prefix,
   auto &gene_names = data.row_names;
   auto factor_names = form_factor_names(T);
   write_matrix(
-      local_dge([](Float baseline, Float local) { return 1; }, global_features),
+      local_dge([](Float baseline __attribute__((unused)), Float local __attribute__((unused))) { return 1; }, global_features),
       prefix + "differential_gene_expression_baseline_and_local.txt",
       gene_names, factor_names);
 
-  write_matrix(local_dge([](Float baseline, Float local) { return local; },
-                         global_features),
-               prefix + "differential_gene_expression_baseline.txt", gene_names,
-               factor_names);
+  write_matrix(
+      local_dge([](Float baseline __attribute__((unused)), Float local) { return local; }, global_features),
+      prefix + "differential_gene_expression_baseline.txt",
+      gene_names, factor_names);
 
-  write_matrix(local_dge([](Float baseline, Float local) { return baseline; },
-                         global_features),
-               prefix + "differential_gene_expression_local.txt", gene_names,
-               factor_names);
+  write_matrix(
+      local_dge([](Float baseline, Float local __attribute__((unused))) { return baseline; }, global_features),
+      prefix + "differential_gene_expression_local.txt", gene_names, factor_names);
 }
 
 template <typename Type>
