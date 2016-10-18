@@ -14,8 +14,6 @@
 using namespace std;
 namespace PF = PoissonFactorization;
 
-const bool use_quantiles = false;
-
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Options {
@@ -27,7 +25,6 @@ struct Options {
   size_t report_interval = 20;
   string output = default_output_string;
   bool intersect = false;
-  vector<double> quantiles;
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool no_local_gene_expression = false;
@@ -75,84 +72,6 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-template <typename T, typename M_>
-void proc_member_quantiles(const vector<T> &models, M_ T::*member,
-                           const vector<double> &quantiles,
-                           vector<T> &quantile_models) {
-  const size_t M = models.size();
-  const size_t Q = quantile_models.size();
-  const size_t X = (models.front().*member).n_elem;
-  M_ mat(M, X, arma::fill::zeros);
-  for (size_t m = 0; m < M; ++m)
-    for (size_t x = 0; x < X; ++x)
-      mat(m, x) = (models[m].*member)(x);
-
-  for (size_t x = 0; x < X; ++x) {
-    auto quants = get_quantiles(mat.begin_col(x), mat.end_col(x), quantiles);
-    for (size_t q = 0; q < Q; ++q)
-      (quantile_models[q].*member)(x) = quants[q];
-  }
-}
-
-// TODO implement for:
-//  * weighted_theta
-//  * Gamma priors
-template <typename T_>
-vector<T_> mcmc_quantiles(const vector<T_> &models,
-                          const vector<double> &quantiles) {
-  const size_t M = models.size();
-  const size_t Q = quantiles.size();
-
-  const size_t G = models.begin()->G;
-  const size_t S = models.begin()->S;
-  const size_t T = models.begin()->T;
-
-  const size_t GT = G * T;
-  const size_t ST = S * T;
-
-  vector<T_> quantile_models(Q, *models.begin());
-
-  proc_member_quantiles(models, &T_::contributions_gene_type, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::contributions_spot_type, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::contributions_gene, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::contributions_spot, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::contributions_experiment, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::spot, quantiles, quantile_models);
-  proc_member_quantiles(models, &T_::experiment_scaling, quantiles, quantile_models);
-
-  // features
-  {
-    PF::Matrix v(M, GT, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t gt = 0; gt < GT; ++gt)
-        v(m, gt) = models[m].features.matrix(gt);
-
-    for (size_t gt = 0; gt < GT; ++gt) {
-      auto percentiles
-          = get_quantiles(v.begin_col(gt), v.end_col(gt), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].features.matrix(gt) = percentiles[q];
-    }
-  }
-
-  // mixing weights
-  {
-    PF::Matrix v(M, ST, arma::fill::zeros);
-    for (size_t m = 0; m < M; ++m)
-      for (size_t st = 0; st < ST; ++st)
-        v(m, st) = models[m].weights.matrix(st);
-
-    for (size_t st = 0; st < ST; ++st) {
-      auto percentiles
-          = get_quantiles(v.begin_col(st), v.end_col(st), quantiles);
-      for (size_t q = 0; q < Q; ++q)
-        quantile_models[q].weights.matrix(st) = percentiles[q];
-    }
-  }
-
-  return quantile_models;
-}
-
 template <typename T>
 struct Moments {
   long burn_in;
@@ -184,8 +103,6 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
   LOG(info) << "Initial model" << endl << pfa;
   Moments<T> moments(options.num_burn_in,
                      options.num_burn_in >= 0 ? pfa : T({}, 0, pfa.parameters));
-  // vector<T> models;
-  // models.push_back(pfa);
   std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
@@ -218,19 +135,8 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     }
 
     moments.update(iteration, pfa);
-    // if (use_quantiles)
-    //   models.push_back(pfa);
   }
   moments.evaluate(options.output);
-  /* TODO reactivate
-  if (use_quantiles) {
-    auto quantile_models = mcmc_quantiles(models, options.quantiles);
-    for (size_t q = 0; q < options.quantiles.size(); ++q)
-      quantile_models[q].store(options.output + "quantile"
-                                         + to_string(options.quantiles[q])
-                                         + "_");
-  }
-  */
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   pfa.store(options.output);
@@ -325,8 +231,6 @@ int main(int argc, char **argv) {
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
-    ("quant,q", po::value<vector<double>>(&options.quantiles)->default_value({0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}, "0,0.05,0.25,0.5,0.75,0.95,1.0"),
-     "Which quantiles to report for each parameter.")
     ("label", po::value(&options.labeling),
      "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
 
