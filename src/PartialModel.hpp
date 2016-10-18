@@ -3,11 +3,10 @@
 
 #include "aux.hpp"
 #include "io.hpp"
-#include "pdist.hpp"
-#include "priors.hpp"
-
 #include "log.hpp"
 #include "parallel.hpp"
+#include "pdist.hpp"
+#include "priors.hpp"
 #include "sampling.hpp"
 
 namespace PoissonFactorization {
@@ -97,7 +96,9 @@ struct Model {
         // NOTE: gamma_distribution takes a shape and scale parameter
         matrix[x] = std::gamma_distribution<Float>(
             observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
-        LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x] << " explained[" << x << "] = " << explained[x] << " -> " << matrix[x];
+        LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x]
+                   << " explained[" << x << "] = " << explained[x] << " -> "
+                   << matrix[x];
       }
     }
   }
@@ -225,7 +226,8 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 template <>
 template <typename Experiment, typename... Args>
 void Model<Variable::Mix, Kind::Dirichlet>::sample(const Experiment &experiment,
-                                                   const Args &... args __attribute__((unused))) {
+                                                   const Args &... args
+                                                   __attribute__((unused))) {
   // TODO needs written-down proof; it's analogous to the case for the features
   LOG(verbose) << "Sampling Θ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)

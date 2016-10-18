@@ -1,25 +1,7 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
-#include <random>
 #include "Experiment.hpp"
-#include "ModelType.hpp"
-#include "compression.hpp"
-#include "counts.hpp"
-#include "entropy.hpp"
-#include "io.hpp"
-#include "log.hpp"
-#include "metropolis_hastings.hpp"
-#include "odds.hpp"
-#include "parallel.hpp"
-#include "parameters.hpp"
-#include "pdist.hpp"
-#include "priors.hpp"
-#include "sampling.hpp"
-#include "stats.hpp"
-#include "target.hpp"
-#include "timer.hpp"
-#include "verbosity.hpp"
 
 namespace PoissonFactorization {
 
