@@ -184,3 +184,11 @@ Reconsider using expected values of contributions instead of a gibbs sample
 Reset experiments
 
 field models
+
+write out vectors in the same format as matrices - i.e. give a column name
+
+add global feature updates to experiment resetting
+
+rename factors when finished
+
+Write out global weighted feature matrix
