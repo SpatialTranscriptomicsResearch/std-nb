@@ -190,3 +190,5 @@ write out vectors in the same format as matrices - i.e. give a column name
 add global feature updates to experiment resetting
 
 rename factors when finished
+
+Vectorize the sampling routines to simplify parallelization logic and to thus even out parallel work loads
