@@ -160,8 +160,6 @@ Perhaps such tree-shaped feature hierarchies might live in global scope, and one
 global baseline feature?
 sets of features with different priors; ones in which genes can be switched off, and other with broad support
 
-rename burn in -> warm up
-
 reconsider order of sampling steps in Experiment.
 Could have:
 0. baseline prior

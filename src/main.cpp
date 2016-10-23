@@ -20,7 +20,7 @@ struct Options {
   enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
-  long num_burn_in = -1;
+  long num_warm_up = -1;
   size_t num_steps = 2000;
   size_t report_interval = 20;
   string output = default_output_string;
@@ -74,14 +74,14 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
 
 template <typename T>
 struct Moments {
-  long burn_in;
+  long warm_up;
   size_t n;
   T sum;
   T sumsq;
-  Moments(long burn_in_, const T &m) : burn_in(burn_in_), n(0), sum(m * 0), sumsq(m * 0) {
+  Moments(long warm_up_, const T &m) : warm_up(warm_up_), n(0), sum(m * 0), sumsq(m * 0) {
   }
   void update(long iteration, const T &m) {
-    if (burn_in >= 0 and iteration >= burn_in) {
+    if (warm_up >= 0 and iteration >= warm_up) {
       sum = sum + m;
       sumsq = sumsq + m * m;
       n++;
@@ -101,8 +101,8 @@ template <typename T>
 void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
-  Moments<T> moments(options.num_burn_in,
-                     options.num_burn_in >= 0 ? pfa : T({}, 0, pfa.parameters));
+  Moments<T> moments(options.num_warm_up,
+                     options.num_warm_up >= 0 ? pfa : T({}, 0, pfa.parameters));
   std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     if (iteration > pfa.parameters.enforce_iter)
@@ -192,8 +192,8 @@ int main(int argc, char **argv) {
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
-    ("burn,b", po::value(&options.num_burn_in)->default_value(options.num_burn_in),
-     "Length of burn-in period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
+    ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
+     "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
