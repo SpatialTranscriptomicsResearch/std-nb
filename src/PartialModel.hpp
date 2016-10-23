@@ -85,24 +85,25 @@ struct Model {
 
   double log_likelihood_factor(size_t t) const;
   double log_likelihood() const;
+};
 
-  template <typename Type>
-  void perform_sampling(const Type &observed, const Type &explained) {
+template <typename Type, typename Res>
+void perform_sampling(const Type &observed, const Type &explained, Res &m) {
 #pragma omp parallel if (DO_PARALLEL)
-    {
-      const size_t thread_num = omp_get_thread_num();
+  {
+    const size_t thread_num = omp_get_thread_num();
 #pragma omp for
-      for (size_t x = 0; x < observed.n_elem; ++x) {
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        matrix[x] = std::gamma_distribution<Float>(
-            observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
-        LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x]
-                   << " explained[" << x << "] = " << explained[x] << " -> "
-                   << matrix[x];
-      }
+    for (size_t x = 0; x < observed.n_elem; ++x) {
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      m[x] = std::gamma_distribution<Float>(
+          observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
+      LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x]
+                 << " explained[" << x << "] = " << explained[x] << " -> "
+                 << m[x];
     }
   }
-};
+}
+
 
 // Feature specializations
 
@@ -136,7 +137,7 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
   Matrix observed = prior.r + experiment.contributions_gene_type;
   Matrix explained = prior.p + experiment.explained_gene_type(args...);
 
-  perform_sampling(observed, explained);
+  perform_sampling(observed, explained, matrix);
 
   // enforce means if necessary
   if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
