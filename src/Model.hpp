@@ -117,12 +117,9 @@ void Model<Type>::store(const std::string &prefix) const {
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->data.row_names;
   features.store(prefix, gene_names, factor_names);
-  write_matrix(expected_gene_type(), prefix + "expected-features.txt",
-               gene_names, factor_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt",
-               gene_names, factor_names);
-  write_vector(contributions_gene, prefix + "contributions_gene.txt",
-               gene_names);
+  write_matrix(expected_gene_type(), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names);
+  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)

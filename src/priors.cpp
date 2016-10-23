@@ -72,8 +72,8 @@ double dfnc(double r, double x) {
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &gene_names,
                   const std::vector<std::string> &factor_names) const {
-  write_matrix(r, prefix + "_prior-r.txt", gene_names, factor_names);
-  write_matrix(p, prefix + "_prior-p.txt", gene_names, factor_names);
+  write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING, gene_names, factor_names);
+  write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING, gene_names, factor_names);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -211,8 +211,8 @@ void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &spot_names,
                   const std::vector<std::string> &factor_names) const {
-  write_vector(r, prefix + "_prior-r.txt", factor_names);
-  write_vector(p, prefix + "_prior-p.txt", factor_names);
+  write_vector(r, prefix + "_prior-r" + FILENAME_ENDING, factor_names);
+  write_vector(p, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)

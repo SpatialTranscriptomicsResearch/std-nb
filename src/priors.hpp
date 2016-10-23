@@ -12,6 +12,9 @@
 #include "types.hpp"
 
 namespace PoissonFactorization {
+
+const std::string FILENAME_ENDING = ".txt";
+
 namespace PRIOR {
 namespace PHI {
 

@@ -213,19 +213,19 @@ void Experiment<Type>::store(const std::string &prefix,
   features.store(prefix, gene_names, factor_names);
   baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"});
   weights.store(prefix, spot_names, factor_names);
-  write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix.txt", spot_names, factor_names);
-  write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features.txt", gene_names, factor_names);
+  write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING, spot_names);
+  write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, spot_names, factor_names);
+  write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names);
   if (parameters.store_lambda)
-    write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
-  write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
-  write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
-  write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
+    write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot" + FILENAME_ENDING, gene_names, spot_names);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names);
+  write_matrix(contributions_spot_type, prefix + "contributions_spot_type" + FILENAME_ENDING, spot_names, factor_names);
+  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
+  write_vector(contributions_spot, prefix + "contributions_spot" + FILENAME_ENDING, spot_names);
   if (false) {
-    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson.txt", gene_names, spot_names);
-    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected.txt", gene_names, spot_names);
-    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance.txt", gene_names, spot_names);
+    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson" + FILENAME_ENDING, gene_names, spot_names);
+    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected" + FILENAME_ENDING, gene_names, spot_names);
+    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance" + FILENAME_ENDING, gene_names, spot_names);
   }
 }
 
@@ -240,7 +240,7 @@ void Experiment<Type>::perform_pairwise_dge(const std::string &prefix,
     for (size_t t2 = t1 + 1; t2 < T; ++t2)
       factor_pair_names.push_back("Factor" + std::to_string(t1 + 1)
           + "-Factor" + std::to_string(t2 + 1));
-  write_matrix(x, prefix + "pairwise_differential_gene_expression.txt",
+  write_matrix(x, prefix + "pairwise_differential_gene_expression" + FILENAME_ENDING,
       gene_names, factor_pair_names);
 }
 
@@ -251,17 +251,17 @@ void Experiment<Type>::perform_local_dge(const std::string &prefix,
   auto factor_names = form_factor_names(T);
   write_matrix(
       local_dge([](Float baseline __attribute__((unused)), Float local __attribute__((unused))) { return 1; }, global_features),
-      prefix + "differential_gene_expression_baseline_and_local.txt",
+      prefix + "differential_gene_expression_baseline_and_local" + FILENAME_ENDING,
       gene_names, factor_names);
 
   write_matrix(
       local_dge([](Float baseline __attribute__((unused)), Float local) { return local; }, global_features),
-      prefix + "differential_gene_expression_baseline.txt",
+      prefix + "differential_gene_expression_baseline" + FILENAME_ENDING,
       gene_names, factor_names);
 
   write_matrix(
       local_dge([](Float baseline, Float local __attribute__((unused))) { return baseline; }, global_features),
-      prefix + "differential_gene_expression_local.txt", gene_names, factor_names);
+      prefix + "differential_gene_expression_local" + FILENAME_ENDING, gene_names, factor_names);
 }
 
 template <typename Type>
