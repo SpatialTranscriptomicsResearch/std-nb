@@ -6,6 +6,7 @@
 namespace PoissonFactorization {
 
 const double local_phi_scaling_factor = 50;
+const int EXPERIMENT_NUM_DIGITS = 4;
 
 template <typename Type>
 struct Model {
@@ -121,7 +122,7 @@ void Model<Type>::store(const std::string &prefix) const {
   write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix
-        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].store(exp_prefix, features);
   }
 }
@@ -130,7 +131,7 @@ template <typename Type>
 void Model<Type>::perform_pairwise_dge(const std::string &prefix) const {
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix
-        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].perform_pairwise_dge(exp_prefix, features);
   }
 }
@@ -139,7 +140,7 @@ template <typename Type>
 void Model<Type>::perform_local_dge(const std::string &prefix) const {
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix
-        = prefix + "experiment" + to_string_embedded(e, 3) + "-";
+        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].perform_local_dge(exp_prefix, features);
   }
 }
