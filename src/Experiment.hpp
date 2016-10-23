@@ -104,6 +104,9 @@ struct Experiment {
   // computes a matrix M(g,t)
   // with M(g,t) = baseline_phi(g) var_phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix explained_gene_type(const Matrix &var_phi) const;
+  // computes a matrix M(g,t)
+  // with M(g,t) = baseline_phi(g) var_phi(g,t) phi(g,t) sum_s theta(s,t) sigma(s)
+  Matrix expected_gene_type(const Matrix &global_phi) const;
   // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) var_phi(g,t)
   Matrix expected_spot_type(const Matrix &global_phi) const;
@@ -212,8 +215,7 @@ void Experiment<Type>::store(const std::string &prefix,
   weights.store(prefix, spot_names, factor_names);
   write_vector(spot, prefix + "spot-scaling.txt", spot_names);
   write_matrix(expected_spot_type(global_features.matrix), prefix + "weighted-mix.txt", spot_names, factor_names);
-  Matrix profiles = features.matrix % explained_gene_type(global_features.matrix);
-  write_matrix(profiles, prefix + "weighted-features.txt", gene_names, factor_names);
+  write_matrix(expected_gene_type(global_features.matrix), prefix + "weighted-features.txt", gene_names, factor_names);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
@@ -527,7 +529,12 @@ Matrix Experiment<Type>::explained_gene_type(const Matrix &global_phi) const {
     for (size_t t = 0; t < T; ++t)
       explained(g, t) = baseline_phi(g) * global_phi(g, t) * theta_t(t);
   return explained;
-};
+}
+
+template <typename Type>
+Matrix Experiment<Type>::expected_gene_type(const Matrix &global_phi) const {
+  return features.matrix % explained_gene_type(global_phi);
+}
 
 template <typename Type>
 Vector Experiment<Type>::explained_gene(const Matrix &global_phi) const {
