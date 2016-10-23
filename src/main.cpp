@@ -22,7 +22,7 @@ struct Options {
   size_t num_factors = 20;
   long num_warm_up = -1;
   size_t num_steps = 2000;
-  size_t report_interval = 20;
+  size_t report_interval = 200;
   string output = default_output_string;
   bool intersect = false;
   Labeling labeling = Labeling::Auto;
