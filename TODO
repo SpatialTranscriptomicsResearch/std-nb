@@ -192,5 +192,3 @@ add global feature updates to experiment resetting
 rename factors when finished
 
 Vectorize the sampling routines to simplify parallelization logic and to thus even out parallel work loads
-
-Drop support to enforce means

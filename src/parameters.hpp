@@ -50,43 +50,11 @@ struct Hyperparameters {
   Float alpha;
 };
 
-/** For which random variables should we enforce the means? */
-enum class ForceMean {
-  None = 0,
-  Theta = 1,
-  Phi = 2,
-  Spot = 4,
-};
-
-inline constexpr ForceMean operator!(ForceMean x) {
-  return static_cast<ForceMean>(!static_cast<int>(x));
-}
-
-inline constexpr ForceMean operator&(ForceMean x, ForceMean y) {
-  return static_cast<ForceMean>(static_cast<int>(x) & static_cast<int>(y));
-}
-
-inline constexpr ForceMean operator|(ForceMean x, ForceMean y) {
-  return static_cast<ForceMean>(static_cast<int>(x) | static_cast<int>(y));
-}
-
-inline ForceMean &operator&=(ForceMean &x, ForceMean y) {
-  x = x & y;
-  return x;
-}
-
-inline ForceMean &operator|=(ForceMean &x, ForceMean y) {
-  x = x | y;
-  return x;
-}
-
 struct Parameters {
   /** Maximal number of propositions for Metropolis-Hastings sampling */
   double n_iter = 100;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
-  /** Whether to enforce certain means or sums */
-  ForceMean enforce_mean = ForceMean::None;
   /** How long to enforce certain means or sums
    * 0 means forever
    * anything else is the given number of iterations
@@ -102,9 +70,6 @@ struct Parameters {
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
 };
-
-std::istream &operator>>(std::istream &is, ForceMean &force);
-std::ostream &operator<<(std::ostream &os, const ForceMean &force);
 
 Float digamma(Float x);
 Float trigamma(Float x);

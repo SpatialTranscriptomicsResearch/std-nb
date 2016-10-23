@@ -105,8 +105,6 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                      options.num_warm_up >= 0 ? pfa : T({}, 0, pfa.parameters));
   std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
-    if (iteration > pfa.parameters.enforce_iter)
-      pfa.parameters.enforce_mean = PF::ForceMean::None;
     LOG(info) << "Performing iteration " << iteration;
     if (iteration == 1 or not options.stochastic_gibbs) {
       which_experiments.resize(data.size());
@@ -232,8 +230,6 @@ int main(int argc, char **argv) {
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
-     "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
@@ -337,10 +333,6 @@ int main(int argc, char **argv) {
     parameters.targets
         = parameters.targets
           & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
-
-  // deactivate spot mean forcing if the mixing type is Dirichlet
-  if (options.mixing_type == Kind::Dirichlet)
-    parameters.enforce_mean = parameters.enforce_mean & (!PF::ForceMean::Spot);
 
   switch (options.feature_type) {
     case Kind::Dirichlet: {

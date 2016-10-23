@@ -457,17 +457,6 @@ void Experiment<Type>::sample_spot(const Matrix &var_phi) {
         1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
         EntropySource::rng);
   }
-
-  if ((parameters.enforce_mean & ForceMean::Spot) != ForceMean::None) {
-    double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      z += spot[s];
-    z /= S;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      spot[s] /= z;
-  }
 }
 
 /** sample baseline feature */
@@ -484,20 +473,6 @@ void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
   Vector explained = prior2 + explained_gene(global_phi);
 
   Partial::perform_sampling(observed, explained, baseline_feature.matrix);
-
-  /*
-  // enforce means if necessary
-  if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
-    for (size_t t = 0; t < dim2; ++t) {
-        double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-        for (size_t g = 0; g < dim1; ++g)
-          z += matrix(g, t);
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < dim1; ++g)
-          matrix(g, t) = matrix(g, t) / z * phi_scaling;
-    }
-    */
 }
 
 template <typename Type>

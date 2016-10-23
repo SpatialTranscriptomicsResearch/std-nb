@@ -138,18 +138,6 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
   Matrix explained = prior.p + experiment.explained_gene_type(args...);
 
   perform_sampling(observed, explained, matrix);
-
-  // enforce means if necessary
-  if ((parameters.enforce_mean & ForceMean::Phi) != ForceMean::None)
-    for (size_t t = 0; t < dim2; ++t) {
-      double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-      for (size_t g = 0; g < dim1; ++g)
-        z += matrix(g, t);
-#pragma omp parallel for if (DO_PARALLEL)
-      for (size_t g = 0; g < dim1; ++g)
-        matrix(g, t) = matrix(g, t) / z * phi_scaling;
-    }
 }
 
 /* TODO reactivate
@@ -213,15 +201,6 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
               prior.r[t] + experiment.contributions_spot_type(s, t),
               1.0 / (prior.p[t] + intensities[t] * experiment.spot[s]))(
               EntropySource::rng));
-  if ((parameters.enforce_mean & ForceMean::Theta) != ForceMean::None)
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s) {
-      double z = 0;
-      for (size_t t = 0; t < dim2; ++t)
-        z += matrix(s, t);
-      for (size_t t = 0; t < dim2; ++t)
-        matrix(s, t) /= z;
-    }
 }
 
 template <>
