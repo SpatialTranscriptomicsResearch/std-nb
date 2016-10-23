@@ -57,7 +57,7 @@ double fnc2(double r, double x, double gamma, double theta) {
   return digamma(r+x) - digamma(r) + log(gamma) - log(theta+gamma);
 }
 
-double dfnc2(double r, double x, double gamma, double theta) {
+double dfnc2(double r, double x, double gamma __attribute__((unused)), double theta __attribute__((unused))) {
   return trigamma(r+x) - trigamma(r);
 }
 
@@ -90,13 +90,13 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
-void Dirichlet::sample(const Matrix &theta,
-                       const Matrix &contributions_gene_type,
-                       const Vector &spot_scaling) const {}
+void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
+                       const Matrix &contributions_gene_type __attribute__((unused)),
+                       const Vector &spot_scaling __attribute__((unused))) const {}
 
-void Dirichlet::store(const std::string &prefix,
-                      const std::vector<std::string> &gene_names,
-                      const std::vector<std::string> &factor_names) const {}
+void Dirichlet::store(const std::string &prefix __attribute__((unused)),
+                      const std::vector<std::string> &gene_names __attribute__((unused)),
+                      const std::vector<std::string> &factor_names __attribute__((unused))) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_matrix_head(os, x.r, "R of Φ");
@@ -104,7 +104,7 @@ ostream &operator<<(ostream &os, const Gamma &x) {
   return os;
 }
 
-ostream &operator<<(ostream &os, const Dirichlet &x) {
+ostream &operator<<(ostream &os, const Dirichlet &x __attribute__((unused))) {
   // do nothing, as Dirichlet class does not have random variables
   return os;
 }
@@ -209,7 +209,7 @@ void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
 }
 
 void Gamma::store(const std::string &prefix,
-                  const std::vector<std::string> &spot_names,
+                  const std::vector<std::string> &spot_names __attribute__((unused)),
                   const std::vector<std::string> &factor_names) const {
   write_vector(r, prefix + "_prior-r" + FILENAME_ENDING, factor_names);
   write_vector(p, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
@@ -227,13 +227,13 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
-void Dirichlet::sample(const Matrix &theta,
-                       const Matrix &contributions_gene_type,
-                       const Vector &spot_scaling) const {}
+void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
+                       const Matrix &contributions_gene_type __attribute__((unused)),
+                       const Vector &spot_scaling __attribute__((unused))) const {}
 
-void Dirichlet::store(const std::string &prefix,
-                      const std::vector<std::string> &spot_names,
-                      const std::vector<std::string> &factor_names) const {}
+void Dirichlet::store(const std::string &prefix __attribute__((unused)),
+                      const std::vector<std::string> &spot_names __attribute__((unused)),
+                      const std::vector<std::string> &factor_names __attribute__((unused))) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_vector_head(os, x.r, "R of Θ");
@@ -241,7 +241,7 @@ ostream &operator<<(ostream &os, const Gamma &x) {
   return os;
 }
 
-ostream &operator<<(ostream &os, const Dirichlet &x) {
+ostream &operator<<(ostream &os, const Dirichlet &x __attribute__((unused))) {
   // do nothing, as Dirichlet class does not have random variables
   return os;
 }
