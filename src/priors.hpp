@@ -13,7 +13,7 @@
 
 namespace PoissonFactorization {
 
-const std::string FILENAME_ENDING = ".txt";
+const std::string FILENAME_ENDING = ".tsv";
 
 namespace PRIOR {
 namespace PHI {
