@@ -121,11 +121,15 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     if (iteration % options.report_interval == 0) {
       const string prefix
           = options.output + "iter"
-            + to_string_embedded(iteration, PF::EXPERIMENT_NUM_DIGITS) + "_";
-      pfa.store(prefix);
-      if (options.perform_pairwise_dge) {
-        pfa.perform_local_dge(prefix);
-        pfa.perform_pairwise_dge(prefix);
+            + to_string_embedded(iteration, PF::EXPERIMENT_NUM_DIGITS) + "/";
+      if (boost::filesystem::create_directory(prefix)) {
+        pfa.store(prefix);
+        if (options.perform_pairwise_dge) {
+          pfa.perform_local_dge(prefix);
+          pfa.perform_pairwise_dge(prefix);
+        }
+      } else {
+        throw(std::runtime_error("Couldn't create directory " + prefix));
       }
     }
 
