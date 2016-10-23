@@ -182,6 +182,8 @@ Reconsider using expected values of contributions instead of a gibbs sample
 Reset experiments
 
 field models
+ * difference of log gammas of neighbors as pairwise energy term
+ * maybe kernel-based weighted sums over neighborhood's observations and explanation is exactly the way to bring this into a gamma-based formalism
 
 write out vectors in the same format as matrices - i.e. give a column name
 
