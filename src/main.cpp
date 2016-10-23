@@ -328,6 +328,11 @@ int main(int argc, char **argv) {
   if (options.sample_local_phi_priors)
     parameters.targets = parameters.targets | PF::Target::phi_prior_local;
 
+  if (data_sets.size() < 2) {
+    LOG(info) << "Deactivating local features.";
+    options.no_local_gene_expression = true;
+  }
+
   if (options.no_local_gene_expression)
     parameters.targets
         = parameters.targets
