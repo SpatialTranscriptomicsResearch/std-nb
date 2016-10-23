@@ -119,7 +119,9 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     pfa.gibbs_sample(which_experiments);
     LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
-      const string prefix = options.output + "iter" + to_string(iteration) + "_";
+      const string prefix
+          = options.output + "iter"
+            + to_string_embedded(iteration, PF::EXPERIMENT_NUM_DIGITS) + "_";
       pfa.store(prefix);
       if (options.perform_pairwise_dge) {
         pfa.perform_local_dge(prefix);
