@@ -42,7 +42,7 @@ struct Model {
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
 
-  void store(const std::string &prefix, bool reorder = false) const;
+  void store(const std::string &prefix, bool reorder = true) const;
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
