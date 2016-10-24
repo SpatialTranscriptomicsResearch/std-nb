@@ -93,17 +93,12 @@ void perform_sampling(const Type &observed, const Type &explained, Res &m) {
   {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
-    for (size_t x = 0; x < observed.n_elem; ++x) {
+    for (size_t x = 0; x < observed.n_elem; ++x)
       // NOTE: gamma_distribution takes a shape and scale parameter
       m[x] = std::gamma_distribution<Float>(
           observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
-      LOG(debug) << "x = " << x << " observed[" << x << "] = " << observed[x]
-                 << " explained[" << x << "] = " << explained[x] << " -> "
-                 << m[x];
-    }
   }
 }
-
 
 // Feature specializations
 
@@ -200,16 +195,9 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
     for (size_t t = 0; t < dim2; ++t)
-      explained(s, t)
-          = 1.0 / (prior.p[t] + intensities[t] * experiment.spot[s]);
+      explained(s, t) = prior.p[t] + intensities[t] * experiment.spot[s];
 
-// TODO make use of perform_sampling
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s)
-    for (size_t t = 0; t < dim2; ++t)
-      // NOTE: std::gamma_distribution takes a shape and scale parameter
-      matrix(s, t) = std::gamma_distribution<Float>(
-          observed(s, t), 1.0 / explained(s, t))(EntropySource::rng);
+  perform_sampling(observed, explained, matrix);
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
