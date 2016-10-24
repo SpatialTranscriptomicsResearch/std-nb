@@ -86,33 +86,33 @@ struct Experiment {
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
 
   /** sample count decomposition */
-  void sample_contributions(const Matrix &var_phi);
+  void sample_contributions(const Matrix &global_phi);
   /** sub-routine for count decomposition sampling */
-  void sample_contributions_sub(const Matrix &var_phi, size_t g, size_t s,
+  void sample_contributions_sub(const Matrix &global_phi, size_t g, size_t s,
                                 RNG &rng, Matrix &contrib_gene_type,
                                 Matrix &contrib_spot_type);
 
   /** sample spot scaling factors */
-  void sample_spot(const Matrix &var_phi);
+  void sample_spot(const Matrix &global_phi);
 
   /** sample baseline feature */
-  void sample_baseline(const Matrix &var_phi);
+  void sample_baseline(const Matrix &global_phi);
 
-  Vector marginalize_genes(const Matrix &var_phi) const;
+  Vector marginalize_genes(const Matrix &global_phi) const;
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = baseline_phi(g) var_phi(g,t) sum_s theta(s,t) sigma(s)
-  Matrix explained_gene_type(const Matrix &var_phi) const;
+  // with M(g,t) = baseline_phi(g) global_phi(g,t) sum_s theta(s,t) sigma(s)
+  Matrix explained_gene_type(const Matrix &global_phi) const;
   // computes a matrix M(g,t)
-  // with M(g,t) = baseline_phi(g) var_phi(g,t) phi(g,t) sum_s theta(s,t) sigma(s)
+  // with M(g,t) = baseline_phi(g) global_phi(g,t) phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type(const Matrix &global_phi) const;
   // computes a matrix M(s,t)
-  // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) var_phi(g,t)
+  // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
   Matrix expected_spot_type(const Matrix &global_phi) const;
   // computes a vector V(g)
-  // with V(g) = sum_t phi(g,t) var_phi(g,t) sum_s theta(s,t) sigma(s)
-  Vector explained_gene(const Matrix &var_phi) const;
+  // with V(g) = sum_t phi(g,t) global_phi(g,t) sum_s theta(s,t) sigma(s)
+  Vector explained_gene(const Matrix &global_phi) const;
 
   std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
                                                   double threshold = 1.0) const;
@@ -443,9 +443,9 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
 
 /** sample spot scaling factors */
 template <typename Type>
-void Experiment<Type>::sample_spot(const Matrix &var_phi) {
+void Experiment<Type>::sample_spot(const Matrix &global_phi) {
   LOG(verbose) << "Sampling spot scaling factors";
-  auto phi_marginal = marginalize_genes(var_phi);
+  auto phi_marginal = marginalize_genes(global_phi);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     Float intensity_sum = 0;

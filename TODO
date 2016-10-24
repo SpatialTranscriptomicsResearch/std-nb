@@ -190,3 +190,5 @@ write out vectors in the same format as matrices - i.e. give a column name
 add global feature updates to experiment resetting
 
 Vectorize the sampling routines to simplify parallelization logic and to thus even out parallel work loads
+
+Try out modified posteriors for baseline features. Pretend there are no local features...
