@@ -190,17 +190,32 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 
   const auto intensities = experiment.marginalize_genes(args...);
 
-  // TODO make use of perform_sampling
+  Matrix observed(dim1, dim2);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < dim1; ++s)
+    for (size_t t = 0; t < dim2; ++t)
+      observed(s, t) = prior.r[t] + experiment.contributions_spot_type(s, t);
+
+  Matrix explained(dim1, dim2);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < dim1; ++s)
+    for (size_t t = 0; t < dim2; ++t)
+      explained(s, t)
+          = 1.0 / (prior.p[t] + intensities[t] * experiment.spot[s]);
+
+// TODO make use of perform_sampling
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
     for (size_t t = 0; t < dim2; ++t)
       // NOTE: std::gamma_distribution takes a shape and scale parameter
-      matrix(s, t) = std::max<Float>(
-          std::numeric_limits<Float>::denorm_min(),
-          std::gamma_distribution<Float>(
-              prior.r[t] + experiment.contributions_spot_type(s, t),
-              1.0 / (prior.p[t] + intensities[t] * experiment.spot[s]))(
-              EntropySource::rng));
+      matrix(s, t) = std::gamma_distribution<Float>(
+          observed(s, t), 1.0 / explained(s, t))(EntropySource::rng);
+
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < dim1; ++s)
+    for (size_t t = 0; t < dim2; ++t)
+      matrix(s, t) = std::max<Float>(std::numeric_limits<Float>::denorm_min(),
+                                     matrix(s, t));
 }
 
 template <>
