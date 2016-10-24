@@ -42,7 +42,7 @@ struct Model {
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
 
-  void store(const std::string &prefix) const;
+  void store(const std::string &prefix, bool reorder = false) const;
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
@@ -112,19 +112,34 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
     features.matrix.fill(1);
 }
 
+template <typename V>
+std::vector<size_t> get_order(const V &v) {
+  size_t N = v.size();
+  std::vector<size_t> order(N);
+  std::iota(begin(order), end(order), 0);
+  std::sort(begin(order), end(order), [&v] (size_t a, size_t b) { return v[a] > v[b]; });
+  return order;
+}
+
 template <typename Type>
-void Model<Type>::store(const std::string &prefix) const {
+void Model<Type>::store(const std::string &prefix, bool reorder) const {
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->data.row_names;
-  features.store(prefix, gene_names, factor_names);
-  write_matrix(expected_gene_type(), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names);
+  auto exp_gene_type = expected_gene_type();
+  std::vector<size_t> order;
+  if (reorder) {
+    auto cs = colSums<Vector>(exp_gene_type);
+    order = get_order(cs);
+  }
+  features.store(prefix, gene_names, factor_names, order);
+  write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names, order);
   write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
                              + "-";
-    experiments[e].store(exp_prefix, features);
+    experiments[e].store(exp_prefix, features, order);
   }
 }
 

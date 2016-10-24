@@ -71,9 +71,10 @@ double dfnc(double r, double x) {
 
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &gene_names,
-                  const std::vector<std::string> &factor_names) const {
-  write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING, gene_names, factor_names);
-  write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING, gene_names, factor_names);
+                  const std::vector<std::string> &factor_names,
+                  const std::vector<size_t> &order) const {
+  write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING, gene_names, factor_names, order);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -96,7 +97,8 @@ void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &gene_names __attribute__((unused)),
-                      const std::vector<std::string> &factor_names __attribute__((unused))) const {}
+                      const std::vector<std::string> &factor_names __attribute__((unused)),
+                      const std::vector<size_t> &order __attribute__((unused))) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_matrix_head(os, x.r, "R of Φ");
@@ -210,9 +212,18 @@ void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
 
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &spot_names __attribute__((unused)),
-                  const std::vector<std::string> &factor_names) const {
-  write_vector(r, prefix + "_prior-r" + FILENAME_ENDING, factor_names);
-  write_vector(p, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
+                  const std::vector<std::string> &factor_names,
+                  const std::vector<size_t> &order) const {
+  Vector r_ = r;
+  Vector p_ = p;
+  if (not order.empty()) {
+    for (size_t i = 0; i < dim2; ++i)
+      r_[i] = r[order[i]];
+    for (size_t i = 0; i < dim2; ++i)
+      p_[i] = p[order[i]];
+  }
+  write_vector(r_, prefix + "_prior-r" + FILENAME_ENDING, factor_names);
+  write_vector(p_, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -233,7 +244,8 @@ void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &spot_names __attribute__((unused)),
-                      const std::vector<std::string> &factor_names __attribute__((unused))) const {}
+                      const std::vector<std::string> &factor_names __attribute__((unused)),
+                      const std::vector<size_t> &order __attribute__((unused))) const {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_vector_head(os, x.r, "R of Θ");

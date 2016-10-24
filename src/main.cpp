@@ -144,7 +144,7 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
   moments.evaluate(options.output);
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
-  pfa.store(options.output);
+  pfa.store(options.output, true);
   pfa.perform_local_dge(options.output);
   if (options.perform_pairwise_dge)
     pfa.perform_pairwise_dge(options.output);

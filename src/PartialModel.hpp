@@ -77,10 +77,11 @@ struct Model {
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
-             const std::vector<std::string> &factor_names) const {
+             const std::vector<std::string> &factor_names,
+             const std::vector<size_t> &order) const {
     const auto path = gen_path_stem(prefix);
-    write_matrix(matrix, path + FILENAME_ENDING, spot_names, factor_names);
-    prior.store(path, spot_names, factor_names);
+    write_matrix(matrix, path + FILENAME_ENDING, spot_names, factor_names, order);
+    prior.store(path, spot_names, factor_names, order);
   };
 
   double log_likelihood_factor(size_t t) const;

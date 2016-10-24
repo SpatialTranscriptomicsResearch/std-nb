@@ -40,7 +40,8 @@ struct Gamma {
 
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
-             const std::vector<std::string> &factor_names) const;
+             const std::vector<std::string> &factor_names,
+             const std::vector<size_t> &order) const;
 
 private:
   void initialize_r();
@@ -221,7 +222,8 @@ struct Dirichlet {
               const Vector &spot_scaling) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
-             const std::vector<std::string> &factor_names) const;
+             const std::vector<std::string> &factor_names,
+             const std::vector<size_t> &order) const;
 };
 
 /** This routine doesn't print, for the same reason as sample() does nothing */
@@ -249,7 +251,8 @@ struct Gamma {
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
-             const std::vector<std::string> &factor_names) const;
+             const std::vector<std::string> &factor_names,
+             const std::vector<size_t> &order) const;
 
 private:
   void initialize_r();
@@ -269,7 +272,8 @@ struct Dirichlet {
               const Vector &spot_scaling) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
-             const std::vector<std::string> &factor_names) const;
+             const std::vector<std::string> &factor_names,
+             const std::vector<size_t> &order) const;
 };
 
 /** This routine doesn't print, for the same reason as sample() does nothing */

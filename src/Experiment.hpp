@@ -55,8 +55,8 @@ struct Experiment {
              const Parameters &parameters);
   // TODO implement loading of Experiment
 
-  void store(const std::string &prefix,
-             const features_t &global_features) const;
+  void store(const std::string &prefix, const features_t &global_features,
+             const std::vector<size_t> &order) const;
   void perform_pairwise_dge(const std::string &prefix,
                             const features_t &global_features) const;
   void perform_local_dge(const std::string &prefix,
@@ -206,20 +206,21 @@ if (false) {
 
 template <typename Type>
 void Experiment<Type>::store(const std::string &prefix,
-                             const features_t &global_features) const {
+                             const features_t &global_features,
+                             const std::vector<size_t> &order) const {
   auto factor_names = form_factor_names(T);
   auto &gene_names = data.row_names;
   auto &spot_names = data.col_names;
-  features.store(prefix, gene_names, factor_names);
-  baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"});
-  weights.store(prefix, spot_names, factor_names);
+  features.store(prefix, gene_names, factor_names, order);
+  baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"}, {});
+  weights.store(prefix, spot_names, factor_names, order);
   write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING, spot_names);
-  write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, spot_names, factor_names);
-  write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names);
+  write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, spot_names, factor_names, order);
+  write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot" + FILENAME_ENDING, gene_names, spot_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names);
-  write_matrix(contributions_spot_type, prefix + "contributions_spot_type" + FILENAME_ENDING, spot_names, factor_names);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_matrix(contributions_spot_type, prefix + "contributions_spot_type" + FILENAME_ENDING, spot_names, factor_names, order);
   write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
   write_vector(contributions_spot, prefix + "contributions_spot" + FILENAME_ENDING, spot_names);
   if (false) {

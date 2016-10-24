@@ -33,9 +33,14 @@ void write_matrix(const M &m, const std::string &path,
                   = std::vector<std::string>(),
                   const std::vector<std::string> &col_names
                   = std::vector<std::string>(),
+                  std::vector<size_t> col_order = std::vector<size_t>(),
                   const std::string &separator = "\t") {
   size_t X = m.n_rows;
   size_t Y = m.n_cols;
+
+  if (col_order.empty())
+    for (size_t y = 0; y < Y; ++y)
+      col_order.push_back(y);
 
   bool row_names_given = not row_names.empty();
   bool col_names_given = not col_names.empty();
@@ -54,17 +59,23 @@ void write_matrix(const M &m, const std::string &path,
           + ") does not match number of cols (" + std::to_string(Y) + ")."));
   }
 
+  if (col_order.size() != Y)
+    throw(std::runtime_error("Error: length of column order index vector ("
+                             + std::to_string(col_order.size())
+                             + ") does not match number of cols ("
+                             + std::to_string(Y) + ")."));
+
   std::ofstream ofs(path);
   if (col_names_given) {
     for (size_t y = 0; y < Y; ++y)
-      ofs << separator << col_names[y];
+      ofs << separator << col_names[col_order[y]];
     ofs << '\n';
   }
   for (size_t x = 0; x < X; ++x) {
     if (row_names_given)
       ofs << row_names[x] + separator;
     for (size_t y = 0; y < Y; ++y)
-      ofs << (y != 0 ? separator : "") << m(x, y);
+      ofs << (y != 0 ? separator : "") << m(x, col_order[y]);
     ofs << '\n';
   }
 }

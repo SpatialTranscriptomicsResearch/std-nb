@@ -77,4 +77,31 @@ T logSumExp(T a, T b) {
 
 std::vector<std::string> form_factor_names(size_t n);
 
+template <typename V, typename M>
+V colSums(const M &m) {
+  const size_t X = m.n_rows;
+  const size_t Y = m.n_cols;
+  V v(Y);
+  for (size_t y = 0; y < Y; ++y)
+    v[y] = 0;
+  for (size_t y = 0; y < Y; ++y)
+    for (size_t x = 0; x < X; ++x)
+      v[y] += m(x, y);
+  return v;
+}
+
+template <typename V, typename M>
+V rowSums(const M &m) {
+  const size_t X = m.n_rows;
+  const size_t Y = m.n_cols;
+  V v(X);
+  for (size_t x = 0; x < X; ++x)
+    v[x] = 0;
+  for (size_t x = 0; x < X; ++x)
+    for (size_t y = 0; y < Y; ++y)
+      v[x] += m(x, y);
+  return v;
+}
+
+
 #endif
