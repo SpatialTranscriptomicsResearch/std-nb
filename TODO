@@ -195,3 +195,8 @@ Try out modified posteriors for baseline features. Pretend there are no local fe
 
 It might be beneficial even in single-experiment mode to have local feature baselines.
 So perhaps it might be preferable to deactivate the global features for single-experiment mode.
+
+Try out a momentum-enhanced Gibbs sampler.
+This would integrate the previous few Gibbs steps difference vectors.
+
+Re-introduce experiment scaling (integrate with spot scaling)
