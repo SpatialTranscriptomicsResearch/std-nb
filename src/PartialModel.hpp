@@ -13,7 +13,6 @@ namespace PoissonFactorization {
 namespace Partial {
 
 const Float phi_scaling = 1.0;
-const Float sigma = 1; // length scale for field
 
 enum class Variable { Feature, Mix, Spot, Experiment };
 
@@ -221,6 +220,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
   }
   */
 
+  const Float sigma = parameters.hyperparameters.sigma;
   // LOG(info) << "Convolving.";
   Matrix observed(dim1, dim2, arma::fill::zeros);
   Matrix explained(dim1, dim2, arma::fill::zeros);

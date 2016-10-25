@@ -11,7 +11,7 @@ struct Hyperparameters {
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,
                   Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
                   Float theta_p_2_ = 0.95, Float spot_a_ = 10,
-                  Float spot_b_ = 10, Float alpha_ = 0.5)
+                  Float spot_b_ = 10, Float alpha_ = 0.5, Float sigma_ = 1)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
         phi_p_1(phi_p_1_),
@@ -22,7 +22,8 @@ struct Hyperparameters {
         theta_p_2(theta_p_2_),
         spot_a(spot_a_),
         spot_b(spot_b_),
-        alpha(alpha_){};
+        alpha(alpha_),
+        sigma(sigma_){};
 
   // priors for the gamma distribution of r[g][t]
   // Float c0;
@@ -48,6 +49,9 @@ struct Hyperparameters {
   Float spot_b;
 
   Float alpha;
+
+  // characteristic length-scale for field
+  Float sigma;
 };
 
 struct Parameters {

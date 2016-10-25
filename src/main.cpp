@@ -259,7 +259,9 @@ int main(int argc, char **argv) {
     ("spot_1", po::value(&parameters.hyperparameters.spot_a)->default_value(parameters.hyperparameters.spot_a),
      "Gamma prior 1 of the spot scaling parameter.")
     ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
-     "Gamma prior 2 of the spot scaling parameter.");
+     "Gamma prior 2 of the spot scaling parameter.")
+    ("sigma", po::value(&parameters.hyperparameters.sigma)->default_value(parameters.hyperparameters.sigma),
+     "Sigma parameter for field characteristic length scale.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
