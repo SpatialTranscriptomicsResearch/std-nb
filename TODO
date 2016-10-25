@@ -34,38 +34,38 @@
 * use faster method for sampling from the Poisson distribution
 * bring back statistical summary printing for vectors
 * templatize scaling variables
-* evaluate log-normal poisson rate modeling
+* evaluate log-normal Poisson rate modeling
 * differential expression analysis
 * check the Dirichlet posteriors
-  - done! the feature side is as in that publication; the mixing side is different but ultimately analogous; I haven't written this down yet
+  - done! The feature side is as in that publication; the mixing side is different but ultimately analogous; I haven't written this down yet
 * analysis script:
   - create barplots for expected reads explained, aside from expected spots explained;
   - also break-down experiment-wise
   - aside from basing on theta, also consider using the assigned contributions
-    o do this across iterations, for each in decreasing order (because of non-identifiability due to exchangability!), coloring the first say in red, the last in black to see whether (and if so, how long) there change in the distribution
+    > do this across iterations, for each in decreasing order (because of non-identifiability due to exchangeability!), coloring the first say in red, the last in black to see whether (and if so, how long) there change in the distribution
 
 implement t1, t2, g1, g2, s1, s2 to set limits for sampling
 
 * experiment-constant factors?
 * what would be simpler than this is factors that are zero in the other samples, otherwise free
 
-hierarchical dirichlet features
+Hierarchical Dirichlet features
 a two-level hierarchy
 
-when sampling a novel type (i.e. one that isn't already present in the global hierarchy) then sample a dirichlet-multinomial as dirichlet prior for it, with a similar scaling as the initial factors
+When sampling a novel type (i.e. one that isn't already present in the global hierarchy) then sample a Dirichlet-multinomial as Dirichlet prior for it, with a similar scaling as the initial factors
 currently, the nHDP results in trees with a lot of weight on a single branch; it would be good to get more balanced trees instead!
-it would be possible to sample multionomially for all counts of a gene in a spot
-Kmeans: use a gaussian mixture approach, rather than 'hard' K-means
+It would be possible to sample multinomially for all counts of a gene in a spot
+Kmeans: use a Gaussian mixture approach, rather than 'hard' K-means
 
-do bagged updates
-consider re-setting the mixing counts from time to time
+Do bagged updates
+Consider re-setting the mixing counts from time to time
 
-consider performing a dirichlet process in which the observations are count vectors
+Consider performing a Dirichlet process in which the observations are count vectors
 implement the HDP
 
-drop template-based approach in favor of inheritance
+Drop template-based approach in favor of inheritance
 
-* is it possible to benefit even more from sparcity? consider non-zero values; this might make various things faster
+* is it possible to benefit even more from sparsity? Consider non-zero values; this might make various things faster
 
 less important:
 * collect log-likelihoods and write to file
@@ -76,7 +76,7 @@ less important:
 * write probabilistic unit tests for sampling routines
 * consider using HDF5 for IO
 * test possible benefits of JIT compiling with fixed G, S, T
-  - the speed-up was marginal in a manual test it went from 2:05 min to 2:00 (round about...). unfortunately I forgot whether I used all or only the top 1000 genes; some speed-ups only become apparent with more parameters!
+  - the speed-up was marginal in a manual test it went from 2:05 min to 2:00 (round about...). Unfortunately, I forgot whether I used all or only the top 1000 genes; some speed-ups only become apparent with more parameters!
 * use profile-generate / profile-use gcc flags
 * enforcing medians as alternative to means
 
@@ -84,9 +84,9 @@ less important:
  -> percentiles: 0%, 5%, 25%, 50%, 75%, 95%, 100%
  -> mean and variance
 
-if gamma mixture proportions are used then the spot scaling should probably be deactivated
+If gamma mixture proportions are used then the spot scaling should probably be deactivated
 
-feature-side hierarchy:
+Feature-side hierarchy:
 basically, introduce a plate for gene, type, and experiment.
 Let it's structure be identical to that of the gene and type plate.
 I.e. then we have \lambda_{gst} = \phi_{gt} \phi_{gte} \theta{st} \sigma{s} maybe times \sigma{e}
@@ -102,7 +102,7 @@ Like that it would be possible for the theta priors to share information across 
 
 The same generalized beta prime / compound gamma distributions could be used to sample the 2nd prior of the mixing weights as is used for the 2nd prior of the mixing components.
 
-Ressurect:
+Resurrect:
  * experiment-specific phi prior estimation
  * experiment scaling
 
@@ -122,7 +122,7 @@ Write DGE analysis code
 Verify the implementation of the experiment-dependent baseline feature
 i.e.: lamba_gst = phi_gt global_phi_gt experiment_phi_g theta_st sigma_s
 
-Re-implent dirichlet features and mixing weights
+Re-implement Dirichlet features and mixing weights
 
 Modularize calling modes:
  * only global
@@ -138,15 +138,15 @@ Simplify template boiler plate code by contracting; i.e. form a template struct 
 
 It might be good to test for each effective local factor, whether or not it would fit better to other global factors
 
-add a baseline mixing weight factor?
+Add a baseline mixing weight factor?
  * what would be the benefit of that?
    - it would improve likelihood by pushing shared local regulation into the baseline rather than in each of the factor mixing weights.
    - apart from complicated implications on the mixing rate, this should not change much how the weighted theta matrices look
    - one could certainly try doing dim red on matrices that leave out the local baseline weights; but since each experiment's sample factor activity distribution around the baseline might differ due to shifting cell type composition entropy, it's unfortunately also unclear how much this might be of benefit for dimensionality reduction
-then, what about global mixing weights?
+Then, what about global mixing weights?
 Global baseline feature
 
-ensure that global_theta_prior is off when using dirichlet mixtures; similarly actually for all theta priors
+Ensure that global_theta_prior is off when using Dirichlet mixtures; similarly actually for all theta priors
 
 Add a sampling mode for the end, in which the theta values are randomized, and then contributions and theta values are updated iteratively.
 This would be done multiple times, and the resulting theta matrix reported.
@@ -157,10 +157,10 @@ Feature hierarchy: tree
 
 Perhaps such tree-shaped feature hierarchies might live in global scope, and one would keep the hierarchical experiment-local feature structure
 
-global baseline feature?
-sets of features with different priors; ones in which genes can be switched off, and other with broad support
+Global baseline feature?
+Sets of features with different priors; ones in which genes can be switched off, and other with broad support
 
-reconsider order of sampling steps in Experiment.
+Reconsider order of sampling steps in Experiment.
 Could have:
 0. baseline prior
 1. baseline
@@ -177,18 +177,21 @@ Alternatively:
 4. phi
 Up to now baseline was last, and by moving it forward perhaps its dynamics might be accelerated.
 
-Reconsider using expected values of contributions instead of a gibbs sample
+Reconsider using expected values of contributions instead of a Gibbs sample
 
 Reset experiments
 
-field models
+Field models
  * difference of log gammas of neighbors as pairwise energy term
  * maybe kernel-based weighted sums over neighborhood's observations and explanation is exactly the way to bring this into a gamma-based formalism
 
-write out vectors in the same format as matrices - i.e. give a column name
+Write out vectors in the same format as matrices - i.e. give a column name
 
-add global feature updates to experiment resetting
+Add global feature updates to experiment resetting
 
 Vectorize the sampling routines to simplify parallelization logic and to thus even out parallel work loads
 
-Try out modified posteriors for baseline features. Pretend there are no local features...
+Try out modified posteriors for baseline features. Pretend there are no local features... -> branch greedy_baseline
+
+It might be beneficial even in single-experiment mode to have local feature baselines.
+So perhaps it might be preferable to deactivate the global features for single-experiment mode.
