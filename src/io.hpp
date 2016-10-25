@@ -68,7 +68,9 @@ void write_matrix(const M &m, const std::string &path,
   std::ofstream ofs(path);
   if (col_names_given) {
     for (size_t y = 0; y < Y; ++y)
-      ofs << separator << col_names[col_order[y]];
+      // TODO decide if the old behavior might be preferable
+      // ofs << separator << col_names[col_order[y]];
+      ofs << separator << col_names[y];
     ofs << '\n';
   }
   for (size_t x = 0; x < X; ++x) {
