@@ -13,6 +13,7 @@ namespace PoissonFactorization {
 namespace Partial {
 
 const Float phi_scaling = 1.0;
+const Float sigma = 1; // length scale for field
 
 enum class Variable { Feature, Mix, Spot, Experiment };
 
@@ -177,6 +178,24 @@ template <>
 double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
     size_t t) const;
 
+template <typename T>
+std::pair<T, T> split_on_x(const std::string &s) {
+  auto iter = s.find("x");
+  T a = atof(s.substr(0, iter).c_str());
+  T b = atof(s.substr(iter + 1).c_str());
+  // LOG(info) << "split " << s << " " << a << " x " << b;
+  return {a, b};
+}
+
+template <typename T>
+T sq_distance(const std::string &a, const std::string &b) {
+  auto x = split_on_x<double>(a);
+  auto y = split_on_x<double>(b);
+  T first = x.first - y.first;
+  T second = x.second - y.second;
+  return first * first + second * second;
+}
+
 /** sample theta */
 template <>
 template <typename Experiment, typename... Args>
@@ -186,17 +205,57 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 
   const auto intensities = experiment.marginalize_genes(args...);
 
-  Matrix observed(dim1, dim2);
+  // LOG(info) << "Computing distances.";
+  Matrix d(dim1, dim1);
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s)
-    for (size_t t = 0; t < dim2; ++t)
-      observed(s, t) = prior.r[t] + experiment.contributions_spot_type(s, t);
+  for (size_t s1 = 0; s1 < dim1; ++s1)
+    for (size_t s2 = 0; s2 < dim1; ++s2)
+      d(s1, s2) = sq_distance<double>(experiment.data.col_names[s1],
+                                      experiment.data.col_names[s2]);
 
-  Matrix explained(dim1, dim2);
+  /*
+  for (size_t s1 = 0; s1 < 10; ++s1) {
+    for (size_t s2 = 0; s2 < 10; ++s2)
+      std::cout << "\t" << d(s1, s2);
+    std::cout << std::endl;
+  }
+  */
+
+  // LOG(info) << "Convolving.";
+  Matrix observed(dim1, dim2, arma::fill::zeros);
+  Matrix explained(dim1, dim2, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s1 = 0; s1 < dim1; ++s1) {
+    Float z = 0;
+    Vector v(dim1);
+    for (size_t s2 = 0; s2 < dim1; ++s2)
+      z += v[s2]
+          = 1 / sqrt(2 * M_PI) / sigma * exp(-d(s1, s2) / (2 * sigma * sigma));
+    if (z > 0) {
+      for (size_t s2 = 0; s2 < dim1; ++s2)
+        v[s2] /= z;
+      for (size_t t = 0; t < dim2; ++t)
+        for (size_t s2 = 0; s2 < dim1; ++s2) {
+          observed(s2, t) += v[s2] * experiment.contributions_spot_type(s1, t);
+          double x = v[s2] * intensities[t] * experiment.spot[s1];
+          if(s1 != s2)
+            x *= matrix(s1, t);
+          explained(s2, t) += x;
+        }
+    }
+  }
+// LOG(info) << "Done convolving.";
+
+// Matrix observed(dim1, dim2);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
     for (size_t t = 0; t < dim2; ++t)
-      explained(s, t) = prior.p[t] + intensities[t] * experiment.spot[s];
+      observed(s, t) += prior.r[t];
+
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < dim1; ++s)
+    for (size_t t = 0; t < dim2; ++t)
+      explained(s, t) += prior.p[t]; // + intensities[t] * experiment.spot[s];
 
   perform_sampling(observed, explained, matrix);
 
