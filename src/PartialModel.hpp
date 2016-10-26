@@ -188,12 +188,11 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 
   const auto intensities = experiment.marginalize_genes(args...);
 
-  Matrix observed(dim1, dim2, arma::fill::zeros);
-  Matrix explained(dim1, dim2, arma::fill::zeros);
-
   if (convolve) {
     // TODO use vector / matrix expressions
     // explained = experiment.kernel % (intensities * experiment.transpose);
+    Matrix observed(dim1, dim2, arma::fill::zeros);
+    Matrix explained(dim1, dim2, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s1 = 0; s1 < dim1; ++s1)
       for (size_t t = 0; t < dim2; ++t)
@@ -206,17 +205,18 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
             x *= matrix(s2, t);
           explained(s1, t) += x;
         }
-  } else {
-    observed = experiment.contributions_spot_type;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s)
-      for (size_t t = 0; t < dim2; ++t)
-        explained(s, t) += intensities[t] * experiment.spot[s];
+    explained.each_row() += prior.p.t();
+    observed.each_row() += prior.r.t();
+    perform_sampling(observed, explained, matrix);
   }
-  observed.each_row() += prior.r.t();
-  explained.each_row() += prior.p.t();
 
-  perform_sampling(observed, explained, matrix);
+  Matrix observed = experiment.contributions_spot_type;
+  Matrix explained = matrix % (experiment.spot * intensities.t());
+  explained.each_row() += prior.p.t();
+  observed.each_row() += prior.r.t();
+  Matrix m(dim1, dim2);
+  perform_sampling(observed, explained, m);
+  matrix %= m;
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
