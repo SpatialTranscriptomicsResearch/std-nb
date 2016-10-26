@@ -185,6 +185,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const bool convolve = true;
+  const double FACTOR = 100;
 
   const auto intensities = experiment.marginalize_genes(args...);
 
@@ -200,23 +201,30 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
         for (size_t s2 = 0; s2 < dim1; ++s2) {
           const Float kernel = experiment.kernel(s2, s1);
           observed(s1, t) += kernel * experiment.contributions_spot_type(s2, t);
-          double x = kernel * intensities[t] * experiment.spot[s2];
-          if (s1 != s2)
-            x *= matrix(s2, t);
-          explained(s1, t) += x;
+          explained(s1, t) += kernel * intensities[t] * experiment.spot[s2]
+                              * (s1 == s2 ? 1 : matrix(s2, t));
         }
-    explained.each_row() += prior.p.t();
     observed.each_row() += prior.r.t();
+    explained.each_row() += prior.p.t();
     perform_sampling(observed, explained, matrix);
   }
 
   Matrix observed = experiment.contributions_spot_type;
-  Matrix explained = matrix % (experiment.spot * intensities.t());
-  explained.each_row() += prior.p.t();
-  observed.each_row() += prior.r.t();
+  Matrix explained = experiment.spot * intensities.t();
+  if (convolve) {
+    explained %= matrix;
+    observed += FACTOR;
+    explained += FACTOR;
+  } else {
+    observed.each_row() += prior.r.t();
+    explained.each_row() += prior.p.t();
+  }
   Matrix m(dim1, dim2);
   perform_sampling(observed, explained, m);
-  matrix %= m;
+  if (convolve)
+    matrix %= m;
+  else
+    matrix = m;
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
