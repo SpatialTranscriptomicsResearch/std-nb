@@ -197,6 +197,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
     for (size_t s1 = 0; s1 < dim1; ++s1) {
       Float z = 0;
       Vector v(dim1);
+      // TODO compute only once
       for (size_t s2 = 0; s2 < dim1; ++s2)
         z += v[s2] = 1 / sqrt(2 * M_PI) / sigma
                      * exp(-experiment.distances(s1, s2) / (2 * sigma * sigma));
@@ -204,6 +205,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
         for (size_t s2 = 0; s2 < dim1; ++s2)
           v[s2] /= z;
         for (size_t t = 0; t < dim2; ++t)
+          // TODO only respect the relevant neighbors
           for (size_t s2 = 0; s2 < dim1; ++s2) {
             observed(s2, t)
                 += v[s2] * experiment.contributions_spot_type(s1, t);

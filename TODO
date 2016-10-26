@@ -199,4 +199,6 @@ So perhaps it might be preferable to deactivate the global features for single-e
 Try out a momentum-enhanced Gibbs sampler.
 This would integrate the previous few Gibbs steps difference vectors.
 
-Re-introduce experiment scaling (integrate with spot scaling)
+Re-introduce experiment scaling (integrate with spot scaling).
+
+Put a prior on the characteristic length-scale and sample from it's posterior if possible - otherwise do Metropolis-Hastings.
