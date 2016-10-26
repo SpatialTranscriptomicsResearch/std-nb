@@ -6,6 +6,7 @@
 #include <unordered_map>
 #include "compression.hpp"
 #include "io.hpp"
+#include "parallel.hpp"
 
 const bool counts_debugging = false;
 
@@ -208,4 +209,31 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
     data.select_top(top);
 
   return data.split_experiments();
+}
+
+template <typename T>
+std::pair<T, T> split_on_x(const std::string &s) {
+  auto iter = s.find("x");
+  T a = atof(s.substr(0, iter).c_str());
+  T b = atof(s.substr(iter + 1).c_str());
+  // LOG(info) << "split " << s << " " << a << " x " << b;
+  return {a, b};
+}
+
+double sq_distance(const std::string &a, const std::string &b) {
+  auto x = split_on_x<double>(a);
+  auto y = split_on_x<double>(b);
+  double first = x.first - y.first;
+  double second = x.second - y.second;
+  return first * first + second * second;
+}
+
+Matrix Counts::compute_distances() const {
+  size_t n = counts.n_cols;
+  Matrix d(n, n, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t i = 0; i < n; ++i)
+    for (size_t j = i + 1; j < n; ++j)
+      d(i, j) = d(j, i) = sq_distance(col_names[i], col_names[j]);
+  return d;
 }

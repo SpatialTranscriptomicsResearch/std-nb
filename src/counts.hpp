@@ -21,6 +21,12 @@ struct Counts {
   Counts &operator=(const Counts &other);
   void select_top(size_t n);
   std::vector<Counts> split_experiments() const;
+  /**
+   * Function assumes the column names are of the form "AxB" with A and B
+   * positive integers. It then computes the matrix of pairwise squared
+   * Euclidean distances.
+   */
+  PoissonFactorization::Matrix compute_distances() const;
 };
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
