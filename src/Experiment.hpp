@@ -23,7 +23,7 @@ struct Experiment {
   using weights_t = typename Type::weights_t;
 
   Counts data;
-  Matrix distances;
+  Matrix kernel;
 
   /** number of genes */
   size_t G;
@@ -138,7 +138,8 @@ template <typename Type>
 Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
                              const Parameters &parameters_)
     : data(data_),
-      distances(data.compute_distances()),
+      kernel(row_normalize(apply_kernel(data.compute_distances(),
+                                        parameters_.hyperparameters.sigma))),
       G(data.counts.n_rows),
       S(data.counts.n_cols),
       T(T_),

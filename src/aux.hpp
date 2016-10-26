@@ -103,5 +103,4 @@ V rowSums(const M &m) {
   return v;
 }
 
-
 #endif

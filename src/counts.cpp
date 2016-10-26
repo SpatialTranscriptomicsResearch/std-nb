@@ -8,8 +8,6 @@
 #include "io.hpp"
 #include "parallel.hpp"
 
-const bool counts_debugging = false;
-
 using namespace std;
 namespace PF = PoissonFactorization;
 using Int = PF::Int;
@@ -216,7 +214,6 @@ std::pair<T, T> split_on_x(const std::string &s) {
   auto iter = s.find("x");
   T a = atof(s.substr(0, iter).c_str());
   T b = atof(s.substr(iter + 1).c_str());
-  // LOG(info) << "split " << s << " " << a << " x " << b;
   return {a, b};
 }
 
@@ -236,4 +233,19 @@ Matrix Counts::compute_distances() const {
     for (size_t j = i + 1; j < n; ++j)
       d(i, j) = d(j, i) = sq_distance(col_names[i], col_names[j]);
   return d;
+}
+
+template <typename T>
+void do_normalize(T &v) {
+  double z = 0;
+  for (auto x : v)
+    z += x;
+  if (z > 0)
+    for (auto &x : v)
+      x /= z;
+}
+
+Matrix row_normalize(Matrix m) {
+  m.each_row(do_normalize<arma::Row<double>>);
+  return m;
 }

@@ -185,7 +185,6 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const bool convolve = true;
-  const Float sigma = parameters.hyperparameters.sigma;
 
   const auto intensities = experiment.marginalize_genes(args...);
 
@@ -193,47 +192,29 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
   Matrix explained(dim1, dim2, arma::fill::zeros);
 
   if (convolve) {
+    // TODO use vector / matrix expressions
+    // explained = experiment.kernel % (intensities * experiment.transpose);
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s1 = 0; s1 < dim1; ++s1) {
-      Float z = 0;
-      Vector v(dim1);
-      // TODO compute only once
-      for (size_t s2 = 0; s2 < dim1; ++s2)
-        z += v[s2] = 1 / sqrt(2 * M_PI) / sigma
-                     * exp(-experiment.distances(s1, s2) / (2 * sigma * sigma));
-      if (z > 0) {
-        for (size_t s2 = 0; s2 < dim1; ++s2)
-          v[s2] /= z;
-        for (size_t t = 0; t < dim2; ++t)
-          // TODO only respect the relevant neighbors
-          for (size_t s2 = 0; s2 < dim1; ++s2) {
-            observed(s2, t)
-                += v[s2] * experiment.contributions_spot_type(s1, t);
-            double x = v[s2] * intensities[t] * experiment.spot[s1];
-            if (s1 != s2)
-              x *= matrix(s1, t);
-            explained(s2, t) += x;
-          }
-      }
-    }
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s)
+    for (size_t s1 = 0; s1 < dim1; ++s1)
       for (size_t t = 0; t < dim2; ++t)
-        observed(s, t) += prior.r[t];
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s)
-      for (size_t t = 0; t < dim2; ++t)
-        explained(s, t) += prior.p[t];
+        // TODO only respect the relevant neighbors
+        for (size_t s2 = 0; s2 < dim1; ++s2) {
+          const Float kernel = experiment.kernel(s2, s1);
+          observed(s1, t) += kernel * experiment.contributions_spot_type(s2, t);
+          double x = kernel * intensities[t] * experiment.spot[s2];
+          if (s1 != s2)
+            x *= matrix(s2, t);
+          explained(s1, t) += x;
+        }
   } else {
+    observed = experiment.contributions_spot_type;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < dim1; ++s)
       for (size_t t = 0; t < dim2; ++t)
-        observed(s, t) += prior.r[t] + experiment.contributions_spot_type(s, t);
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < dim1; ++s)
-      for (size_t t = 0; t < dim2; ++t)
-        explained(s, t) += prior.p[t] + intensities[t] * experiment.spot[s];
+        explained(s, t) += intensities[t] * experiment.spot[s];
   }
+  observed.each_row() += prior.r.t();
+  explained.each_row() += prior.p.t();
 
   perform_sampling(observed, explained, matrix);
 

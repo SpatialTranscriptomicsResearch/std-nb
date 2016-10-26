@@ -32,4 +32,12 @@ struct Counts {
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
                               bool intersect, size_t top);
 
+template <typename T>
+T apply_kernel(T m, double sigma) {
+  return 1 / sqrt(2 * M_PI) / sigma * exp(-m / (2 * sigma * sigma));
+}
+
+PoissonFactorization::Matrix row_normalize(
+    PoissonFactorization::Matrix m_);
+
 #endif
