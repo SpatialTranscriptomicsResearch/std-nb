@@ -71,6 +71,10 @@ struct Model {
   template <typename Experiment, typename... Args>
   void sample(const Experiment &experiment, const Args &... args);
 
+  template <typename Experiment, typename... Args>
+  void sample_field(const Experiment &experiment, Matrix &field,
+                    const Args &... args);
+
   std::string gen_path_stem(const std::string &prefix) const {
     return prefix + to_lower(to_string(variable) + "-" + to_string(kind));
   };
@@ -180,8 +184,8 @@ double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
 /** sample theta */
 template <>
 template <typename Experiment, typename... Args>
-void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
-                                                   const Args &... args) {
+void Model<Variable::Mix, Kind::HierGamma>::sample_field(
+    const Experiment &experiment, Matrix &field, const Args &... args) {
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const bool convolve = true;
@@ -202,29 +206,26 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
           const Float kernel = experiment.kernel(s2, s1);
           observed(s1, t) += kernel * experiment.contributions_spot_type(s2, t);
           explained(s1, t) += kernel * intensities[t] * experiment.spot[s2]
-                              * (s1 == s2 ? 1 : matrix(s2, t));
+                              * (s1 == s2 ? 1 : field(s2, t));
         }
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();
-    perform_sampling(observed, explained, matrix);
+    perform_sampling(observed, explained, field);
   }
 
   Matrix observed = experiment.contributions_spot_type;
   Matrix explained = experiment.spot * intensities.t();
   if (convolve) {
-    explained %= matrix;
+    explained %= field;
     observed += FACTOR;
     explained += FACTOR;
   } else {
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();
   }
-  Matrix m(dim1, dim2);
-  perform_sampling(observed, explained, m);
+  perform_sampling(observed, explained, matrix);
   if (convolve)
-    matrix %= m;
-  else
-    matrix = m;
+    matrix %= field;
 
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s)
@@ -235,9 +236,9 @@ void Model<Variable::Mix, Kind::HierGamma>::sample(const Experiment &experiment,
 
 template <>
 template <typename Experiment, typename... Args>
-void Model<Variable::Mix, Kind::Dirichlet>::sample(const Experiment &experiment,
-                                                   const Args &... args
-                                                   __attribute__((unused))) {
+void Model<Variable::Mix, Kind::Dirichlet>::sample_field(
+    const Experiment &experiment, Matrix &field __attribute__((unused)),
+    const Args &... args __attribute__((unused))) {
   // TODO needs written-down proof; it's analogous to the case for the features
   LOG(verbose) << "Sampling Θ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)

@@ -44,6 +44,7 @@ struct Experiment {
 
   /** factor score matrix */
   weights_t weights;
+  Matrix field;
 
   /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
    * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
@@ -151,6 +152,7 @@ Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
+      field(S, T, arma::fill::ones),
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
@@ -290,7 +292,7 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
   }
 
   if (parameters.targeted(Target::theta))
-    weights.sample(*this, global_phi);
+    weights.sample_field(*this, field, global_phi);
 
   if (parameters.targeted(Target::phi_prior_local))
     // TODO FIXME make this work!
