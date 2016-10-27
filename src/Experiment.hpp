@@ -222,6 +222,11 @@ void Experiment<Type>::store(const std::string &prefix,
   write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING, spot_names);
   write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, spot_names, factor_names, order);
   write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
+  auto phi_marginal = marginalize_genes(global_features.matrix);
+  auto f = field;
+  f.each_row() %= phi_marginal.t();
+  f.each_col() %= spot;
+  write_matrix(f, prefix + "expected-field" + FILENAME_ENDING, spot_names, factor_names, order);
   if (parameters.store_lambda)
     write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot" + FILENAME_ENDING, gene_names, spot_names);
   write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names, order);
