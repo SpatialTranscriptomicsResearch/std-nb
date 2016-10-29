@@ -210,19 +210,32 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
 }
 
 template <typename T>
-std::pair<T, T> split_on_x(const std::string &s) {
-  auto iter = s.find("x");
-  T a = atof(s.substr(0, iter).c_str());
-  T b = atof(s.substr(iter + 1).c_str());
-  return {a, b};
+vector<T> split_on_x(const string &s, const std::string &token = "x") {
+  vector<T> v;
+  size_t last_pos = 0;
+  while (true) {
+    auto pos = s.find(token, last_pos);
+    if (pos != string::npos) {
+      v.push_back(atof(s.substr(last_pos, pos - last_pos).c_str()));
+    } else {
+      v.push_back(atof(s.substr(last_pos).c_str()));
+      break;
+    }
+    last_pos = pos + 1;
+  }
+  return v;
 }
 
-double sq_distance(const std::string &a, const std::string &b) {
+double sq_distance(const string &a, const string &b) {
   auto x = split_on_x<double>(a);
   auto y = split_on_x<double>(b);
-  double first = x.first - y.first;
-  double second = x.second - y.second;
-  return first * first + second * second;
+  const size_t n = x.size();
+  double d = 0;
+  for (size_t i = 0; i < n; ++i) {
+    double z = x[i] - y[i];
+    d += z * z;
+  }
+  return d;
 }
 
 Matrix Counts::compute_distances() const {
