@@ -398,8 +398,8 @@ template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   LOG(verbose) << "Sampling contributions";
-  contributions_gene_type = Matrix(G, T, arma::fill::zeros);
-  contributions_spot_type = Matrix(S, T, arma::fill::zeros);
+  contributions_gene_type.fill(1);
+  contributions_spot_type.fill(1);
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
@@ -426,8 +426,9 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
                                                 Matrix &contrib_spot_type) {
   std::vector<double> rel_rate(T);
   double z = 0;
-  // NOTE: in principle, lambda(g,s,t) is proportional to spot(s).
-  // However, this term would cancel. Thus, we don't respect it here.
+  // NOTE: in principle, lambda(g,s,t) is proportional to the baseline feature
+  // and the spot scaling. However, these terms would cancel. Thus, we don't
+  // respect them here.
   for (size_t t = 0; t < T; ++t)
     z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)

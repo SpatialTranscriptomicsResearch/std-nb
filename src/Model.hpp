@@ -292,6 +292,7 @@ void Model<Type>::add_experiment(const Counts &counts) {
   parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
   parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
   experiments.push_back({counts, T, experiment_parameters});
+  // TODO check redundancy with Experiment constructor
   experiments.rbegin()->features.matrix.fill(1);
   experiments.rbegin()->features.prior.r.fill(local_phi_scaling_factor);
   experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
