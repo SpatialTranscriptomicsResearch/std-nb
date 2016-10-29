@@ -342,7 +342,7 @@ double Experiment<Type>::log_likelihood_poisson_counts() const {
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot(s);
+      double rate = lambda_gene_spot(g, s) * spot(s) * baseline_phi(g);
       auto cur = log_poisson(data.counts(g, s), rate);
       if (std::isinf(cur) or std::isnan(cur))
         LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
@@ -359,7 +359,7 @@ Matrix Experiment<Type>::posterior_expectations_poisson() const {
   Matrix m(G, S);
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
-      m(g, s) = lambda_gene_spot(g, s) * spot(s);
+      m(g, s) = lambda_gene_spot(g, s) * spot(s) * baseline_phi(g);
   return m;
 }
 
