@@ -208,6 +208,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
           explained(s1, t) += kernel * intensities[t] * experiment.spot[s2]
                               * (s1 == s2 ? 1 : field(s2, t));
         }
+    // TODO the prior of the fields needs to be updated properly
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();
     perform_sampling(observed, explained, field);
