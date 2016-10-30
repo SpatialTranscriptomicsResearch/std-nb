@@ -94,14 +94,41 @@ struct Model {
 
 template <typename Type, typename Res>
 void perform_sampling(const Type &observed, const Type &explained, Res &m) {
+  const bool overrelaxed = true;
 #pragma omp parallel if (DO_PARALLEL)
   {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t x = 0; x < observed.n_elem; ++x)
-      // NOTE: gamma_distribution takes a shape and scale parameter
-      m[x] = std::gamma_distribution<Float>(
-          observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
+      if (not overrelaxed) {
+        // NOTE: gamma_distribution takes a shape and scale parameter
+        m[x] = std::gamma_distribution<Float>(
+            observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
+      } else {
+        double u = gamma_cdf(m[x], observed[x], 1.0 * explained[x]);
+        const size_t K = 20;  // TODO introduce CLI switch
+        double u_prime = u;
+        size_t r = std::binomial_distribution<size_t>(
+            K, u)(EntropySource::rngs[thread_num]);
+        if (r > K - r)
+          u_prime = u * sample_beta<Float>(K - r + 1, 2 * r - K,
+                                           EntropySource::rngs[thread_num]);
+        else if (r < K - r)
+          u_prime
+              = 1
+                - (1 - u) * sample_beta<Float>(r + 1, K - 2 * r,
+                                               EntropySource::rngs[thread_num]);
+        u_prime = 0.5 + (u_prime - 0.5) * 0.95;
+        /*
+        double prev = m[x];
+        std::cerr << prev << " " << observed[x] << " " << explained[x] << " "
+                  << u << " " << u_prime << " -> " << std::flush;
+                  */
+        m[x] = inverse_gamma_cdf(u_prime, observed[x], 1.0 * explained[x]);
+        /*
+        std::cerr << m[x] << std::endl;
+        */
+      }
   }
 }
 
