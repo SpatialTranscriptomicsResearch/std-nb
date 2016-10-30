@@ -13,7 +13,7 @@ struct Counts {
          const std::vector<std::string> &exp_names);
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
-  PoissonFactorization::IMatrix counts;
+  PoissonFactorization::IMatrix counts; // TODO rename to matrix
   std::vector<size_t> experiments;
   std::vector<std::string> experiment_names;
   Counts operator+(const Counts &other) const;
@@ -31,6 +31,9 @@ struct Counts {
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
                               bool intersect, size_t top);
+
+void gene_union(std::vector<Counts> &counts_v);
+void gene_intersection(std::vector<Counts> &counts_v);
 
 template <typename T>
 T apply_kernel(T m, double sigma) {

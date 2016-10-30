@@ -4,8 +4,10 @@
 #include <exception>
 #include <fstream>
 #include <unordered_map>
+#include "aux.hpp"
 #include "compression.hpp"
 #include "io.hpp"
+#include "log.hpp"
 #include "parallel.hpp"
 
 using namespace std;
@@ -192,21 +194,115 @@ vector<Counts> Counts::split_experiments() const {
   return split_counts;
 }
 
+void select_top(std::vector<Counts> &counts_v, size_t top) {
+  if (top == 0 or counts_v.empty() or counts_v[0].row_names.size() <= top)
+    return;
+  LOG(verbose) << "Selecting top " << top;
+
+  Vector gene_sums = rowSums<Vector>(counts_v[0].counts);
+  for (size_t i = 1; i < counts_v.size(); ++i)
+    gene_sums += rowSums<Vector>(counts_v[i].counts);
+
+  const size_t G = gene_sums.n_elem;
+
+  vector<size_t> order(G);
+  iota(begin(order), end(order), 0);
+  sort(begin(order), end(order), [&gene_sums](size_t a, size_t b) {
+    return gene_sums(a) > gene_sums(b);
+  });
+  order.resize(top);
+
+  vector<string> names;
+  for (auto &o : order)
+    names.push_back(counts_v[0].row_names[o]);
+
+  for (auto &counts : counts_v) {
+    const size_t T = counts.counts.n_cols;
+    IMatrix m(top, T, arma::fill::zeros);
+    for (size_t i = 0; i < top; ++i)
+      m.row(i) = counts.counts.row(order[i]);
+    counts.counts = m;
+    counts.row_names = names;
+  }
+}
+
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
                          size_t top) {
-  if (paths.empty())
-    return {};
-  Counts data(paths[0]);
-  for (size_t i = 1; i < paths.size(); ++i)
+  if (false) {
+    if (paths.empty())
+      return {};
+    Counts data(paths[0]);
+    for (size_t i = 1; i < paths.size(); ++i)
+      if (intersect)
+        data = data * Counts(paths[i]);
+      else
+        data = data + Counts(paths[i]);
+
+    if (top > 0)
+      data.select_top(top);
+
+    return data.split_experiments();
+  } else {
+    vector<Counts> counts_v;
+    for (auto &path : paths) {
+      LOG(verbose) << "Loading " << path;
+      counts_v.push_back(Counts({path}));
+    }
+
     if (intersect)
-      data = data * Counts(paths[i]);
+      gene_intersection(counts_v);
     else
-      data = data + Counts(paths[i]);
+      gene_union(counts_v);
 
-  if (top > 0)
-    data.select_top(top);
+    select_top(counts_v, top);
 
-  return data.split_experiments();
+    LOG(verbose) << "Done loading";
+    return counts_v;
+  }
+}
+
+template <typename Fnc>
+void match_genes(std::vector<Counts> &counts_v, Fnc fnc) {
+  LOG(verbose) << "Matching genes";
+  unordered_map<string, size_t> present;
+  for (auto &counts : counts_v)
+    for (auto &name : counts.row_names)
+      present[name]++;
+
+  vector<string> selected;
+  for (auto &entry : present)
+    if (fnc(entry.second))
+      selected.push_back(entry.first);
+
+  const size_t G = selected.size();
+
+  sort(begin(selected), end(selected));
+
+  unordered_map<string, size_t> gene_map;
+  for (size_t g = 0; g < G; ++g)
+    gene_map[selected[g]] = g;
+
+  for (auto &counts : counts_v) {
+    const size_t H = counts.counts.n_rows;
+    const size_t S = counts.counts.n_cols;
+    IMatrix new_counts(G, S, arma::fill::zeros);
+    for (size_t h = 0; h < H; ++h) {
+      auto iter = gene_map.find(counts.row_names[h]);
+      if (iter != end(gene_map))
+        new_counts.row(iter->second) = counts.counts.row(h);
+    }
+    counts.counts = new_counts;
+    counts.row_names = selected;
+  }
+}
+
+void gene_union(std::vector<Counts> &counts_v) {
+  match_genes(counts_v, [](size_t x) { return x > 0; });
+}
+
+void gene_intersection(std::vector<Counts> &counts_v) {
+  const size_t n = counts_v.size();
+  match_genes(counts_v, [n](size_t x) { return x == n; });
 }
 
 template <typename T>
