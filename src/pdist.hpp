@@ -70,4 +70,7 @@ double log_generalized_beta_prime(double x, double alpha, double beta,
 double log_dirichlet(const std::vector<double> &p,
                      const std::vector<double> &alpha);
 
+double gamma_cdf(double x, double shape, double scale);
+double inverse_gamma_cdf(double p, double shape, double scale);
+
 #endif

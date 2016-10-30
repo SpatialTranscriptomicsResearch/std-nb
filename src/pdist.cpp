@@ -1,4 +1,5 @@
 #include "pdist.hpp"
+#include <boost/math/special_functions/gamma.hpp>
 #include <cmath>
 #include <iostream>
 
@@ -67,4 +68,12 @@ double log_generalized_beta_prime(double x, double alpha, double beta,
                                   double q) {
   return (alpha - 1) * log(x / q) - (alpha + beta) * log(1 + x / q) - log(q)
          + lgamma(alpha + beta) - lgamma(alpha) - lgamma(beta);
+}
+
+double gamma_cdf(double x, double shape, double scale) {
+  return boost::math::gamma_p(shape, scale * x);
+}
+
+double inverse_gamma_cdf(double p, double shape, double scale) {
+  return boost::math::gamma_p_inv(shape, p) / scale;
 }

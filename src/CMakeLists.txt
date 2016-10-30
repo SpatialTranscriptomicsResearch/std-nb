@@ -17,6 +17,8 @@ ADD_EXECUTABLE(multiScoop-bin main.cpp cli.cpp entropy.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp entropy.cpp)
 SET_TARGET_PROPERTIES(multiScoop-bin PROPERTIES OUTPUT_NAME multiScoop)
 
+ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp pdist.cpp entropy.cpp)
+
 TARGET_LINK_LIBRARIES(multiScoop
   m
   -L${Boost_LIBRARY_DIRS}
