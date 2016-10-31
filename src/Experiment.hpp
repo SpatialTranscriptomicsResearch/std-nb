@@ -23,7 +23,6 @@ struct Experiment {
   using weights_t = typename Type::weights_t;
 
   Counts data;
-  Matrix kernel;
   Matrix coords;
 
   /** number of genes */
@@ -140,8 +139,6 @@ template <typename Type>
 Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
                              const Parameters &parameters_)
     : data(data_),
-      kernel(row_normalize(apply_kernel(data.compute_distances(),
-                                        parameters_.hyperparameters.sigma))),
       coords(data.parse_coords()),
       G(data.counts.n_rows),
       S(data.counts.n_cols),
@@ -285,6 +282,9 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
     if (parameters.targeted(Target::contributions))
       sample_contributions(global_phi);
 
+  if (parameters.targeted(Target::theta))
+    weights.sample_field(*this, field, global_phi);
+
   // TODO add baseline prior
 
   if (parameters.targeted(Target::baseline))
@@ -298,9 +298,6 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
         feature_matrix(g, t) *= baseline_phi(g);
     weights.prior.sample(feature_matrix, contributions_spot_type, spot);
   }
-
-  if (parameters.targeted(Target::theta))
-    weights.sample_field(*this, field, global_phi);
 
   if (parameters.targeted(Target::phi_prior_local))
     // TODO FIXME make this work!

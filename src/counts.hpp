@@ -35,6 +35,11 @@ T apply_kernel(T m, double sigma) {
   return 1 / sqrt(2 * M_PI) / sigma * exp(-m / (2 * sigma * sigma));
 }
 
+// compute squared Euclidean distances between all pairs of rows of a and b
+PoissonFactorization::Matrix compute_sq_distances(
+    const PoissonFactorization::Matrix &a,
+    const PoissonFactorization::Matrix &b);
+
 PoissonFactorization::Matrix row_normalize(
     PoissonFactorization::Matrix m_);
 

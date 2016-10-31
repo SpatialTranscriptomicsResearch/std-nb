@@ -223,27 +223,6 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
 
   const auto intensities = experiment.marginalize_genes(args...);
 
-  if (convolve) {
-    // TODO use vector / matrix expressions
-    // explained = experiment.kernel % (intensities * experiment.transpose);
-    Matrix observed(dim1, dim2, arma::fill::zeros);
-    Matrix explained(dim1, dim2, arma::fill::zeros);
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s1 = 0; s1 < dim1; ++s1)
-      for (size_t t = 0; t < dim2; ++t)
-        // TODO only respect the relevant neighbors
-        for (size_t s2 = 0; s2 < dim1; ++s2) {
-          const Float kernel = experiment.kernel(s2, s1);
-          observed(s1, t) += kernel * experiment.contributions_spot_type(s2, t);
-          explained(s1, t) += kernel * intensities[t] * experiment.spot[s2]
-                              * (s1 == s2 ? 1 : field(s2, t));
-        }
-    // TODO the prior of the fields needs to be updated properly
-    observed.each_row() += prior.r.t();
-    explained.each_row() += prior.p.t();
-    perform_sampling(observed, explained, field, parameters.over_relax);
-  }
-
   Matrix observed = experiment.contributions_spot_type;
   Matrix explained = experiment.spot * intensities.t();
   if (convolve) {

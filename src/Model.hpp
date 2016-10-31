@@ -1,6 +1,7 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
+#include <map>
 #include "Experiment.hpp"
 
 namespace PoissonFactorization {
@@ -33,6 +34,12 @@ struct Model {
   /** factor loading matrix */
   features_t features;
   // TODO consider weights_t global_weights;
+  struct CoordinateSystem {
+    // std::vector<Matrix> coords;
+    std::vector<size_t> members;
+  };
+  std::vector<CoordinateSystem> coordinate_systems;
+  std::map<std::pair<size_t, size_t>, Matrix> kernels;
 
   typename weights_t::prior_type mix_prior;
 
@@ -50,6 +57,7 @@ struct Model {
   void gibbs_sample(const std::vector<size_t> &which_experiments);
 
   void sample_global_theta_priors();
+  void sample_fields();
 
   double log_likelihood() const;
   double log_likelihood_poisson_counts() const;
@@ -65,7 +73,8 @@ struct Model {
   Matrix expected_gene_type() const;
 
   void update_contributions();
-  void add_experiment(const Counts &data);
+  void update_kernels();
+  void add_experiment(const Counts &data, size_t coord_sys);
 };
 
 template <typename Type>
@@ -90,7 +99,7 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
                    const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
-      E(c.size()),
+      E(0),
       experiments(),
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
@@ -99,7 +108,7 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   for (auto &counts : c)
-    add_experiment(counts);
+    add_experiment(counts, 0);
   update_contributions();
 
   // TODO move this code into the classes for prior and features
@@ -110,6 +119,47 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
 
   if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
+
+  update_kernels();
+}
+
+template <typename Type>
+void Model<Type>::update_kernels() {
+  LOG(debug) << "Updating kernels";
+  for (auto &coordinate_system : coordinate_systems)
+    for (auto e1 : coordinate_system.members) {
+      for (auto e2 : coordinate_system.members)
+        kernels[{e1, e2}]
+            = apply_kernel(compute_sq_distances(experiments[e1].coords,
+                                                experiments[e2].coords),
+                           parameters.hyperparameters.sigma);
+    }
+
+  LOG(debug) << "Updating kernels 2";
+  // row normalize
+  // TODO check should we do column normalization?
+  for (auto &coordinate_system : coordinate_systems)
+    if (true)
+      for (auto e1 : coordinate_system.members) {
+        Vector z(experiments[e1].S, arma::fill::zeros);
+        for (auto e2 : coordinate_system.members)
+          z += rowSums<Vector>(kernels[{e1, e2}]);
+        for (auto e2 : coordinate_system.members)
+          kernels[{e1, e2}].each_col() /= z;
+      }
+    else
+      for (auto e2 : coordinate_system.members) {
+        Vector z(experiments[e2].S, arma::fill::zeros);
+        for (auto e1 : coordinate_system.members)
+          z += colSums<Vector>(kernels[{e1, e2}]);
+        for (auto e1 : coordinate_system.members)
+          kernels[{e1, e2}].each_row() /= z.t();
+      }
+  for (auto &kernel : kernels)
+    LOG(debug) << "Kernel " << kernel.first.first << " " << kernel.first.second
+               << std::endl
+               << kernel.second;
+  LOG(debug) << "Updating kernels 3";
 }
 
 template <typename V>
@@ -183,11 +233,57 @@ void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
   if (parameters.targeted(Target::phi))
     features.sample(*this);
 
+  // if (parameters.targeted(Target::field)) // add this to Target
+  sample_fields();
+
   for (auto &experiment : experiments)
     experiment.gibbs_sample(features.matrix);
   // TODO consider as alternative
   // for (auto &exp_idx : which_experiments)
   //   experiments[exp_idx].gibbs_sample(features.matrix);
+}
+
+template <typename Type>
+void Model<Type>::sample_fields() {
+  LOG(verbose) << "Sampling fields";
+  std::vector<Matrix> observed;
+  std::vector<Matrix> explained;
+  for (size_t e = 0; e < E; ++e) {
+    observed.push_back(
+        Matrix(experiments[e].S, experiments[e].T, arma::fill::zeros));
+    explained.push_back(
+        Matrix(experiments[e].S, experiments[e].T, arma::fill::zeros));
+  }
+
+  for (auto &coordinate_system : coordinate_systems)
+    for (auto e2 : coordinate_system.members) {
+      const auto intensities
+          = experiments[e2].marginalize_genes(features.matrix);
+#pragma omp parallel for if (DO_PARALLEL)
+      for (size_t t = 0; t < T; ++t)
+        for (auto e1 : coordinate_system.members) {
+          const auto &kernel = kernels.find({e1, e2})->second;
+          for (size_t s2 = 0; s2 < experiments[e2].S; ++s2) {
+            for (size_t s1 = 0; s1 < experiments[e1].S; ++s1) {
+              const Float w = kernel(s1, s2);
+              observed[e1](s1, t)
+                  += w * experiments[e2].contributions_spot_type(s2, t);
+              explained[e1](s1, t)
+                  += w * intensities[t] * experiments[e2].spot[s2]
+                     * (e1 == e2 and s1 == s2 ? 1
+                                              : experiments[e2].field(s2, t));
+            }
+          }
+        }
+    }
+
+  for (size_t e = 0; e < E; ++e) {
+    LOG(verbose) << "Sampling field for experiment " << e;
+    observed[e].each_row() += experiments[e].weights.prior.r.t();
+    explained[e].each_row() += experiments[e].weights.prior.p.t();
+    Partial::perform_sampling(observed[e], explained[e], experiments[e].field,
+                              parameters.over_relax);
+  }
 }
 
 template <typename Type>
@@ -285,17 +381,21 @@ void Model<Type>::update_contributions() {
 }
 
 template <typename Type>
-void Model<Type>::add_experiment(const Counts &counts) {
+void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
   Parameters experiment_parameters = parameters;
   parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
   parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
   parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
   parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
   experiments.push_back({counts, T, experiment_parameters});
+  E++;
   // TODO check redundancy with Experiment constructor
   experiments.rbegin()->features.matrix.fill(1);
   experiments.rbegin()->features.prior.r.fill(local_phi_scaling_factor);
   experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
+  while(coordinate_systems.size() <= coord_sys)
+    coordinate_systems.push_back({});
+  coordinate_systems[coord_sys].members.push_back(E-1);
 }
 
 template <typename Type>

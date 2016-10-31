@@ -213,3 +213,5 @@ Also: multi-thread!
 
 A GUI gimmick showing current activities
 -> this could also generate plots
+
+reactivate Dirichlet mixtures (need to fix the field posterior reliance on that type)

@@ -196,6 +196,18 @@ void do_normalize(T &v) {
       x /= z;
 }
 
+Matrix compute_sq_distances(const Matrix &a, const Matrix &b) {
+  assert(a.n_cols == b.n_cols);
+  Matrix m(a.n_rows, b.n_rows, arma::fill::zeros);
+  for (size_t i = 0; i < a.n_rows; ++i)
+    for (size_t j = 0; j < b.n_rows; ++j)
+      for (size_t k = 0; k < a.n_cols; ++k) {
+        const double x = a(i, k) - b(j, k);
+        m(i, j) += x * x;
+      }
+  return m;
+}
+
 Matrix row_normalize(Matrix m) {
   m.each_row(do_normalize<arma::Row<double>>);
   return m;
