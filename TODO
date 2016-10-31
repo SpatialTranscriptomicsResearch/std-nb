@@ -214,4 +214,21 @@ Also: multi-thread!
 A GUI gimmick showing current activities
 -> this could also generate plots
 
-reactivate Dirichlet mixtures (need to fix the field posterior reliance on that type)
+Reactivate Dirichlet mixtures (need to fix the field posterior reliance on that type)
+
+CLI capabilities to specify shared coordinate systems.
+E.g. based on spot names a:23x22x0
+Alternatively, or in combination with that: path prefixes, e.g. a:path.tsv, potentially even a:+0.5:path.tsv to specify both a coordinate system and a z-offset
+As a bonus, when multiple samples are specified, one could use an automatic z-offset.
+Furthermore, linear transforms might also be a nice thing
+
+Predict field on a cube.
+
+Investigate the likelihood riddle further.
+Certainly, the missing field contribution is partly to blame.
+But this issue is older than the fields.
+
+Merging and splitting could be well compatible with underlying factors.
+E.g. in the multiple binary contrast setting, one might consider flipping the membership of factors
+
+Need a tool to construct and visualize iso surfaces
