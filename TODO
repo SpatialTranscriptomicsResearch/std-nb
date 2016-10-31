@@ -203,9 +203,9 @@ Re-introduce experiment scaling (integrate with spot scaling).
 
 Put a prior on the characteristic length-scale and sample from it's posterior if possible - otherwise do Metropolis-Hastings.
 
-Use one shared, not gene-dependent feature prior
+Use one shared, not gene-dependent feature prior.
 
-Try setting higher prior vales to the local weights than to the baseline
+Try setting higher prior values to the local weights than to the baseline.
 
 Make loading more memory efficient: don't constantly re-allocate.
 Perhaps first do a scan for the names, and then load them all in place?

@@ -47,6 +47,10 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "baseline";
       first = false;
     }
+    if (flagged(which & Target::field)) {
+      os << (first ? "" : ",") << "field";
+      first = false;
+    }
   }
   return os;
 }
@@ -82,6 +86,8 @@ istream &operator>>(istream &is, Target &which) {
       which = which | Target::spot;
     else if (token == "baseline")
       which = which | Target::baseline;
+    else if (token == "field")
+      which = which | Target::field;
     else
       throw(runtime_error("Unknown sampling token: " + token));
   }

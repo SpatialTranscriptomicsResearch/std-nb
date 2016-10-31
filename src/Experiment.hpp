@@ -151,7 +151,7 @@ Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
-      field(S, T, arma::fill::ones),
+      field(parameters.targeted(Target::field) ? Matrix(S, T, arma::fill::ones) : Matrix(0, 0)),
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;

@@ -120,7 +120,8 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
   if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
 
-  update_kernels();
+  if (parameters.targeted(Target::field))
+    update_kernels();
 }
 
 template <typename Type>
@@ -233,8 +234,8 @@ void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
   if (parameters.targeted(Target::phi))
     features.sample(*this);
 
-  // if (parameters.targeted(Target::field)) // add this to Target
-  sample_fields();
+  if (parameters.targeted(Target::field))
+    sample_fields();
 
   for (auto &experiment : experiments)
     experiment.gibbs_sample(features.matrix);

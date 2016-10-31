@@ -218,7 +218,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
     const Experiment &experiment, Matrix &field, const Args &... args) {
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
-  const bool convolve = true;
+  const bool convolve = parameters.targeted(Target::field);
   const double FACTOR = 100;
 
   const auto intensities = experiment.marginalize_genes(args...);
