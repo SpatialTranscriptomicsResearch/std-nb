@@ -21,6 +21,7 @@ struct Counts {
    * Euclidean distances.
    */
   PoissonFactorization::Matrix compute_distances() const;
+  PoissonFactorization::Matrix parse_coords() const;
 };
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,

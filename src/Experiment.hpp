@@ -24,6 +24,7 @@ struct Experiment {
 
   Counts data;
   Matrix kernel;
+  Matrix coords;
 
   /** number of genes */
   size_t G;
@@ -141,6 +142,7 @@ Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
     : data(data_),
       kernel(row_normalize(apply_kernel(data.compute_distances(),
                                         parameters_.hyperparameters.sigma))),
+      coords(data.parse_coords()),
       G(data.counts.n_rows),
       S(data.counts.n_cols),
       T(T_),
@@ -166,6 +168,7 @@ if (false) {
   sample_contributions(c.counts);
 }
 */
+  LOG(debug) << "Coords: " << coords;
 
 // initialize contributions_spot
 //  TODO use initializer list together with a sums and a colSums function

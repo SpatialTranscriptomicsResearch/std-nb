@@ -173,6 +173,19 @@ Matrix Counts::compute_distances() const {
   return d;
 }
 
+Matrix Counts::parse_coords() const {
+  if(counts.n_rows == 0)
+    return Matrix(0, 0);
+  const size_t n = split_on_x<double>(col_names[0]).size();
+  Matrix coords(counts.n_cols, n);
+  for(size_t i = 0; i < counts.n_cols; ++i) {
+    auto coord = split_on_x<double>(col_names[i]);
+    for(size_t j = 0; j < n; ++j)
+      coords(i,j) = coord[j];
+  }
+  return coords;
+}
+
 template <typename T>
 void do_normalize(T &v) {
   double z = 0;
