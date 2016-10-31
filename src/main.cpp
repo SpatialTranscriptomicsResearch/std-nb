@@ -203,6 +203,8 @@ int main(int argc, char **argv) {
      "Interval for reporting the parameters.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("overrelax", po::bool_switch(&parameters.over_relax),
+     "Perform overrelaxation. See arXiv:bayes-an/9506004.")
     ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
      "Perform pairwise comparisons between all factors in each experiment.")
     ("stochastic", po::bool_switch(&options.stochastic_gibbs),

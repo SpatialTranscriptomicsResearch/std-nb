@@ -484,7 +484,8 @@ void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
     observed(g) = prior1 + contributions_gene[g];
   Vector explained = prior2 + explained_gene(global_phi);
 
-  Partial::perform_sampling(observed, explained, baseline_feature.matrix);
+  Partial::perform_sampling(observed, explained, baseline_feature.matrix,
+                            parameters.over_relax);
 }
 
 template <typename Type>

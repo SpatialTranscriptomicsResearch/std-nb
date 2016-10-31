@@ -87,7 +87,7 @@ size_t max_row_number(const std::vector<Counts> &c) {
 
 template <typename Type>
 Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
-                const Parameters &parameters_)
+                   const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
       E(c.size()),

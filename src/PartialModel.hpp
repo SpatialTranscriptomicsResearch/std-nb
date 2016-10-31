@@ -93,18 +93,20 @@ struct Model {
 };
 
 template <typename Type, typename Res>
-void perform_sampling(const Type &observed, const Type &explained, Res &m) {
-  const bool overrelaxed = true;
+void perform_sampling(const Type &observed, const Type &explained, Res &m,
+                      bool over_relax) {
 #pragma omp parallel if (DO_PARALLEL)
   {
     const size_t thread_num = omp_get_thread_num();
+    if (not over_relax) {
 #pragma omp for
-    for (size_t x = 0; x < observed.n_elem; ++x)
-      if (not overrelaxed) {
+      for (size_t x = 0; x < observed.n_elem; ++x)
         // NOTE: gamma_distribution takes a shape and scale parameter
         m[x] = std::gamma_distribution<Float>(
             observed[x], 1.0 / explained[x])(EntropySource::rngs[thread_num]);
-      } else {
+    } else {
+#pragma omp for
+      for (size_t x = 0; x < observed.n_elem; ++x) {
         double u = gamma_cdf(m[x], observed[x], 1.0 * explained[x]);
         const size_t K = 20;  // TODO introduce CLI switch
         double u_prime = u;
@@ -129,6 +131,7 @@ void perform_sampling(const Type &observed, const Type &explained, Res &m) {
         std::cerr << m[x] << std::endl;
         */
       }
+    }
   }
 }
 
@@ -164,7 +167,7 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
   Matrix observed = prior.r + experiment.contributions_gene_type;
   Matrix explained = prior.p + experiment.explained_gene_type(args...);
 
-  perform_sampling(observed, explained, matrix);
+  perform_sampling(observed, explained, matrix, parameters.over_relax);
 }
 
 /* TODO reactivate
@@ -238,7 +241,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
     // TODO the prior of the fields needs to be updated properly
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();
-    perform_sampling(observed, explained, field);
+    perform_sampling(observed, explained, field, parameters.over_relax);
   }
 
   Matrix observed = experiment.contributions_spot_type;
@@ -251,7 +254,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();
   }
-  perform_sampling(observed, explained, matrix);
+  perform_sampling(observed, explained, matrix, parameters.over_relax);
   if (convolve)
     matrix %= field;
 

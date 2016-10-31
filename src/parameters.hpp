@@ -64,6 +64,7 @@ struct Parameters {
    * anything else is the given number of iterations
    */
   size_t enforce_iter = 10;
+  bool over_relax = false;
   bool phi_prior_maximum_likelihood = false;
   bool respect_phi_prior_likelihood = false;
   bool respect_theta_prior_likelihood = false;
