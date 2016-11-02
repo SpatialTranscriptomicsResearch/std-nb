@@ -103,4 +103,6 @@ V rowSums(const M &m) {
   return v;
 }
 
+std::vector<size_t> random_order(size_t n);
+
 #endif
