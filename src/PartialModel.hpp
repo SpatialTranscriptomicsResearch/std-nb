@@ -107,7 +107,8 @@ void perform_sampling(const Type &observed, const Type &explained, Res &m,
     } else {
 #pragma omp for
       for (size_t x = 0; x < observed.n_elem; ++x) {
-        double u = gamma_cdf(m[x], observed[x], 1.0 * explained[x]);
+        // NOTE: gamma_cdf takes a shape and scale parameter
+        double u = gamma_cdf(m[x], observed[x], 1.0 / explained[x]);
         const size_t K = 20;  // TODO introduce CLI switch
         double u_prime = u;
         size_t r = std::binomial_distribution<size_t>(
@@ -126,7 +127,9 @@ void perform_sampling(const Type &observed, const Type &explained, Res &m,
         std::cerr << prev << " " << observed[x] << " " << explained[x] << " "
                   << u << " " << u_prime << " -> " << std::flush;
                   */
-        m[x] = inverse_gamma_cdf(u_prime, observed[x], 1.0 * explained[x]);
+
+        // NOTE: inverse_gamma_cdf takes a shape and scale parameter
+        m[x] = inverse_gamma_cdf(u_prime, observed[x], 1.0 / explained[x]);
         /*
         std::cerr << m[x] << std::endl;
         */

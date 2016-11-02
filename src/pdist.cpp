@@ -71,9 +71,9 @@ double log_generalized_beta_prime(double x, double alpha, double beta,
 }
 
 double gamma_cdf(double x, double shape, double scale) {
-  return boost::math::gamma_p(shape, x * scale);
+  return boost::math::gamma_p(shape, x / scale);
 }
 
 double inverse_gamma_cdf(double p, double shape, double scale) {
-  return boost::math::gamma_p_inv(shape, p) / scale;
+  return boost::math::gamma_p_inv(shape, p) * scale;
 }
