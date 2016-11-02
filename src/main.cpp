@@ -29,6 +29,7 @@ struct Options {
   bool compute_likelihood = false;
   bool no_local_gene_expression = false;
   bool sample_local_phi_priors = false;
+  bool share_coord_sys = false;
   bool perform_pairwise_dge = false;
   bool stochastic_gibbs = false;
   size_t top = 0;
@@ -102,7 +103,9 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                             const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
   Moments<T> moments(options.num_warm_up,
-                     options.num_warm_up >= 0 ? pfa : T({}, 0, pfa.parameters));
+                     options.num_warm_up >= 0
+                         ? pfa
+                         : T({}, 0, pfa.parameters, options.share_coord_sys));
   std::vector<size_t> which_experiments;
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
@@ -221,6 +224,8 @@ int main(int argc, char **argv) {
      "Respect the likelihood contributions of the mixture priors.")
     ("expcont", po::bool_switch(&parameters.expected_contributions),
      "Dont sample x_{gst} contributions, but use expected values instead.")
+    ("sharecoords", po::bool_switch(&options.share_coord_sys),
+     "Assume that the samples lie in the same coordinate system.")
     ("localphi", po::bool_switch(&options.sample_local_phi_priors),
      "Sample the local feature priors.")
     ("lambda", po::bool_switch(&parameters.store_lambda),
@@ -365,13 +370,15 @@ int main(int argc, char **argv) {
         /*
         case Kind::Dirichlet: {
           PF::Model<PF::ModelType<Kind::Gamma, Kind::Dirichlet>> pfa(
-              data_sets, options.num_factors, parameters);
+              data_sets, options.num_factors, parameters,
+              options.share_coord_sys);
           perform_gibbs_sampling(data_sets, pfa, options);
         } break;
         */
         case Kind::HierGamma: {
           PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(
-              data_sets, options.num_factors, parameters);
+              data_sets, options.num_factors, parameters,
+              options.share_coord_sys);
           perform_gibbs_sampling(data_sets, pfa, options);
         } break;
         default:

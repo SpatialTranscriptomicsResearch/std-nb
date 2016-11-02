@@ -44,7 +44,7 @@ struct Model {
   typename weights_t::prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, const size_t T,
-        const Parameters &parameters);
+        const Parameters &parameters, bool same_coord_sys);
   // TODO implement loading of Model
   // Model(const Counts &counts, const Paths &paths, const Parameters
   // &parameters);
@@ -96,7 +96,7 @@ size_t max_row_number(const std::vector<Counts> &c) {
 
 template <typename Type>
 Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
-                   const Parameters &parameters_)
+                   const Parameters &parameters_, bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
       E(0),
@@ -107,8 +107,9 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
       features(G, T, parameters),
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
+  size_t coord_sys = 0;
   for (auto &counts : c)
-    add_experiment(counts, 0);
+    add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
   // TODO move this code into the classes for prior and features
