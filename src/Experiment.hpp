@@ -478,9 +478,7 @@ void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
   // TODO add CLI switch
   const double prior1 = 50;
   const double prior2 = 50;
-  Vector observed(G, arma::fill::zeros);
-  for (size_t g = 0; g < G; ++g)
-    observed(g) = prior1 + contributions_gene[g];
+  Vector observed = prior1 + contributions_gene;
   Vector explained = prior2 + explained_gene(global_phi);
 
   Partial::perform_sampling(observed, explained, baseline_feature.matrix,
