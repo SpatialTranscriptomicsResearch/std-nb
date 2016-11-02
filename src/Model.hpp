@@ -250,11 +250,9 @@ void Model<Type>::sample_fields() {
   LOG(verbose) << "Sampling fields";
   std::vector<Matrix> observed;
   std::vector<Matrix> explained;
-  for (size_t e = 0; e < E; ++e) {
-    observed.push_back(
-        Matrix(experiments[e].S, experiments[e].T, arma::fill::zeros));
-    explained.push_back(
-        Matrix(experiments[e].S, experiments[e].T, arma::fill::zeros));
+  for (auto &experiment : experiments) {
+    observed.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
+    explained.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
   }
 
   for (auto &coordinate_system : coordinate_systems)
