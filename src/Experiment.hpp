@@ -90,9 +90,9 @@ struct Experiment {
   /** sample count decomposition */
   void sample_contributions(const Matrix &global_phi);
   /** sub-routine for count decomposition sampling */
-  void sample_contributions_sub(const Matrix &global_phi, size_t g, size_t s,
-                                RNG &rng, Matrix &contrib_gene_type,
-                                Matrix &contrib_spot_type);
+  double sample_contributions_sub(const Matrix &global_phi, size_t g, size_t s,
+                                  RNG &rng, Matrix &contrib_gene_type,
+                                  Matrix &contrib_spot_type) const;
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &global_phi);
@@ -408,9 +408,9 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
       for (size_t s = 0; s < S; ++s)
-        sample_contributions_sub(global_phi, g, s,
-                                 EntropySource::rngs[thread_num],
-                                 contrib_gene_type, contrib_spot_type);
+        lambda_gene_spot(g, s) = sample_contributions_sub(
+            global_phi, g, s, EntropySource::rngs[thread_num],
+            contrib_gene_type, contrib_spot_type);
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
@@ -420,10 +420,9 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
 }
 
 template <typename Type>
-void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
-                                                size_t g, size_t s, RNG &rng,
-                                                Matrix &contrib_gene_type,
-                                                Matrix &contrib_spot_type) {
+double Experiment<Type>::sample_contributions_sub(
+    const Matrix &global_phi, size_t g, size_t s, RNG &rng,
+    Matrix &contrib_gene_type, Matrix &contrib_spot_type) const {
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda(g,s,t) is proportional to the baseline feature
@@ -433,7 +432,6 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
     z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
-  lambda_gene_spot(g, s) = z;
   if (data.counts(g, s) > 0) {
     if (parameters.expected_contributions) {
       for (size_t t = 0; t < T; ++t) {
@@ -450,6 +448,7 @@ void Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
       }
     }
   }
+  return z;
 }
 
 /** sample spot scaling factors */
