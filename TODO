@@ -227,8 +227,47 @@ Predict field on a cube.
 Investigate the likelihood riddle further.
 Certainly, the missing field contribution is partly to blame.
 But this issue is older than the fields.
+* just checked the implementation of log_gamma and all it's calls - and the implementation and handling of the 2nd argument seem to be all correct
+* need to check the calls of gamma_distribution, too
+* another thing: the p prior (the 2nd argument) in our case is mostly a negative odds... i'll need to check that it is used correctly in sampling, and likelihood calculation
+* does it have to do with how that p prior is used?
+The global feature log likelihood decreases because the values become larger
 
 Merging and splitting could be well compatible with underlying factors.
 E.g. in the multiple binary contrast setting, one might consider flipping the membership of factors
 
 Need a tool to construct and visualize iso surfaces
+
+Why does usage of fields aparrently entail that weak factors stay away from zero? See below.
+
+The fact that the feature and mixing realizations of the have different sample function types indicates that the two might perhaps best be served with different classes, although possibly derived from the same base type
+
+The problem with the decreasing global feature likelihood seems to be mostly solved (there appears to be some marginal, slow decrease of the global feature likelihood, but it seems to be simultaneously with an equally slow increase of the data likelihood; over all the joint log posterior is perhaps still decreasing but not by much - this all with 20 factors on one data set with the top 1000 genes)
+Seems the problem was really caused by the wrong initialization of the contributions_gene_type and contributions_spot_type; as there are unequal numbers of spots and genes they get unequal treameant in the marginalization for the gibbs sampling of the other.
+
+What remains to resolve is the problem of the non-vanishing tail of the factor activity distribution, see the factor activity barplot.
+This should be analyzed with
+multiScoop --localthetapriors -t 20 -v --top 1000 --sample contributions,phi,theta,theta_prior
+or some thing like that.
+(-> feature hierarchy does not seem to have this problem - not true?)
+The number of genes used is definitely of importance! For top 1000 genes there is only a linear decrease, but it seems if more genes are used then there is also a much reduced base line.
+However, the fields do make a difference... without fields on all genes the tail does vanish; using fields on all genes it doesn't
+
+Also, the results seem to be of rather bad quality with
+multiScoop -t 20 -v --top 1000 --sample contributions,phi,theta
+check wether this has to do with initialization
+-> also seems to be the case for feature hierarchy
+
+Both above problems (non-vanishing tails and weird quality) seem to be preserved with either of the CLI switches --localthetapriors and with also sampling gene priors.
+
+Generally, problems should be analyzed in a minimal setting, i.e. with
+multiScoop -t 20 --localthetapriors -v --top 1000 --sample contributions,phi,theta
+
+
+
+Try out to inherit the patrial models from Matrix
+
+
+Profile once in a while
+
+Put in warning / fix always putting samples in a joint coordinate system
