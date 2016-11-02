@@ -398,8 +398,8 @@ template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   LOG(verbose) << "Sampling contributions";
-  contributions_gene_type.fill(1);
-  contributions_spot_type.fill(1);
+  contributions_gene_type.fill(0);
+  contributions_spot_type.fill(0);
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
