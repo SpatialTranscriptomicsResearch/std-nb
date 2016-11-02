@@ -192,21 +192,22 @@ if (false) {
       spot(s) /= z;
   }
 
-  if (not parameters.targeted(Target::theta))
-    weights.matrix.fill(1);
+  if (not parameters.targeted(Target::phi_local))
+    features.matrix.fill(1);
 
   if (not parameters.targeted(Target::phi_prior_local)) {
     features.prior.r.fill(1);
     features.prior.p.fill(1);
   }
-  if (not parameters.targeted(Target::phi_local))
-    features.matrix.fill(1);
-
-  if (not parameters.targeted(Target::spot))
-    spot.fill(1);
 
   if (not parameters.targeted(Target::baseline))
     baseline_feature.matrix.fill(1);
+
+  if (not parameters.targeted(Target::theta))
+    weights.matrix.fill(1);
+
+  if (not parameters.targeted(Target::spot))
+    spot.fill(1);
 }
 
 template <typename Type>
