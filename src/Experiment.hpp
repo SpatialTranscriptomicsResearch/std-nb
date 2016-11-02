@@ -286,29 +286,47 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
   if (parameters.targeted(Target::theta))
     weights.sample_field(*this, field, global_phi);
 
-  // TODO add baseline prior
+  // TODO add CLI switch
+  auto order = random_order(5);
+  for (auto &o : order)
+    switch (o) {
+      case 0:
+        // TODO add baseline prior
+        if (parameters.targeted(Target::baseline))
+          sample_baseline(global_phi);
+        break;
 
-  if (parameters.targeted(Target::baseline))
-    sample_baseline(global_phi);
+      case 1:
+        if (parameters.targeted(Target::theta_prior)
+            and parameters.theta_local_priors) {
+          Matrix feature_matrix = features.matrix % global_phi;
+          // feature_matrix.each_col() *= baseline_feature.matrix.col(0);
+          for (size_t g = 0; g < G; ++g)
+            for (size_t t = 0; t < T; ++t)
+              feature_matrix(g, t) *= baseline_phi(g);
+          weights.prior.sample(feature_matrix, contributions_spot_type, spot);
+        }
+        break;
 
-  if (parameters.targeted(Target::theta_prior)
-      and parameters.theta_local_priors) {
-    Matrix feature_matrix = features.matrix % global_phi;
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        feature_matrix(g, t) *= baseline_phi(g);
-    weights.prior.sample(feature_matrix, contributions_spot_type, spot);
-  }
+      case 2:
+        if (parameters.targeted(Target::phi_prior_local))
+          // TODO FIXME make this work!
+          features.prior.sample_mh(*this, global_phi);
+        break;
 
-  if (parameters.targeted(Target::phi_prior_local))
-    // TODO FIXME make this work!
-    features.prior.sample_mh(*this, global_phi);
+      case 3:
+        if (parameters.targeted(Target::phi_local))
+          features.sample(*this, global_phi);
+        break;
 
-  if (parameters.targeted(Target::phi_local))
-    features.sample(*this, global_phi);
+      case 4:
+        if (parameters.targeted(Target::spot))
+          sample_spot(global_phi);
+        break;
 
-  if (parameters.targeted(Target::spot))
-    sample_spot(global_phi);
+      default:
+        break;
+    }
 }
 
 template <typename Type>

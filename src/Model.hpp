@@ -221,28 +221,40 @@ void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
     update_contributions();
   }
 
-  if (parameters.targeted(Target::theta_prior)
-      and not parameters.theta_local_priors)
-    sample_global_theta_priors();
+  // TODO add CLI switch
+  auto order = random_order(4);
+  for (auto &o : order)
+    switch (o) {
+      case 0:
+        if (parameters.targeted(Target::theta_prior)
+            and not parameters.theta_local_priors)
+          sample_global_theta_priors();
+        break;
 
-  // for (auto &experiment : experiments)
-  //   experiment.gibbs_sample(features.matrix);
-  // update_contributions();
+      case 1:
+        if (parameters.targeted(Target::phi_prior))
+          features.prior.sample_mh(*this);
+        break;
 
-  if (parameters.targeted(Target::phi_prior))
-    features.prior.sample_mh(*this);
+      case 2:
+        if (parameters.targeted(Target::phi))
+          features.sample(*this);
+        break;
 
-  if (parameters.targeted(Target::phi))
-    features.sample(*this);
+      case 3:
+        if (parameters.targeted(Target::field))
+          sample_fields();
 
-  if (parameters.targeted(Target::field))
-    sample_fields();
+        for (auto &experiment : experiments)
+          experiment.gibbs_sample(features.matrix);
+        // TODO consider as alternative
+        // for (auto &exp_idx : which_experiments)
+        //   experiments[exp_idx].gibbs_sample(features.matrix);
+        break;
 
-  for (auto &experiment : experiments)
-    experiment.gibbs_sample(features.matrix);
-  // TODO consider as alternative
-  // for (auto &exp_idx : which_experiments)
-  //   experiments[exp_idx].gibbs_sample(features.matrix);
+      default:
+        break;
+    }
 }
 
 template <typename Type>
