@@ -227,7 +227,7 @@ Predict field on a cube.
 Investigate the likelihood riddle further.
 Certainly, the missing field contribution is partly to blame.
 But this issue is older than the fields.
-* just checked the implementation of log_gamma and all it's calls - and the implementation and handling of the 2nd argument seem to be all correct
+* just checked the implementation of log_gamma and all its calls - and the implementation and handling of the 2nd argument seem to be all correct
 * need to check the calls of gamma_distribution, too
 * another thing: the p prior (the 2nd argument) in our case is mostly a negative odds... i'll need to check that it is used correctly in sampling, and likelihood calculation
 * does it have to do with how that p prior is used?
@@ -245,7 +245,7 @@ The fact that the feature and mixing realizations of the have different sample f
 The problem with the decreasing global feature likelihood seems to be mostly solved (there appears to be some marginal, slow decrease of the global feature likelihood, but it seems to be simultaneously with an equally slow increase of the data likelihood; over all the joint log posterior is perhaps still decreasing but not by much - this all with 20 factors on one data set with the top 1000 genes)
 Seems the problem was really caused by the wrong initialization of the contributions_gene_type and contributions_spot_type; as there are unequal numbers of spots and genes they get unequal treameant in the marginalization for the gibbs sampling of the other.
 
-What remains to resolve is the problem of the non-vanishing tail of the factor activity distribution, see the factor activity barplot.
+What remains to be resolved is the problem of the non-vanishing tail of the factor activity distribution, see the factor activity barplot.
 This should be analyzed with
 multiScoop --localthetapriors -t 20 -v --top 1000 --sample contributions,phi,theta,theta_prior
 or some thing like that.
@@ -265,9 +265,32 @@ multiScoop -t 20 --localthetapriors -v --top 1000 --sample contributions,phi,the
 
 
 
-Try out to inherit the patrial models from Matrix
+Try out to inherit the partial models from Matrix
 
 
 Profile once in a while
 
 Put in warning / fix always putting samples in a joint coordinate system
+
+For flipping factors, consider the following objective functions:
+ 1. sum of Kullbach-Leibler divergence between global and local profile
+ 2. likelihood-based; consider the number of gene-type attributed reads locally and globally
+In any case, some kind of procedure needs to be derived, as each factor can realistically be compared with each other in O(T^2), but we cannot test all assignments.
+ 1. Greedy: do the T^2, find the closest, link them, then proceed
+ 2. Only consider one factor per iteration
+   a. consider exchange with one other factor
+   a. consider exchange with all other factors
+It seems subtracting the local attributions from the global ones and re-attributing the possible link-candidate would favor shattering.
+
+
+Two avenues to think ahead:
+ * factor factorization
+ * local factor exchange
+
+Two things to urgently do:
+ 1. fields
+ (1.5 the above factor exchange - if working might polish up the last of the BC data glitches - although potentially they're real; yet again perhaps not since - while repeatedly observed - they're still appearing in an odd spatial patterns across the slices).
+ 2. filtering
+
+
+ Evaluate likelihood after contributions have been updated, not just at the end of the iteration since by that time the lambda_gst are outdated and don't fit with the updated spot scaling and feature baseline.
