@@ -107,6 +107,10 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
                          ? pfa
                          : T({}, 0, pfa.parameters, options.share_coord_sys));
   std::vector<size_t> which_experiments;
+
+  const size_t iteration_num_digits
+      = 1 + ceil(log(options.num_steps) / log(10));
+
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
     if (iteration == 1 or not options.stochastic_gibbs) {
@@ -122,7 +126,7 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
     if (iteration % options.report_interval == 0) {
       const string prefix
           = options.output + "iter"
-            + to_string_embedded(iteration, PF::EXPERIMENT_NUM_DIGITS) + "/";
+            + to_string_embedded(iteration, iteration_num_digits) + "/";
       if (boost::filesystem::create_directory(prefix)) {
         pfa.store(prefix);
         if (options.perform_pairwise_dge) {
