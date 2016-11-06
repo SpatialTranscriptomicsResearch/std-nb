@@ -106,7 +106,7 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
                          : T({}, 0, pfa.parameters, options.share_coord_sys));
 
   const size_t iteration_num_digits
-      = 1 + ceil(log(options.num_steps) / log(10));
+      = 1 + floor(log(options.num_steps) / log(10));
 
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
