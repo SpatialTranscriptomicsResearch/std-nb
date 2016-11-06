@@ -54,7 +54,9 @@ struct Model {
   void perform_local_dge(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(const std::vector<size_t> &which_experiments);
+  void gibbs_sample(bool report_likelihood);
+
+  void sample_contributions();
 
   void sample_global_theta_priors();
   void sample_fields();
@@ -214,12 +216,16 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
 }
 
 template <typename Type>
-void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
-  if (parameters.targeted(Target::contributions)) {
-    for (auto &exp_idx : which_experiments)
-      experiments[exp_idx].sample_contributions(features.matrix);
-    update_contributions();
-  }
+void Model<Type>::gibbs_sample(bool report_likelihood) {
+  if (parameters.targeted(Target::contributions))
+    sample_contributions();
+
+  if (report_likelihood) {
+      if (verbosity >= Verbosity::verbose)
+        LOG(info) << "Log-likelihood = " << log_likelihood();
+      else
+        LOG(info) << "Observed Log-likelihood = " << log_likelihood_poisson_counts();
+    }
 
   // TODO add CLI switch
   auto order = random_order(4);
@@ -247,14 +253,18 @@ void Model<Type>::gibbs_sample(const std::vector<size_t> &which_experiments) {
 
         for (auto &experiment : experiments)
           experiment.gibbs_sample(features.matrix);
-        // TODO consider as alternative
-        // for (auto &exp_idx : which_experiments)
-        //   experiments[exp_idx].gibbs_sample(features.matrix);
         break;
 
       default:
         break;
     }
+}
+
+template <typename Type>
+void Model<Type>::sample_contributions() {
+  for (auto &experiment: experiments)
+    experiment.sample_contributions(features.matrix);
+  update_contributions();
 }
 
 template <typename Type>

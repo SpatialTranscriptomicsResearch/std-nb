@@ -31,7 +31,6 @@ struct Options {
   bool sample_local_phi_priors = false;
   bool share_coord_sys = false;
   bool perform_pairwise_dge = false;
-  bool stochastic_gibbs = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -99,29 +98,20 @@ struct Moments {
 };
 
 template <typename T>
-void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
-                            const Options &options) {
+void perform_gibbs_sampling(T &pfa, const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
   Moments<T> moments(options.num_warm_up,
                      options.num_warm_up >= 0
                          ? pfa
                          : T({}, 0, pfa.parameters, options.share_coord_sys));
-  std::vector<size_t> which_experiments;
 
   const size_t iteration_num_digits
       = 1 + ceil(log(options.num_steps) / log(10));
 
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
-    if (iteration == 1 or not options.stochastic_gibbs) {
-      which_experiments.resize(data.size());
-      std::iota(begin(which_experiments), end(which_experiments), 0);
-    } else {
-      which_experiments.resize(1);
-      which_experiments[0] = std::uniform_int_distribution<size_t>(
-          0, data.size() - 1)(EntropySource::rng);
-    }
-    pfa.gibbs_sample(which_experiments);
+
+    pfa.gibbs_sample(options.compute_likelihood);
     LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       const string prefix
@@ -137,20 +127,15 @@ void perform_gibbs_sampling(const vector<Counts> &data, T &pfa,
         throw(std::runtime_error("Couldn't create directory " + prefix));
       }
     }
-
-    if (options.compute_likelihood) {
-      if (verbosity >= Verbosity::verbose) {
-        LOG(info) << "Log-likelihood = " << pfa.log_likelihood();
-      } else {
-        LOG(info) << "Observed Log-likelihood = " << pfa.log_likelihood_poisson_counts();
-      }
-    }
-
     moments.update(iteration, pfa);
   }
   moments.evaluate(options.output);
-  if (options.compute_likelihood)
+  if (options.compute_likelihood) {
+    pfa.sample_contributions();  // make sure that the lambda_gst are up to date
+    LOG(info) << "Final observed log-likelihood = "
+              << pfa.log_likelihood_poisson_counts();
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
+  }
   pfa.store(options.output);
   pfa.perform_local_dge(options.output);
   if (options.perform_pairwise_dge)
@@ -214,8 +199,6 @@ int main(int argc, char **argv) {
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
     ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
      "Perform pairwise comparisons between all factors in each experiment.")
-    ("stochastic", po::bool_switch(&options.stochastic_gibbs),
-     "Perform stochastic Gibbs sampling by sampling contributions only for one randomly selected experiement per iteration.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
     ("nolocal", po::bool_switch(&options.no_local_gene_expression),
@@ -354,12 +337,12 @@ int main(int argc, char **argv) {
         case Kind::Dirichlet: {
           PF::Model<Kind::Dirichlet, Kind::Dirichlet> pfa(
               data, options.num_factors, parameters);
-          perform_gibbs_sampling(data, pfa, options);
+          perform_gibbs_sampling(pfa, options);
         } break;
         case Kind::HierGamma: {
           PF::Model<Kind::Dirichlet, Kind::HierGamma> pfa(
               data_sets, options.num_factors, parameters);
-          perform_gibbs_sampling(data_sets, pfa, options);
+          perform_gibbs_sampling(pfa, options);
         } break;
         default:
           throw std::runtime_error("Error: Mixing type '"
@@ -376,14 +359,14 @@ int main(int argc, char **argv) {
           PF::Model<PF::ModelType<Kind::Gamma, Kind::Dirichlet>> pfa(
               data_sets, options.num_factors, parameters,
               options.share_coord_sys);
-          perform_gibbs_sampling(data_sets, pfa, options);
+          perform_gibbs_sampling(pfa, options);
         } break;
         */
         case Kind::HierGamma: {
           PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(
               data_sets, options.num_factors, parameters,
               options.share_coord_sys);
-          perform_gibbs_sampling(data_sets, pfa, options);
+          perform_gibbs_sampling(pfa, options);
         } break;
         default:
           throw std::runtime_error("Error: Mixing type '"
