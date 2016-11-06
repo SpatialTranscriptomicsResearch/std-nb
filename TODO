@@ -294,3 +294,5 @@ Two things to urgently do:
 
 
  Evaluate likelihood after contributions have been updated, not just at the end of the iteration since by that time the lambda_gst are outdated and don't fit with the updated spot scaling and feature baseline.
+
+ Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date.
