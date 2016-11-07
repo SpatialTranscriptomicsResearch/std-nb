@@ -25,6 +25,7 @@ struct Options {
   size_t report_interval = 200;
   string output = default_output_string;
   bool intersect = false;
+  string load_prefix = "";
   Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool no_local_gene_expression = false;
@@ -193,6 +194,8 @@ int main(int argc, char **argv) {
      "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
+    ("load,l", po::value(&options.load_prefix),
+     "Load previous run results with the given path prefix.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
@@ -366,6 +369,8 @@ int main(int argc, char **argv) {
           PF::Model<PF::ModelType<Kind::Gamma, Kind::HierGamma>> pfa(
               data_sets, options.num_factors, parameters,
               options.share_coord_sys);
+          if (options.load_prefix != "")
+            pfa.restore(options.load_prefix, ""); // TODO CLI switch for suffix
           perform_gibbs_sampling(pfa, options);
         } break;
         default:

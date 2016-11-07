@@ -45,11 +45,9 @@ struct Model {
 
   Model(const std::vector<Counts> &data, const size_t T,
         const Parameters &parameters, bool same_coord_sys);
-  // TODO implement loading of Model
-  // Model(const Counts &counts, const Paths &paths, const Parameters
-  // &parameters);
 
   void store(const std::string &prefix, bool reorder = true) const;
+  void restore(const std::string &prefix, const std::string &suffix);
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
@@ -194,6 +192,19 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
                              + "-";
     experiments[e].store(exp_prefix, features, order);
+  }
+}
+
+template <typename Type>
+void Model<Type>::restore(const std::string &prefix, const std::string &suffix) {
+  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING + suffix, read_matrix, "\t");
+  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
+  features.restore(prefix, suffix);
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
+    experiments[e].restore(exp_prefix, suffix);
   }
 }
 

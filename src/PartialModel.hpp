@@ -2,6 +2,7 @@
 #define MIX_HPP
 
 #include "aux.hpp"
+#include "compression.hpp"
 #include "io.hpp"
 #include "log.hpp"
 #include "parallel.hpp"
@@ -86,6 +87,12 @@ struct Model {
     const auto path = gen_path_stem(prefix);
     write_matrix(matrix, path + FILENAME_ENDING, spot_names, factor_names, order);
     prior.store(path, spot_names, factor_names, order);
+  };
+
+  void restore(const std::string &prefix, const std::string &suffix) {
+    const auto path = gen_path_stem(prefix);
+    matrix = parse_file<Matrix>(path + FILENAME_ENDING + suffix, read_matrix, "\t");
+    prior.restore(path, suffix);
   };
 
   double log_likelihood_factor(size_t t) const;
