@@ -120,7 +120,7 @@ IMatrix read_counts(istream &ifs, const string &separator,
 
   if (ncol == col_names.size())
     return matrix;
-  else if (ncol == col_names.size() - 1) {
+  else if (ncol + 1 == col_names.size()) {
     vector<string> new_col_names(begin(col_names) + 1, end(col_names));
     col_names = new_col_names;
     return matrix;
