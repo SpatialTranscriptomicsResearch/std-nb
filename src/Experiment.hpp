@@ -221,6 +221,7 @@ void Experiment<Type>::store(const std::string &prefix,
   baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"}, {});
   weights.store(prefix, spot_names, factor_names, order);
   write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING, spot_names);
+  write_matrix(field, prefix + "raw-field" + FILENAME_ENDING, spot_names, factor_names, order);
   write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, spot_names, factor_names, order);
   write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
   auto phi_marginal = marginalize_genes(global_features.matrix);
