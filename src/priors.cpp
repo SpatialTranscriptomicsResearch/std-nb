@@ -186,8 +186,7 @@ void Gamma::initialize_p() {
     p.fill(1);
 }
 
-void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
-                   const Vector &spot_scaling) {
+void Gamma::sample(const Matrix &observed, const Matrix &explained) {
   LOG(verbose) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -197,23 +196,19 @@ void Gamma::sample(const Matrix &phi, const Matrix &contributions_spot_type,
     return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
   };
 
-  for (size_t t = 0; t < phi.n_cols; ++t) {
-    Float weight_sum = 0;
-#pragma omp parallel for reduction(+ : weight_sum) if (DO_PARALLEL)
-    for (size_t g = 0; g < phi.n_rows; ++g)
-      weight_sum += phi(g, t);
+  for (size_t t = 0; t < observed.n_cols; ++t) {
     MetropolisHastings mh(parameters.temperature);
 
-    std::vector<Float> count_sums(contributions_spot_type.n_rows, 0);
-    std::vector<Float> weight_sums(contributions_spot_type.n_rows, 0);
+    std::vector<Float> obs(observed.n_rows, 0);
+    std::vector<Float> expl(explained.n_rows, 0);
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < contributions_spot_type.n_rows; ++s) {
-      count_sums[s] = contributions_spot_type(s, t);
-      weight_sums[s] = weight_sum * spot_scaling[s];
+    for (size_t s = 0; s < observed.n_rows; ++s) {
+      obs[s] = observed(s, t);
+      expl[s] = explained(s, t);
     }
     auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]), parameters.n_iter,
                          EntropySource::rng, gen, compute_conditional,
-                         count_sums, weight_sums, parameters.hyperparameters);
+                         obs, expl, parameters.hyperparameters);
     r[t] = res.first;
     p[t] = res.second;
   }

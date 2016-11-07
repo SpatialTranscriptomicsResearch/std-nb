@@ -248,8 +248,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &phi, const Matrix &contributions_spot_type,
-              const Vector &spot_scaling);
+  void sample(const Matrix &observed, const Matrix &explained);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,

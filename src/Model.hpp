@@ -321,35 +321,19 @@ void Model<Type>::sample_fields() {
 
 template <typename Type>
 void Model<Type>::sample_global_theta_priors() {
-  size_t S = 0;
+  Matrix observed(0, T);
   for (auto &experiment : experiments)
-    S += experiment.S;
-  Matrix feature_matrix(G, T, arma::fill::zeros);
+    observed = arma::join_vert(observed, experiment.contributions_spot_type);
+
+  Matrix explained(0, T);
   for (auto &experiment : experiments) {
-    Matrix current_feature_matrix
-        = features.matrix % experiment.features.matrix;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        current_feature_matrix(g, t) *= experiment.baseline_phi(g);
-    feature_matrix += current_feature_matrix;
+    Matrix m = features.matrix % experiment.features.matrix;
+    m.each_col() %= experiment.baseline_feature.matrix.col(0);
+    auto v = colSums<Vector>(m);
+    explained = arma::join_vert(explained, experiment.spot * v.t());
   }
 
-  Matrix contr_spot_type(0, T);
-  for (auto &experiment : experiments)
-    contr_spot_type
-        = arma::join_vert(contr_spot_type, experiment.contributions_spot_type);
-
-  Vector spot(S);
-  double cumul_s = 0;
-  for (auto &experiment : experiments) {
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < experiment.S; ++s)
-      spot(s + cumul_s) = experiment.spot(s);
-    cumul_s += experiment.S;
-  }
-
-  mix_prior.sample(feature_matrix, contr_spot_type, spot);
+  mix_prior.sample(observed, explained);
 
   for (auto &experiment : experiments)
     experiment.weights.prior = mix_prior;

@@ -316,12 +316,16 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
       case 1:
         if (parameters.targeted(Target::theta_prior)
             and parameters.theta_local_priors) {
+          throw("Not implemented");
+          // TODO re-implement
+          /*
           Matrix feature_matrix = features.matrix % global_phi;
           // feature_matrix.each_col() *= baseline_feature.matrix.col(0);
           for (size_t g = 0; g < G; ++g)
             for (size_t t = 0; t < T; ++t)
               feature_matrix(g, t) *= baseline_phi(g);
           weights.prior.sample(feature_matrix, contributions_spot_type, spot);
+          */
         }
         break;
 
