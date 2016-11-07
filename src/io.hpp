@@ -85,10 +85,6 @@ void write_matrix(const M &m, const std::string &path,
 PoissonFactorization::Matrix read_matrix(std::istream &os,
                                          const std::string &separator);
 
-PoissonFactorization::IMatrix read_imatrix(std::istream &os,
-                                           const std::string &separator,
-                                           const std::string &label);
-
 template <typename V>
 V read_vector(std::istream &is, const std::string &separator) {
   // TODO improve / factor / simplify implementation

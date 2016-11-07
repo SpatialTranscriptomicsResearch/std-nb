@@ -22,14 +22,6 @@ Matrix read_matrix(istream &is, const string &separator) {
   return m;
 }
 
-IMatrix read_imatrix(istream &is, const string &separator,
-                     const string &label) {
-  // TODO improve / factor / simplify implementation
-  vector<string> row_names, col_names;
-  IMatrix m = read_counts(is, separator, row_names, col_names, label);
-  return m;
-}
-
 IMatrix vec_of_vec_to_multi_array(const vector<vector<Int>> &v) {
   const size_t s1 = v.size();
   const size_t s2 = v[0].size();
