@@ -1,9 +1,9 @@
 #ifndef IO_HPP
 #define IO_HPP
-#include <string>
 #include <exception>
-#include <vector>
 #include <iostream>
+#include <string>
+#include <vector>
 #include "types.hpp"
 
 template <typename V>

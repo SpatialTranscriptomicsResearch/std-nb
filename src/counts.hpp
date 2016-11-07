@@ -11,7 +11,7 @@ struct Counts {
          const PoissonFactorization::IMatrix &cnts);
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
-  PoissonFactorization::IMatrix counts; // TODO rename to matrix
+  PoissonFactorization::IMatrix counts;  // TODO rename to matrix
   Counts operator+(const Counts &other) const;
   Counts operator*(const Counts &other) const;
   Counts &operator=(const Counts &other);
@@ -40,7 +40,6 @@ PoissonFactorization::Matrix compute_sq_distances(
     const PoissonFactorization::Matrix &a,
     const PoissonFactorization::Matrix &b);
 
-PoissonFactorization::Matrix row_normalize(
-    PoissonFactorization::Matrix m_);
+PoissonFactorization::Matrix row_normalize(PoissonFactorization::Matrix m_);
 
 #endif

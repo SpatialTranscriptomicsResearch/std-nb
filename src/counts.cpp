@@ -25,9 +25,7 @@ Counts::Counts(const string &path, const string &separator)
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const IMatrix &cnts)
-    : row_names(rnames),
-      col_names(cnames),
-      counts(cnts) {
+    : row_names(rnames), col_names(cnames), counts(cnts) {
   assert(rnames.size() == cnts.n_rows);
   assert(cnames.size() == cnts.n_cols);
 }
@@ -174,14 +172,14 @@ Matrix Counts::compute_distances() const {
 }
 
 Matrix Counts::parse_coords() const {
-  if(counts.n_rows == 0)
+  if (counts.n_rows == 0)
     return Matrix(0, 0);
   const size_t n = split_on_x<double>(col_names[0]).size();
   Matrix coords(counts.n_cols, n);
-  for(size_t i = 0; i < counts.n_cols; ++i) {
+  for (size_t i = 0; i < counts.n_cols; ++i) {
     auto coord = split_on_x<double>(col_names[i]);
-    for(size_t j = 0; j < n; ++j)
-      coords(i,j) = coord[j];
+    for (size_t j = 0; j < n; ++j)
+      coords(i, j) = coord[j];
   }
   return coords;
 }

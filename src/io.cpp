@@ -1,10 +1,11 @@
-#include <algorithm>
-#include <fstream>
-#include <exception>
-#include <unordered_map>
-#include <boost/tokenizer.hpp>
-#include "compression.hpp"
 #include "io.hpp"
+#include <algorithm>
+#include <boost/tokenizer.hpp>
+#include <exception>
+#include <fstream>
+#include <regex>
+#include <unordered_map>
+#include "compression.hpp"
 
 using namespace std;
 namespace PF = PoissonFactorization;
