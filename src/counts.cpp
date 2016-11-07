@@ -21,7 +21,7 @@ Counts::Counts(const string &path, const string &separator)
     : row_names(),
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
-                                 col_names, "")) {}
+                                 col_names)) {}
 
 Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
                const IMatrix &cnts)

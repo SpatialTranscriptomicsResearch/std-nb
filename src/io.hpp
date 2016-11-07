@@ -83,8 +83,7 @@ void write_matrix(const M &m, const std::string &path,
 }
 
 PoissonFactorization::Matrix read_matrix(std::istream &os,
-                                         const std::string &separator,
-                                         const std::string &label);
+                                         const std::string &separator);
 
 PoissonFactorization::IMatrix read_imatrix(std::istream &os,
                                            const std::string &separator,
@@ -112,14 +111,12 @@ V read_vector(std::istream &is, const std::string &separator) {
 PoissonFactorization::Matrix read_floats(std::istream &ifs,
                                          const std::string &separator,
                                          std::vector<std::string> &row_names,
-                                         std::vector<std::string> &col_names,
-                                         const std::string &label);
+                                         std::vector<std::string> &col_names);
 
 PoissonFactorization::IMatrix read_counts(std::istream &ifs,
                                           const std::string &separator,
                                           std::vector<std::string> &row_names,
-                                          std::vector<std::string> &col_names,
-                                          const std::string &label);
+                                          std::vector<std::string> &col_names);
 
 void print_matrix_head(std::ostream &os, const PoissonFactorization::Matrix &m,
                        const std::string &label = "", size_t n = 10);

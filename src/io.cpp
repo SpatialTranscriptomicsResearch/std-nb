@@ -14,10 +14,10 @@ using Matrix = PF::Matrix;
 using IMatrix = PF::IMatrix;
 using Vector = PF::Vector;
 
-Matrix read_matrix(istream &is, const string &separator, const string &label) {
+Matrix read_matrix(istream &is, const string &separator) {
   // TODO improve / factor / simplify implementation
   vector<string> row_names, col_names;
-  Matrix m = read_floats(is, separator, row_names, col_names, label);
+  Matrix m = read_floats(is, separator, row_names, col_names);
   return m;
 }
 
@@ -50,8 +50,7 @@ Matrix vec_of_vec_to_multi_array_float(const vector<vector<Float>> &v) {
 }
 
 Matrix read_floats(istream &ifs, const string &separator,
-                   vector<string> &row_names, vector<string> &col_names,
-                   const string &label) {
+                   vector<string> &row_names, vector<string> &col_names) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Float>> m;
@@ -61,7 +60,7 @@ Matrix read_floats(istream &ifs, const string &separator,
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+    col_names.push_back(token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
@@ -91,8 +90,7 @@ Matrix read_floats(istream &ifs, const string &separator,
 }
 
 IMatrix read_counts(istream &ifs, const string &separator,
-                    vector<string> &row_names, vector<string> &col_names,
-                    const string &label) {
+                    vector<string> &row_names, vector<string> &col_names) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
@@ -102,7 +100,7 @@ IMatrix read_counts(istream &ifs, const string &separator,
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+    col_names.push_back(token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
