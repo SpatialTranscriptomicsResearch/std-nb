@@ -1,4 +1,3 @@
-* loading of models from files
 * compute covariance of spots across cell type contributions during MCMC and accumulate statistics -> clustering of spots
 * perform DE between sets of spots clustered according to MCMC-accumulated covariance and based on uncertainty propagated to spot-level
 * improve code for and CLI to freeze the scaling factors
@@ -295,6 +294,6 @@ Two things to urgently do:
 
  Evaluate likelihood after contributions have been updated, not just at the end of the iteration since by that time the lambda_gst are outdated and don't fit with the updated spot scaling and feature baseline.
 
- Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date.
+ Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date. Also relevant after loading.
 
  Consider giving the contained classes references to their containing class.
