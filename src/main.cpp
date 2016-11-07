@@ -17,7 +17,6 @@ namespace PF = PoissonFactorization;
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Options {
-  enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
   long num_warm_up = -1;
@@ -26,7 +25,6 @@ struct Options {
   string output = default_output_string;
   bool intersect = false;
   string load_prefix = "";
-  Labeling labeling = Labeling::Auto;
   bool compute_likelihood = false;
   bool no_local_gene_expression = false;
   bool sample_local_phi_priors = false;
@@ -37,41 +35,6 @@ struct Options {
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
 };
 
-istream &operator>>(istream &is, Options::Labeling &label) {
-  string token;
-  is >> token;
-  token = to_lower(token);
-  if (token == "auto")
-    label = Options::Labeling::Auto;
-  else if (token == "none")
-    label = Options::Labeling::None;
-  else if (token == "path")
-    label = Options::Labeling::Path;
-  else if (token == "alpha")
-    label = Options::Labeling::Alpha;
-  else
-    throw std::runtime_error("Error: could not parse labeling '" + token +
-                             "'.");
-  return is;
-}
-
-ostream &operator<<(ostream &os, const Options::Labeling &label) {
-  switch (label) {
-    case Options::Labeling::Auto:
-      os << "auto";
-      break;
-    case Options::Labeling::None:
-      os << "none";
-      break;
-    case Options::Labeling::Path:
-      os << "path";
-      break;
-    case Options::Labeling::Alpha:
-      os << "alpha";
-      break;
-  }
-  return os;
-}
 
 template <typename T>
 struct Moments {
@@ -230,9 +193,7 @@ int main(int argc, char **argv) {
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
-     "Which sampling steps to perform.")
-    ("label", po::value(&options.labeling),
-     "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
+     "Which sampling steps to perform.");
 
   hyperparameter_options.add_options()
     ("alpha", po::value(&parameters.hyperparameters.alpha)->default_value(parameters.hyperparameters.alpha),
