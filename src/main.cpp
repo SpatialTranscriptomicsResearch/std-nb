@@ -101,6 +101,10 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   }
   pfa.store(options.output);
+  for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
+    ofstream ofs("prediction" + to_string(c) + ".csv");
+    pfa.predict_field(ofs, c);
+  }
   pfa.perform_local_dge(options.output);
   if (options.perform_pairwise_dge)
     pfa.perform_pairwise_dge(options.output);

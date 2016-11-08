@@ -41,6 +41,14 @@ struct Model {
   std::vector<CoordinateSystem> coordinate_systems;
   std::map<std::pair<size_t, size_t>, Matrix> kernels;
 
+  template <typename Fnc1, typename Fnc2>
+  Vector get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
+                      Fnc2 fnc2) const;
+  Vector get_low(size_t coord_sys_idx) const;
+  Vector get_high(size_t coord_sys_idx) const;
+
+  void predict_field(std::ofstream &ofs, size_t coord_sys_idx) const;
+
   typename weights_t::prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, const size_t T,
@@ -381,6 +389,106 @@ Matrix Model<Type>::expected_gene_type() const {
   for (auto &experiment : experiments)
     m += experiment.expected_gene_type(features.matrix);
   return m;
+}
+
+template <typename V>
+bool generate_next(V &v, const V &low, const V &high, double step) {
+  auto l_iter = low.begin();
+  auto h_iter = high.begin();
+  for (auto &x : v) {
+    if ((x += step) > *h_iter)
+      x = *l_iter;
+    else
+      return true;
+    l_iter++;
+    h_iter++;
+  }
+  return false;
+}
+
+template <typename Type>
+template <typename Fnc1, typename Fnc2>
+Vector Model<Type>::get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
+                                 Fnc2 fnc2) const {
+  if (coordinate_systems.size() <= coord_sys_idx
+      or coordinate_systems[coord_sys_idx].members.empty())
+    return {0};
+  size_t D = 0;
+  for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
+    D = std::max<size_t>(D, experiments[exp_idx].coords.n_cols);
+  Vector v(D, arma::fill::ones);
+  v *= init;
+  for (size_t d = 0; d < D; ++d)
+    for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
+      v[d] = fnc1(v[d], fnc2(experiments[exp_idx].coords.col(d)));
+  return v;
+}
+
+template <typename Type>
+Vector Model<Type>::get_low(size_t coord_sys_idx) const {
+  return get_low_high(coord_sys_idx, std::numeric_limits<Float>::infinity(),
+                      [](double a, double b) { return std::min(a, b); },
+                      [](const Vector &x) { return arma::min(x); });
+}
+
+template <typename Type>
+Vector Model<Type>::get_high(size_t coord_sys_idx) const {
+  return get_low_high(coord_sys_idx, -std::numeric_limits<Float>::infinity(),
+                      [](double a, double b) { return std::max(a, b); },
+                      [](const Vector &x) { return arma::max(x); });
+}
+
+template <typename Type>
+void Model<Type>::predict_field(std::ofstream &ofs,
+                                size_t coord_sys_idx) const {
+  const double sigma = parameters.hyperparameters.sigma;
+  // Matrix feature_marginal(E, T, arma::fill::zeros); TODO
+  double N = 8e8;
+  Vector low = get_low(coord_sys_idx);
+  Vector high = get_high(coord_sys_idx);
+  double alpha = 0.05;
+  low = low - (high - low) * alpha;
+  high = high + (high - low) * alpha;
+  // one over N of the total volume
+  double step = arma::prod((high - low) % (high - low)) / N;
+  // n-th root of step
+  step = exp(log(step) / low.n_elem);
+  Vector coord = low;
+  do {
+    bool first = true;
+    for (auto &c : coord) {
+      if (first)
+        first = false;
+      else
+        ofs << ",";
+      ofs << c;
+    }
+    Vector observed(T, arma::fill::ones);
+    Vector explained(T, arma::fill::ones);
+    for (auto exp_idx : coordinate_systems[coord_sys_idx].members) {
+      for (size_t s = 0; s < experiments[exp_idx].S; ++s) {
+        const Vector diff = coord - experiments[exp_idx].coords.row(s).t();
+        const double d = arma::accu(diff % diff);
+        const double w
+            = 1 / sqrt(2 * M_PI) / sigma * exp(-d / 2 / sigma / sigma);
+        for (size_t t = 0; t < T; ++t) {
+          observed[t] += w * experiments[exp_idx].contributions_spot_type(s, t);
+          explained[t] += w * 1  // TODO feature_marginal(exp_idx, t)
+                          // * experiments[exp_idx].theta(s, t)
+                          // / experiments[exp_idx].field(s, t)
+                          * experiments[exp_idx].spot(s);
+        }
+      }
+    }
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += observed[t] / explained[t];
+    for (size_t t = 0; t < T; ++t) {
+      double predicted = observed[t] / explained[t] / z;
+      ofs << "," << predicted;
+    }
+    ofs << std::endl;
+  } while (generate_next(coord, low, high, step));
 }
 
 template <typename Type>
