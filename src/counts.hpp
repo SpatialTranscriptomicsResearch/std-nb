@@ -42,4 +42,7 @@ PoissonFactorization::Matrix compute_sq_distances(
 
 PoissonFactorization::Matrix row_normalize(PoissonFactorization::Matrix m_);
 
+size_t sum_rows(const std::vector<Counts> &c);
+size_t max_row_number(const std::vector<Counts> &c);
+
 #endif

@@ -37,7 +37,7 @@ Counts &Counts::operator=(const Counts &other) {
   return *this;
 }
 
-void select_top(std::vector<Counts> &counts_v, size_t top) {
+void select_top(vector<Counts> &counts_v, size_t top) {
   if (top == 0 or counts_v.empty() or counts_v[0].row_names.size() <= top)
     return;
   LOG(verbose) << "Selecting top " << top;
@@ -89,7 +89,7 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
 }
 
 template <typename Fnc>
-void match_genes(std::vector<Counts> &counts_v, Fnc fnc) {
+void match_genes(vector<Counts> &counts_v, Fnc fnc) {
   LOG(verbose) << "Matching genes";
   unordered_map<string, size_t> present;
   for (auto &counts : counts_v)
@@ -123,17 +123,17 @@ void match_genes(std::vector<Counts> &counts_v, Fnc fnc) {
   }
 }
 
-void gene_union(std::vector<Counts> &counts_v) {
+void gene_union(vector<Counts> &counts_v) {
   match_genes(counts_v, [](size_t x) { return x > 0; });
 }
 
-void gene_intersection(std::vector<Counts> &counts_v) {
+void gene_intersection(vector<Counts> &counts_v) {
   const size_t n = counts_v.size();
   match_genes(counts_v, [n](size_t x) { return x == n; });
 }
 
 template <typename T>
-vector<T> split_on_x(const string &s, const std::string &token = "x") {
+vector<T> split_on_x(const string &s, const string &token = "x") {
   vector<T> v;
   size_t last_pos = 0;
   while (true) {
@@ -209,4 +209,18 @@ Matrix compute_sq_distances(const Matrix &a, const Matrix &b) {
 Matrix row_normalize(Matrix m) {
   m.each_row(do_normalize<arma::Row<double>>);
   return m;
+}
+
+size_t sum_rows(const vector<Counts> &c) {
+  size_t n = 0;
+  for (auto &x : c)
+    n += x.counts.n_rows;
+  return n;
+}
+
+size_t max_row_number(const vector<Counts> &c) {
+  size_t x = 0;
+  for(auto &m: c)
+    x = max<size_t>(x, m.counts.n_rows);
+  return x;
 }

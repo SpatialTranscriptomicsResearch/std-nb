@@ -88,20 +88,6 @@ struct Model {
 template <typename Type>
 std::ostream &operator<<(std::ostream &os, const Model<Type> &pfa);
 
-size_t sum_rows(const std::vector<Counts> &c) {
-  size_t n = 0;
-  for (auto &x : c)
-    n += x.counts.n_rows;
-  return n;
-}
-
-size_t max_row_number(const std::vector<Counts> &c) {
-  size_t x = 0;
-  for(auto &m: c)
-    x = std::max<size_t>(x, m.counts.n_rows);
-  return x;
-}
-
 template <typename Type>
 Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
                    const Parameters &parameters_, bool same_coord_sys)
