@@ -299,3 +299,6 @@ Two things to urgently do:
  Consider giving the contained classes references to their containing class.
 
  Write command-based CLI, in which the default command is "run". Options are rerun (based on shell call file), continue (possibly on new data), dge, predict.
+
+ Split & merge
+ Why do the fields not exhibit sparcity?
