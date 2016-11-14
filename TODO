@@ -297,3 +297,5 @@ Two things to urgently do:
  Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date. Also relevant after loading.
 
  Consider giving the contained classes references to their containing class.
+
+ Write command-based CLI, in which the default command is "run". Options are rerun (based on shell call file), continue (possibly on new data), dge, predict.
