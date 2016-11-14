@@ -289,16 +289,19 @@ void Model<Type>::sample_fields() {
 #pragma omp parallel for if (DO_PARALLEL)
       for (size_t t = 0; t < T; ++t)
         for (auto e1 : coordinate_system.members) {
-          const auto &kernel = kernels.find({e1, e2})->second;
+          const auto &kernel = kernels.find({e2, e1})->second;
           for (size_t s2 = 0; s2 < experiments[e2].S; ++s2) {
             for (size_t s1 = 0; s1 < experiments[e1].S; ++s1) {
-              const Float w = kernel(s1, s2);
+              const Float w = kernel(s2, s1);
               observed[e1](s1, t)
-                  += w * experiments[e2].contributions_spot_type(s2, t);
+                  += w * (experiments[e2].weights.prior.r(t)
+                          + experiments[e2].contributions_spot_type(s2, t));
               explained[e1](s1, t)
-                  += w * intensities[t] * experiments[e2].spot[s2]
-                     * (e1 == e2 and s1 == s2 ? 1
-                                              : experiments[e2].field(s2, t));
+                  += w * (experiments[e2].weights.prior.p(t)
+                          + intensities[t] * experiments[e2].spot[s2]
+                                * (e1 == e2 and s1 == s2
+                                       ? 1
+                                       : experiments[e2].field(s2, t)));
             }
           }
         }
@@ -306,8 +309,6 @@ void Model<Type>::sample_fields() {
 
   for (size_t e = 0; e < E; ++e) {
     LOG(verbose) << "Sampling field for experiment " << e;
-    observed[e].each_row() += experiments[e].weights.prior.r.t();
-    explained[e].each_row() += experiments[e].weights.prior.p.t();
     Partial::perform_sampling(observed[e], explained[e], experiments[e].field,
                               parameters.over_relax);
   }
