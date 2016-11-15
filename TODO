@@ -292,13 +292,15 @@ Two things to urgently do:
  2. filtering
 
 
- Evaluate likelihood after contributions have been updated, not just at the end of the iteration since by that time the lambda_gst are outdated and don't fit with the updated spot scaling and feature baseline.
+Evaluate likelihood after contributions have been updated, not just at the end of the iteration since by that time the lambda_gst are outdated and don't fit with the updated spot scaling and feature baseline.
 
- Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date. Also relevant after loading.
+Add a guard mechanism against trying to calculate likelihood when the lambdas are out-of-date. Also relevant after loading.
 
- Consider giving the contained classes references to their containing class.
+Consider giving the contained classes references to their containing class.
 
- Write command-based CLI, in which the default command is "run". Options are rerun (based on shell call file), continue (possibly on new data), dge, predict.
+Write command-based CLI, in which the default command is "run". Options are rerun (based on shell call file), continue (possibly on new data), dge, predict.
 
- Split & merge
- Why do the fields not exhibit sparcity?
+Split & merge
+Why do the fields not exhibit sparcity?
+
+How do we need determine P(x|x*) for Metropolis Hastings steps with succeeding Gibbs sampling?

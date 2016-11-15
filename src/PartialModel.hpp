@@ -69,9 +69,11 @@ struct Model {
   void initialize_factor(size_t t);
   void initialize();
 
+  // TODO rename to something like sample_features
   template <typename Experiment, typename... Args>
   void sample(const Experiment &experiment, const Args &... args);
 
+  // TODO rename to something like sample_weights
   template <typename Experiment, typename... Args>
   void sample_field(const Experiment &experiment, Matrix &field,
                     const Args &... args);

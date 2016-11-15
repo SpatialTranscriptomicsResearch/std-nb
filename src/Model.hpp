@@ -131,7 +131,6 @@ void Model<Type>::update_kernels() {
                            parameters.hyperparameters.sigma);
     }
 
-  LOG(debug) << "Updating kernels 2";
   // row normalize
   // TODO check should we do column normalization?
   for (auto &coordinate_system : coordinate_systems)
@@ -155,7 +154,6 @@ void Model<Type>::update_kernels() {
     LOG(debug) << "Kernel " << kernel.first.first << " " << kernel.first.second
                << std::endl
                << kernel.second;
-  LOG(debug) << "Updating kernels 3";
 }
 
 template <typename V>
