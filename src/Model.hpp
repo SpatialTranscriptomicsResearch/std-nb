@@ -272,50 +272,67 @@ void Model<Type>::sample_contributions() {
   update_contributions();
 }
 
-template <typename Type>
-void Model<Type>::sample_fields() {
+template <Partial::Kind feat_kind>
+void do_sample_fields(
+    Model<ModelType<feat_kind, Partial::Kind::HierGamma>> &model) {
   LOG(verbose) << "Sampling fields";
   std::vector<Matrix> observed;
   std::vector<Matrix> explained;
-  for (auto &experiment : experiments) {
+  for (auto &experiment : model.experiments) {
     observed.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
     explained.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
   }
 
-  for (auto &coordinate_system : coordinate_systems)
+  for (auto &coordinate_system : model.coordinate_systems)
     for (auto e2 : coordinate_system.members) {
       const auto intensities
-          = experiments[e2].marginalize_genes(features.matrix);
+          = model.experiments[e2].marginalize_genes(model.features.matrix);
 #pragma omp parallel for if (DO_PARALLEL)
-      for (size_t t = 0; t < T; ++t)
+      for (size_t t = 0; t < model.T; ++t)
         for (auto e1 : coordinate_system.members) {
-          const auto &kernel = kernels.find({e2, e1})->second;
-          for (size_t s2 = 0; s2 < experiments[e2].S; ++s2) {
-            for (size_t s1 = 0; s1 < experiments[e1].S; ++s1) {
+          const auto &kernel = model.kernels.find({e2, e1})->second;
+          for (size_t s2 = 0; s2 < model.experiments[e2].S; ++s2) {
+            for (size_t s1 = 0; s1 < model.experiments[e1].S; ++s1) {
               const Float w = kernel(s2, s1);
               observed[e1](s1, t)
-                  += w * (experiments[e2].weights.prior.r(t)
-                          + experiments[e2].contributions_spot_type(s2, t));
+                  += w
+                     * (model.experiments[e2].weights.prior.r(t)
+                        + model.experiments[e2].contributions_spot_type(s2, t));
               explained[e1](s1, t)
-                  += w * (experiments[e2].weights.prior.p(t)
-                          + intensities[t] * experiments[e2].spot[s2]
+                  += w * (model.experiments[e2].weights.prior.p(t)
+                          + intensities[t] * model.experiments[e2].spot[s2]
                                 * (e1 == e2 and s1 == s2
                                        ? 1
-                                       : experiments[e2].field(s2, t)));
+                                       : model.experiments[e2].field(s2, t)));
             }
           }
         }
     }
 
-  for (size_t e = 0; e < E; ++e) {
+  for (size_t e = 0; e < model.E; ++e) {
     LOG(verbose) << "Sampling field for experiment " << e;
-    Partial::perform_sampling(observed[e], explained[e], experiments[e].field,
-                              parameters.over_relax);
+    Partial::perform_sampling(observed[e], explained[e],
+                              model.experiments[e].field,
+                              model.parameters.over_relax);
   }
+}
+
+template <Partial::Kind feat_kind>
+void do_sample_fields(
+    Model<ModelType<feat_kind, Partial::Kind::Dirichlet>> &model
+    __attribute__((unused))) {}
+
+template <typename Type>
+void Model<Type>::sample_fields() {
+  do_sample_fields(*this);
 }
 
 template <typename Type>
 void Model<Type>::sample_global_theta_priors() {
+  // TODO refactor
+  if (std::is_same<typename Type::weights_t::prior_type,
+                   PRIOR::THETA::Dirichlet>::value)
+    return;
   Matrix observed(0, T);
   for (auto &experiment : experiments)
     observed = arma::join_vert(observed, experiment.contributions_spot_type);

@@ -270,8 +270,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &phi, const Matrix &contributions_spot_type,
-              const Vector &spot_scaling) const;
+  void sample(const Matrix &observed, const Matrix &explained) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,

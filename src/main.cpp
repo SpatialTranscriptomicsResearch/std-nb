@@ -328,11 +328,9 @@ int main(int argc, char **argv) {
     */
     case Kind::Gamma: {
       switch (options.mixing_type) {
-        /*
         case Kind::Dirichlet:
           run<Kind::Gamma, Kind::Dirichlet>(data_sets, options, parameters);
           break;
-        */
         case Kind::HierGamma:
           run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
           break;
