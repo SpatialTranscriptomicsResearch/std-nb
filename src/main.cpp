@@ -130,7 +130,12 @@ int main(int argc, char **argv) {
   PF::Parameters parameters;
 
   string config_path;
-  string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
+  string usage_info = "Spatial Transcriptome Deconvolution\n"
+    "\n"
+    "This software implements the Spatial Transcriptome Deconvolution model of\n"
+    "Jonas Maaskola et al. 2016.\n"
+    "Among others it is related to the βγΓ-Poisson Factor Analysis model of\n"
+    "This software implements the βγΓ-Poisson Factor Analysis model of\n"
     "Beta-Negative Binomial Process and Poisson Factor Analysis\n"
     "by Mingyuan Zhou, Lauren A. Hannah, David B. Dunson, and Lawrence Carin\n"
     "Proceedings of the 15th International Conference on Artificial Intelligence and\n"
