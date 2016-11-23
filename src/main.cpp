@@ -151,14 +151,15 @@ int main(int argc, char **argv) {
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
+  po::options_description advanced_options("Advanced options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
     ("file", po::value(&options.tsv_paths)->required(),
      "Path to a count matrix file, can be given multiple times. "
-     "Format: tab-separated, including a header line, "
-     "and row names in the first column of each row.");
+     "Format: tab-separated, genes in rows, spots in columns; including a "
+     "header line, and row names in the first column of each row.");
 
   basic_options.add_options()
     ("feature,f", po::value(&options.feature_type)->default_value(options.feature_type),
@@ -171,47 +172,49 @@ int main(int argc, char **argv) {
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
      "Number of iterations to perform.")
-    ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
-     "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
     ("load,l", po::value(&options.load_prefix),
      "Load previous run results with the given path prefix.")
+    ("sharecoords", po::bool_switch(&options.share_coord_sys),
+     "Assume that the samples lie in the same coordinate system.")
+    ("output,o", po::value(&options.output),
+     "Prefix for generated output files.")
+    ("top", po::value(&options.top)->default_value(options.top),
+     "Use only those genes with the highest read count across all spots. Zero indicates all genes.");
+
+  advanced_options.add_options()
+    ("intersect", po::bool_switch(&options.intersect),
+     "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
+    ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
+     "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
+    ("expcont", po::bool_switch(&parameters.expected_contributions),
+     "Dont sample x_{gst} contributions, but use expected values instead.")
+    ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
+     "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
      "Perform pairwise comparisons between all factors in each experiment.")
+    ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
+     "Which sampling steps to perform.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
+    ("localphi", po::bool_switch(&options.sample_local_phi_priors),
+     "Sample the local feature priors.")
     ("nolocal", po::bool_switch(&options.no_local_gene_expression),
      "Deactivate local gene expression profiles.")
+    ("lambda", po::bool_switch(&parameters.store_lambda),
+     "Store to disk the lambda matrix for genes and types every time parameters are written. "
+     "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
     ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
      "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
      "Respect the likelihood contributions of the feature priors.")
     ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),
-     "Respect the likelihood contributions of the mixture priors.")
-    ("expcont", po::bool_switch(&parameters.expected_contributions),
-     "Dont sample x_{gst} contributions, but use expected values instead.")
-    ("sharecoords", po::bool_switch(&options.share_coord_sys),
-     "Assume that the samples lie in the same coordinate system.")
-    ("localphi", po::bool_switch(&options.sample_local_phi_priors),
-     "Sample the local feature priors.")
-    ("lambda", po::bool_switch(&parameters.store_lambda),
-     "Store to disk the lambda matrix for genes and types every time parameters are written. "
-     "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
-    ("output,o", po::value(&options.output),
-     "Prefix for generated output files.")
-    ("top", po::value(&options.top)->default_value(options.top),
-     "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
-    ("intersect", po::bool_switch(&options.intersect),
-     "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
-     "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
-     "Which sampling steps to perform.");
+     "Respect the likelihood contributions of the mixture priors.");
 
   hyperparameter_options.add_options()
     ("alpha", po::value(&parameters.hyperparameters.alpha)->default_value(parameters.hyperparameters.alpha),
@@ -248,6 +251,7 @@ int main(int argc, char **argv) {
   cli_options.add(generic_options)
       .add(required_options)
       .add(basic_options)
+      .add(advanced_options)
       .add(hyperparameter_options)
       .add(inference_options);
 
