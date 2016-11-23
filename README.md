@@ -1,7 +1,11 @@
-This is code to perform Monte-Carlo Markov Chain (MCMC) inference for the multi-scoop extension of the Indian Buffer Process (msIBP).
+This is code to perform Monte-Carlo Markov Chain (MCMC) inference for the
+Spatial Transcriptome Deconvolution model.
 
-In order to compile it, your Boost version needs to be at least as recent as 1.58.0.
-The reason why such a recent version of Boost is required is because it was only in this version that the trigamma function (i.e. the curvature, or second derivative, of the gamma function) was introduced.
+In order to compile it, you need two libraries:
+* [Boost](http://www.boost.org/)
+* [Armadillo](http://arma.sourceforge.net/)
+
+The Boost library needs to be at least version 1.58.0 because it was only in this version that the trigamma function (i.e. the curvature, or second derivative, of the gamma function) was introduced.
 
 Compiling
 =========
