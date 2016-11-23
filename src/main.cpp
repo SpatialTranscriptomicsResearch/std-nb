@@ -137,7 +137,7 @@ int main(int argc, char **argv) {
     "Statistics (AISTATS) 2012, La Palma, Canary Islands. Volume XX of JMLR: W&CP XX.\n"
     "\n"
     "Please provide one or more count matrices as argument to the --file switch or as\n"
-    "free arguments.";
+    "free arguments. These need to have genes in the rows and spots in the columns.";
 
   size_t num_cols = 80;
   namespace po = boost::program_options;
