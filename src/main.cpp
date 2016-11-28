@@ -242,7 +242,11 @@ int main(int argc, char **argv) {
     ("sigma", po::value(&parameters.hyperparameters.sigma)->default_value(parameters.hyperparameters.sigma),
      "Sigma parameter for field characteristic length scale.")
     ("residual", po::value(&parameters.hyperparameters.field_residual_prior)->default_value(parameters.hyperparameters.field_residual_prior),
-     "Prior used for the residual mixing weight terms after the field has been sampled.");
+     "Prior used for the residual mixing weight terms after the field has been sampled.")
+    ("bline1", po::value(&parameters.hyperparameters.baseline1)->default_value(parameters.hyperparameters.baseline1),
+     "First prior for the baseline features.")
+    ("bline2", po::value(&parameters.hyperparameters.baseline2)->default_value(parameters.hyperparameters.baseline2),
+     "Second prior for the baseline features.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
