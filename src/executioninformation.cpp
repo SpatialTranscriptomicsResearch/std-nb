@@ -3,6 +3,7 @@
 #include <ctime>
 #include <boost/filesystem.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
+#include "entropy.hpp"
 #include "executioninformation.hpp"
 
 using namespace std;

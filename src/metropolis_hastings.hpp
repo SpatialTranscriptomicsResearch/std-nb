@@ -48,8 +48,8 @@ struct MetropolisHastings {
         break;
       }
     }
-    LOG(debug) << "Left MCMC " << (accept ? "" : "un") << "successfully after "
-               << (n_iter_initial - n_iter) << " iterations.";
+    // LOG(debug) << "Left MCMC " << (accept ? "" : "un") << "successfully after "
+    //            << (n_iter_initial - n_iter) << " iterations.";
     return accepted;
   }
 };
