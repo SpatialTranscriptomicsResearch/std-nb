@@ -75,12 +75,12 @@ inline double log_normal_generator(double x, std::mt19937 &rng) {
   return x * exp(std::normal_distribution<Float>(0, 1)(rng));
 }
 
-inline double score(double r, double p, double observed, double explained,
+inline double score(double r, double p, double observed, double expected,
                     double h1, double h2) {
   double nb_term
-      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + explained));
+      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + expected));
   // double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p)
-  //                  - (r + observed) * log(p + explained);
+  //                  - (r + observed) * log(p + expected);
   // NOTE: log_gamma takes a shape and scale parameter
   double prior_term = log_gamma(r, h1, 1 / h2);
   return nb_term + prior_term;
@@ -101,9 +101,9 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
 #pragma omp for
       for (size_t g = 0; g < experiment.G; ++g) {
         const Float observed = experiment.contributions_gene_type(g, t);
-        const Float explained = expected_gene_type(g, t);
+        const Float expected = expected_gene_type(g, t);
         LOG(debug) << "observed = " << observed;
-        LOG(debug) << "explained = " << explained;
+        LOG(debug) << "expected = " << expected;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
         LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
         if (parameters.phi_prior_maximum_likelihood) {
@@ -117,7 +117,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
             // // set to arithmetic mean of current value and 1
             r(g, t) = (1 + r(g, t)) / 2;
             auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), observed,
-                                          p(g, t), explained);
+                                          p(g, t), expected);
             LOG(debug) << "r'(" << g << ", " << t << ") = " << r(g, t);
             LOG(debug) << "number of steps = " << num_steps;
           }
@@ -125,13 +125,13 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
           r(g, t) = mh.sample(r(g, t), parameters.n_iter,
                               EntropySource::rngs[thread_num],
                               log_normal_generator, score, p(g, t), observed,
-                              explained, parameters.hyperparameters.phi_r_1,
+                              expected, parameters.hyperparameters.phi_r_1,
                               parameters.hyperparameters.phi_r_2);
         }
 
         p(g, t) = sample_compound_gamma(
             parameters.hyperparameters.phi_p_1 + r(g, t),
-            parameters.hyperparameters.phi_p_2 + observed, explained,
+            parameters.hyperparameters.phi_p_2 + observed, expected,
             EntropySource::rngs[thread_num]);
 
         assert(r(g, t) >= 0);
@@ -142,9 +142,9 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
         if (false)
           if (observed > 0) {
             const double pseudo_cnt = 1e-6;
-            auto p_ml = r(g, t) / observed * explained;
+            auto p_ml = r(g, t) / observed * expected;
             auto p_ml_ps
-                = r(g, t) / (observed + pseudo_cnt) * (explained + pseudo_cnt);
+                = r(g, t) / (observed + pseudo_cnt) * (expected + pseudo_cnt);
 
             LOG(debug) << "p*(" << g << ", " << t << ") = " << p_ml;
             LOG(debug) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
@@ -158,7 +158,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
 
 template <typename T>
 double compute_conditional(const std::pair<T, T> &x, Float observed,
-                           Float explained,
+                           Float expected,
                            const Hyperparameters &hyperparameters) {
   const T r = x.first;
   const T p = x.second;
@@ -169,7 +169,7 @@ double compute_conditional(const std::pair<T, T> &x, Float observed,
          // The other factors aren't needed as they don't depend on either of
          // r(g,t) and p(g,t), and thus would cancel when computing the score
          // ratio.
-         + r * log(p) - (r + observed) * log(p + explained)
+         + r * log(p) - (r + observed) * log(p + expected)
          + lgamma(r + observed) - lgamma(r);
 }
 
@@ -197,13 +197,13 @@ void Gamma::sample_mh(const Type &experiment, const Args &... args) {
 #pragma omp for
     for (size_t g = 0; g < experiment.G; ++g) {
       const Float observed = experiment.contributions_gene_type(g, t);
-      const Float explained = expected_gene_type(g, t);
+      const Float expected = expected_gene_type(g, t);
 
       auto res
           = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
                       parameters.n_iter, EntropySource::rngs[thread_num],
                       gen_log_normal_pair<Float>, compute_conditional<Float>,
-                      observed, explained, parameters.hyperparameters);
+                      observed, expected, parameters.hyperparameters);
       r(g, t) = res.first;
       p(g, t) = res.second;
     }
@@ -248,7 +248,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &observed, const Matrix &explained);
+  void sample(const Matrix &observed, const Matrix &expected);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
@@ -270,7 +270,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &observed, const Matrix &explained) const;
+  void sample(const Matrix &observed, const Matrix &expected) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,

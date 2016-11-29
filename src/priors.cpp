@@ -125,7 +125,7 @@ namespace THETA {
 
 double compute_conditional(const pair<Float, Float> &x,
                            const vector<Float> &observed,
-                           const vector<Float> &explained,
+                           const vector<Float> &expected,
                            const Hyperparameters &hyperparameters) {
   const size_t S = observed.size();
   const Float r = x.first;
@@ -143,7 +143,7 @@ double compute_conditional(const pair<Float, Float> &x,
     // r[t] and p[t], and thus would cancel when computing the score
     // ratio.
     l += lgamma(r + observed[s])
-         - (r + observed[s]) * log(p + explained[s]);
+         - (r + observed[s]) * log(p + expected[s]);
   return l;
 }
 
@@ -186,7 +186,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed, const Matrix &explained) {
+void Gamma::sample(const Matrix &observed, const Matrix &expected) {
   LOG(verbose) << "Sampling P and R of Θ";
 
   auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
@@ -200,11 +200,11 @@ void Gamma::sample(const Matrix &observed, const Matrix &explained) {
     MetropolisHastings mh(parameters.temperature);
 
     std::vector<Float> obs(observed.n_rows, 0);
-    std::vector<Float> expl(explained.n_rows, 0);
+    std::vector<Float> expl(expected.n_rows, 0);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < observed.n_rows; ++s) {
       obs[s] = observed(s, t);
-      expl[s] = explained(s, t);
+      expl[s] = expected(s, t);
     }
     auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]), parameters.n_iter,
                          EntropySource::rng, gen, compute_conditional,
@@ -248,7 +248,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &observed __attribute__((unused)),
-                       const Matrix &explained __attribute__((unused))) const {}
+                       const Matrix &expected __attribute__((unused))) const {}
 
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
