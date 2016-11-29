@@ -92,7 +92,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
       << "Sampling R and P of Φ using Metropolis-Hastings and from the "
          "posterior, respectively.";
 
-  auto explained_gene_type = experiment.explained_gene_type(args...);
+  auto expected_gene_type = experiment.expected_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
   for (size_t t = 0; t < experiment.T; ++t) {
 #pragma omp parallel if (DO_PARALLEL)
@@ -101,7 +101,7 @@ void Gamma::sample(const Type &experiment, const Args &... args) {
 #pragma omp for
       for (size_t g = 0; g < experiment.G; ++g) {
         const Float observed = experiment.contributions_gene_type(g, t);
-        const Float explained = explained_gene_type(g, t);
+        const Float explained = expected_gene_type(g, t);
         LOG(debug) << "observed = " << observed;
         LOG(debug) << "explained = " << explained;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
@@ -187,17 +187,17 @@ template <typename Type, typename... Args>
 void Gamma::sample_mh(const Type &experiment, const Args &... args) {
   LOG(verbose) << "Sampling P and R of Φ";
 
-  auto explained_gene_type = experiment.explained_gene_type(args...);
+  auto expected_gene_type = experiment.expected_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
 
-  for (size_t t = 0; t < explained_gene_type.n_cols; ++t)
+  for (size_t t = 0; t < expected_gene_type.n_cols; ++t)
 #pragma omp parallel if (DO_PARALLEL)
   {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < experiment.G; ++g) {
       const Float observed = experiment.contributions_gene_type(g, t);
-      const Float explained = explained_gene_type(g, t);
+      const Float explained = expected_gene_type(g, t);
 
       auto res
           = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
