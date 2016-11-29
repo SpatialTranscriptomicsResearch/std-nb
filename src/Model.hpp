@@ -126,16 +126,15 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
 
 template <typename Type>
 void Model<Type>::identity_kernels() {
-  LOG(debug) << "Updating kernels";
-  // row normalize
-  // TODO check should we do column normalization?
+  LOG(debug) << "Updating kernels: using identity kernels";
   for (auto &coordinate_system : coordinate_systems)
     for (auto e1 : coordinate_system.members)
-      for (auto e2 : coordinate_system.members)
+      for (auto e2 : coordinate_system.members) {
+        Matrix m(experiments[e1].S, experiments[e2].S, arma::fill::zeros);
         if (e1 == e2)
-          kernels[{e1, e2}].eye();
-        else
-          kernels[{e1, e2}].zeros();
+          m.eye();
+        kernels[{e1, e2}] = m;
+      }
 }
 
 template <typename Type>
