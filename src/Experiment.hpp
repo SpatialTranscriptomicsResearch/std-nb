@@ -200,8 +200,11 @@ if (false) {
     features.prior.p.ones();
   }
 
-  if (not parameters.targeted(Target::baseline))
+  if (not parameters.targeted(Target::baseline)) {
     baseline_feature.matrix.ones();
+    baseline_feature.prior.r.ones();
+    baseline_feature.prior.p.ones();
+  }
 
   if (not parameters.targeted(Target::theta))
     weights.matrix.ones();
