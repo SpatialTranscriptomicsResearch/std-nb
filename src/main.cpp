@@ -29,6 +29,7 @@ struct Options {
   bool no_local_gene_expression = false;
   bool sample_local_phi_priors = false;
   bool share_coord_sys = false;
+  bool predict_field = false;
   bool perform_pairwise_dge = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
@@ -101,9 +102,11 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   }
   pfa.store(options.output);
-  for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
-    ofstream ofs("prediction" + to_string(c) + ".csv");
-    pfa.predict_field(ofs, c);
+  if (options.predict_field) {
+    for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
+      ofstream ofs("prediction" + to_string(c) + ".csv");
+      pfa.predict_field(ofs, c);
+    }
   }
   pfa.perform_local_dge(options.output);
   if (options.perform_pairwise_dge)
@@ -190,6 +193,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
+    ("predict", po::bool_switch(&options.predict_field),
+     "Predict the field in a cube around every coordinate system's entries.")
     ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
      "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("expcont", po::bool_switch(&parameters.expected_contributions),
