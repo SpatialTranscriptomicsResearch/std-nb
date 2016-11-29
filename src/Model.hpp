@@ -82,6 +82,7 @@ struct Model {
 
   void update_contributions();
   void update_kernels();
+  void identity_kernels();
   void add_experiment(const Counts &data, size_t coord_sys);
 };
 
@@ -117,6 +118,20 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
 
   if (parameters.targeted(Target::field))
     update_kernels();
+}
+
+template <typename Type>
+void Model<Type>::identity_kernels() {
+  LOG(debug) << "Updating kernels";
+  // row normalize
+  // TODO check should we do column normalization?
+  for (auto &coordinate_system : coordinate_systems)
+    for (auto e1 : coordinate_system.members)
+      for (auto e2 : coordinate_system.members)
+        if (e1 == e2)
+          kernels[{e1, e2}].eye()
+        else
+          kernels[{e1, e2}].zeros();
 }
 
 template <typename Type>
