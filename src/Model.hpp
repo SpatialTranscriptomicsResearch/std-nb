@@ -359,7 +359,8 @@ void Model<Type>::sample_global_theta_priors() {
     Matrix m = features.matrix % experiment.features.matrix;
     m.each_col() %= experiment.baseline_feature.matrix.col(0);
     auto v = colSums<Vector>(m);
-    explained = arma::join_vert(explained, experiment.spot * v.t());
+    explained = arma::join_vert(
+        explained, experiment.weights.matrix % (experiment.spot * v.t()));
   }
 
   mix_prior.sample(observed, explained);
