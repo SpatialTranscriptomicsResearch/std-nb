@@ -129,7 +129,7 @@ void Model<Type>::identity_kernels() {
     for (auto e1 : coordinate_system.members)
       for (auto e2 : coordinate_system.members)
         if (e1 == e2)
-          kernels[{e1, e2}].eye()
+          kernels[{e1, e2}].eye();
         else
           kernels[{e1, e2}].zeros();
 }
