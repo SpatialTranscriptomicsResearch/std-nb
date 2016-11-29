@@ -43,7 +43,6 @@ double log_beta_odds(double x, double a, double b) {
 double log_beta_neg_odds(double x, double a, double b) {
   return lgamma(a + b) - lgamma(a) - lgamma(b) + (b - 1) * log(x)
          - (a + b - 2) * log(1 + x);
-  return log_beta_odds(x, a, 1 / b);
 }
 
 double log_negative_binomial(size_t x, double r, double p) {

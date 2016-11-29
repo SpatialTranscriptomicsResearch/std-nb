@@ -231,7 +231,7 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const bool convolve = parameters.targeted(Target::field);
-  const double FACTOR = 100;
+  const double PRIOR = parameters.hyperparameters.field_residual_prior;
 
   const auto intensities = experiment.marginalize_genes(args...);
 
@@ -239,8 +239,8 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
   Matrix explained = experiment.spot * intensities.t();
   if (convolve) {
     explained %= field;
-    observed += FACTOR;
-    explained += FACTOR;
+    observed += PRIOR;
+    explained += PRIOR;
   } else {
     observed.each_row() += prior.r.t();
     explained.each_row() += prior.p.t();

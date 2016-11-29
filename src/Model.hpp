@@ -235,6 +235,7 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
 
 template <typename Type>
 void Model<Type>::gibbs_sample(bool report_likelihood) {
+  LOG(verbose) << "perform Gibbs step for " << parameters.targets;
   if (parameters.targeted(Target::contributions))
     sample_contributions();
 

@@ -516,8 +516,8 @@ void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
   LOG(verbose) << "Sampling baseline feature from Gamma distribution";
 
   // TODO add CLI switch
-  const double prior1 = 50;
-  const double prior2 = 50;
+  const double prior1 = parameters.hyperparameters.baseline1;
+  const double prior2 = parameters.hyperparameters.baseline2;
   Vector observed = prior1 + contributions_gene;
   Vector explained = prior2 + explained_gene(global_phi);
 
