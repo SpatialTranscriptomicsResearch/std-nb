@@ -124,27 +124,27 @@ ostream &operator<<(ostream &os, const Dirichlet &x __attribute__((unused))) {
 namespace THETA {
 
 double compute_conditional(const pair<Float, Float> &x,
-                           const vector<Float> &count_sums,
-                           const vector<Float> &weight_sums,
+                           const vector<Float> &observed,
+                           const vector<Float> &explained,
                            const Hyperparameters &hyperparameters) {
-  const size_t S = count_sums.size();
-  const Float current_r = x.first;
-  const Float current_p = x.second;
-  double r = log_beta_neg_odds(current_p, hyperparameters.theta_p_1,
-                               hyperparameters.theta_p_2)
-             // NOTE: gamma_distribution takes a shape and scale parameter
-             + log_gamma(current_r, hyperparameters.theta_r_1,
-                         1 / hyperparameters.theta_r_2)
-             + S * (current_r * log(current_p) - lgamma(current_r));
-#pragma omp parallel for reduction(+ : r) if (DO_PARALLEL)
+  const size_t S = observed.size();
+  const Float r = x.first;
+  const Float p = x.second;
+  double l
+      = log_beta_neg_odds(p, hyperparameters.theta_p_1,
+                          hyperparameters.theta_p_2)
+        // NOTE: gamma_distribution takes a shape and scale parameter
+        + log_gamma(r, hyperparameters.theta_r_1, 1 / hyperparameters.theta_r_2)
+        + S * (r * log(p) - lgamma(r));
+#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
     // The other factors aren't needed as they don't depend on either of
     // r[t] and p[t], and thus would cancel when computing the score
     // ratio.
-    r += lgamma(current_r + count_sums[s])
-         - (current_r + count_sums[s]) * log(current_p + weight_sums[s]);
-  return r;
+    l += lgamma(r + observed[s])
+         - (r + observed[s]) * log(p + explained[s]);
+  return l;
 }
 
 Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
