@@ -116,8 +116,12 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
   if (not parameters.targeted(Target::phi_local))
     features.matrix.fill(1);
 
-  if (parameters.targeted(Target::field))
-    update_kernels();
+  if (parameters.targeted(Target::field)) {
+    if (parameters.identity_kernels)
+      identity_kernels();
+    else
+      update_kernels();
+  }
 }
 
 template <typename Type>

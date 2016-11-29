@@ -80,6 +80,7 @@ struct Parameters {
   bool expected_contributions = false;
   bool store_lambda = false;
   bool theta_local_priors = false;
+  bool identity_kernels = false;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
   bool targeted(Target target) const;

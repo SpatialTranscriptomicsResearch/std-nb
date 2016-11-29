@@ -193,6 +193,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
+    ("identity", po::bool_switch(&parameters.identity_kernels),
+     "Use identity kernels to debug the field code.")
     ("predict", po::bool_switch(&options.predict_field),
      "Predict the field in a cube around every coordinate system's entries.")
     ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
