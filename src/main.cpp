@@ -30,7 +30,7 @@ struct Options {
   bool sample_local_phi_priors = false;
   bool share_coord_sys = false;
   bool predict_field = false;
-  bool perform_pairwise_dge = false;
+  bool perform_dge = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -82,15 +82,10 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
       const string prefix
           = options.output + "iter"
             + to_string_embedded(iteration, iteration_num_digits) + "/";
-      if (boost::filesystem::create_directory(prefix)) {
+      if (boost::filesystem::create_directory(prefix))
         pfa.store(prefix);
-        if (options.perform_pairwise_dge) {
-          pfa.perform_local_dge(prefix);
-          pfa.perform_pairwise_dge(prefix);
-        }
-      } else {
+      else
         throw(std::runtime_error("Couldn't create directory " + prefix));
-      }
     }
     moments.update(iteration, pfa);
   }
@@ -108,9 +103,10 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
       pfa.predict_field(ofs, c);
     }
   }
-  pfa.perform_local_dge(options.output);
-  if (options.perform_pairwise_dge)
+  if (options.perform_dge) {
+    pfa.perform_local_dge(options.output);
     pfa.perform_pairwise_dge(options.output);
+  }
 }
 
 template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
@@ -203,8 +199,10 @@ int main(int argc, char **argv) {
      "Dont sample x_{gst} contributions, but use expected values instead.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("pairwisedge", po::bool_switch(&options.perform_pairwise_dge),
-     "Perform pairwise comparisons between all factors in each experiment.")
+    ("dge", po::bool_switch(&options.perform_dge),
+     "Perform differential gene expression analysis."
+     "\tA) Compare each factors' local profile against the corresponding global one."
+     "\tB) Pairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
