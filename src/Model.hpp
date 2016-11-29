@@ -109,12 +109,12 @@ Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
 
   // TODO move this code into the classes for prior and features
   if (not parameters.targeted(Target::phi_prior_local)) {
-    features.prior.r.fill(1);
-    features.prior.p.fill(1);
+    features.prior.r.ones();
+    features.prior.p.ones();
   }
 
   if (not parameters.targeted(Target::phi_local))
-    features.matrix.fill(1);
+    features.matrix.ones();
 
   if (parameters.targeted(Target::field)) {
     if (parameters.identity_kernels)
@@ -537,7 +537,7 @@ void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
   experiments.push_back({counts, T, experiment_parameters});
   E++;
   // TODO check redundancy with Experiment constructor
-  experiments.rbegin()->features.matrix.fill(1);
+  experiments.rbegin()->features.matrix.ones();
   experiments.rbegin()->features.prior.r.fill(local_phi_scaling_factor);
   experiments.rbegin()->features.prior.p.fill(local_phi_scaling_factor);
   while(coordinate_systems.size() <= coord_sys)

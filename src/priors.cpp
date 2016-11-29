@@ -170,7 +170,7 @@ void Gamma::initialize_r() {
           parameters.hyperparameters.theta_r_1,
           1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
   else
-    r.fill(1);
+    r.ones();
 }
 
 void Gamma::initialize_p() {
@@ -183,7 +183,7 @@ void Gamma::initialize_p() {
           sample_beta<Float>(parameters.hyperparameters.theta_p_1,
                              parameters.hyperparameters.theta_p_2));
   else
-    p.fill(1);
+    p.ones();
 }
 
 void Gamma::sample(const Matrix &observed, const Matrix &explained) {

@@ -193,21 +193,21 @@ if (false) {
   }
 
   if (not parameters.targeted(Target::phi_local))
-    features.matrix.fill(1);
+    features.matrix.ones();
 
   if (not parameters.targeted(Target::phi_prior_local)) {
-    features.prior.r.fill(1);
-    features.prior.p.fill(1);
+    features.prior.r.ones();
+    features.prior.p.ones();
   }
 
   if (not parameters.targeted(Target::baseline))
-    baseline_feature.matrix.fill(1);
+    baseline_feature.matrix.ones();
 
   if (not parameters.targeted(Target::theta))
-    weights.matrix.fill(1);
+    weights.matrix.ones();
 
   if (not parameters.targeted(Target::spot))
-    spot.fill(1);
+    spot.ones();
 }
 
 template <typename Type>
