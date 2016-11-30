@@ -200,9 +200,9 @@ int main(int argc, char **argv) {
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("dge", po::bool_switch(&options.perform_dge),
-     "Perform differential gene expression analysis."
-     "\tA) Compare each factors' local profile against the corresponding global one."
-     "\tB) Pairwise comparisons between all factors in each experiment.")
+     "Perform differential gene expression analysis.\n"
+     "- \tFor all factors, compare each experiment's local profile against the global one.\n"
+     "- \tPairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
