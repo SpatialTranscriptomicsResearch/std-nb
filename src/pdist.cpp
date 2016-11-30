@@ -26,7 +26,16 @@ double log_dirichlet(const vector<double> &p, const vector<double> &alpha) {
 }
 
 double log_gamma(double x, double shape, double scale) {
-  return (shape - 1) * log(x) - x / scale - lgamma(shape) - shape * log(scale);
+  if (x == 0) {
+    if (shape == 1)
+      return - log(scale);
+    else if (shape > 1)
+      return -std::numeric_limits<double>::infinity();
+    else
+      return +std::numeric_limits<double>::infinity();
+  } else
+    return (shape - 1) * log(x) - x / scale - lgamma(shape)
+           - shape * log(scale);
 }
 
 double log_beta(double p, double a, double b) {
