@@ -51,7 +51,7 @@ struct Model {
 
   typename weights_t::prior_type mix_prior;
 
-  Model(const std::vector<Counts> &data, const size_t T,
+  Model(const std::vector<Counts> &data, size_t T,
         const Parameters &parameters, bool same_coord_sys);
 
   void store(const std::string &prefix, bool reorder = true) const;
@@ -90,7 +90,7 @@ template <typename Type>
 std::ostream &operator<<(std::ostream &os, const Model<Type> &pfa);
 
 template <typename Type>
-Model<Type>::Model(const std::vector<Counts> &c, const size_t T_,
+Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
                    const Parameters &parameters_, bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),

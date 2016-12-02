@@ -53,7 +53,7 @@ struct Experiment {
   /** spot scaling vector */
   Vector spot;
 
-  Experiment(const Counts &counts, const size_t T,
+  Experiment(const Counts &counts, size_t T,
              const Parameters &parameters);
 
   void store(const std::string &prefix, const features_t &global_features,
@@ -136,7 +136,7 @@ struct Experiment {
 #include "ExperimentDGE.hpp"
 
 template <typename Type>
-Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
+Experiment<Type>::Experiment(const Counts &data_, size_t T_,
                              const Parameters &parameters_)
     : data(data_),
       coords(data.parse_coords()),
