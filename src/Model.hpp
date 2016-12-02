@@ -515,8 +515,8 @@ void Model<Type>::predict_field(std::ofstream &ofs,
 
 template <typename Type>
 void Model<Type>::update_contributions() {
-  contributions_gene_type.fill(0);
-  contributions_gene.fill(0);
+  contributions_gene_type.zeros();
+  contributions_gene.zeros();
   for (auto &experiment : experiments)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
