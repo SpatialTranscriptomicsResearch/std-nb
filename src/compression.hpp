@@ -63,11 +63,22 @@ struct Parsing : public std::runtime_error {
 }
 }
 
+template <typename T=void>
+std::string find_suffix_alternatives(const std::string& path,
+                                     const std::vector<std::string>& suffixes
+                                     = {"", ".gz", ".bz2"}) {
+  for (auto& suffix : suffixes) {
+    auto p = path + suffix;
+    if (boost::filesystem::exists(p))
+      return p;
+  }
+  throw Exception::File::Existence(path);
+}
+
 template <typename T, typename X, typename... Args>
-T parse_file(const std::string& p, X fnc, Args&... args) {
+T parse_file(const std::string& p_, X fnc, Args&... args) {
   using namespace boost::filesystem;
-  if (not exists(p))
-    throw Exception::File::Existence(p);
+  std::string p = find_suffix_alternatives(p_);
 
   bool use_gzip = path(p).extension() == ".gz";
   bool use_bzip2 = path(p).extension() == ".bz2";
