@@ -146,8 +146,8 @@ Experiment<Type>::Experiment(const Counts &data_, const size_t T_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_spot_type(S, T, arma::fill::zeros),
-      contributions_gene(G, arma::fill::zeros),
-      contributions_spot(S, arma::fill::zeros),
+      contributions_gene(rowSums<Vector>(data.counts)),
+      contributions_spot(colSums<Vector>(data.counts)),
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
@@ -166,20 +166,6 @@ if (false) {
 }
 */
   LOG(debug) << "Coords: " << coords;
-
-// initialize contributions_spot
-//  TODO use initializer list together with a sums and a colSums function
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t g = 0; g < G; ++g)
-      contributions_spot(s) += data.counts(g, s);
-
-// initialize contributions_gene
-//  TODO use initializer list together with a rowSums function
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      contributions_gene(g) += data.counts(g, s);
 
   // initialize spot scaling factors
   {
