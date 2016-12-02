@@ -78,9 +78,9 @@ void Gamma::store(const std::string &prefix,
   write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING, gene_names, factor_names, order);
 }
 
-void Gamma::restore(const std::string &prefix, const std::string &suffix) {
-  r = parse_file<Matrix>(prefix + "_prior-r" + FILENAME_ENDING + suffix, read_matrix, "\t");
-  p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING + suffix, read_matrix, "\t");
+void Gamma::restore(const std::string &prefix) {
+  r = parse_file<Matrix>(prefix + "_prior-r" + FILENAME_ENDING, read_matrix, "\t");
+  p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING, read_matrix, "\t");
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -106,8 +106,7 @@ void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &factor_names __attribute__((unused)),
                       const std::vector<size_t> &order __attribute__((unused))) const {}
 
-void Dirichlet::restore(const std::string &prefix __attribute__((unused)),
-                        const std::string &suffix __attribute__((unused))) {}
+void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_matrix_head(os, x.r, "R of Φ");
@@ -230,9 +229,9 @@ void Gamma::store(const std::string &prefix,
   write_vector(p_, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
 }
 
-void Gamma::restore(const std::string &prefix, const std::string &suffix) {
-  r = parse_file<Vector>(prefix + "_prior-r" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
-  p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
+void Gamma::restore(const std::string &prefix) {
+  r = parse_file<Vector>(prefix + "_prior-r" + FILENAME_ENDING, read_vector<Vector>, "\t");
+  p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING, read_vector<Vector>, "\t");
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -256,8 +255,7 @@ void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &factor_names __attribute__((unused)),
                       const std::vector<size_t> &order __attribute__((unused))) const {}
 
-void Dirichlet::restore(const std::string &prefix __attribute__((unused)),
-                        const std::string &suffix __attribute__((unused))) {}
+void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_vector_head(os, x.r, "R of Θ");

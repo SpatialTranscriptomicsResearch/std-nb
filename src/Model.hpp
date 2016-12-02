@@ -55,7 +55,7 @@ struct Model {
         const Parameters &parameters, bool same_coord_sys);
 
   void store(const std::string &prefix, bool reorder = true) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
@@ -206,15 +206,15 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
 }
 
 template <typename Type>
-void Model<Type>::restore(const std::string &prefix, const std::string &suffix) {
-  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING + suffix, read_matrix, "\t");
-  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
-  features.restore(prefix, suffix);
+void Model<Type>::restore(const std::string &prefix) {
+  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING, read_vector<Vector>, "\t");
+  features.restore(prefix);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
                              + "-";
-    experiments[e].restore(exp_prefix, suffix);
+    experiments[e].restore(exp_prefix);
   }
 }
 

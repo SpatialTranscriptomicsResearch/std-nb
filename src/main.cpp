@@ -115,7 +115,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   PF::Model<PF::ModelType<Feature, Mix>> pfa(
       data_sets, options.num_factors, parameters, options.share_coord_sys);
   if (options.load_prefix != "")
-    pfa.restore(options.load_prefix, "");  // TODO CLI switch for suffix
+    pfa.restore(options.load_prefix);
   perform_gibbs_sampling(pfa, options);
 }
 

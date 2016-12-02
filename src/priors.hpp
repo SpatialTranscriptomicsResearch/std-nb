@@ -42,7 +42,7 @@ struct Gamma {
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
 
 private:
   void initialize_r();
@@ -225,7 +225,7 @@ struct Dirichlet {
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
 };
 
 /** This routine doesn't print, for the same reason as sample() does nothing */
@@ -254,7 +254,7 @@ struct Gamma {
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
 
 private:
   void initialize_r();
@@ -275,7 +275,7 @@ struct Dirichlet {
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
 };
 
 /** This routine doesn't print, for the same reason as sample() does nothing */

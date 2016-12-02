@@ -58,7 +58,7 @@ struct Experiment {
 
   void store(const std::string &prefix, const features_t &global_features,
              const std::vector<size_t> &order) const;
-  void restore(const std::string &prefix, const std::string &suffix);
+  void restore(const std::string &prefix);
   void perform_pairwise_dge(const std::string &prefix,
                             const features_t &global_features) const;
   void perform_local_dge(const std::string &prefix,
@@ -246,19 +246,18 @@ void Experiment<Type>::store(const std::string &prefix,
 }
 
 template <typename Type>
-void Experiment<Type>::restore(const std::string &prefix,
-                               const std::string &suffix) {
-  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING + suffix, read_matrix, "\t");
-  contributions_spot_type = parse_file<Matrix>(prefix + "contributions_spot_type" + FILENAME_ENDING + suffix, read_matrix, "\t");
-  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
-  contributions_spot = parse_file<Vector>(prefix + "contributions_spot" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
+void Experiment<Type>::restore(const std::string &prefix) {
+  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_spot_type = parse_file<Matrix>(prefix + "contributions_spot_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING, read_vector<Vector>, "\t");
+  contributions_spot = parse_file<Vector>(prefix + "contributions_spot" + FILENAME_ENDING, read_vector<Vector>, "\t");
 
-  features.restore(prefix, suffix);
-  baseline_feature.restore(prefix + "baseline", suffix);
-  weights.restore(prefix, suffix);
+  features.restore(prefix);
+  baseline_feature.restore(prefix + "baseline");
+  weights.restore(prefix);
 
-  field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING + suffix, read_matrix, "\t");
-  spot = parse_file<Vector>(prefix + "spot-scaling" + FILENAME_ENDING + suffix, read_vector<Vector>, "\t");
+  field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING, read_matrix, "\t");
+  spot = parse_file<Vector>(prefix + "spot-scaling" + FILENAME_ENDING, read_vector<Vector>, "\t");
 }
 
 template <typename Type>

@@ -91,10 +91,10 @@ struct Model {
     prior.store(path, spot_names, factor_names, order);
   };
 
-  void restore(const std::string &prefix, const std::string &suffix) {
+  void restore(const std::string &prefix) {
     const auto path = gen_path_stem(prefix);
-    matrix = parse_file<Matrix>(path + FILENAME_ENDING + suffix, read_matrix, "\t");
-    prior.restore(path, suffix);
+    matrix = parse_file<Matrix>(path + FILENAME_ENDING, read_matrix, "\t");
+    prior.restore(path);
   };
 
   double log_likelihood_factor(size_t t) const;
