@@ -6,6 +6,8 @@
 using namespace std;
 
 double log_poisson(size_t k, double lambda) {
+  if(lambda == 0)
+    return (k == 0 ? 0 : -numeric_limits<double>::infinity());
   return k * log(lambda) - lambda - lgamma(k + 1);
 }
 
