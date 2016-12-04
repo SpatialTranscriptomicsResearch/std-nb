@@ -80,7 +80,7 @@ void discard_empty_spots(Counts &c) {
 }
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
-                         size_t top) {
+                         size_t top, bool discard_empty) {
   vector<Counts> counts_v;
   for (auto &path : paths) {
     LOG(verbose) << "Loading " << path;
@@ -94,8 +94,9 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
 
   select_top(counts_v, top);
 
-  for(auto &counts: counts_v)
-    discard_empty_spots(counts);
+  if (discard_empty)
+    for (auto &counts : counts_v)
+      discard_empty_spots(counts);
 
   LOG(verbose) << "Done loading";
   return counts_v;

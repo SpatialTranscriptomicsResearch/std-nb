@@ -31,6 +31,7 @@ struct Options {
   bool share_coord_sys = false;
   bool predict_field = false;
   bool perform_dge = false;
+  bool discard_empty = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -185,6 +186,8 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("drop_empty", po::bool_switch(&options.discard_empty),
+     "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
@@ -305,7 +308,8 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  auto data_sets = load_data(options.tsv_paths, options.intersect, options.top);
+  auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
+                             options.discard_empty);
 
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";
