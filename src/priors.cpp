@@ -121,10 +121,6 @@ Matrix Dirichlet::ratio() const {
   return Matrix(dim1, dim2, arma::fill::ones);
 }
 
-void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
-                       const Matrix &contributions_gene_type __attribute__((unused)),
-                       const Vector &spot_scaling __attribute__((unused))) const {}
-
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &gene_names __attribute__((unused)),
                       const std::vector<std::string> &factor_names __attribute__((unused)),

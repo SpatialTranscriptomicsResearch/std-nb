@@ -32,11 +32,11 @@ struct Gamma {
   /** sample p_phi and r_phi */
   /* This chooses first r with Metropolis-Hastings then p from the posterior */
   template <typename Type, typename... Args>
-  void sample(const Type &experiment, const Args &... args);
+  void sample_alternative(const Type &experiment, const Args &... args);
 
   /* This is a simple Metropolis-Hastings sampling scheme */
   template <typename Type, typename... Args>
-  void sample_mh(const Type &experiment, const Args &... args);
+  void sample(const Type &experiment, const Args &... args);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
@@ -89,7 +89,7 @@ inline double score(double r, double p, double observed, double expected,
 }
 
 template <typename Type, typename... Args>
-void Gamma::sample(const Type &experiment, const Args &... args) {
+void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
   LOG(verbose)
       << "Sampling R and P of Φ using Metropolis-Hastings and from the "
          "posterior, respectively.";
@@ -186,7 +186,7 @@ std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
 };
 
 template <typename Type, typename... Args>
-void Gamma::sample_mh(const Type &experiment, const Args &... args) {
+void Gamma::sample(const Type &experiment, const Args &... args) {
   LOG(verbose) << "Sampling P and R of Φ";
 
   auto expected_gene_type = experiment.expected_gene_type(args...);
@@ -221,13 +221,8 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &theta, const Matrix &contributions_gene_type,
-              const Vector &spot_scaling) const;
-
-  /** This routine does nothing, as this sub-model doesn't have random variables
-   * but only hyper-parameters */
   template <typename Type, typename... Args>
-  void sample_mh(const Type &experiment, const Args &... args);
+  void sample(const Type &experiment, const Args &... args);
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names,
@@ -240,7 +235,7 @@ struct Dirichlet {
 };
 
 template <typename Type, typename... Args>
-void Dirichlet::sample_mh(const Type &experiment, const Args &... args) {
+void Dirichlet::sample(const Type &experiment, const Args &... args) {
 }
 
 /** This routine doesn't print, for the same reason as sample() does nothing */

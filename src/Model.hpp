@@ -259,7 +259,7 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
 
       case 1:
         if (parameters.targeted(Target::phi_prior))
-          features.prior.sample_mh(*this);
+          features.prior.sample(*this);
         break;
 
       case 2:
