@@ -6,17 +6,10 @@
 
 struct Counts {
   Counts(const std::string &path, const std::string &separator = "\t");
-  Counts(const std::string &path,
-         const std::vector<std::string> &rnames,
-         const std::vector<std::string> &cnames,
-         const PoissonFactorization::IMatrix &cnts);
   std::string path;
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
   PoissonFactorization::IMatrix counts;  // TODO rename to matrix
-  Counts operator+(const Counts &other) const;
-  Counts operator*(const Counts &other) const;
-  Counts &operator=(const Counts &other);
   /**
    * Function assumes the column names are of the form "AxB" with A and B
    * positive integers. It then computes the matrix of pairwise squared

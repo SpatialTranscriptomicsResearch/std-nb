@@ -24,21 +24,6 @@ Counts::Counts(const string &path_, const string &separator)
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names)) {}
 
-Counts::Counts(const string &path_, const vector<string> &rnames,
-               const vector<string> &cnames, const IMatrix &cnts)
-    : path(path_), row_names(rnames), col_names(cnames), counts(cnts) {
-  assert(rnames.size() == cnts.n_rows);
-  assert(cnames.size() == cnts.n_cols);
-}
-
-Counts &Counts::operator=(const Counts &other) {
-  path = other.path;
-  row_names = other.row_names;
-  col_names = other.col_names;
-  counts = other.counts;
-  return *this;
-}
-
 void select_top(vector<Counts> &counts_v, size_t top) {
   if (top == 0 or counts_v.empty() or counts_v[0].row_names.size() <= top)
     return;
