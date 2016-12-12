@@ -335,6 +335,9 @@ int main(int argc, char **argv) {
 
   switch (options.feature_type) {
     case Kind::Dirichlet: {
+      parameters.targets = parameters.targets & (~(PF::Target::phi_local
+                                                 | PF::Target::phi_prior_local
+                                                 | PF::Target::baseline));
       switch (options.mixing_type) {
         case Kind::Dirichlet:
           run<Kind::Dirichlet, Kind::Dirichlet>(data_sets, options, parameters);
