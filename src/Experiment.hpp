@@ -22,15 +22,15 @@ struct Experiment {
   using features_t = typename Type::features_t;
   using weights_t = typename Type::weights_t;
 
-  Counts data;
-  Matrix coords;
-
   /** number of genes */
   size_t G;
   /** number of samples */
   size_t S;
   /** number of factors */
   size_t T;
+
+  Counts data;
+  Matrix coords;
 
   Parameters parameters;
 
@@ -136,11 +136,11 @@ struct Experiment {
 template <typename Type>
 Experiment<Type>::Experiment(const Counts &data_, size_t T_,
                              const Parameters &parameters_)
-    : data(data_),
-      coords(data.parse_coords()),
-      G(data.counts.n_rows),
-      S(data.counts.n_cols),
+    : G(data_.counts.n_rows),
+      S(data_.counts.n_cols),
       T(T_),
+      data(data_),
+      coords(data.parse_coords()),
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_spot_type(S, T, arma::fill::zeros),
