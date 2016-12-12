@@ -33,7 +33,6 @@ struct Model {
 
   /** factor loading matrix */
   features_t features;
-  // TODO consider weights_t global_weights;
   struct CoordinateSystem {
     // std::vector<Matrix> coords;
     std::vector<size_t> members;

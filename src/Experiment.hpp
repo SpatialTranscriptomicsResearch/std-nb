@@ -246,7 +246,6 @@ void Experiment<Type>::restore(const std::string &prefix) {
 template <typename Type>
 void Experiment<Type>::perform_pairwise_dge(const std::string &prefix,
                              const features_t &global_features) const {
-  // TODO add CLI switch for this
   auto &gene_names = data.row_names;
   auto x = pairwise_dge(global_features);
   std::vector<std::string> factor_pair_names;
