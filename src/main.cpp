@@ -333,6 +333,9 @@ int main(int argc, char **argv) {
         = parameters.targets
           & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
 
+  if (options.mixing_type == Kind::Dirichlet)
+    parameters.targets = parameters.targets & ~PF::Target::field;
+
   switch (options.feature_type) {
     case Kind::Dirichlet: {
       parameters.targets = parameters.targets & (~(PF::Target::phi_local
