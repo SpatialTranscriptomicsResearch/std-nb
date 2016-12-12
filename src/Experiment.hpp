@@ -72,8 +72,6 @@ struct Experiment {
   Matrix posterior_expectations_poisson() const;
   Matrix posterior_expectations_negative_multinomial(
       const features_t &global_features) const;
-  Matrix posterior_variances_negative_multinomial(
-      const features_t &global_features) const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -181,15 +179,12 @@ if (false) {
   if (not parameters.targeted(Target::phi_local))
     features.matrix.ones();
 
-  if (not parameters.targeted(Target::phi_prior_local)) {
-    features.prior.r.ones();
-    features.prior.p.ones();
-  }
+  if (not parameters.targeted(Target::phi_prior_local))
+    features.prior.set_unit();
 
   if (not parameters.targeted(Target::baseline)) {
     baseline_feature.matrix.ones();
-    baseline_feature.prior.r.ones();
-    baseline_feature.prior.p.ones();
+    baseline_feature.prior.set_unit();
   }
 
   if (not parameters.targeted(Target::theta))
@@ -227,7 +222,6 @@ void Experiment<Type>::store(const std::string &prefix,
   if (false) {
     write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson" + FILENAME_ENDING, gene_names, spot_names);
     write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected" + FILENAME_ENDING, gene_names, spot_names);
-    write_matrix(posterior_variances_negative_multinomial(global_features), prefix + "counts_variance" + FILENAME_ENDING, gene_names, spot_names);
   }
 }
 
@@ -264,6 +258,10 @@ void Experiment<Type>::perform_pairwise_dge(const std::string &prefix,
 template <typename Type>
 void Experiment<Type>::perform_local_dge(const std::string &prefix,
                              const features_t &global_features) const {
+  if (std::is_same<typename Type::features_t::prior_type,
+                   PRIOR::PHI::Dirichlet>::value)
+    return;
+
   auto &gene_names = data.row_names;
   auto factor_names = form_factor_names(T);
   write_matrix(
@@ -394,30 +392,13 @@ Matrix Experiment<Type>::posterior_expectations_poisson() const {
 template <typename Type>
 Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
     const features_t &global_features) const {
+  Matrix prior_ratio = global_features.prior.ratio();
   Matrix m(G, S, arma::fill::zeros);
 #pragma omp parallel for
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s)
       for (size_t t = 0; t < T; ++t) {
-        m(g, s) += global_features.prior.r(g, t) / global_features.prior.p(g, t)
-                   * phi(g, t) * theta(s, t) * spot(s);
-      }
-  return m;
-}
-
-template <typename Type>
-Matrix Experiment<Type>::posterior_variances_negative_multinomial(
-    const features_t &global_features) const {
-  Matrix m(G, S, arma::fill::zeros);
-#pragma omp parallel for
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t) {
-        double x = phi(g, t) * theta(s, t) * spot(s);
-        m(g, s) += x * (x + global_features.prior.p(g, t))
-                   * global_features.prior.r(g, t)
-                   / global_features.prior.p(g, t)
-                   / global_features.prior.p(g, t);
+        m(g, s) += prior_ratio(g, t) * phi(g, t) * theta(s, t) * spot(s);
       }
   return m;
 }

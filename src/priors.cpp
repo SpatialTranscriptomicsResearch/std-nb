@@ -27,6 +27,15 @@ Gamma::Gamma(const Gamma &other)
       p(other.p),
       parameters(other.parameters) {}
 
+void Gamma::set_unit(double x) {
+  r.fill(x);
+  p.fill(x);
+}
+
+Matrix Gamma::ratio() const {
+  return r / p;
+}
+
 void Gamma::initialize_r() {
   // initialize r_phi
   LOG(debug) << "Initializing R of Φ.";
@@ -86,7 +95,7 @@ void Gamma::restore(const std::string &prefix) {
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
     : dim1(dim1_),
       dim2(dim2_),
-      alpha_prior(parameters.hyperparameters.alpha),
+      alpha_prior(parameters.hyperparameters.feature_alpha),
       alpha(dim1, dim2) {
   alpha.fill(alpha_prior);
 }
@@ -96,6 +105,21 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       dim2(other.dim2),
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
+
+double Dirichlet::r(size_t a, size_t b) const {
+  return 1;
+}
+
+double Dirichlet::p(size_t a, size_t b) const {
+  return 1;
+}
+
+void Dirichlet::set_unit(double x) {
+}
+
+Matrix Dirichlet::ratio() const {
+  return Matrix(dim1, dim2, arma::fill::ones);
+}
 
 void Dirichlet::sample(const Matrix &theta __attribute__((unused)),
                        const Matrix &contributions_gene_type __attribute__((unused)),
@@ -237,7 +261,7 @@ void Gamma::restore(const std::string &prefix) {
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
     : dim1(dim1_),
       dim2(dim2_),
-      alpha_prior(parameters.hyperparameters.alpha),
+      alpha_prior(parameters.hyperparameters.mix_alpha),
       alpha(dim1, alpha_prior) {}
 
 Dirichlet::Dirichlet(const Dirichlet &other)

@@ -2,8 +2,8 @@
 #define PARAMETERS_HPP
 
 #include <cstdint>
-#include "types.hpp"
 #include "target.hpp"
+#include "types.hpp"
 
 namespace PoissonFactorization {
 struct Hyperparameters {
@@ -11,7 +11,8 @@ struct Hyperparameters {
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,
                   Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
                   Float theta_p_2_ = 0.95, Float spot_a_ = 10,
-                  Float spot_b_ = 10, Float alpha_ = 0.5, Float sigma_ = 1,
+                  Float spot_b_ = 10, Float feature_alpha_ = 1,
+                  Float mix_alpha_ = 0.5, Float sigma_ = 1,
                   Float residual = 100, Float bline1 = 50, Float bline2 = 50)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
@@ -23,7 +24,8 @@ struct Hyperparameters {
         theta_p_2(theta_p_2_),
         spot_a(spot_a_),
         spot_b(spot_b_),
-        alpha(alpha_),
+        feature_alpha(feature_alpha_),
+        mix_alpha(mix_alpha_),
         sigma(sigma_),
         field_residual_prior(residual),
         baseline1(bline1),
@@ -52,7 +54,8 @@ struct Hyperparameters {
   Float spot_a;
   Float spot_b;
 
-  Float alpha;
+  Float feature_alpha;
+  Float mix_alpha;
 
   // characteristic length-scale for field
   Float sigma;
@@ -88,6 +91,5 @@ struct Parameters {
 
 Float digamma(Float x);
 Float trigamma(Float x);
-
 }
 #endif

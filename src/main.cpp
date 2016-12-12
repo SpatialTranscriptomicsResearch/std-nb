@@ -225,8 +225,10 @@ int main(int argc, char **argv) {
      "Respect the likelihood contributions of the mixture priors.");
 
   hyperparameter_options.add_options()
-    ("alpha", po::value(&parameters.hyperparameters.alpha)->default_value(parameters.hyperparameters.alpha),
-     "Dirichlet prior alpha of the factor loading matrix.")
+    ("feature_alpha", po::value(&parameters.hyperparameters.feature_alpha)->default_value(parameters.hyperparameters.feature_alpha),
+     "Dirichlet prior alpha for the features.")
+    ("mix_alpha", po::value(&parameters.hyperparameters.mix_alpha)->default_value(parameters.hyperparameters.mix_alpha),
+     "Dirichlet prior alpha of the mixing weights.")
     ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
     ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
@@ -332,7 +334,6 @@ int main(int argc, char **argv) {
           & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
 
   switch (options.feature_type) {
-    /* TODO reactivate
     case Kind::Dirichlet: {
       switch (options.mixing_type) {
         case Kind::Dirichlet:
@@ -348,7 +349,6 @@ int main(int argc, char **argv) {
           break;
       }
     } break;
-    */
     case Kind::Gamma: {
       switch (options.mixing_type) {
         case Kind::Dirichlet:

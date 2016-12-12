@@ -43,6 +43,8 @@ struct Gamma {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
+  void set_unit(double x=1.0);
+  Matrix ratio() const;
 
 private:
   void initialize_r();
@@ -221,12 +223,25 @@ struct Dirichlet {
    * but only hyper-parameters */
   void sample(const Matrix &theta, const Matrix &contributions_gene_type,
               const Vector &spot_scaling) const;
+
+  /** This routine does nothing, as this sub-model doesn't have random variables
+   * but only hyper-parameters */
+  template <typename Type, typename... Args>
+  void sample_mh(const Type &experiment, const Args &... args);
   void store(const std::string &prefix,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
+  void set_unit(double x=1.0);
+  Matrix ratio() const;
+  double r(size_t a, size_t b) const;
+  double p(size_t a, size_t b) const;
 };
+
+template <typename Type, typename... Args>
+void Dirichlet::sample_mh(const Type &experiment, const Args &... args) {
+}
 
 /** This routine doesn't print, for the same reason as sample() does nothing */
 std::ostream &operator<<(std::ostream &os, const Gamma &x);

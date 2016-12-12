@@ -182,24 +182,21 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
   perform_sampling(observed, explained, matrix, parameters.over_relax);
 }
 
-/* TODO reactivate
 template <>
-template <typename M>
+template <typename Experiment, typename... Args>
 void Model<Variable::Feature, Kind::Dirichlet>::sample(
-    const M &mix, const Matrix &contributions_gene_type, const Vector &spot,
-    const Vector &experiment, const Matrix &other) {
+    const Experiment &experiment, const Args &... args) {
   LOG(verbose) << "Sampling Φ from Dirichlet distribution";
   for (size_t t = 0; t < dim2; ++t) {
-    std::vector<Float> a(G, 0);
+    std::vector<Float> a(dim1, 0);
 #pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      a[g] = prior.alpha(g, t) + contributions_gene_type(g, t);
+    for (size_t g = 0; g < dim1; ++g)
+      a[g] = prior.alpha(g, t) + experiment.contributions_gene_type(g, t);
     auto phi_k = sample_dirichlet<Float>(begin(a), end(a));
-    for (size_t g = 0; g < G; ++g)
+    for (size_t g = 0; g < dim1; ++g)
       matrix(g, t) = phi_k[g];
   }
 }
-*/
 
 // Mixing specializations
 
@@ -265,7 +262,7 @@ void Model<Variable::Mix, Kind::Dirichlet>::sample_field(
   LOG(verbose) << "Sampling Θ from Dirichlet distribution";
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < dim1; ++s) {
-    std::vector<Float> a(dim2, parameters.hyperparameters.alpha);
+    std::vector<Float> a(dim2, parameters.hyperparameters.mix_alpha);
     for (size_t t = 0; t < dim2; ++t)
       a[t] += experiment.contributions_spot_type(s, t);
     auto theta_sample = sample_dirichlet<Float>(begin(a), end(a));
