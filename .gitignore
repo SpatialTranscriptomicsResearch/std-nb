@@ -6,3 +6,4 @@ data/
 results/
 local_configuration.cmake
 maths
+*.gch
