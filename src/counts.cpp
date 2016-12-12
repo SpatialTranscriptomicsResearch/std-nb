@@ -84,7 +84,7 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
   vector<Counts> counts_v;
   for (auto &path : paths) {
     LOG(verbose) << "Loading " << path;
-    counts_v.push_back(Counts({path}));
+    counts_v.push_back(Counts(path));
   }
 
   if (intersect)
