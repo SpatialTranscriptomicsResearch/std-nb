@@ -202,7 +202,13 @@ void Experiment<Type>::store(const std::string &prefix,
   auto &gene_names = data.row_names;
   auto &spot_names = data.col_names;
 
-  boost::filesystem::create_symlink(data.path, prefix + "counts" + FILENAME_ENDING);
+  std::string suffix = "";
+  std::string extension
+      = boost::filesystem::path(data.path).extension().c_str();
+  if (extension == ".gz" or extension == ".bz2")
+    suffix = extension;
+  boost::filesystem::create_symlink(
+      data.path, prefix + "counts" + FILENAME_ENDING + suffix);
 
   features.store(prefix, gene_names, factor_names, order);
   baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"}, {});
