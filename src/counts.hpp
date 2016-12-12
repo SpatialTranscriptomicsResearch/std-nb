@@ -6,9 +6,11 @@
 
 struct Counts {
   Counts(const std::string &path, const std::string &separator = "\t");
-  Counts(const std::vector<std::string> &rnames,
+  Counts(const std::string &path,
+         const std::vector<std::string> &rnames,
          const std::vector<std::string> &cnames,
          const PoissonFactorization::IMatrix &cnts);
+  std::string path;
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
   PoissonFactorization::IMatrix counts;  // TODO rename to matrix

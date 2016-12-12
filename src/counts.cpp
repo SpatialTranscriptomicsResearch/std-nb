@@ -17,20 +17,22 @@ using IMatrix = PF::IMatrix;
 using Matrix = PF::Matrix;
 using Vector = PF::Vector;
 
-Counts::Counts(const string &path, const string &separator)
-    : row_names(),
+Counts::Counts(const string &path_, const string &separator)
+    : path(path_),
+      row_names(),
       col_names(),
       counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
                                  col_names)) {}
 
-Counts::Counts(const vector<string> &rnames, const vector<string> &cnames,
-               const IMatrix &cnts)
-    : row_names(rnames), col_names(cnames), counts(cnts) {
+Counts::Counts(const string &path_, const vector<string> &rnames,
+               const vector<string> &cnames, const IMatrix &cnts)
+    : path(path_), row_names(rnames), col_names(cnames), counts(cnts) {
   assert(rnames.size() == cnts.n_rows);
   assert(cnames.size() == cnts.n_cols);
 }
 
 Counts &Counts::operator=(const Counts &other) {
+  path = other.path;
   row_names = other.row_names;
   col_names = other.col_names;
   counts = other.counts;

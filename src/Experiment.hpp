@@ -201,6 +201,9 @@ void Experiment<Type>::store(const std::string &prefix,
   auto factor_names = form_factor_names(T);
   auto &gene_names = data.row_names;
   auto &spot_names = data.col_names;
+
+  boost::filesystem::create_symlink(data.path, prefix + "counts" + FILENAME_ENDING);
+
   features.store(prefix, gene_names, factor_names, order);
   baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"}, {});
   weights.store(prefix, spot_names, factor_names, order);
