@@ -83,8 +83,10 @@ void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &gene_names,
                   const std::vector<std::string> &factor_names,
                   const std::vector<size_t> &order) const {
-  write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING, gene_names, factor_names, order);
-  write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING,
+               parameters.compression_mode, gene_names, factor_names, order);
+  write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING,
+               parameters.compression_mode, gene_names, factor_names, order);
 }
 
 void Gamma::restore(const std::string &prefix) {
@@ -245,13 +247,17 @@ void Gamma::store(const std::string &prefix,
     for (size_t i = 0; i < dim2; ++i)
       p_[i] = p[order[i]];
   }
-  write_vector(r_, prefix + "_prior-r" + FILENAME_ENDING, factor_names);
-  write_vector(p_, prefix + "_prior-p" + FILENAME_ENDING, factor_names);
+  write_vector(r_, prefix + "_prior-r" + FILENAME_ENDING,
+               parameters.compression_mode, factor_names);
+  write_vector(p_, prefix + "_prior-p" + FILENAME_ENDING,
+               parameters.compression_mode, factor_names);
 }
 
 void Gamma::restore(const std::string &prefix) {
-  r = parse_file<Vector>(prefix + "_prior-r" + FILENAME_ENDING, read_vector<Vector>, "\t");
-  p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING, read_vector<Vector>, "\t");
+  r = parse_file<Vector>(prefix + "_prior-r" + FILENAME_ENDING,
+                         read_vector<Vector>, "\t");
+  p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING,
+                         read_vector<Vector>, "\t");
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)

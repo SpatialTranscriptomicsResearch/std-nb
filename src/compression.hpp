@@ -36,6 +36,7 @@
 #include <boost/iostreams/filter/gzip.hpp>
 #include <boost/iostreams/filter/bzip2.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
+#include "compression_mode.hpp"
 
 namespace Exception {
 namespace File {
@@ -53,12 +54,16 @@ struct Access : public std::runtime_error {
 };
 struct Reading : public std::runtime_error {
   Reading(const std::string& path)
-      : std::runtime_error("Error: reading from file failed: '" + path +
-                           "'."){};
+      : std::runtime_error("Error: reading from file failed: '" + path
+                           + "'."){};
 };
 struct Parsing : public std::runtime_error {
   Parsing(const std::string& path)
       : std::runtime_error("Error: parsing file failed: '" + path + "'."){};
+};
+struct Writing : public std::runtime_error {
+  Writing(const std::string& path)
+      : std::runtime_error("Error: writing file failed: '" + path + "'."){};
 };
 }
 }
@@ -75,8 +80,38 @@ std::string find_suffix_alternatives(const std::string& path,
   throw Exception::File::Existence(path);
 }
 
-template <typename T, typename X, typename... Args>
-T parse_file(const std::string& p_, X fnc, Args&... args) {
+template <typename Fnc, typename... Args>
+void write_file(const std::string& p_, CompressionMode mode, Fnc fnc, Args&... args) {
+  using namespace boost::filesystem;
+
+  std::string p = p_ + to_string(mode);
+
+  std::ios_base::openmode flags = std::ios_base::out;
+  if (mode != CompressionMode::none) flags |= std::ios_base::binary;
+
+  std::ofstream file(p, flags);
+  if (not file) throw Exception::File::Access(p);
+  boost::iostreams::filtering_stream<boost::iostreams::output> out;
+  switch(mode) {
+    case CompressionMode::gzip:
+      out.push(boost::iostreams::gzip_compressor());
+      break;
+    case CompressionMode::bzip2:
+      out.push(boost::iostreams::bzip2_compressor());
+      break;
+    default:
+      break;
+  }
+  out.push(file);
+
+  fnc(out, args...);
+  if (out.bad()) throw Exception::File::Writing(p);
+  // if (in.fail())
+  //   throw Exception::File::Parsing(p);
+}
+
+template <typename T, typename Fnc, typename... Args>
+T parse_file(const std::string& p_, Fnc fnc, Args&... args) {
   using namespace boost::filesystem;
   std::string p = find_suffix_alternatives(p_);
 

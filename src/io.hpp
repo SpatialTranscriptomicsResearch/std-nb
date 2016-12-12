@@ -4,10 +4,11 @@
 #include <iostream>
 #include <string>
 #include <vector>
+#include "compression_mode.hpp"
 #include "types.hpp"
 
 template <typename V>
-void write_vector(const V &v, const std::string &path,
+void write_vector(const V &v, const std::string &path, CompressionMode mode,
                   const std::vector<std::string> &names
                   = std::vector<std::string>(),
                   const std::string &separator = "\t") {
@@ -22,13 +23,15 @@ void write_vector(const V &v, const std::string &path,
           + ") does not match length of vector (" + std::to_string(X) + ")."));
   }
 
-  std::ofstream ofs(path);
-  for (size_t x = 0; x < X; ++x)
-    ofs << (names_given ? names[x] + separator : "") << v[x] << '\n';
+  write_file(path, mode, [&](std::ostream &ofs) {
+    for (size_t x = 0; x < X; ++x)
+      ofs << (names_given ? names[x] + separator : "") << v[x] << '\n';
+  });
 }
 
 template <typename M>
 void write_matrix(const M &m, const std::string &path,
+                  CompressionMode mode,
                   const std::vector<std::string> &row_names
                   = std::vector<std::string>(),
                   const std::vector<std::string> &col_names
@@ -65,21 +68,22 @@ void write_matrix(const M &m, const std::string &path,
                              + ") does not match number of cols ("
                              + std::to_string(Y) + ")."));
 
-  std::ofstream ofs(path);
-  if (col_names_given) {
-    for (size_t y = 0; y < Y; ++y)
-      // TODO decide if the old behavior might be preferable
-      // ofs << separator << col_names[col_order[y]];
-      ofs << separator << col_names[y];
-    ofs << '\n';
-  }
-  for (size_t x = 0; x < X; ++x) {
-    if (row_names_given)
-      ofs << row_names[x] + separator;
-    for (size_t y = 0; y < Y; ++y)
-      ofs << (y != 0 ? separator : "") << m(x, col_order[y]);
-    ofs << '\n';
-  }
+  write_file(path, mode, [&](std::ostream &ofs) {
+    if (col_names_given) {
+      for (size_t y = 0; y < Y; ++y)
+        // TODO decide if the old behavior might be preferable
+        // ofs << separator << col_names[col_order[y]];
+        ofs << separator << col_names[y];
+      ofs << '\n';
+    }
+    for (size_t x = 0; x < X; ++x) {
+      if (row_names_given)
+        ofs << row_names[x] + separator;
+      for (size_t y = 0; y < Y; ++y)
+        ofs << (y != 0 ? separator : "") << m(x, col_order[y]);
+      ofs << '\n';
+    }
+  });
 }
 
 PoissonFactorization::Matrix read_matrix(std::istream &os,

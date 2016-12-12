@@ -87,7 +87,7 @@ struct Model {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const {
     const auto path = gen_path_stem(prefix);
-    write_matrix(matrix, path + FILENAME_ENDING, spot_names, factor_names, order);
+    write_matrix(matrix, path + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
     prior.store(path, spot_names, factor_names, order);
   };
 

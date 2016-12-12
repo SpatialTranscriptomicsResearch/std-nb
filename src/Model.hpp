@@ -191,9 +191,9 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
     order = get_order(cs);
   }
   features.store(prefix, gene_names, factor_names, order);
-  write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names, order);
-  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
+  write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
+  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, parameters.compression_mode, gene_names);
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)

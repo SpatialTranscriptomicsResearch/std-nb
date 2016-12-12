@@ -2,6 +2,7 @@
 #define PARAMETERS_HPP
 
 #include <cstdint>
+#include "compression_mode.hpp"
 #include "target.hpp"
 #include "types.hpp"
 
@@ -84,6 +85,7 @@ struct Parameters {
   bool store_lambda = false;
   bool theta_local_priors = false;
   bool identity_kernels = false;
+  CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
