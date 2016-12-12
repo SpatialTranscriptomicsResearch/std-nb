@@ -168,9 +168,8 @@ double compute_conditional(const std::pair<T, T> &x, Float observed,
          // NOTE: gamma_distribution takes a shape and scale parameter
          + log_gamma(r, hyperparameters.phi_r_1, 1 / hyperparameters.phi_r_2)
          // The next lines are part of the negative binomial distribution.
-         // The other factors aren't needed as they don't depend on either of
-         // r(g,t) and p(g,t), and thus would cancel when computing the score
-         // ratio.
+         // Other factors aren't needed as they don't depend on either of
+         // r and p, and thus would cancel when computing the score ratio.
          + r * log(p) - (r + observed) * log(p + expected)
          + lgamma(r + observed) - lgamma(r);
 }
@@ -182,7 +181,6 @@ std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
   const double f1 = exp(rnorm(rng));
   const double f2 = exp(rnorm(rng));
   return {f1 * x.first, f2 * x.second};
-  // return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
 };
 
 template <typename Type, typename... Args>
