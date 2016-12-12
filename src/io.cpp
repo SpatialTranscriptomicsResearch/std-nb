@@ -1,10 +1,11 @@
-#include <algorithm>
-#include <fstream>
-#include <exception>
-#include <unordered_map>
-#include <boost/tokenizer.hpp>
-#include "compression.hpp"
 #include "io.hpp"
+#include <algorithm>
+#include <boost/tokenizer.hpp>
+#include <exception>
+#include <fstream>
+#include <regex>
+#include <unordered_map>
+#include "compression.hpp"
 
 using namespace std;
 namespace PF = PoissonFactorization;
@@ -14,18 +15,10 @@ using Matrix = PF::Matrix;
 using IMatrix = PF::IMatrix;
 using Vector = PF::Vector;
 
-Matrix read_matrix(istream &is, const string &separator, const string &label) {
+Matrix read_matrix(istream &is, const string &separator) {
   // TODO improve / factor / simplify implementation
   vector<string> row_names, col_names;
-  Matrix m = read_floats(is, separator, row_names, col_names, label);
-  return m;
-}
-
-IMatrix read_imatrix(istream &is, const string &separator,
-                     const string &label) {
-  // TODO improve / factor / simplify implementation
-  vector<string> row_names, col_names;
-  IMatrix m = read_counts(is, separator, row_names, col_names, label);
+  Matrix m = read_floats(is, separator, row_names, col_names);
   return m;
 }
 
@@ -50,8 +43,7 @@ Matrix vec_of_vec_to_multi_array_float(const vector<vector<Float>> &v) {
 }
 
 Matrix read_floats(istream &ifs, const string &separator,
-                   vector<string> &row_names, vector<string> &col_names,
-                   const string &label) {
+                   vector<string> &row_names, vector<string> &col_names) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Float>> m;
@@ -61,7 +53,7 @@ Matrix read_floats(istream &ifs, const string &separator,
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+    col_names.push_back(token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
@@ -91,8 +83,7 @@ Matrix read_floats(istream &ifs, const string &separator,
 }
 
 IMatrix read_counts(istream &ifs, const string &separator,
-                    vector<string> &row_names, vector<string> &col_names,
-                    const string &label) {
+                    vector<string> &row_names, vector<string> &col_names) {
   using tokenizer = boost::tokenizer<boost::char_separator<char>>;
   boost::char_separator<char> sep(separator.c_str());
   vector<vector<Int>> m;
@@ -102,7 +93,7 @@ IMatrix read_counts(istream &ifs, const string &separator,
   getline(ifs, line);
   tokenizer tok(line, sep);
   for (auto token : tok)
-    col_names.push_back((label.empty() ? "" : label + " ") + token.c_str());
+    col_names.push_back(token.c_str());
 
   while (getline(ifs, line)) {
     tok = tokenizer(line, sep);
@@ -122,7 +113,7 @@ IMatrix read_counts(istream &ifs, const string &separator,
 
   if (ncol == col_names.size())
     return matrix;
-  else if (ncol == col_names.size() - 1) {
+  else if (ncol + 1 == col_names.size()) {
     vector<string> new_col_names(begin(col_names) + 1, end(col_names));
     col_names = new_col_names;
     return matrix;

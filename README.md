@@ -1,7 +1,11 @@
-This is code to perform Metropolis-Hastings Monte-Carlo Markov Chain (MCMC) inference for the multi-scoop extension of the Indian Buffer Process (msIBP).
+This is code to perform Monte-Carlo Markov Chain (MCMC) inference for the
+Spatial Transcriptome Deconvolution model.
 
-In order to compile it, your Boost version needs to be at least as recent as 1.58.0.
-The reason why such a recent version of Boost is required is because it was only in this version that the trigamma function (i.e. the curvature, or second derivative, of the gamma function) was introduced.
+In order to compile it, you need two libraries:
+* [Boost](http://www.boost.org/)
+* [Armadillo](http://arma.sourceforge.net/)
+
+The Boost library needs to be at least version 1.58.0 because it was only in this version that the trigamma function (i.e. the curvature, or second derivative, of the log gamma function) was introduced.
 
 Compiling
 =========
@@ -17,14 +21,16 @@ make
 make install
 ```
 
-Note that ```<INSTALL_PREFIX>/bin``` has to be included in your ```$PATH``` variable.
-To do this you have to have a line like
+Note that ```<INSTALL_PREFIX>/bin``` and ```<INSTALL_PREFIX>/lib``` have to be included in your ```PATH``` and ```LD_LIBRARY_PATH``` environment variables, respectively.
+
+To do this you have to have lines like the following
 
 ```sh
 export PATH=<INSTALL_PREFIX>/bin:$PATH
+export LD_LIBRARY_PATH=<INSTALL_PREFIX>/lib:$LD_LIBRARY_PATH
 ```
 
-in your ```$HOME/.bashrc``` file (or similar in case you are a shell other than bash).
+to your ```$HOME/.bashrc``` file (or similar in case you are a shell other than bash).
 
 Related
 =======

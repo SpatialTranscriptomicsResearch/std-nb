@@ -1,5 +1,6 @@
 #include <cstdlib>
 #include <exception>
+#include <fenv.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -15,91 +16,113 @@ namespace PF = PoissonFactorization;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
-vector<string> gen_alpha_labels() {
-  vector<string> v;
-  for (char y = 'A'; y <= 'Z'; ++y) v.push_back(string() + y);
-  for (char y = 'a'; y <= 'z'; ++y) v.push_back(string() + y);
-  for (char y = '0'; y <= '9'; ++y) v.push_back(string() + y);
-  return v;
-}
-
-const vector<string> alphabetic_labels = gen_alpha_labels();
-
 struct Options {
-  enum class Labeling { Auto, None, Path, Alpha };
   vector<string> tsv_paths;
   size_t num_factors = 20;
+  long num_warm_up = -1;
   size_t num_steps = 2000;
-  size_t report_interval = 20;
+  size_t report_interval = 200;
   string output = default_output_string;
   bool intersect = false;
-  Labeling labeling = Labeling::Auto;
+  string load_prefix = "";
   bool compute_likelihood = false;
-  bool perform_splitmerge = false;
-  bool timing = true;
+  bool no_local_gene_expression = false;
+  bool sample_local_phi_priors = false;
+  bool share_coord_sys = false;
+  bool predict_field = false;
+  bool perform_dge = false;
+  bool discard_empty = false;
   size_t top = 0;
-  PF::Target sample_these = PF::DefaultTarget();
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
 };
 
-istream &operator>>(istream &is, Options::Labeling &label) {
-  string token;
-  is >> token;
-  token = to_lower(token);
-  if (token == "auto")
-    label = Options::Labeling::Auto;
-  else if (token == "none")
-    label = Options::Labeling::None;
-  else if (token == "path")
-    label = Options::Labeling::Path;
-  else if (token == "alpha")
-    label = Options::Labeling::Alpha;
-  else
-    throw std::runtime_error("Error: could not parse labeling '" + token +
-                             "'.");
-  return is;
-}
-
-ostream &operator<<(ostream &os, const Options::Labeling &label) {
-  switch (label) {
-    case Options::Labeling::Auto:
-      os << "auto";
-      break;
-    case Options::Labeling::None:
-      os << "none";
-      break;
-    case Options::Labeling::Path:
-      os << "path";
-      break;
-    case Options::Labeling::Alpha:
-      os << "alpha";
-      break;
-  }
-  return os;
-}
 
 template <typename T>
-void perform_gibbs_sampling(const Counts &data, T &pfa,
-                            const Options &options) {
-  LOG(info) << "Initial model" << endl << pfa;
-  for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
-    if (iteration > pfa.parameters.enforce_iter)
-      pfa.parameters.enforce_mean = PF::ForceMean::None;
-    LOG(info) << "Performing iteration " << iteration;
-    pfa.gibbs_sample(data, options.sample_these, options.timing);
-    LOG(info) << "Current model" << endl << pfa;
-    if (iteration % options.report_interval == 0)
-      pfa.store(data, options.output + "iter" + to_string(iteration) + "_");
-    if (options.compute_likelihood)
-      LOG(info) << "Log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
+struct Moments {
+  long warm_up;
+  size_t n;
+  T sum;
+  T sumsq;
+  Moments(long warm_up_, const T &m) : warm_up(warm_up_), n(0), sum(m * 0), sumsq(m * 0) {
   }
-  if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood_poisson_counts(data.counts);
-  pfa.store(data, options.output, true);
+  void update(long iteration, const T &m) {
+    if (warm_up >= 0 and iteration >= warm_up) {
+      sum = sum + m;
+      sumsq = sumsq + m * m;
+      n++;
+    }
+  }
+  void evaluate(const std::string &prefix) {
+    if (n > 1) {
+      T var = (sumsq - sum * sum / n) / (n - 1);
+      sum = sum / n;
+      sum.store(prefix + "mean_");
+      var.store(prefix + "variance_");
+    }
+  }
+};
+
+template <typename T>
+void perform_gibbs_sampling(T &pfa, const Options &options) {
+  LOG(info) << "Initial model" << endl << pfa;
+  Moments<T> moments(options.num_warm_up,
+                     options.num_warm_up >= 0
+                         ? pfa
+                         : T({}, 0, pfa.parameters, options.share_coord_sys));
+
+  const size_t iteration_num_digits
+      = 1 + floor(log(options.num_steps) / log(10));
+
+  for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
+    LOG(info) << "Performing iteration " << iteration;
+
+    pfa.gibbs_sample(options.compute_likelihood);
+    LOG(verbose) << "Current model" << endl << pfa;
+    if (iteration % options.report_interval == 0) {
+      const string prefix
+          = options.output + "iter"
+            + to_string_embedded(iteration, iteration_num_digits) + "/";
+      if (boost::filesystem::create_directory(prefix))
+        pfa.store(prefix);
+      else
+        throw(std::runtime_error("Couldn't create directory " + prefix));
+    }
+    moments.update(iteration, pfa);
+  }
+  moments.evaluate(options.output);
+  if (options.compute_likelihood) {
+    pfa.sample_contributions();  // make sure that the lambda_gst are up to date
+    LOG(info) << "Final observed log-likelihood = "
+              << pfa.log_likelihood_poisson_counts();
+    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
+  }
+  pfa.store(options.output);
+  if (options.predict_field) {
+    for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
+      ofstream ofs("prediction" + to_string(c) + ".csv");
+      pfa.predict_field(ofs, c);
+    }
+  }
+  if (options.perform_dge) {
+    pfa.perform_local_dge(options.output);
+    pfa.perform_pairwise_dge(options.output);
+  }
+}
+
+template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
+void run(const std::vector<Counts> &data_sets, const Options &options,
+         const PF::Parameters &parameters) {
+  PF::Model<PF::ModelType<Feature, Mix>> pfa(
+      data_sets, options.num_factors, parameters, options.share_coord_sys);
+  if (options.load_prefix != "")
+    pfa.restore(options.load_prefix);
+  perform_gibbs_sampling(pfa, options);
 }
 
 int main(int argc, char **argv) {
+  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+
   EntropySource::seed();
 
   Options options;
@@ -107,14 +130,18 @@ int main(int argc, char **argv) {
   PF::Parameters parameters;
 
   string config_path;
-  string usage_info = "This software implements the βγΓ-Poisson Factor Analysis model of\n"
-    "Beta-Negative Binomial Process and Poisson Factor Analysis\n"
+  string usage_info = "Spatial Transcriptome Deconvolution\n"
+    "\n"
+    "This software implements the Spatial Transcriptome Deconvolution model of\n"
+    "Jonas Maaskola et al. 2016.\n"
+    "Among others it is related to the βγΓ-Poisson Factor Analysis model in\n"
+    "\"Beta-Negative Binomial Process and Poisson Factor Analysis\"\n"
     "by Mingyuan Zhou, Lauren A. Hannah, David B. Dunson, and Lawrence Carin\n"
     "Proceedings of the 15th International Conference on Artificial Intelligence and\n"
     "Statistics (AISTATS) 2012, La Palma, Canary Islands. Volume XX of JMLR: W&CP XX.\n"
     "\n"
     "Please provide one or more count matrices as argument to the --file switch or as\n"
-    "free arguments.";
+    "free arguments. These need to have genes in the rows and spots in the columns.";
 
   size_t num_cols = 80;
   namespace po = boost::program_options;
@@ -124,14 +151,15 @@ int main(int argc, char **argv) {
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
+  po::options_description advanced_options("Advanced options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
     ("file", po::value(&options.tsv_paths)->required(),
      "Path to a count matrix file, can be given multiple times. "
-     "Format: tab-separated, including a header line, "
-     "and row names in the first column of each row.");
+     "Format: tab-separated, genes in rows, spots in columns; including a "
+     "header line, and row names in the first column of each row.");
 
   basic_options.add_options()
     ("feature,f", po::value(&options.feature_type)->default_value(options.feature_type),
@@ -146,34 +174,61 @@ int main(int argc, char **argv) {
      "Number of iterations to perform.")
     ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
      "Interval for reporting the parameters.")
-    ("nolikel", po::bool_switch(&options.compute_likelihood),
-     "Do not compute and print the likelihood every iteration.")
-    ("var,V", po::bool_switch(&parameters.variational),
-     "Sample contribution marginals. This is faster but less accurate.")
-    ("split,s", po::bool_switch(&options.perform_splitmerge),
-     "Perform split/merge steps.")
+    ("load,l", po::value(&options.load_prefix),
+     "Load previous run results with the given path prefix.")
+    ("sharecoords", po::bool_switch(&options.share_coord_sys),
+     "Assume that the samples lie in the same coordinate system.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
-     "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
+     "Use only those genes with the highest read count across all spots. Zero indicates all genes.");
+
+  advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("timing", po::bool_switch(&options.timing),
-     "Print out timing information.")
-    ("forcemean", po::value(&parameters.enforce_mean)->default_value(parameters.enforce_mean),
-     "Enforce means / sums of random variables. Can be any comma-separated combination of 'theta', 'phi', 'spot', 'experiment'.")
+    ("drop_empty", po::bool_switch(&options.discard_empty),
+     "Discard spots that have zero counts.")
+    ("nolikel", po::bool_switch(&options.compute_likelihood),
+     "Do not compute and print the likelihood every iteration.")
+    ("overrelax", po::bool_switch(&parameters.over_relax),
+     "Perform overrelaxation. See arXiv:bayes-an/9506004.")
+    ("identity", po::bool_switch(&parameters.identity_kernels),
+     "Use identity kernels to debug the field code.")
+    ("predict", po::bool_switch(&options.predict_field),
+     "Predict the field in a cube around every coordinate system's entries.")
+    ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
+     "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
+    ("expcont", po::bool_switch(&parameters.expected_contributions),
+     "Dont sample x_{gst} contributions, but use expected values instead.")
     ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
      "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
-    ("expscale", po::bool_switch(&parameters.activate_experiment_scaling),
-     "Activate usage of the experiment scaling variables.")
-    ("sample", po::value(&options.sample_these)->default_value(options.sample_these),
+    ("dge", po::bool_switch(&options.perform_dge),
+     "Perform differential gene expression analysis.\n"
+     "- \tFor all factors, compare each experiment's local profile against the global one.\n"
+     "- \tPairwise comparisons between all factors in each experiment.")
+    ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
-    ("label", po::value(&options.labeling),
-     "How to label the spots. Can be one of 'alpha', 'path', 'none'. If only one count table is given, the default is to use 'none'. If more than one is given, the default is 'alpha'.");
+    ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
+     "Use local priors for the mixing weights.")
+    ("localphi", po::bool_switch(&options.sample_local_phi_priors),
+     "Sample the local feature priors.")
+    ("nolocal", po::bool_switch(&options.no_local_gene_expression),
+     "Deactivate local gene expression profiles.")
+    ("lambda", po::bool_switch(&parameters.store_lambda),
+     "Store to disk the lambda matrix for genes and types every time parameters are written. "
+     "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
+    ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
+     "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
+    ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
+     "Respect the likelihood contributions of the feature priors.")
+    ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),
+     "Respect the likelihood contributions of the mixture priors.");
 
   hyperparameter_options.add_options()
-    ("alpha", po::value(&parameters.hyperparameters.alpha)->default_value(parameters.hyperparameters.alpha),
-     "Dirichlet prior alpha of the factor loading matrix.")
+    ("feature_alpha", po::value(&parameters.hyperparameters.feature_alpha)->default_value(parameters.hyperparameters.feature_alpha),
+     "Dirichlet prior alpha for the features.")
+    ("mix_alpha", po::value(&parameters.hyperparameters.mix_alpha)->default_value(parameters.hyperparameters.mix_alpha),
+     "Dirichlet prior alpha of the mixing weights.")
     ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
     ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
@@ -194,22 +249,25 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of the spot scaling parameter.")
     ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
      "Gamma prior 2 of the spot scaling parameter.")
-    ("exp_1", po::value(&parameters.hyperparameters.experiment_a)->default_value(parameters.hyperparameters.experiment_a),
-     "Gamma prior 1 of the experiment scaling parameter.")
-    ("exp_2", po::value(&parameters.hyperparameters.experiment_b)->default_value(parameters.hyperparameters.experiment_b),
-     "Gamma prior 2 of the experiment scaling parameter.");
+    ("sigma", po::value(&parameters.hyperparameters.sigma)->default_value(parameters.hyperparameters.sigma),
+     "Sigma parameter for field characteristic length scale.")
+    ("residual", po::value(&parameters.hyperparameters.field_residual_prior)->default_value(parameters.hyperparameters.field_residual_prior),
+     "Prior used for the residual mixing weight terms after the field has been sampled.")
+    ("bline1", po::value(&parameters.hyperparameters.baseline1)->default_value(parameters.hyperparameters.baseline1),
+     "First prior for the baseline features.")
+    ("bline2", po::value(&parameters.hyperparameters.baseline2)->default_value(parameters.hyperparameters.baseline2),
+     "Second prior for the baseline features.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
      "Maximal number of propositions for Metropolis-Hastings sampling of r")
     ("MHtemp", po::value(&parameters.temperature)->default_value(parameters.temperature),
-     "Temperature for Metropolis-Hastings sampling of R.")
-    ("MHsd", po::value(&parameters.prop_sd)->default_value(parameters.prop_sd),
-     "Standard deviation for log-normal proposition scaling in Metropolis-Hastings sampling of r[g][t]");
+     "Temperature for Metropolis-Hastings sampling of R.");
 
   cli_options.add(generic_options)
       .add(required_options)
       .add(basic_options)
+      .add(advanced_options)
       .add(hyperparameter_options)
       .add(inference_options);
 
@@ -252,43 +310,8 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  vector<string> labels;
-  switch (options.labeling) {
-    case Options::Labeling::None:
-      labels = vector<string>(options.tsv_paths.size(), "");
-      break;
-    case Options::Labeling::Path:
-      labels = options.tsv_paths;
-      break;
-    case Options::Labeling::Alpha:
-      labels = alphabetic_labels;
-      break;
-    case Options::Labeling::Auto:
-      if (options.tsv_paths.size() > 1)
-        labels = alphabetic_labels;
-      else
-        labels = vector<string>(options.tsv_paths.size(), "");
-      break;
-  }
-
-  if (labels.size() < options.tsv_paths.size()) {
-    LOG(warning) << "Warning: too few labels available! Using paths as labels.";
-    labels = options.tsv_paths;
-  }
-
-  if (options.perform_splitmerge)
-    options.sample_these
-        = options.sample_these | PoissonFactorization::Target::merge_split;
-
-  Counts data(options.tsv_paths[0], labels[0]);
-  for (size_t i = 1; i < options.tsv_paths.size(); ++i)
-    if (options.intersect)
-      data = data * Counts(options.tsv_paths[i], labels[i]);
-    else
-      data = data + Counts(options.tsv_paths[i], labels[i]);
-
-  if (options.top > 0)
-    data.select_top(options.top);
+  auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
+                             options.discard_empty);
 
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";
@@ -296,19 +319,35 @@ int main(int argc, char **argv) {
             << " distribution for the mixing weights.";
 
   using Kind = PF::Partial::Kind;
+
+  if (options.sample_local_phi_priors)
+    parameters.targets = parameters.targets | PF::Target::phi_prior_local;
+
+  if (data_sets.size() < 2) {
+    LOG(info) << "Deactivating local features.";
+    options.no_local_gene_expression = true;
+  }
+
+  if (options.no_local_gene_expression)
+    parameters.targets
+        = parameters.targets
+          & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
+
+  if (options.mixing_type == Kind::Dirichlet)
+    parameters.targets = parameters.targets & ~PF::Target::field;
+
   switch (options.feature_type) {
     case Kind::Dirichlet: {
+      parameters.targets = parameters.targets & (~(PF::Target::phi_local
+                                                 | PF::Target::phi_prior_local
+                                                 | PF::Target::baseline));
       switch (options.mixing_type) {
-        case Kind::Dirichlet: {
-          PF::Model<Kind::Dirichlet, Kind::Dirichlet> pfa(
-              data, options.num_factors, parameters);
-          perform_gibbs_sampling(data, pfa, options);
-        } break;
-        case Kind::HierGamma: {
-          PF::Model<Kind::Dirichlet, Kind::HierGamma> pfa(
-              data, options.num_factors, parameters);
-          perform_gibbs_sampling(data, pfa, options);
-        } break;
+        case Kind::Dirichlet:
+          run<Kind::Dirichlet, Kind::Dirichlet>(data_sets, options, parameters);
+          break;
+        case Kind::HierGamma:
+          run<Kind::Dirichlet, Kind::HierGamma>(data_sets, options, parameters);
+          break;
         default:
           throw std::runtime_error("Error: Mixing type '"
                                    + to_string(options.mixing_type)
@@ -318,16 +357,12 @@ int main(int argc, char **argv) {
     } break;
     case Kind::Gamma: {
       switch (options.mixing_type) {
-        case Kind::Dirichlet: {
-          PF::Model<Kind::Gamma, Kind::Dirichlet> pfa(data, options.num_factors,
-                                                      parameters);
-          perform_gibbs_sampling(data, pfa, options);
-        } break;
-        case Kind::HierGamma: {
-          PF::Model<Kind::Gamma, Kind::HierGamma> pfa(data, options.num_factors,
-                                                      parameters);
-          perform_gibbs_sampling(data, pfa, options);
-        } break;
+        case Kind::Dirichlet:
+          run<Kind::Gamma, Kind::Dirichlet>(data_sets, options, parameters);
+          break;
+        case Kind::HierGamma:
+          run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+          break;
         default:
           throw std::runtime_error("Error: Mixing type '"
                                    + to_string(options.mixing_type)

@@ -1,921 +1,626 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
-#include <random>
-#include "counts.hpp"
-#include "entropy.hpp"
-#include "parallel.hpp"
-#include "parameters.hpp"
-#include "compression.hpp"
-#include "log.hpp"
-#include "PartialModel.hpp"
-#include "io.hpp"
-#include "metropolis_hastings.hpp"
-#include "pdist.hpp"
-#include "odds.hpp"
-#include "priors.hpp"
-#include "sampling.hpp"
-#include "stats.hpp"
-#include "target.hpp"
-#include "timer.hpp"
-#include "verbosity.hpp"
+#include <map>
+#include "Experiment.hpp"
 
 namespace PoissonFactorization {
 
-#define DEFAULT_SEPARATOR "\t"
-#define DEFAULT_LABEL ""
-#define print_sub_model_cnt false  // TODO make configurable
+const double local_phi_scaling_factor = 50;
+const int EXPERIMENT_NUM_DIGITS = 4;
 
-const size_t num_sub_gibbs_split = 10;
-const size_t num_sub_gibbs_merge = 10;
-const bool consider_factor_likel = false;
-const size_t sub_model_cnt = 10;
-// static size_t sub_model_cnt; // TODO
-
-bool gibbs_test(Float nextG, Float G, Float temperature = 50);
-size_t num_lines(const std::string &path);
-
-struct Paths {
-  Paths(const std::string &prefix, const std::string &suffix = "");
-  std::string phi, theta, spot, experiment, r_phi, p_phi, r_theta, p_theta;
-  std::string contributions_gene_type, contributions_spot_type,
-      contributions_gene, contributions_spot, contributions_experiment;
-};
-
-template <Partial::Kind feat_kind = Partial::Kind::Gamma,
-          Partial::Kind mix_kind = Partial::Kind::HierGamma>
+template <typename Type>
 struct Model {
-  typedef Partial::Model<Partial::Variable::Feature, feat_kind> features_t;
-  typedef Partial::Model<Partial::Variable::Mix, mix_kind> weights_t;
+  using features_t = typename Type::features_t;
+  using weights_t = typename Type::weights_t;
+  using experiment_t = Experiment<Type>;
+
+  // TODO consider const
   /** number of genes */
   size_t G;
-  // const size_t G;
-  /** number of samples */
-  size_t S;
-  // const size_t S;
   /** number of factors */
   size_t T;
-  // const size_t T;
   /** number of experiments */
   size_t E;
-  // const size_t E;
+
+  std::vector<experiment_t> experiments;
 
   Parameters parameters;
 
   /** hidden contributions to the count data due to the different factors */
-  IMatrix contributions_gene_type, contributions_spot_type;
-  IVector contributions_gene, contributions_spot, contributions_experiment;
-
-  /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
-   * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
-  Matrix lambda_gene_spot;
+  Matrix contributions_gene_type;
+  Vector contributions_gene;
 
   /** factor loading matrix */
   features_t features;
-  /** factor score matrix */
-  weights_t weights;
+  struct CoordinateSystem {
+    // std::vector<Matrix> coords;
+    std::vector<size_t> members;
+  };
+  std::vector<CoordinateSystem> coordinate_systems;
+  std::map<std::pair<size_t, size_t>, Matrix> kernels;
 
-  inline Float &phi(size_t x, size_t y) { return features.matrix(x, y); };
-  inline Float phi(size_t x, size_t y) const { return features.matrix(x, y); };
+  template <typename Fnc1, typename Fnc2>
+  Vector get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
+                      Fnc2 fnc2) const;
+  Vector get_low(size_t coord_sys_idx) const;
+  Vector get_high(size_t coord_sys_idx) const;
 
-  inline Float &theta(size_t x, size_t y) { return weights.matrix(x, y); };
-  inline Float theta(size_t x, size_t y) const { return weights.matrix(x, y); };
+  void predict_field(std::ofstream &ofs, size_t coord_sys_idx) const;
 
-  /** spot scaling vector */
-  Vector spot;
+  typename weights_t::prior_type mix_prior;
 
-  /** experiment scaling vector */
-  Vector experiment_scaling;
-  Vector experiment_scaling_long;
+  Model(const std::vector<Counts> &data, size_t T,
+        const Parameters &parameters, bool same_coord_sys);
 
-  Model(const Counts &counts, const size_t T, const Parameters &parameters);
-  Model(const Counts &counts, const Paths &paths, const Parameters &parameters);
-
-  void store(const Counts &counts, const std::string &prefix,
-             bool mean_and_variance = false) const;
-
-  Matrix weighted_theta() const;
-
-  double log_likelihood(const IMatrix &counts) const;
-  double log_likelihood_factor(const IMatrix &counts, size_t t) const;
-  double log_likelihood_poisson_counts(const IMatrix &counts) const;
-
-  /** sample count decomposition */
-  void sample_contributions(const IMatrix &counts);
-  void sample_contributions_variational(const IMatrix &counts);
-  void sample_contributions_sub(const IMatrix &counts, size_t g, size_t s,
-                                RNG &rng, IMatrix &contrib_gene_type,
-                                IMatrix &contrib_spot_type);
-
-  /** sample spot scaling factors */
-  void sample_spot();
-
-  /** sample experiment scaling factors */
-  void sample_experiment_scaling(const Counts &data);
+  void store(const std::string &prefix, bool reorder = true) const;
+  void restore(const std::string &prefix);
+  void perform_pairwise_dge(const std::string &prefix) const;
+  void perform_local_dge(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(const Counts &data, Target which, bool timing);
+  void gibbs_sample(bool report_likelihood);
 
-  void sample_split_merge(const Counts &data, Target which);
-  void sample_merge(const Counts &data, size_t t1, size_t t2, Target which);
-  void sample_split(const Counts &data, size_t t, Target which);
-  void lift_sub_model(const Model &sub_model, size_t t1, size_t t2);
+  void sample_contributions();
 
-  Model run_submodel(size_t t, size_t n, const Counts &counts, Target which,
-                     const std::string &prefix,
-                     const std::vector<size_t> &init_factors
-                     = std::vector<size_t>());
+  void sample_global_theta_priors();
+  void sample_fields();
 
-  size_t find_weakest_factor() const;
+  double log_likelihood() const;
+  double log_likelihood_poisson_counts() const;
 
-  double posterior_expectation_poisson(size_t g, size_t s) const;
-  Matrix posterior_expectations_poisson() const;
+  inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
+  inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
 
-  /** check that parameter invariants are fulfilled */
-  void check_model(const IMatrix &counts) const;
+  // computes a matrix M(g,t)
+  // with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+  Matrix explained_gene_type() const;
+  // computes a matrix M(g,t)
+  // with M(g,t) = phi(g,t) sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+  Matrix expected_gene_type() const;
 
-private:
-  void update_experiment_scaling_long(const Counts &data);
+  void update_contributions();
+  void update_kernels();
+  void identity_kernels();
+  void add_experiment(const Counts &data, size_t coord_sys);
 };
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(
-    std::ostream &os,
-    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa);
+template <typename Type>
+std::ostream &operator<<(std::ostream &os, const Model<Type> &pfa);
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind>::Model(const Counts &c, const size_t T_,
-                                  const Parameters &parameters_)
-    : G(c.counts.n_rows),
-      S(c.counts.n_cols),
+template <typename Type>
+Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
+                   const Parameters &parameters_, bool same_coord_sys)
+    : G(max_row_number(c)),
       T(T_),
-      E(c.experiment_names.size()),
+      E(0),
+      experiments(),
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
-      contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
-      contributions_spot(S, arma::fill::zeros),
-      contributions_experiment(E, arma::fill::zeros),
-      lambda_gene_spot(G, S, arma::fill::zeros),
-      features(G, S, T, parameters),
-      weights(G, S, T, parameters),
-      spot(S, arma::fill::ones),
-      experiment_scaling(E, arma::fill::ones),
-      experiment_scaling_long(S, arma::fill::ones) {
-  if (false) {
-    // initialize:
-    //  * contributions_gene_type
-    //  * contributions_spot_type
-    //  * lambda_gene_spot
-    LOG(debug) << "Initializing contributions.";
-    sample_contributions(c.counts);
-  }
+      features(G, T, parameters),
+      mix_prior(sum_rows(c), T, parameters) {
+  LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
+  size_t coord_sys = 0;
+  for (auto &counts : c)
+    add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
+  update_contributions();
 
-// initialize:
-//  * contributions_spot
-//  * contributions_experiment
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t g = 0; g < G; ++g) {
-      contributions_spot(s) += c.counts(g, s);
-      contributions_experiment(c.experiments[s]) += c.counts(g, s);
-    }
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      contributions_gene(g) += c.counts(g, s);
+  // TODO move this code into the classes for prior and features
+  if (not parameters.targeted(Target::phi_prior_local))
+    features.prior.set_unit();
 
-  if (parameters.activate_experiment_scaling) {
-    // initialize experiment scaling factors
-    if (parameters.activate_experiment_scaling) {
-      LOG(debug) << "Initializing experiment scaling.";
-      experiment_scaling = Vector(E, arma::fill::zeros);
-      for (size_t s = 0; s < S; ++s)
-        experiment_scaling(c.experiments[s]) += contributions_spot(s);
-      Float z = 0;
-      for (size_t e = 0; e < E; ++e)
-        z += experiment_scaling(e);
-      z /= E;
-      for (size_t e = 0; e < E; ++e)
-        experiment_scaling(e) /= z;
-      // copy the experiment scaling parameters into the spot-indexed vector
-      update_experiment_scaling_long(c);
-    }
-  }
+  if (not parameters.targeted(Target::phi_local))
+    features.matrix.ones();
 
-  // initialize spot scaling factors
-  {
-    LOG(debug) << "Initializing spot scaling.";
-    Float z = 0;
-    for (size_t s = 0; s < S; ++s)
-      z += spot(s) = contributions_spot(s) / experiment_scaling_long(s);
-    z /= S;
-    for (size_t s = 0; s < S; ++s)
-      spot(s) /= z;
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind>::Model(const Counts &c, const Paths &paths,
-                                  const Parameters &parameters_)
-    : G(c.counts.n_rows),
-      S(c.counts.n_cols),
-      T(num_lines(paths.r_theta)),
-      E(c.experiment_names.size()),
-      parameters(parameters_),
-      contributions_gene_type(parse_file<IMatrix>(paths.contributions_gene_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_spot_type(parse_file<IMatrix>(paths.contributions_spot_type, read_imatrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)),
-      contributions_gene(parse_file<IVector>(paths.contributions_gene, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      contributions_spot(parse_file<IVector>(paths.contributions_spot, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      contributions_experiment(parse_file<IVector>(paths.contributions_experiment, read_vector<IVector>, DEFAULT_SEPARATOR)),
-      features(G, S, T, parameters), // TODO deactivate
-      weights(G, S, T, parameters), // TODO deactivate
-      // features(parse_file<Matrix>(paths.features, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
-      // theta(parse_file<Matrix>(paths.theta, read_matrix, DEFAULT_SEPARATOR, DEFAULT_LABEL)), // TODO reactivate
-      // r_theta(parse_file<Vector>(paths.r_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      // p_theta(parse_file<Vector>(paths.p_theta, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      spot(parse_file<Vector>(paths.spot, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      experiment_scaling(parse_file<Vector>(paths.experiment, read_vector<Vector>, DEFAULT_SEPARATOR)),
-      experiment_scaling_long(S) {
-  update_experiment_scaling_long(c);
-
-  LOG(debug) << *this;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-// TODO ensure no NaNs or infinities are generated
-double Model<feat_kind, mix_kind>::log_likelihood_factor(const IMatrix &counts,
-                                                         size_t t) const {
-  double l = features.log_likelihood_factor(counts, t)
-             + weights.log_likelihood_factor(counts, t);
-
-  if (std::isnan(l) or std::isinf(l))
-    LOG(warning) << "Warning: log likelihoood contribution of factor " << t
-                 << " = " << l;
-
-  LOG(debug) << "ll_X = " << l;
-
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood_poisson_counts(
-    const IMatrix &counts) const {
-  double l = 0;
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot(s);
-      if (parameters.activate_experiment_scaling)
-        rate *= experiment_scaling_long(s);
-      auto cur = log_poisson(counts(g, s), rate);
-      if (std::isinf(cur) or std::isnan(cur))
-        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
-                     << " counts = " << counts(g, s)
-                     << " lambda = " << lambda_gene_spot(g, s)
-                     << " rate = " << rate;
-      l += cur;
-    }
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::log_likelihood(const IMatrix &counts) const {
-  double l = 0;
-  for (size_t t = 0; t < T; ++t)
-    l += log_likelihood_factor(counts, t);
-
-  for (size_t s = 0; s < S; ++s)
-    l += log_gamma(spot(s), parameters.hyperparameters.spot_a,
-                   1.0 / parameters.hyperparameters.spot_b);
-  if (parameters.activate_experiment_scaling) {
-    for (size_t e = 0; e < E; ++e)
-      l += log_gamma(experiment_scaling(e),
-                     parameters.hyperparameters.experiment_a,
-                     1.0 / parameters.hyperparameters.experiment_b);
-  }
-
-  l += log_likelihood_poisson_counts(counts);
-
-  return l;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::weighted_theta() const {
-  Matrix m = weights.matrix;
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-    for (size_t g = 0; g < G; ++g)
-      x += phi(g, t);
-    for (size_t s = 0; s < S; ++s) {
-      m(s, t) *= x * spot(s);
-      if (parameters.activate_experiment_scaling)
-        m(s, t) *= experiment_scaling_long(s);
-    }
-  }
-  return m;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::store(const Counts &counts,
-                                       const std::string &prefix,
-                                       bool mean_and_variance) const {
-  std::vector<std::string> factor_names;
-  for (size_t t = 1; t <= T; ++t)
-    factor_names.push_back("Factor " + std::to_string(t));
-  auto &gene_names = counts.row_names;
-  auto &spot_names = counts.col_names;
-  features.store(prefix, gene_names, factor_names);
-  weights.store(prefix, spot_names, factor_names);
-  write_matrix(weighted_theta(), prefix + "weighted-mix.txt", spot_names, factor_names);
-  write_vector(spot, prefix + "spot-scaling.txt", spot_names);
-  write_vector(experiment_scaling, prefix + "experiment-scaling.txt", counts.experiment_names);
-  // write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot.txt", gene_names, spot_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type.txt", gene_names, factor_names);
-  write_matrix(contributions_spot_type, prefix + "contributions_spot_type.txt", spot_names, factor_names);
-  write_vector(contributions_gene, prefix + "contributions_gene.txt", gene_names);
-  write_vector(contributions_spot, prefix + "contributions_spot.txt", spot_names);
-  write_vector(contributions_experiment, prefix + "contributions_experiment.txt", counts.experiment_names);
-  if (false and mean_and_variance) {
-    write_matrix(posterior_expectations_poisson(), prefix + "means_poisson.txt", gene_names, spot_names);
-    /* TODO reactivate
-    write_matrix(posterior_expectations(), prefix + "means.txt", gene_names, spot_names);
-    write_matrix(posterior_variances(), prefix + "variances.txt", gene_names, spot_names);
-    */
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_contributions_sub(
-    const IMatrix &counts, size_t g, size_t s, RNG &rng,
-    IMatrix &contrib_gene_type, IMatrix &contrib_spot_type) {
-  std::vector<double> rel_rate(T);
-  double z = 0;
-  // NOTE: in principle, lambda[g][s][t] is proportional to both
-  // spot[s] and experiment_scaling[s]. However, these terms would
-  // cancel. Thus, we do not multiply them in here.
-  for (size_t t = 0; t < T; ++t)
-    z += rel_rate[t] = phi(g, t) * theta(s, t);
-  for (size_t t = 0; t < T; ++t)
-    rel_rate[t] /= z;
-  lambda_gene_spot(g, s) = z;
-  if (counts(g, s) > 0) {
-    auto v = sample_multinomial<Int>(counts(g, s), rel_rate, rng);
-    for (size_t t = 0; t < T; ++t) {
-      contrib_gene_type(g, t) += v[t];
-      contrib_spot_type(s, t) += v[t];
-    }
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-/** sample count decomposition */
-void Model<feat_kind, mix_kind>::sample_contributions(const IMatrix &counts) {
-  LOG(info) << "Sampling contributions";
-  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
-  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    IMatrix contrib_gene_type(G, T, arma::fill::zeros);
-    IMatrix contrib_spot_type(S, T, arma::fill::zeros);
-    const size_t thread_num = omp_get_thread_num();
-#pragma omp for
-    for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s)
-        sample_contributions_sub(counts, g, s, EntropySource::rngs[thread_num],
-                                 contrib_gene_type, contrib_spot_type);
-#pragma omp critical
-    {
-      contributions_gene_type += contrib_gene_type;
-      contributions_spot_type += contrib_spot_type;
-    }
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-/** sample count decomposition */
-void Model<feat_kind, mix_kind>::sample_contributions_variational(
-    const IMatrix &counts) {
-  LOG(info) << "Sampling contribution marginals";
-  contributions_gene_type = IMatrix(G, T, arma::fill::zeros);
-  contributions_spot_type = IMatrix(S, T, arma::fill::zeros);
-  lambda_gene_spot = Matrix(G, S, arma::fill::zeros);
-  Matrix rate_gene_type(G, T, arma::fill::zeros);
-  Matrix rate_spot_type(S, T, arma::fill::zeros);
-
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    Matrix rate_spot_type_(S, T, arma::fill::zeros);
-    Vector lambda(T);
-#pragma omp for
-    for (size_t g = 0; g < G; ++g)
-      for (size_t s = 0; s < S; ++s) {
-        double factor = spot(s);
-        if (parameters.activate_experiment_scaling)
-          factor *= experiment_scaling_long[s];
-        double z = 0;
-        for (size_t t = 0; t < T; ++t)
-          z += lambda[t] = phi(g, t) * theta(s, t) * factor;
-        lambda_gene_spot(g, s) = z;
-        if (counts(g, s) > 0)
-          for (size_t t = 0; t < T; ++t) {
-            const double x = lambda[t] / z * counts(g, s);
-            rate_gene_type(g, t) += x;
-            rate_spot_type_(s, t) += x;
-          }
-      }
-#pragma omp critical
-    { rate_spot_type += rate_spot_type_; }
-  }
-
-#pragma omp parallel if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
-    const size_t thread_num = omp_get_thread_num();
-    std::vector<Float> a(T);
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += a[t] = rate_gene_type(g, t);
-    for (size_t t = 0; t < T; ++t)
-      a[t] /= z;
-
-    // LOG(info) << "contributions_gene(" << g << ") = " << contributions_gene[g];
-    auto v = sample_multinomial<Int>(contributions_gene(g), a,
-                                     EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < T; ++t)
-      contributions_gene_type(g, t) = v[t];
-  }
-
-#pragma omp parallel if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    const size_t thread_num = omp_get_thread_num();
-    std::vector<Float> a(T);
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += a[t] = rate_spot_type(s, t);
-    for (size_t t = 0; t < T; ++t)
-      a[t] /= z;
-
-    auto v = sample_multinomial<Int>(contributions_spot(s), a,
-                                     EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < T; ++t)
-      contributions_spot_type(s, t) = v[t];
-  }
-}
-
-/** sample spot scaling factors */
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_spot() {
-  LOG(info) << "Sampling spot scaling factors";
-  auto phi_marginal = marginalize_genes(features);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    const Int summed_contribution = contributions_spot(s);
-
-    Float intensity_sum = 0;
-    for (size_t t = 0; t < T; ++t)
-      intensity_sum += phi_marginal[t] * theta(s, t);
-    if (parameters.activate_experiment_scaling)
-      intensity_sum *= experiment_scaling_long[s];
-
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    spot[s] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.spot_a + summed_contribution,
-        1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
-        EntropySource::rng);
-  }
-
-  if ((parameters.enforce_mean & ForceMean::Spot) != ForceMean::None) {
-    double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      z += spot[s];
-    z /= S;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      spot[s] /= z;
-  }
-}
-
-/** sample experiment scaling factors */
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_experiment_scaling(const Counts &data) {
-  LOG(info) << "Sampling experiment scaling factors";
-
-  auto phi_marginal = marginalize_genes(features);
-  std::vector<Float> intensity_sums(E, 0);
-  // TODO: improve parallelism
-  for (size_t s = 0; s < S; ++s) {
-    double x = 0;
-#pragma omp parallel for reduction(+ : x) if (DO_PARALLEL)
-    for (size_t t = 0; t < T; ++t)
-      x += phi_marginal[t] * theta(s, t);
-    x *= spot[s];
-    intensity_sums[data.experiments[s]] += x;
-  }
-
-  for (size_t e = 0; e < E; ++e) {
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    experiment_scaling[e] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.experiment_a + contributions_experiment(e),
-        1.0 / (parameters.hyperparameters.experiment_b + intensity_sums[e]))(
-        EntropySource::rng);
-    LOG(debug) << "new experiment_scaling[" << e
-               << "]=" << experiment_scaling[e];
-  }
-
-  // copy the experiment scaling parameters into the spot-indexed vector
-  update_experiment_scaling_long(data);
-
-  if ((parameters.enforce_mean & ForceMean::Experiment) != ForceMean::None) {
-    double z = 0;
-#pragma omp parallel for reduction(+ : z) if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      z += experiment_scaling_long[s];
-    z /= S;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      experiment_scaling_long[s] /= z;
-
-    for (size_t e = 0; e < E; ++e)
-      experiment_scaling[e] /= z;
-  }
-}
-
-/** copy the experiment scaling parameters into the spot-indexed vector */
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::update_experiment_scaling_long(
-    const Counts &data) {
-  for (size_t s = 0; s < S; ++s)
-    experiment_scaling_long[s] = experiment_scaling[data.experiments[s]];
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::gibbs_sample(const Counts &data, Target which,
-                                              bool timing) {
-  Timer timer;
-  if (flagged(which & Target::contributions)) {
-    if(parameters.variational)
-      sample_contributions_variational(data.counts);
+  if (parameters.targeted(Target::field)) {
+    if (parameters.identity_kernels)
+      identity_kernels();
     else
-      sample_contributions(data.counts);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & Target::merge_split)) {
-    // NOTE: this has to be done right after the Gibbs step for the
-    // contributions because otherwise lambda_gene_spot is inconsistent
-    timer.tick();
-    sample_split_merge(data, which);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & Target::spot)) {
-    timer.tick();
-    sample_spot();
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & Target::experiment)) {
-    if (E > 1 and parameters.activate_experiment_scaling) {
-      timer.tick();
-      sample_experiment_scaling(data);
-      if (timing)
-        LOG(info) << "This took " << timer.tock() << "μs.";
-      LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-    }
-  }
-
-  if (flagged(which & (Target::phi_r | Target::phi_p))) {
-    timer.tick();
-    features.prior.sample(weights.matrix, contributions_gene_type, spot,
-                          experiment_scaling_long);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & (Target::theta_r | Target::theta_p))) {
-    timer.tick();
-    weights.prior.sample(features.matrix, contributions_spot_type, spot,
-                         experiment_scaling_long);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & Target::phi)) {
-    timer.tick();
-    features.sample(weights, contributions_gene_type, spot,
-                    experiment_scaling_long);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
-  }
-
-  if (flagged(which & Target::theta)) {
-    timer.tick();
-    weights.sample(features, contributions_spot_type, spot,
-                   experiment_scaling_long);
-    if (timing)
-      LOG(info) << "This took " << timer.tock() << "μs.";
-    LOG(debug) << "Log-likelihood = " << log_likelihood(data.counts);
+      update_kernels();
   }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_split_merge(const Counts &data,
-                                                    Target which) {
-  if (T < 2)
+template <typename Type>
+void Model<Type>::identity_kernels() {
+  LOG(debug) << "Updating kernels: using identity kernels";
+  for (auto &coordinate_system : coordinate_systems)
+    for (auto e1 : coordinate_system.members)
+      for (auto e2 : coordinate_system.members) {
+        Matrix m(experiments[e1].S, experiments[e2].S, arma::fill::zeros);
+        if (e1 == e2)
+          m.eye();
+        kernels[{e1, e2}] = m;
+      }
+}
+
+template <typename Type>
+void Model<Type>::update_kernels() {
+  LOG(debug) << "Updating kernels";
+  for (auto &coordinate_system : coordinate_systems)
+    for (auto e1 : coordinate_system.members) {
+      for (auto e2 : coordinate_system.members)
+        kernels[{e1, e2}]
+            = apply_kernel(compute_sq_distances(experiments[e1].coords,
+                                                experiments[e2].coords),
+                           parameters.hyperparameters.sigma);
+    }
+
+  // row normalize
+  // TODO check should we do column normalization?
+  for (auto &coordinate_system : coordinate_systems)
+    if (true)
+      for (auto e1 : coordinate_system.members) {
+        Vector z(experiments[e1].S, arma::fill::zeros);
+        for (auto e2 : coordinate_system.members)
+          z += rowSums<Vector>(kernels[{e1, e2}]);
+        for (auto e2 : coordinate_system.members)
+          kernels[{e1, e2}].each_col() /= z;
+      }
+    else
+      for (auto e2 : coordinate_system.members) {
+        Vector z(experiments[e2].S, arma::fill::zeros);
+        for (auto e1 : coordinate_system.members)
+          z += colSums<Vector>(kernels[{e1, e2}]);
+        for (auto e1 : coordinate_system.members)
+          kernels[{e1, e2}].each_row() /= z.t();
+      }
+  for (auto &kernel : kernels)
+    LOG(debug) << "Kernel " << kernel.first.first << " " << kernel.first.second
+               << std::endl
+               << kernel.second;
+}
+
+template <typename V>
+std::vector<size_t> get_order(const V &v) {
+  size_t N = v.size();
+  std::vector<size_t> order(N);
+  std::iota(begin(order), end(order), 0);
+  std::sort(begin(order), end(order), [&v] (size_t a, size_t b) { return v[a] > v[b]; });
+  return order;
+}
+
+template <typename Type>
+void Model<Type>::store(const std::string &prefix, bool reorder) const {
+  auto factor_names = form_factor_names(T);
+  auto &gene_names = experiments.begin()->data.row_names;
+  auto exp_gene_type = expected_gene_type();
+  std::vector<size_t> order;
+  if (reorder) {
+    auto cs = colSums<Vector>(exp_gene_type);
+    order = get_order(cs);
+  }
+  features.store(prefix, gene_names, factor_names, order);
+  write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, gene_names, factor_names, order);
+  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, gene_names);
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
+    experiments[e].store(exp_prefix, features, order);
+  }
+}
+
+template <typename Type>
+void Model<Type>::restore(const std::string &prefix) {
+  contributions_gene_type = parse_file<Matrix>(prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_gene = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING, read_vector<Vector>, "\t");
+  features.restore(prefix);
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
+    experiments[e].restore(exp_prefix);
+  }
+}
+
+template <typename Type>
+void Model<Type>::perform_pairwise_dge(const std::string &prefix) const {
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix
+        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
+    experiments[e].perform_pairwise_dge(exp_prefix, features);
+  }
+}
+
+template <typename Type>
+void Model<Type>::perform_local_dge(const std::string &prefix) const {
+  for (size_t e = 0; e < E; ++e) {
+    std::string exp_prefix
+        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
+    experiments[e].perform_local_dge(exp_prefix, features);
+  }
+}
+
+template <typename Type>
+void Model<Type>::gibbs_sample(bool report_likelihood) {
+  LOG(verbose) << "perform Gibbs step for " << parameters.targets;
+  if (parameters.targeted(Target::contributions))
+    sample_contributions();
+
+  if (report_likelihood) {
+      if (verbosity >= Verbosity::verbose)
+        LOG(info) << "Log-likelihood = " << log_likelihood();
+      else
+        LOG(info) << "Observed Log-likelihood = " << log_likelihood_poisson_counts();
+    }
+
+  // TODO add CLI switch
+  auto order = random_order(4);
+  for (auto &o : order)
+    switch (o) {
+      case 0:
+        if (parameters.targeted(Target::theta_prior)
+            and not parameters.theta_local_priors)
+          sample_global_theta_priors();
+        break;
+
+      case 1:
+        if (parameters.targeted(Target::phi_prior))
+          features.prior.sample(*this);
+        break;
+
+      case 2:
+        if (parameters.targeted(Target::phi))
+          features.sample(*this);
+        break;
+
+      case 3:
+        if (parameters.targeted(Target::field))
+          sample_fields();
+
+        for (auto &experiment : experiments)
+          experiment.gibbs_sample(features.matrix);
+        break;
+
+      default:
+        break;
+    }
+}
+
+template <typename Type>
+void Model<Type>::sample_contributions() {
+  for (auto &experiment: experiments)
+    experiment.sample_contributions(features.matrix);
+  update_contributions();
+}
+
+template <Partial::Kind feat_kind>
+void do_sample_fields(
+    Model<ModelType<feat_kind, Partial::Kind::HierGamma>> &model) {
+  LOG(verbose) << "Sampling fields";
+  std::vector<Matrix> observed;
+  std::vector<Matrix> explained;
+  for (auto &experiment : model.experiments) {
+    observed.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
+    explained.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
+  }
+
+  for (auto &coordinate_system : model.coordinate_systems)
+    for (auto e2 : coordinate_system.members) {
+      const auto intensities
+          = model.experiments[e2].marginalize_genes(model.features.matrix);
+#pragma omp parallel for if (DO_PARALLEL)
+      for (size_t t = 0; t < model.T; ++t)
+        for (auto e1 : coordinate_system.members) {
+          const auto &kernel = model.kernels.find({e2, e1})->second;
+          for (size_t s2 = 0; s2 < model.experiments[e2].S; ++s2) {
+            for (size_t s1 = 0; s1 < model.experiments[e1].S; ++s1) {
+              const Float w = kernel(s2, s1);
+              observed[e1](s1, t)
+                  += w
+                     * (model.experiments[e2].weights.prior.r(t)
+                        + model.experiments[e2].contributions_spot_type(s2, t));
+              explained[e1](s1, t)
+                  += w * (model.experiments[e2].weights.prior.p(t)
+                          + intensities[t] * model.experiments[e2].spot[s2]
+                                * (e1 == e2 and s1 == s2
+                                       ? 1
+                                       : model.experiments[e2].field(s2, t)));
+            }
+          }
+        }
+    }
+
+  for (size_t e = 0; e < model.E; ++e) {
+    LOG(verbose) << "Sampling field for experiment " << e;
+    Partial::perform_sampling(observed[e], explained[e],
+                              model.experiments[e].field,
+                              model.parameters.over_relax);
+  }
+}
+
+template <Partial::Kind feat_kind>
+void do_sample_fields(
+    Model<ModelType<feat_kind, Partial::Kind::Dirichlet>> &model
+    __attribute__((unused))) {}
+
+template <typename Type>
+void Model<Type>::sample_fields() {
+  do_sample_fields(*this);
+}
+
+template <typename Type>
+void Model<Type>::sample_global_theta_priors() {
+  // TODO refactor
+  if (std::is_same<typename Type::weights_t::prior_type,
+                   PRIOR::THETA::Dirichlet>::value)
     return;
+  Matrix observed(0, T);
+  for (auto &experiment : experiments)
+    observed = arma::join_vert(observed, experiment.contributions_spot_type);
 
-  size_t s1 = std::uniform_int_distribution<Int>(0, S - 1)(EntropySource::rng);
-  size_t s2 = std::uniform_int_distribution<Int>(0, S - 1)(EntropySource::rng);
-
-  std::vector<Float> p1(T), p2(T);
-  for (size_t t = 0; t < T; ++t) {
-    p1[t] = theta(s1, t);
-    p2[t] = theta(s2, t);
+  Matrix explained(0, T);
+  for (auto &experiment : experiments) {
+    Matrix m = features.matrix % experiment.features.matrix;
+    m.each_col() %= experiment.baseline_feature.matrix.col(0);
+    auto v = colSums<Vector>(m);
+    explained = arma::join_vert(
+        explained, experiment.weights.matrix % (experiment.spot * v.t()));
   }
 
-  size_t t1
-      = std::discrete_distribution<Int>(begin(p1), end(p1))(EntropySource::rng);
-  size_t t2
-      = std::discrete_distribution<Int>(begin(p2), end(p2))(EntropySource::rng);
+  mix_prior.sample(observed, explained);
 
-  if (t1 != t2)
-    sample_merge(data, t1, t2, which);
-  else
-    sample_split(data, t1, which);
+  for (auto &experiment : experiments)
+    experiment.weights.prior = mix_prior;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-size_t Model<feat_kind, mix_kind>::find_weakest_factor() const {
-  std::vector<Float> x(T, 0);
-  auto phi_marginal = marginalize_genes(features);
-  for (size_t t = 0; t < T; ++t)
-    for (size_t s = 0; s < S; ++s) {
-      Float z = phi_marginal[t] * theta(s, t) * spot[s];
-      if (parameters.activate_experiment_scaling)
-        z *= experiment_scaling_long[s];
-      x[t] += z;
-    }
-  return std::distance(begin(x), min_element(begin(x), end(x)));
+template <typename Type>
+double Model<Type>::log_likelihood_poisson_counts() const {
+  double l = 0;
+  for (auto &experiment : experiments)
+    l += experiment.log_likelihood_poisson_counts();
+  return l;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Model<feat_kind, mix_kind> Model<feat_kind, mix_kind>::run_submodel(
-    size_t t, size_t n, const Counts &counts, Target which,
-    const std::string &prefix, const std::vector<size_t> &init_factors) {
-  const bool show_timing = false;
-  // TODO: use init_factors
-  Model<feat_kind, mix_kind> sub_model(counts, t, parameters);
-  for (size_t s = 0; s < S; ++s) {
-    sub_model.spot[s] = spot[s];
-    sub_model.experiment_scaling_long[s] = experiment_scaling_long[s];
+template <typename Type>
+double Model<Type>::log_likelihood() const {
+  double l = features.log_likelihood();
+  LOG(verbose) << "Global feature log likelihood: " << l;
+  for (auto &experiment : experiments)
+    l += experiment.log_likelihood();
+  return l;
+}
+
+// computes a matrix M(g,t)
+// with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+template <typename Type>
+Matrix Model<Type>::explained_gene_type() const {
+  Matrix explained(G, T, arma::fill::zeros);
+  for (auto &experiment : experiments) {
+    Vector theta_t = experiment.marginalize_spots();
+    for (size_t t = 0; t < T; ++t)
+#pragma omp parallel for if (DO_PARALLEL)
+      for (size_t g = 0; g < G; ++g)
+        explained(g, t)
+            += experiment.baseline_phi(g) * experiment.phi(g, t) * theta_t(t);
   }
-  for (size_t e = 0; e < E; ++e)
-    sub_model.experiment_scaling[e] = experiment_scaling[e];
-
-  if (print_sub_model_cnt)
-    sub_model.store(counts,
-                    prefix + "submodel_init_" + std::to_string(sub_model_cnt));
-
-  // keep spot and experiment scaling fixed
-  // don't recurse into either merge or sample steps
-  which = which & ~(Target::spot | Target::experiment | Target::merge_split);
-
-  // deactivate logging during Gibbs sampling for sub model
-  bool prev_logging = boost::log::core::get()->set_logging_enabled(false);
-
-  for (size_t i = 0; i < n; ++i) {
-    sub_model.gibbs_sample(counts, which, show_timing);
-    LOG(info) << "sub model log likelihood = "
-              << sub_model.log_likelihood_poisson_counts(counts.counts);
-  }
-
-  // re-activate logging after Gibbs sampling for sub model
-  boost::log::core::get()->set_logging_enabled(prev_logging);
-
-  if (print_sub_model_cnt)
-    sub_model.store(counts,
-                    prefix + "submodel_opti_" + std::to_string(sub_model_cnt));
-  // sub_model_cnt++; // TODO
-
-  return sub_model;
+  return explained;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::lift_sub_model(const Model &sub_model,
-                                                size_t t1, size_t t2) {
-  features.lift_sub_model(sub_model.features, t1, t2);
-  weights.lift_sub_model(sub_model.weights, t1, t2);
-
-  for (size_t g = 0; g < G; ++g)
-    contributions_gene_type(g, t1) = sub_model.contributions_gene_type(g, t2);
-
-  for (size_t s = 0; s < S; ++s)
-    contributions_spot_type(s, t1) = sub_model.contributions_spot_type(s, t2);
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_split(const Counts &data, size_t t1,
-                                              Target which) {
-  size_t t2 = find_weakest_factor();
-  LOG(info) << "Performing a split step: " << t1 << " and " << t2 << ".";
-  Model previous(*this);
-
-  double ll_previous = (consider_factor_likel
-                            ? log_likelihood_factor(data.counts, t1)
-                                  + log_likelihood_factor(data.counts, t2)
-                            : 0)
-                       + log_likelihood_poisson_counts(data.counts);
-
-  Counts sub_counts = data;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
-      sub_counts.counts(g, s) = std::binomial_distribution<Int>(
-          data.counts(g, s),
-          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
-      // remove effect of current parameters
-      lambda_gene_spot(g, s) -= lambda;
-    }
-
-  Model sub_model = run_submodel(2, num_sub_gibbs_split, sub_counts, which,
-                                 "splitmerge_split_");
-
-  lift_sub_model(sub_model, t1, 0);
-  lift_sub_model(sub_model, t2, 1);
-
-  // add effect of updated parameters
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s)
-          += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
-
-  double ll_updated = (consider_factor_likel
-                           ? log_likelihood_factor(data.counts, t1)
-                                 + log_likelihood_factor(data.counts, t2)
-                           : 0)
-                      + log_likelihood_poisson_counts(data.counts);
-
-  LOG(debug) << "ll_split_previous = " << ll_previous
-             << " ll_split_updated = " << ll_updated;
-  if (gibbs_test(ll_updated, ll_previous)) {
-    LOG(info) << "Split step accecpted";
-  } else {
-    *this = previous;
-    LOG(info) << "Split step rejected";
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::sample_merge(const Counts &data, size_t t1,
-                                              size_t t2, Target which) {
-  LOG(info) << "Performing a merge step: " << t1 << " and " << t2 << ".";
-  Model previous(*this);
-
-  double ll_previous = (consider_factor_likel
-                            ? log_likelihood_factor(data.counts, t1)
-                                  + log_likelihood_factor(data.counts, t2)
-                            : 0)
-                       + log_likelihood_poisson_counts(data.counts);
-
-  Counts sub_counts = data;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      Float lambda = phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
-      sub_counts.counts(g, s) = std::binomial_distribution<Int>(
-          data.counts(g, s),
-          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
-      // remove effect of current parameters
-      lambda_gene_spot(g, s) -= lambda;
-    }
-
-  Model sub_model = run_submodel(1, num_sub_gibbs_merge, sub_counts, which,
-                                 "splitmerge_merge_");
-
-  lift_sub_model(sub_model, t1, 0);
-
-  features.initialize_factor(t2);
-  weights.initialize_factor(t2);
-
-// add effect of updated parameters
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      lambda_gene_spot(g, s)
-          += phi(g, t1) * theta(s, t1) + phi(g, t2) * theta(s, t2);
-
-  for (size_t g = 0; g < G; ++g)
-    contributions_gene_type(g, t2) = 0;
-  for (size_t s = 0; s < S; ++s)
-    contributions_spot_type(s, t2) = 0;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      Float lambda = phi(g, t2) * theta(s, t2);
-      Int count = std::binomial_distribution<Int>(
-          data.counts(g, s),
-          lambda / lambda_gene_spot(g, s))(EntropySource::rng);
-      contributions_gene_type(g, t2) += count;
-      contributions_spot_type(s, t2) += count;
-    }
-
-  double ll_updated = (consider_factor_likel
-                           ? log_likelihood_factor(data.counts, t1)
-                                 + log_likelihood_factor(data.counts, t2)
-                           : 0)
-                      + log_likelihood_poisson_counts(data.counts);
-
-  LOG(debug) << "ll_merge_previous = " << ll_previous
-             << " ll_merge_updated = " << ll_updated;
-  if (gibbs_test(ll_updated, ll_previous)) {
-    LOG(info) << "Merge step accepted";
-  } else {
-    *this = previous;
-    LOG(info) << "Merge step rejected";
-  }
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-double Model<feat_kind, mix_kind>::posterior_expectation_poisson(
-    size_t g, size_t s) const {
-  double x = 0;
-  for (size_t t = 0; t < T; ++t)
-    x += phi(g, t) * theta(s, t);
-  x *= spot[s];
-  if (parameters.activate_experiment_scaling)
-    x *= experiment_scaling_long[s];
-  return x;
-}
-
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-Matrix Model<feat_kind, mix_kind>::posterior_expectations_poisson() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = posterior_expectation_poisson(g, s);
+// computes a matrix M(g,t)
+// with M(g,t) = phi(g,t) sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s
+// theta(e,s,t) sigma(e,s)
+template <typename Type>
+Matrix Model<Type>::expected_gene_type() const {
+  Matrix m(G, T, arma::fill::zeros);
+  for (auto &experiment : experiments)
+    m += experiment.expected_gene_type(features.matrix);
   return m;
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-void Model<feat_kind, mix_kind>::check_model(const IMatrix &counts) const {
-  // check that phi is positive
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      if (phi[g][t] == 0)
-        throw(std::runtime_error("Phi is zero for gene " + std::to_string(g)
-                                 + " in factor " + std::to_string(t) + "."));
-      if (phi(g, t) < 0)
-        throw(std::runtime_error("Phi is negative for gene " + std::to_string(g)
-                                 + " in factor " + std::to_string(t) + "."));
-    }
+template <typename V>
+bool generate_next(V &v, const V &low, const V &high, double step) {
+  auto l_iter = low.begin();
+  auto h_iter = high.begin();
+  for (auto &x : v) {
+    if ((x += step) > *h_iter)
+      x = *l_iter;
+    else
+      return true;
+    l_iter++;
+    h_iter++;
+  }
+  return false;
+}
 
-  // check that theta is positive
-  for (size_t s = 0; s < S; ++s)
+template <typename Type>
+template <typename Fnc1, typename Fnc2>
+Vector Model<Type>::get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
+                                 Fnc2 fnc2) const {
+  if (coordinate_systems.size() <= coord_sys_idx
+      or coordinate_systems[coord_sys_idx].members.empty())
+    return {0};
+  size_t D = 0;
+  for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
+    D = std::max<size_t>(D, experiments[exp_idx].coords.n_cols);
+  Vector v(D, arma::fill::ones);
+  v *= init;
+  for (size_t d = 0; d < D; ++d)
+    for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
+      v[d] = fnc1(v[d], fnc2(experiments[exp_idx].coords.col(d)));
+  return v;
+}
+
+template <typename Type>
+Vector Model<Type>::get_low(size_t coord_sys_idx) const {
+  return get_low_high(coord_sys_idx, std::numeric_limits<Float>::infinity(),
+                      [](double a, double b) { return std::min(a, b); },
+                      [](const Vector &x) { return arma::min(x); });
+}
+
+template <typename Type>
+Vector Model<Type>::get_high(size_t coord_sys_idx) const {
+  return get_low_high(coord_sys_idx, -std::numeric_limits<Float>::infinity(),
+                      [](double a, double b) { return std::max(a, b); },
+                      [](const Vector &x) { return arma::max(x); });
+}
+
+template <typename Type>
+void Model<Type>::predict_field(std::ofstream &ofs,
+                                size_t coord_sys_idx) const {
+  const double sigma = parameters.hyperparameters.sigma;
+  // Matrix feature_marginal(E, T, arma::fill::zeros); TODO
+  double N = 8e8;
+  Vector low = get_low(coord_sys_idx);
+  Vector high = get_high(coord_sys_idx);
+  double alpha = 0.05;
+  low = low - (high - low) * alpha;
+  high = high + (high - low) * alpha;
+  // one over N of the total volume
+  double step = arma::prod((high - low) % (high - low)) / N;
+  // n-th root of step
+  step = exp(log(step) / low.n_elem);
+  Vector coord = low;
+  do {
+    bool first = true;
+    for (auto &c : coord) {
+      if (first)
+        first = false;
+      else
+        ofs << ",";
+      ofs << c;
+    }
+    Vector observed(T, arma::fill::ones);
+    Vector explained(T, arma::fill::ones);
+    for (auto exp_idx : coordinate_systems[coord_sys_idx].members) {
+      for (size_t s = 0; s < experiments[exp_idx].S; ++s) {
+        const Vector diff = coord - experiments[exp_idx].coords.row(s).t();
+        const double d = arma::accu(diff % diff);
+        const double w
+            = 1 / sqrt(2 * M_PI) / sigma * exp(-d / 2 / sigma / sigma);
+        for (size_t t = 0; t < T; ++t) {
+          observed[t] += w * experiments[exp_idx].contributions_spot_type(s, t);
+          explained[t] += w * 1  // TODO feature_marginal(exp_idx, t)
+                          // * experiments[exp_idx].theta(s, t)
+                          // / experiments[exp_idx].field(s, t)
+                          * experiments[exp_idx].spot(s);
+        }
+      }
+    }
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += observed[t] / explained[t];
     for (size_t t = 0; t < T; ++t) {
-      if (theta(s, t) == 0)
-        throw(std::runtime_error("Theta is zero for spot " + std::to_string(s)
-                                 + " in factor " + std::to_string(t) + "."));
-      if (theta(s, t) < 0)
-        throw(std::runtime_error("Theta is negative for spot "
-                                 + std::to_string(s) + " in factor "
-                                 + std::to_string(t) + "."));
+      double predicted = observed[t] / explained[t] / z;
+      ofs << "," << predicted;
+    }
+    ofs << std::endl;
+  } while (generate_next(coord, low, high, step));
+}
+
+template <typename Type>
+void Model<Type>::update_contributions() {
+  contributions_gene_type.zeros();
+  contributions_gene.zeros();
+  for (auto &experiment : experiments)
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g) {
+      contributions_gene(g) += experiment.contributions_gene(g);
+      for (size_t t = 0; t < T; ++t)
+        contributions_gene_type(g, t)
+            += experiment.contributions_gene_type(g, t);
     }
 }
 
-template <Partial::Kind feat_kind, Partial::Kind mix_kind>
-std::ostream &operator<<(
-    std::ostream &os,
-    const PoissonFactorization::Model<feat_kind, mix_kind> &pfa) {
+template <typename Type>
+void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
+  Parameters experiment_parameters = parameters;
+  parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
+  parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
+  experiments.push_back({counts, T, experiment_parameters});
+  E++;
+  // TODO check redundancy with Experiment constructor
+  experiments.rbegin()->features.matrix.ones();
+  experiments.rbegin()->features.prior.set_unit(local_phi_scaling_factor);
+  while(coordinate_systems.size() <= coord_sys)
+    coordinate_systems.push_back({});
+  coordinate_systems[coord_sys].members.push_back(E-1);
+}
+
+template <typename Type>
+std::ostream &operator<<(std::ostream &os, const Model<Type> &model) {
   os << "Poisson Factorization "
-     << "G = " << pfa.G << " "
-     << "S = " << pfa.S << " "
-     << "T = " << pfa.T << std::endl;
+     << "G = " << model.G << " "
+     << "T = " << model.T << " "
+     << "E = " << model.E << std::endl;
 
-  if (verbosity >= Verbosity::verbose) {
-    print_matrix_head(os, pfa.features.matrix, "Φ");
-    print_matrix_head(os, pfa.weights.matrix, "Θ");
-    os << pfa.features.prior;
-    os << pfa.weights.prior;
-
-    print_vector_head(os, pfa.spot, "Spot scaling factors");
-    if (pfa.parameters.activate_experiment_scaling)
-      print_vector_head(os, pfa.experiment_scaling,
-                        "Experiment scaling factors");
+  if (verbosity >= Verbosity::debug) {
+    print_matrix_head(os, model.features.matrix, "Φ");
+    os << model.features.prior;
   }
+  for (auto &experiment : model.experiments)
+    os << experiment;
 
   return os;
+}
+
+template <typename Type>
+Model<Type> operator*(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
+
+  model.contributions_gene_type %= b.contributions_gene_type;
+  model.contributions_gene %= b.contributions_gene;
+  model.features.matrix %= b.features.matrix;
+  for (size_t e = 0; e < model.E; ++e)
+    model.experiments[e] = model.experiments[e] * b.experiments[e];
+
+  return model;
+}
+
+template <typename Type>
+Model<Type> operator+(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
+
+  model.contributions_gene_type += b.contributions_gene_type;
+  model.contributions_gene += b.contributions_gene;
+  model.features.matrix += b.features.matrix;
+  for (size_t e = 0; e < model.E; ++e)
+    model.experiments[e] = model.experiments[e] + b.experiments[e];
+
+  return model;
+}
+
+template <typename Type>
+Model<Type> operator-(const Model<Type> &a, const Model<Type> &b) {
+  Model<Type> model = a;
+
+  model.contributions_gene_type -= b.contributions_gene_type;
+  model.contributions_gene -= b.contributions_gene;
+  model.features.matrix -= b.features.matrix;
+  for (size_t e = 0; e < model.E; ++e)
+    model.experiments[e] = model.experiments[e] - b.experiments[e];
+
+  return model;
+}
+
+template <typename Type>
+Model<Type> operator*(const Model<Type> &a, double x) {
+  Model<Type> model = a;
+
+  model.contributions_gene_type *= x;
+  model.contributions_gene *= x;
+  model.features.matrix *= x;
+  for (auto &experiment : model.experiments)
+    experiment = experiment * x;
+
+  return model;
+}
+
+template <typename Type>
+Model<Type> operator/(const Model<Type> &a, double x) {
+  Model<Type> model = a;
+
+  model.contributions_gene_type /= x;
+  model.contributions_gene /= x;
+  model.features.matrix /= x;
+  for (auto &experiment : model.experiments)
+    experiment = experiment / x;
+
+  return model;
 }
 }
 

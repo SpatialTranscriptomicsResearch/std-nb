@@ -1,6 +1,7 @@
 
 #include <cstdio>
 #include <ctime>
+#include <random>
 #include <boost/filesystem.hpp>
 #include <boost/date_time/posix_time/posix_time.hpp>
 #include "entropy.hpp"
