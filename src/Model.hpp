@@ -184,16 +184,30 @@ template <typename Type>
 void Model<Type>::store(const std::string &prefix, bool reorder) const {
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->data.row_names;
+
   auto exp_gene_type = expected_gene_type();
   std::vector<size_t> order;
   if (reorder) {
     auto cs = colSums<Vector>(exp_gene_type);
     order = get_order(cs);
   }
-  features.store(prefix, gene_names, factor_names, order);
-  write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
-  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, parameters.compression_mode, gene_names);
+
+#pragma omp parallel sections if (DO_PARALLEL)
+  {
+#pragma omp section
+    write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    features.store(prefix, gene_names, factor_names, order);
+#pragma omp section
+    write_matrix(contributions_gene_type,
+                 prefix + "contributions_gene_type" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    write_vector(contributions_gene,
+                 prefix + "contributions_gene" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names);
+  }
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
                              + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)

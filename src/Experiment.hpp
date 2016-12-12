@@ -210,27 +210,68 @@ void Experiment<Type>::store(const std::string &prefix,
   boost::filesystem::create_symlink(
       data.path, prefix + "counts" + FILENAME_ENDING + suffix);
 
-  features.store(prefix, gene_names, factor_names, order);
-  baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"}, {});
-  weights.store(prefix, spot_names, factor_names, order);
-  write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING, parameters.compression_mode, spot_names);
-  write_matrix(field, prefix + "raw-field" + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
-  write_matrix(expected_spot_type(global_features.matrix), prefix + "expected-mix" + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
-  write_matrix(expected_gene_type(global_features.matrix), prefix + "expected-features" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
-  auto phi_marginal = marginalize_genes(global_features.matrix);
-  auto f = field;
-  f.each_row() %= phi_marginal.t();
-  f.each_col() %= spot;
-  write_matrix(f, prefix + "expected-field" + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
-  if (parameters.store_lambda)
-    write_matrix(lambda_gene_spot, prefix + "lambda_gene_spot" + FILENAME_ENDING, parameters.compression_mode, gene_names, spot_names);
-  write_matrix(contributions_gene_type, prefix + "contributions_gene_type" + FILENAME_ENDING, parameters.compression_mode, gene_names, factor_names, order);
-  write_matrix(contributions_spot_type, prefix + "contributions_spot_type" + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
-  write_vector(contributions_gene, prefix + "contributions_gene" + FILENAME_ENDING, parameters.compression_mode, gene_names);
-  write_vector(contributions_spot, prefix + "contributions_spot" + FILENAME_ENDING, parameters.compression_mode, spot_names);
+#pragma omp parallel sections if (DO_PARALLEL)
+  {
+#pragma omp section
+    features.store(prefix, gene_names, factor_names, order);
+#pragma omp section
+    baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"},
+                           {});
+#pragma omp section
+    weights.store(prefix, spot_names, factor_names, order);
+#pragma omp section
+    write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names);
+#pragma omp section
+    write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
+#pragma omp section
+    write_matrix(expected_spot_type(global_features.matrix),
+                 prefix + "expected-mix" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
+#pragma omp section
+    write_matrix(expected_gene_type(global_features.matrix),
+                 prefix + "expected-features" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    {
+      auto phi_marginal = marginalize_genes(global_features.matrix);
+      auto f = field;
+      f.each_row() %= phi_marginal.t();
+      f.each_col() %= spot;
+      write_matrix(f, prefix + "expected-field" + FILENAME_ENDING,
+                   parameters.compression_mode, spot_names, factor_names,
+                   order);
+    }
+#pragma omp section
+    if (parameters.store_lambda)
+      write_matrix(lambda_gene_spot,
+                   prefix + "lambda_gene_spot" + FILENAME_ENDING,
+                   parameters.compression_mode, gene_names, spot_names);
+#pragma omp section
+    write_matrix(contributions_gene_type,
+                 prefix + "contributions_gene_type" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    write_matrix(contributions_spot_type,
+                 prefix + "contributions_spot_type" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
+#pragma omp section
+    write_vector(contributions_gene,
+                 prefix + "contributions_gene" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names);
+#pragma omp section
+    write_vector(contributions_spot,
+                 prefix + "contributions_spot" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names);
+  }
   if (false) {
-    write_matrix(posterior_expectations_poisson(), prefix + "counts_expected_poisson" + FILENAME_ENDING, parameters.compression_mode, gene_names, spot_names);
-    write_matrix(posterior_expectations_negative_multinomial(global_features), prefix + "counts_expected" + FILENAME_ENDING, parameters.compression_mode, gene_names, spot_names);
+    write_matrix(posterior_expectations_poisson(),
+                 prefix + "counts_expected_poisson" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, spot_names);
+    write_matrix(posterior_expectations_negative_multinomial(global_features),
+                 prefix + "counts_expected" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, spot_names);
   }
 }
 
