@@ -190,8 +190,8 @@ int main(int argc, char **argv) {
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
-    ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode),
-     "Compression method to use. Can be on of 'gzip', 'bzip2', 'none'.")
+    ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
+     "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
     ("identity", po::bool_switch(&parameters.identity_kernels),
