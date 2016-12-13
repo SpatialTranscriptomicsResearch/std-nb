@@ -462,16 +462,25 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   contributions_spot_type.fill(0);
 
   std::vector<bool> dropout_gene(G, false);
+  size_t dropped_genes = 0;
   if (parameters.dropout_gene > 0.0)
     for (size_t g = 0; g < G; ++g)
       if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout_gene)
-        dropout_gene[g] = true;
+        dropped_genes += dropout_gene[g] = true;
 
   std::vector<bool> dropout_spot(S, false);
+  size_t dropped_spots = 0;
   if (parameters.dropout_spot > 0.0)
     for (size_t s = 0; s < S; ++s)
       if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout_spot)
-        dropout_spot[s] = true;
+        dropped_spots += dropout_spot[s] = true;
+
+  if (parameters.dropout_gene > 0.0)
+    LOG(verbose) << "Gene dropout rate = " << parameters.dropout_gene * 100
+                 << "\% Dropping " << dropped_genes << " genes";
+  if (parameters.dropout_spot > 0.0)
+    LOG(verbose) << "Spot dropout rate = " << parameters.dropout_spot * 100
+                 << "\% Dropping " << dropped_spots << " spots";
 
 #pragma omp parallel if (DO_PARALLEL)
   {
