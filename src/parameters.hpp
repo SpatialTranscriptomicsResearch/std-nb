@@ -86,7 +86,8 @@ struct Parameters {
   bool theta_local_priors = false;
   bool identity_kernels = false;
   bool normalize_spot_stats = false;
-  double dropout = 0;
+  double dropout_gene = 0;
+  double dropout_spot = 0;
   double dropout_anneal = 0.999;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;

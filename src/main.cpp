@@ -192,7 +192,9 @@ int main(int argc, char **argv) {
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
-    ("dropout", po::value(&parameters.dropout)->default_value(parameters.dropout),
+    ("dropout_gene", po::value(&parameters.dropout_gene)->default_value(parameters.dropout_gene),
+     "Randomly discard a fraction of the genes during contributions sampling.")
+    ("dropout_spot", po::value(&parameters.dropout_spot)->default_value(parameters.dropout_spot),
      "Randomly discard a fraction of the spots during contributions sampling.")
     ("dropout_anneal", po::value(&parameters.dropout_anneal)->default_value(parameters.dropout_anneal),
      "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")

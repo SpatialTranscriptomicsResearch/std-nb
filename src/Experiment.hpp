@@ -90,8 +90,8 @@ struct Experiment {
   /** sub-routine for count decomposition sampling */
   double sample_contributions_sub(const Matrix &global_phi, size_t g, size_t s,
                                   RNG &rng, Matrix &contrib_gene_type,
-                                  Matrix &contrib_spot_type,
-                                  bool dropout) const;
+                                  Matrix &contrib_spot_type, bool dropout_gene,
+                                  bool dropout_spot) const;
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &global_phi);
@@ -460,11 +460,19 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
   LOG(verbose) << "Sampling contributions";
   contributions_gene_type.fill(0);
   contributions_spot_type.fill(0);
-  std::vector<bool> dropout(S, false);
-  if (parameters.dropout > 0.0)
+
+  std::vector<bool> dropout_gene(G, false);
+  if (parameters.dropout_gene > 0.0)
+    for (size_t g = 0; g < G; ++g)
+      if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout_gene)
+        dropout_gene[g] = true;
+
+  std::vector<bool> dropout_spot(S, false);
+  if (parameters.dropout_spot > 0.0)
     for (size_t s = 0; s < S; ++s)
-      if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout)
-        dropout[s] = true;
+      if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout_spot)
+        dropout_spot[s] = true;
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
@@ -475,7 +483,7 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
       for (size_t s = 0; s < S; ++s)
         lambda_gene_spot(g, s) = sample_contributions_sub(
             global_phi, g, s, EntropySource::rngs[thread_num],
-            contrib_gene_type, contrib_spot_type, dropout[s]);
+            contrib_gene_type, contrib_spot_type, dropout_gene[g], dropout_spot[s]);
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
@@ -483,7 +491,8 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
     }
   }
 
-  parameters.dropout *= parameters.dropout_anneal;
+  parameters.dropout_gene *= parameters.dropout_anneal;
+  parameters.dropout_spot *= parameters.dropout_anneal;
 }
 
 template <typename Type>
@@ -491,18 +500,23 @@ double Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
                                                   size_t g, size_t s, RNG &rng,
                                                   Matrix &contrib_gene_type,
                                                   Matrix &contrib_spot_type,
-                                                  bool dropout) const {
+                                                  bool dropout_gene,
+                                                  bool dropout_spot) const {
+  // TODO remove conditionals; perhaps templatize?
   std::vector<double> rel_rate(T);
   double z = 0;
   // NOTE: in principle, lambda(g,s,t) is proportional to the baseline feature
   // and the spot scaling. However, these terms would cancel. Thus, we don't
   // respect them here.
-  if (not dropout)
-    for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
-  else
+  if (dropout_spot)
     for (size_t t = 0; t < T; ++t)
       z += rel_rate[t] = phi(g, t) * global_phi(g, t);
+  else if (dropout_gene)
+    for (size_t t = 0; t < T; ++t)
+      z += rel_rate[t] = theta(s, t);
+  else
+    for (size_t t = 0; t < T; ++t)
+      z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
   if (data.counts(g, s) > 0) {
