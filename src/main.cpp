@@ -186,6 +186,8 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
+     "When sampling theta priors normalize spot statistics.")
     ("drop_empty", po::bool_switch(&options.discard_empty),
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),

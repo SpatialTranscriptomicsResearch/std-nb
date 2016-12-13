@@ -374,6 +374,11 @@ void Model<Type>::sample_global_theta_priors() {
         explained, experiment.weights.matrix % (experiment.spot * v.t()));
   }
 
+  if (parameters.normalize_spot_stats) {
+    observed.each_col() /= rowSums<Vector>(observed);
+    explained.each_col() /= rowSums<Vector>(explained);
+  }
+
   mix_prior.sample(observed, explained);
 
   for (auto &experiment : experiments)
