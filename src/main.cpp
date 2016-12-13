@@ -193,7 +193,9 @@ int main(int argc, char **argv) {
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
     ("dropout", po::value(&parameters.dropout)->default_value(parameters.dropout),
-     "Randomly discard fractions of the spots during contributions sampling.")
+     "Randomly discard a fraction of the spots during contributions sampling.")
+    ("dropout_anneal", po::value(&parameters.dropout_anneal)->default_value(parameters.dropout_anneal),
+     "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("overrelax", po::bool_switch(&parameters.over_relax),

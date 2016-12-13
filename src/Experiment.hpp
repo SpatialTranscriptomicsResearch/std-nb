@@ -482,6 +482,8 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
       contributions_spot_type += contrib_spot_type;
     }
   }
+
+  parameters.dropout *= parameters.dropout_anneal;
 }
 
 template <typename Type>
