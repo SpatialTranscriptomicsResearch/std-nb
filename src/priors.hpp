@@ -7,6 +7,7 @@
 #include "metropolis_hastings.hpp"
 #include "odds.hpp"
 #include "parallel.hpp"
+#include "pdist.hpp"
 #include "parameters.hpp"
 #include "sampling.hpp"
 #include "types.hpp"
