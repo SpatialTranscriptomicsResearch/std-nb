@@ -646,15 +646,7 @@ Matrix Experiment<Type>::explained_spot_type(const Matrix &global_phi) const {
 
 template <typename Type>
 Matrix Experiment<Type>::expected_spot_type(const Matrix &global_phi) const {
-  Matrix m = weights.matrix;
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-    for (size_t g = 0; g < G; ++g)
-      x += baseline_phi(g) * phi(g, t) * global_phi(g, t);
-    for (size_t s = 0; s < S; ++s)
-      m(s, t) *= x * spot(s);
-  }
-  return m;
+  return weights.matrix % explained_spot_type(global_phi);
 }
 
 template <typename Type>
