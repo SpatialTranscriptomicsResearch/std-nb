@@ -187,23 +187,23 @@ template <typename Type, typename... Args>
 void Gamma::sample(const Type &experiment, const Args &... args) {
   LOG(verbose) << "Sampling P and R of Φ";
 
-  auto expected_gene_type = experiment.expected_gene_type(args...);
+  auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
 
-  for (size_t t = 0; t < expected_gene_type.n_cols; ++t)
+  for (size_t t = 0; t < explained_gene_type.n_cols; ++t)
 #pragma omp parallel if (DO_PARALLEL)
   {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < experiment.G; ++g) {
       const Float observed = experiment.contributions_gene_type(g, t);
-      const Float expected = expected_gene_type(g, t);
+      const Float explained = explained_gene_type(g, t);
 
       auto res
           = mh.sample(std::pair<Float, Float>(r(g, t), p(g, t)),
                       parameters.n_iter, EntropySource::rngs[thread_num],
                       gen_log_normal_pair<Float>, compute_conditional<Float>,
-                      observed, expected, parameters.hyperparameters);
+                      observed, explained, parameters.hyperparameters);
       r(g, t) = res.first;
       p(g, t) = res.second;
     }

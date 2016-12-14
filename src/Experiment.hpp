@@ -109,6 +109,9 @@ struct Experiment {
   // with M(g,t) = baseline_phi(g) global_phi(g,t) phi(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type(const Matrix &global_phi) const;
   // computes a matrix M(s,t)
+  // with M(s,t) = sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
+  Matrix explained_spot_type(const Matrix &global_phi) const;
+  // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
   Matrix expected_spot_type(const Matrix &global_phi) const;
   // computes a vector V(g)
@@ -627,6 +630,19 @@ Vector Experiment<Type>::explained_gene(const Matrix &global_phi) const {
       explained(g) += phi(g, t) * global_phi(g, t) * theta_t(t);
   return explained;
 };
+
+template <typename Type>
+Matrix Experiment<Type>::explained_spot_type(const Matrix &global_phi) const {
+  Matrix m = Matrix(S, T, arma::fill::ones);
+  for (size_t t = 0; t < T; ++t) {
+    Float x = 0;
+    for (size_t g = 0; g < G; ++g)
+      x += baseline_phi(g) * phi(g, t) * global_phi(g, t);
+    for (size_t s = 0; s < S; ++s)
+      m(s, t) *= x * spot(s);
+  }
+  return m;
+}
 
 template <typename Type>
 Matrix Experiment<Type>::expected_spot_type(const Matrix &global_phi) const {
