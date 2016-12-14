@@ -40,10 +40,6 @@ struct Gamma {
 
   Gamma(size_t dim1_, size_t dim2_, const Parameters &params);
   Gamma(const Gamma &other);
-  /** sample p_phi and r_phi */
-  /* This chooses first r with Metropolis-Hastings then p from the posterior */
-  template <typename Type, typename... Args>
-  void sample_alternative(const Type &experiment, const Args &... args);
 
   /* This is a simple Metropolis-Hastings sampling scheme */
   template <typename Type, typename... Args>
@@ -63,110 +59,8 @@ private:
 };
 
 template <typename F, typename... Args>
-size_t solve_newton(double eps, F fnc, F dfnc, double &x, Args... args) {
-  size_t n = 0;
-  double f = fnc(x, args...);
-  while (fabs(f = fnc(x, args...)) > eps) {
-    double df = dfnc(x, args...);
-    LOG(debug) << "x = " << x << " f = " << f << " df = " << df;
-    double ratio = f / df;
-    if (ratio > x)
-      x /= 2;
-    else
-      x -= f / df;
-    n++;
-  }
-  return n;
-}
-
-double fnc(double r, double x);
-double dfnc(double r, double x);
-double fnc2(double r, double x, double gamma, double theta);
-double dfnc2(double r, double x, double gamma, double theta);
-
 inline double log_normal_generator(double x, std::mt19937 &rng) {
   return x * exp(std::normal_distribution<Float>(0, 1)(rng));
-}
-
-inline double score(double r, double p, double observed, double explained,
-                    double h1, double h2) {
-  double nb_term
-      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + explained));
-  // double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p)
-  //                  - (r + observed) * log(p + explained);
-  // NOTE: log_gamma takes a shape and scale parameter
-  double prior_term = log_gamma(r, h1, 1 / h2);
-  return nb_term + prior_term;
-}
-
-template <typename Type, typename... Args>
-void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
-  LOG(verbose)
-      << "Sampling R and P of Φ using Metropolis-Hastings and from the "
-         "posterior, respectively.";
-
-  auto explained_gene_type = experiment.explained_gene_type(args...);
-  MetropolisHastings mh(parameters.temperature);
-  for (size_t t = 0; t < experiment.T; ++t) {
-#pragma omp parallel if (DO_PARALLEL)
-    {
-      const size_t thread_num = omp_get_thread_num();
-#pragma omp for
-      for (size_t g = 0; g < experiment.G; ++g) {
-        const Float observed = experiment.contributions_gene_type(g, t);
-        const Float explained = explained_gene_type(g, t);
-        LOG(debug) << "observed = " << observed;
-        LOG(debug) << "explained = " << explained;
-        LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
-        LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
-        if (parameters.phi_prior_maximum_likelihood) {
-          if (observed == 0) {
-            r(g, t) = std::gamma_distribution<Float>(
-                parameters.hyperparameters.phi_r_1,
-                1 / parameters.hyperparameters.phi_r_2)(
-                EntropySource::rngs[thread_num]);
-          } else {
-            // TODO should this be deactivated?
-            // // set to arithmetic mean of current value and 1
-            r(g, t) = (1 + r(g, t)) / 2;
-            auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), observed,
-                                          p(g, t), explained);
-            LOG(debug) << "r'(" << g << ", " << t << ") = " << r(g, t);
-            LOG(debug) << "number of steps = " << num_steps;
-          }
-        } else {
-          r(g, t) = mh.sample(r(g, t), parameters.n_iter,
-                              EntropySource::rngs[thread_num],
-                              log_normal_generator, score, p(g, t), observed,
-                              explained, parameters.hyperparameters.phi_r_1,
-                              parameters.hyperparameters.phi_r_2);
-        }
-
-        p(g, t) = sample_compound_gamma(
-            parameters.hyperparameters.phi_p_1 + r(g, t),
-            parameters.hyperparameters.phi_p_2 + observed, explained,
-            EntropySource::rngs[thread_num]);
-
-        assert(r(g, t) >= 0);
-        assert(p(g, t) >= 0);
-
-        LOG(debug) << "p'(" << g << ", " << t << ") = " << p(g, t);
-
-        if (false)
-          if (observed > 0) {
-            const double pseudo_cnt = 1e-6;
-            auto p_ml = r(g, t) / observed * explained;
-            auto p_ml_ps
-                = r(g, t) / (observed + pseudo_cnt) * (explained + pseudo_cnt);
-
-            LOG(debug) << "p*(" << g << ", " << t << ") = " << p_ml;
-            LOG(debug) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
-                       << " " << p_ml_ps;
-          }
-        LOG(debug) << std::endl;
-      }
-    }
-  }
 }
 
 template <typename T>

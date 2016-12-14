@@ -65,23 +65,6 @@ void Gamma::initialize_p() {
   }
 }
 
-double fnc2(double r, double x, double gamma, double theta) {
-  return digamma(r + x) - digamma(r) + log(gamma) - log(theta + gamma);
-}
-
-double dfnc2(double r, double x, double gamma __attribute__((unused)),
-             double theta __attribute__((unused))) {
-  return trigamma(r + x) - trigamma(r);
-}
-
-double fnc(double r, double x) {
-  return digamma(r + x) - digamma(r) + log(r) - log(r + x);
-}
-
-double dfnc(double r, double x) {
-  return trigamma(r + x) - trigamma(r) + 1 / r - 1 / (r + x);
-}
-
 void Gamma::store(const std::string &prefix,
                   const std::vector<std::string> &gene_names,
                   const std::vector<std::string> &factor_names,
