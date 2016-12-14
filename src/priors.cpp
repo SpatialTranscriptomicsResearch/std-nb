@@ -158,7 +158,6 @@ double compute_conditional(const pair<Float, Float> &x,
         // NOTE: gamma_distribution takes a shape and scale parameter
         + log_gamma(r, hyperparameters.theta_r_1, 1 / hyperparameters.theta_r_2)
         + S * (r * log(p) - lgamma(r));
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
     // The other factors aren't needed as they don't depend on either of
@@ -218,14 +217,19 @@ void Gamma::sample(const Matrix &observed, const Matrix &expected) {
     return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
   };
 
-  for (size_t t = 0; t < observed.n_cols; ++t) {
-    MetropolisHastings mh(parameters.temperature);
-    auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]), parameters.n_iter,
-                         EntropySource::rng, gen, compute_conditional<Vector>,
-                         observed.col(t), expected.col(t),
-                         parameters.hyperparameters);
-    r[t] = res.first;
-    p[t] = res.second;
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    const size_t thread_num = omp_get_thread_num();
+#pragma omp for
+    for (size_t t = 0; t < observed.n_cols; ++t) {
+      MetropolisHastings mh(parameters.temperature);
+      auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]),
+                           parameters.n_iter, EntropySource::rngs[thread_num],
+                           gen, compute_conditional<Vector>, observed.col(t),
+                           expected.col(t), parameters.hyperparameters);
+      r[t] = res.first;
+      p[t] = res.second;
+    }
   }
 }
 
