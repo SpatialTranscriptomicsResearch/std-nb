@@ -53,7 +53,7 @@ struct Gamma {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
-  void set_unit(double x=1.0);
+  void set_unit(double x = 1.0);
   Matrix ratio() const;
 
 private:
@@ -87,12 +87,12 @@ inline double log_normal_generator(double x, std::mt19937 &rng) {
   return x * exp(std::normal_distribution<Float>(0, 1)(rng));
 }
 
-inline double score(double r, double p, double observed, double expected,
+inline double score(double r, double p, double observed, double explained,
                     double h1, double h2) {
   double nb_term
-      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + expected));
+      = lgamma(r + observed) - lgamma(r) + r * (log(p) - log(p + explained));
   // double nb_term = lgamma(r + observed) - lgamma(r) + r * log(p)
-  //                  - (r + observed) * log(p + expected);
+  //                  - (r + observed) * log(p + explained);
   // NOTE: log_gamma takes a shape and scale parameter
   double prior_term = log_gamma(r, h1, 1 / h2);
   return nb_term + prior_term;
@@ -104,7 +104,7 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
       << "Sampling R and P of Φ using Metropolis-Hastings and from the "
          "posterior, respectively.";
 
-  auto expected_gene_type = experiment.expected_gene_type(args...);
+  auto explained_gene_type = experiment.explained_gene_type(args...);
   MetropolisHastings mh(parameters.temperature);
   for (size_t t = 0; t < experiment.T; ++t) {
 #pragma omp parallel if (DO_PARALLEL)
@@ -113,9 +113,9 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
 #pragma omp for
       for (size_t g = 0; g < experiment.G; ++g) {
         const Float observed = experiment.contributions_gene_type(g, t);
-        const Float expected = expected_gene_type(g, t);
+        const Float explained = explained_gene_type(g, t);
         LOG(debug) << "observed = " << observed;
-        LOG(debug) << "expected = " << expected;
+        LOG(debug) << "explained = " << explained;
         LOG(debug) << "r(" << g << ", " << t << ") = " << r(g, t);
         LOG(debug) << "p(" << g << ", " << t << ") = " << p(g, t);
         if (parameters.phi_prior_maximum_likelihood) {
@@ -129,7 +129,7 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
             // // set to arithmetic mean of current value and 1
             r(g, t) = (1 + r(g, t)) / 2;
             auto num_steps = solve_newton(1e-6, fnc2, dfnc2, r(g, t), observed,
-                                          p(g, t), expected);
+                                          p(g, t), explained);
             LOG(debug) << "r'(" << g << ", " << t << ") = " << r(g, t);
             LOG(debug) << "number of steps = " << num_steps;
           }
@@ -137,13 +137,13 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
           r(g, t) = mh.sample(r(g, t), parameters.n_iter,
                               EntropySource::rngs[thread_num],
                               log_normal_generator, score, p(g, t), observed,
-                              expected, parameters.hyperparameters.phi_r_1,
+                              explained, parameters.hyperparameters.phi_r_1,
                               parameters.hyperparameters.phi_r_2);
         }
 
         p(g, t) = sample_compound_gamma(
             parameters.hyperparameters.phi_p_1 + r(g, t),
-            parameters.hyperparameters.phi_p_2 + observed, expected,
+            parameters.hyperparameters.phi_p_2 + observed, explained,
             EntropySource::rngs[thread_num]);
 
         assert(r(g, t) >= 0);
@@ -154,9 +154,9 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
         if (false)
           if (observed > 0) {
             const double pseudo_cnt = 1e-6;
-            auto p_ml = r(g, t) / observed * expected;
+            auto p_ml = r(g, t) / observed * explained;
             auto p_ml_ps
-                = r(g, t) / (observed + pseudo_cnt) * (expected + pseudo_cnt);
+                = r(g, t) / (observed + pseudo_cnt) * (explained + pseudo_cnt);
 
             LOG(debug) << "p*(" << g << ", " << t << ") = " << p_ml;
             LOG(debug) << "pML " << r(g, t) << " " << p(g, t) << " " << p_ml
@@ -170,7 +170,7 @@ void Gamma::sample_alternative(const Type &experiment, const Args &... args) {
 
 template <typename T>
 double compute_conditional(const std::pair<T, T> &x, Float observed,
-                           Float expected,
+                           Float explained,
                            const Hyperparameters &hyperparameters) {
   const T r = x.first;
   const T p = x.second;
@@ -180,7 +180,7 @@ double compute_conditional(const std::pair<T, T> &x, Float observed,
          // The next lines are part of the negative binomial distribution.
          // Other factors aren't needed as they don't depend on either of
          // r and p, and thus would cancel when computing the score ratio.
-         + r * log(p) - (r + observed) * log(p + expected)
+         + r * log(p) - (r + observed) * log(p + explained)
          + lgamma(r + observed) - lgamma(r);
 }
 
@@ -227,15 +227,14 @@ struct Dirichlet {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
-  void set_unit(double x=1.0);
+  void set_unit(double x = 1.0);
   Matrix ratio() const;
   double r(size_t a, size_t b) const;
   double p(size_t a, size_t b) const;
 };
 
 template <typename Type, typename... Args>
-void Dirichlet::sample(const Type &experiment, const Args &... args) {
-}
+void Dirichlet::sample(const Type &experiment, const Args &... args) {}
 
 /** This routine doesn't print, for the same reason as sample() does nothing */
 std::ostream &operator<<(std::ostream &os, const Gamma &x);
@@ -257,7 +256,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &observed, const Matrix &expected);
+  void sample(const Matrix &observed, const Matrix &explained);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
@@ -279,7 +278,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &observed, const Matrix &expected) const;
+  void sample(const Matrix &observed, const Matrix &explained) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,

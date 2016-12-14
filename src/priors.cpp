@@ -1,12 +1,12 @@
+#include "priors.hpp"
 #include "compression.hpp"
 #include "io.hpp"
+#include "log.hpp"
+#include "metropolis_hastings.hpp"
 #include "odds.hpp"
 #include "parallel.hpp"
 #include "pdist.hpp"
-#include "priors.hpp"
-#include "metropolis_hastings.hpp"
 #include "sampling.hpp"
-#include "log.hpp"
 
 using namespace std;
 
@@ -15,7 +15,11 @@ namespace PRIOR {
 namespace PHI {
 
 Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
-    : dim1(dim1_), dim2(dim2_), r(dim1, dim2), p(dim1, dim2), parameters(params) {
+    : dim1(dim1_),
+      dim2(dim2_),
+      r(dim1, dim2),
+      p(dim1, dim2),
+      parameters(params) {
   initialize_r();
   initialize_p();
 }
@@ -32,9 +36,7 @@ void Gamma::set_unit(double x) {
   p.fill(x);
 }
 
-Matrix Gamma::ratio() const {
-  return r / p;
-}
+Matrix Gamma::ratio() const { return r / p; }
 
 void Gamma::initialize_r() {
   // initialize r_phi
@@ -64,19 +66,20 @@ void Gamma::initialize_p() {
 }
 
 double fnc2(double r, double x, double gamma, double theta) {
-  return digamma(r+x) - digamma(r) + log(gamma) - log(theta+gamma);
+  return digamma(r + x) - digamma(r) + log(gamma) - log(theta + gamma);
 }
 
-double dfnc2(double r, double x, double gamma __attribute__((unused)), double theta __attribute__((unused))) {
-  return trigamma(r+x) - trigamma(r);
+double dfnc2(double r, double x, double gamma __attribute__((unused)),
+             double theta __attribute__((unused))) {
+  return trigamma(r + x) - trigamma(r);
 }
 
 double fnc(double r, double x) {
-  return digamma(r+x) - digamma(r) + log(r) - log(r+x);
+  return digamma(r + x) - digamma(r) + log(r) - log(r + x);
 }
 
 double dfnc(double r, double x) {
-  return trigamma(r+x) - trigamma(r) + 1/r - 1/(r+x);
+  return trigamma(r + x) - trigamma(r) + 1 / r - 1 / (r + x);
 }
 
 void Gamma::store(const std::string &prefix,
@@ -108,25 +111,21 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
-double Dirichlet::r(size_t a, size_t b) const {
-  return 1;
-}
+double Dirichlet::r(size_t a, size_t b) const { return 1; }
 
-double Dirichlet::p(size_t a, size_t b) const {
-  return 1;
-}
+double Dirichlet::p(size_t a, size_t b) const { return 1; }
 
-void Dirichlet::set_unit(double x) {
-}
+void Dirichlet::set_unit(double x) {}
 
-Matrix Dirichlet::ratio() const {
-  return Matrix(dim1, dim2, arma::fill::ones);
-}
+Matrix Dirichlet::ratio() const { return Matrix(dim1, dim2, arma::fill::ones); }
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
-                      const std::vector<std::string> &gene_names __attribute__((unused)),
-                      const std::vector<std::string> &factor_names __attribute__((unused)),
-                      const std::vector<size_t> &order __attribute__((unused))) const {}
+                      const std::vector<std::string> &gene_names
+                      __attribute__((unused)),
+                      const std::vector<std::string> &factor_names
+                      __attribute__((unused)),
+                      const std::vector<size_t> &order
+                      __attribute__((unused))) const {}
 
 void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
 
@@ -145,9 +144,8 @@ ostream &operator<<(ostream &os, const Dirichlet &x __attribute__((unused))) {
 namespace THETA {
 
 template <typename V>
-double compute_conditional(const pair<Float, Float> &x,
-                           const V &observed,
-                           const V &expected,
+double compute_conditional(const pair<Float, Float> &x, const V &observed,
+                           const V &explained,
                            const Hyperparameters &hyperparameters) {
   const size_t S = observed.size();
   const Float r = x.first;
@@ -163,8 +161,7 @@ double compute_conditional(const pair<Float, Float> &x,
     // The other factors aren't needed as they don't depend on either of
     // r[t] and p[t], and thus would cancel when computing the score
     // ratio.
-    l += lgamma(r + observed[s])
-         - (r + observed[s]) * log(p + expected[s]);
+    l += lgamma(r + observed[s]) - (r + observed[s]) * log(p + explained[s]);
   return l;
 }
 
@@ -207,7 +204,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed, const Matrix &expected) {
+void Gamma::sample(const Matrix &observed, const Matrix &explained) {
   LOG(verbose) << "Sampling P and R of Θ";
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
@@ -219,7 +216,7 @@ void Gamma::sample(const Matrix &observed, const Matrix &expected) {
                            parameters.n_iter, EntropySource::rngs[thread_num],
                            gen_log_normal_pair<Float>,
                            compute_conditional<Vector>, observed.col(t),
-                           expected.col(t), parameters.hyperparameters);
+                           explained.col(t), parameters.hyperparameters);
       r[t] = res.first;
       p[t] = res.second;
     }
@@ -227,7 +224,8 @@ void Gamma::sample(const Matrix &observed, const Matrix &expected) {
 }
 
 void Gamma::store(const std::string &prefix,
-                  const std::vector<std::string> &spot_names __attribute__((unused)),
+                  const std::vector<std::string> &spot_names
+                  __attribute__((unused)),
                   const std::vector<std::string> &factor_names,
                   const std::vector<size_t> &order) const {
   Vector r_ = r;
@@ -264,13 +262,15 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha(other.alpha) {}
 
 void Dirichlet::sample(const Matrix &observed __attribute__((unused)),
-                       const Matrix &expected __attribute__((unused))) const {}
-
+                       const Matrix &explained __attribute__((unused))) const {}
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
-                      const std::vector<std::string> &spot_names __attribute__((unused)),
-                      const std::vector<std::string> &factor_names __attribute__((unused)),
-                      const std::vector<size_t> &order __attribute__((unused))) const {}
+                      const std::vector<std::string> &spot_names
+                      __attribute__((unused)),
+                      const std::vector<std::string> &factor_names
+                      __attribute__((unused)),
+                      const std::vector<size_t> &order
+                      __attribute__((unused))) const {}
 
 void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
 
