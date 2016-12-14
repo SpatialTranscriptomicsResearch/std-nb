@@ -16,6 +16,16 @@ namespace PoissonFactorization {
 const std::string FILENAME_ENDING = ".tsv";
 
 namespace PRIOR {
+
+template <typename T>
+std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
+                                    std::mt19937 &rng) {
+  std::normal_distribution<double> rnorm;
+  const double f1 = exp(rnorm(rng));
+  const double f2 = exp(rnorm(rng));
+  return {f1 * x.first, f2 * x.second};
+};
+
 namespace PHI {
 
 struct Gamma {
@@ -173,15 +183,6 @@ double compute_conditional(const std::pair<T, T> &x, Float observed,
          + r * log(p) - (r + observed) * log(p + expected)
          + lgamma(r + observed) - lgamma(r);
 }
-
-template <typename T>
-std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
-                                    std::mt19937 &rng) {
-  std::normal_distribution<double> rnorm;
-  const double f1 = exp(rnorm(rng));
-  const double f2 = exp(rnorm(rng));
-  return {f1 * x.first, f2 * x.second};
-};
 
 template <typename Type, typename... Args>
 void Gamma::sample(const Type &experiment, const Args &... args) {

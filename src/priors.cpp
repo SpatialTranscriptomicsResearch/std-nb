@@ -209,14 +209,6 @@ void Gamma::initialize_p() {
 
 void Gamma::sample(const Matrix &observed, const Matrix &expected) {
   LOG(verbose) << "Sampling P and R of Θ";
-
-  auto gen = [&](const std::pair<Float, Float> &x, std::mt19937 &rng) {
-    std::normal_distribution<double> rnorm;
-    const double f1 = exp(rnorm(rng));
-    const double f2 = exp(rnorm(rng));
-    return std::pair<Float, Float>(f1 * x.first, f2 * x.second);
-  };
-
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
   {
@@ -225,7 +217,8 @@ void Gamma::sample(const Matrix &observed, const Matrix &expected) {
     for (size_t t = 0; t < observed.n_cols; ++t) {
       auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]),
                            parameters.n_iter, EntropySource::rngs[thread_num],
-                           gen, compute_conditional<Vector>, observed.col(t),
+                           gen_log_normal_pair<Float>,
+                           compute_conditional<Vector>, observed.col(t),
                            expected.col(t), parameters.hyperparameters);
       r[t] = res.first;
       p[t] = res.second;
