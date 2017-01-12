@@ -347,6 +347,7 @@ int main(int argc, char **argv) {
     parameters.targets = parameters.targets & ~PF::Target::field;
 
   switch (options.feature_type) {
+    /* TODO re-activate when new variance calculation is stable
     case Kind::Dirichlet: {
       parameters.targets = parameters.targets & (~(PF::Target::phi_local
                                                  | PF::Target::phi_prior_local
@@ -365,6 +366,7 @@ int main(int argc, char **argv) {
           break;
       }
     } break;
+    */
     case Kind::Gamma: {
       switch (options.mixing_type) {
         case Kind::Dirichlet:

@@ -271,8 +271,8 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
         break;
 
       case 1:
-        if (parameters.targeted(Target::phi_prior))
-          features.prior.sample(*this);
+        // if (parameters.targeted(Target::phi_prior))
+        //   features.prior.sample(*this);
         break;
 
       case 2:
@@ -285,7 +285,7 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
           sample_fields();
 
         for (auto &experiment : experiments)
-          experiment.gibbs_sample(features.matrix);
+          experiment.gibbs_sample(features);
         break;
 
       default:
@@ -293,11 +293,50 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
     }
 }
 
+template <typename F> void generate_alternative_prior(F &features) {
+  std::normal_distribution<double> rnorm;
+  features.alt_prior = features.prior;
+  for(auto &x: features.alt_prior.r)
+    x *= exp(rnorm(EntropySource::rng));
+  for(auto &x: features.alt_prior.p)
+    x *= exp(rnorm(EntropySource::rng));
+}
+
 template <typename Type>
 void Model<Type>::sample_contributions() {
-  for (auto &experiment: experiments)
-    experiment.sample_contributions(features.matrix);
+  Matrix log_ratio(G, T, arma::fill::zeros);
+  generate_alternative_prior(features);
+  for (auto &experiment : experiments)
+    experiment.sample_contributions(features, log_ratio);
   update_contributions();
+  double S = 0;  // TODO factor
+  for (auto &experiment : experiments)
+    S += experiment.S;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) {
+      const double r = features.prior.r(g, t);
+      const double p = features.prior.p(g, t);
+      const double r_alt = features.alt_prior.r(g, t);
+      const double p_alt = features.alt_prior.p(g, t);
+      log_ratio(g, t)
+          += S * (r * log(p) - r_alt * log(p_alt) - lgamma(r) + lgamma(r_alt));
+    }
+  // TODO parallelize #pragma omp parallel for if (DO_PARALLEL)
+  size_t accepted = 0;
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) {
+      // const double dG = - log_ratio(g, t);
+      const double dG = - log_ratio(g, t);
+      const double rnd = RandomDistribution::Uniform(EntropySource::rng);
+      if(dG > 0 or rnd <= MetropolisHastings::boltzdist(dG, parameters.temperature)) {
+        accepted++;
+        features.prior.r(g, t) = features.alt_prior.r(g, t);
+        features.prior.p(g, t) = features.alt_prior.p(g, t);
+      }
+    }
+  LOG(info) << "Accepted " << accepted << " / " << (G * T) << " = "
+            << 100.0 * accepted / G / T << "%.";
+  // TODO features.update_alternative_prior();
 }
 
 template <Partial::Kind feat_kind>

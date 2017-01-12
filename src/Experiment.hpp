@@ -64,7 +64,7 @@ struct Experiment {
   void perform_local_dge(const std::string &prefix,
                          const features_t &global_features) const;
 
-  void gibbs_sample(const Matrix &global_phi);
+  void gibbs_sample(const features_t &global_features);
 
   double log_likelihood() const;
   double log_likelihood_poisson_counts() const;
@@ -86,12 +86,13 @@ struct Experiment {
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
 
   /** sample count decomposition */
-  void sample_contributions(const Matrix &global_phi);
+  void sample_contributions(const features_t &global_features,
+                            Matrix &log_ratios);
   /** sub-routine for count decomposition sampling */
-  double sample_contributions_sub(const Matrix &global_phi, size_t g, size_t s,
-                                  RNG &rng, Matrix &contrib_gene_type,
-                                  Matrix &contrib_spot_type, bool dropout_gene,
-                                  bool dropout_spot) const;
+  double sample_contributions_sub(const features_t &global_features, size_t g,
+                                  size_t s, RNG &rng, Matrix &contrib_gene_type,
+                                  Matrix &contrib_spot_type, Matrix &log_ratios,
+                                  bool dropout_gene, bool dropout_spot) const;
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &global_phi);
@@ -334,14 +335,14 @@ void Experiment<Type>::perform_local_dge(const std::string &prefix,
 }
 
 template <typename Type>
-void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
+void Experiment<Type>::gibbs_sample(const features_t &global_features) {
   // TODO reactivate
-  if (false)
-    if (parameters.targeted(Target::contributions))
-      sample_contributions(global_phi);
+  // if (false)
+  //   if (parameters.targeted(Target::contributions))
+  //     sample_contributions(global_features, );
 
   if (parameters.targeted(Target::theta))
-    weights.sample_field(*this, field, global_phi);
+    weights.sample_field(*this, field, global_features.matrix);
 
   // TODO add CLI switch
   auto order = random_order(5);
@@ -350,7 +351,7 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
       case 0:
         // TODO add baseline prior
         if (parameters.targeted(Target::baseline))
-          sample_baseline(global_phi);
+          sample_baseline(global_features.matrix);
         break;
 
       case 1:
@@ -359,7 +360,7 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
           throw("Not implemented");
           // TODO re-implement
           /*
-          Matrix feature_matrix = features.matrix % global_phi;
+          Matrix feature_matrix = features.matrix % global_features.matrix;
           // feature_matrix.each_col() *= baseline_feature.matrix.col(0);
           for (size_t g = 0; g < G; ++g)
             for (size_t t = 0; t < T; ++t)
@@ -372,17 +373,17 @@ void Experiment<Type>::gibbs_sample(const Matrix &global_phi) {
       case 2:
         if (parameters.targeted(Target::phi_prior_local))
           // TODO FIXME make this work!
-          features.prior.sample(*this, global_phi);
+          features.prior.sample(*this, global_features.matrix);
         break;
 
       case 3:
         if (parameters.targeted(Target::phi_local))
-          features.sample(*this, global_phi);
+          features.sample(*this, global_features.matrix);
         break;
 
       case 4:
         if (parameters.targeted(Target::spot))
-          sample_spot(global_phi);
+          sample_spot(global_features.matrix);
         break;
 
       default:
@@ -459,7 +460,7 @@ Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
 
 template <typename Type>
 /** sample count decomposition */
-void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
+void Experiment<Type>::sample_contributions(const features_t &global_features, Matrix &log_ratios) {
   LOG(verbose) << "Sampling contributions";
   contributions_gene_type.fill(0);
   contributions_spot_type.fill(0);
@@ -491,11 +492,13 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
     Matrix contrib_spot_type(S, T, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
-    for (size_t g = 0; g < G; ++g)
+    for (size_t g = 0; g < G; ++g) {
       for (size_t s = 0; s < S; ++s)
         lambda_gene_spot(g, s) = sample_contributions_sub(
-            global_phi, g, s, EntropySource::rngs[thread_num],
-            contrib_gene_type, contrib_spot_type, dropout_gene[g], dropout_spot[s]);
+            global_features, g, s, EntropySource::rngs[thread_num],
+            contrib_gene_type, contrib_spot_type, log_ratios, dropout_gene[g],
+            dropout_spot[s]);
+    }
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
@@ -508,12 +511,10 @@ void Experiment<Type>::sample_contributions(const Matrix &global_phi) {
 }
 
 template <typename Type>
-double Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
-                                                  size_t g, size_t s, RNG &rng,
-                                                  Matrix &contrib_gene_type,
-                                                  Matrix &contrib_spot_type,
-                                                  bool dropout_gene,
-                                                  bool dropout_spot) const {
+double Experiment<Type>::sample_contributions_sub(
+    const features_t &global_features, size_t g, size_t s, RNG &rng,
+    Matrix &contrib_gene_type, Matrix &contrib_spot_type, Matrix &log_ratios,
+    bool dropout_gene, bool dropout_spot) const {
   // TODO remove conditionals; perhaps templatize?
   std::vector<double> rel_rate(T);
   double z = 0;
@@ -522,13 +523,13 @@ double Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
   // respect them here.
   if (dropout_spot)
     for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = phi(g, t) * global_phi(g, t);
+      z += rel_rate[t] = phi(g, t) * global_features.matrix(g, t);
   else if (dropout_gene)
     for (size_t t = 0; t < T; ++t)
       z += rel_rate[t] = theta(s, t);
   else
     for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
+      z += rel_rate[t] = phi(g, t) * global_features.matrix(g, t) * theta(s, t);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
   if (data.counts(g, s) > 0) {
@@ -544,6 +545,20 @@ double Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
       for (size_t t = 0; t < T; ++t) {
         contrib_gene_type(g, t) += v[t];
         contrib_spot_type(s, t) += v[t];
+        const Float x_gst = v[t];
+        const Float r_gt = global_features.prior.r(g, t);
+        const Float p_gt = global_features.prior.p(g, t);
+        const Float r_gt_alt = global_features.alt_prior.r(g, t);
+        const Float p_gt_alt = global_features.alt_prior.p(g, t);
+        const Float other = baseline_feature.matrix(g, 0)
+                            * features.matrix(g, t) * theta(s, t) * spot[s];
+        log_ratios(g, t)
+            +=  // x_gst * log(other) - lgamma(x_gst + 1) - lgamma(r_gt)
+            -(x_gst + r_gt) * log(other + p_gt) - lgamma(x_gst + r_gt);
+        log_ratios(g, t)
+            -=  // x_gst * log(other) - lgamma(x_gst + 1) - lgamma(r_gt_alt);
+            -(x_gst + r_gt_alt) * log(other + p_gt_alt)
+            - lgamma(x_gst + r_gt_alt);
       }
     }
   }
