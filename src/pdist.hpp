@@ -1,6 +1,7 @@
 #ifndef PDIST_HPP
 #define PDIST_HPP
 
+#include "log.hpp"
 #include <unistd.h>
 #include <cassert>
 #include <cmath>
@@ -105,18 +106,22 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   for (size_t n = 0; n < N; ++n)
     C *= std::pow(min_scale / scales[n], shapes[n]);
 
+  LOG(verbose) << "C=" << C;
+
   V gamma(K);
   for (size_t k = 0; k < K; ++k) {
     gamma[k] = 0;
     for (size_t n = 0; n < N; ++n) {
       gamma[k] += shapes[n] * std::pow(1 - min_scale / scales[n], k + 1);
       gamma[k] /= (k + 1);
+      LOG(verbose) << "k=" << k << " n=" << n << " gamma[k]=" << gamma[k];
     }
   }
 
   double rho = 0;
   for (size_t n = 0; n < N; ++n)
     rho += shapes[n];
+  LOG(verbose) << "rho=" << rho;
 
   V delta(K);
   delta[0] = 1;
@@ -125,13 +130,17 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
     for (size_t i = 1; i <= k; ++i)
       delta[k] += i * gamma[i-1] * delta[k - i];
     delta[k] /= k;
+    LOG(verbose) << "k=" << k << " delta[k]=" << delta[k];
   }
+
+  LOG(verbose) << "C=" << C << " rho=" << rho;
 
   double q = 0;
   for (size_t k = 0; k < K; ++k) {
     double p = exp(log(delta[k]) + (rho + k - 1) * log(x) - x / min_scale
                     - lgamma(rho + k) - (rho + k) * log(min_scale));
     q += p;
+    LOG(verbose) << "k=" << k << " p=" << p << " q=" << q;
   }
 
   return C * q;
