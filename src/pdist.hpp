@@ -73,4 +73,68 @@ double log_dirichlet(const std::vector<double> &p,
 double gamma_cdf(double x, double shape, double scale);
 double inverse_gamma_cdf(double p, double shape, double scale);
 
+/* Based on the following publication:
+ * The distribution of the sum of independent gamma random variables
+ * P. G. Moschopoulos
+ * Ann. Inst. Statist. Math.
+ * 37 (1985), Part A, 541-544
+ */
+template <typename V>
+double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
+  const size_t N = shapes.size();
+  assert(scales.size() == N);
+
+  if (N == 1)
+    return exp(log_gamma(x, shapes[0], scales[0]));
+
+  if(x == 0)
+    return 0;
+  /*
+  if(x == 0) {
+    assert(false);
+    // TODO this case needs special treatment
+    double p = 0;
+    for (size_t n = 0; n < N; ++n)
+      p += log_gamma(0, shapes[n], scales[n]);
+    return exp(p);
+  }
+  */
+
+  const double min_scale = *std::min(begin(scales), end(scales));
+  double C = 1;
+  for (size_t n = 0; n < N; ++n)
+    C *= std::pow(min_scale / scales[n], shapes[n]);
+
+  V gamma(K);
+  for (size_t k = 0; k < K; ++k) {
+    gamma[k] = 0;
+    for (size_t n = 0; n < N; ++n) {
+      gamma[k] += shapes[n] * std::pow(1 - min_scale / scales[n], k + 1);
+      gamma[k] /= (k + 1);
+    }
+  }
+
+  double rho = 0;
+  for (size_t n = 0; n < N; ++n)
+    rho += shapes[n];
+
+  V delta(K);
+  delta[0] = 1;
+  for (size_t k = 1; k < K; ++k) {
+    delta[k] = 0;
+    for (size_t i = 1; i <= k; ++i)
+      delta[k] += i * gamma[i-1] * delta[k - i];
+    delta[k] /= k;
+  }
+
+  double q = 0;
+  for (size_t k = 0; k < K; ++k) {
+    double p = exp(log(delta[k]) + (rho + k - 1) * log(x) - x / min_scale
+                    - lgamma(rho + k) - (rho + k) * log(min_scale));
+    q += p;
+  }
+
+  return C * q;
+}
+
 #endif
