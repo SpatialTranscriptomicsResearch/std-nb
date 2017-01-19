@@ -92,7 +92,7 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   }
   moments.evaluate(options.output);
   if (options.compute_likelihood) {
-    pfa.sample_contributions();  // make sure that the lambda_gst are up to date
+    pfa.sample_contributions(false);  // make sure that the lambda_gst are up to date
     LOG(info) << "Final observed log-likelihood = "
               << pfa.log_likelihood_poisson_counts();
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
@@ -218,6 +218,8 @@ int main(int argc, char **argv) {
      "- \tPairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
+    ("sd", po::value(&parameters.phi_prior_gen_sd)->default_value(parameters.phi_prior_gen_sd),
+     "Standard deviation of zero-centered normal distribution from which factors are sampled and exp-transformed to generate propositions for the feature priors.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
     ("localphi", po::bool_switch(&options.sample_local_phi_priors),

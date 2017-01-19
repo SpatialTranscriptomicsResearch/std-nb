@@ -61,7 +61,7 @@ struct Model {
   /** sample each of the variables from their conditional posterior */
   void gibbs_sample(bool report_likelihood);
 
-  void sample_contributions();
+  void sample_contributions(bool update_phi_prior);
 
   void sample_global_theta_priors();
   void sample_fields();
@@ -106,12 +106,14 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
-  // TODO move this code into the classes for prior and features
-  if (not parameters.targeted(Target::phi_prior_local))
-    features.prior.set_unit();
+  features.matrix.fill(1);
 
-  if (not parameters.targeted(Target::phi_local))
-    features.matrix.ones();
+  // TODO move this code into the classes for prior and features
+  // if (not parameters.targeted(Target::phi_prior_local))
+  //   features.prior.set_unit();
+
+  // if (not parameters.targeted(Target::phi_local))
+  //   features.matrix.ones();
 
   if (parameters.targeted(Target::field)) {
     if (parameters.identity_kernels)
@@ -251,7 +253,7 @@ template <typename Type>
 void Model<Type>::gibbs_sample(bool report_likelihood) {
   LOG(verbose) << "perform Gibbs step for " << parameters.targets;
   if (parameters.targeted(Target::contributions))
-    sample_contributions();
+    sample_contributions(true);
 
   if (report_likelihood) {
       if (verbosity >= Verbosity::verbose)
@@ -284,59 +286,98 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
         if (parameters.targeted(Target::field))
           sample_fields();
 
-        for (auto &experiment : experiments)
-          experiment.gibbs_sample(features);
+        if (true)
+          for (auto &experiment : experiments)
+            experiment.gibbs_sample(features);
         break;
 
       default:
         break;
     }
+  LOG(info) << "column sums of r: " << colSums<Vector>(features.prior.r).t();
+  LOG(info) << "column sums of p: " << colSums<Vector>(features.prior.p).t();
 }
 
-template <typename F> void generate_alternative_prior(F &features) {
-  std::normal_distribution<double> rnorm;
+template <typename F>
+void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
+  std::normal_distribution<double> rnorm(0, phi_prior_gen_sd);
   features.alt_prior = features.prior;
-  for(auto &x: features.alt_prior.r)
+  for (auto &x : features.alt_prior.r)
     x *= exp(rnorm(EntropySource::rng));
-  for(auto &x: features.alt_prior.p)
+  for (auto &x : features.alt_prior.p)
     x *= exp(rnorm(EntropySource::rng));
 }
 
 template <typename Type>
-void Model<Type>::sample_contributions() {
+void Model<Type>::sample_contributions(bool update_phi_prior) {
   Matrix log_ratio(G, T, arma::fill::zeros);
-  generate_alternative_prior(features);
+  generate_alternative_prior(features, parameters.phi_prior_gen_sd);
   for (auto &experiment : experiments)
     experiment.sample_contributions(features, log_ratio);
   update_contributions();
+
   double S = 0;  // TODO factor
   for (auto &experiment : experiments)
     S += experiment.S;
+#pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
       const double r = features.prior.r(g, t);
       const double p = features.prior.p(g, t);
       const double r_alt = features.alt_prior.r(g, t);
       const double p_alt = features.alt_prior.p(g, t);
+
       log_ratio(g, t)
           += S * (r * log(p) - r_alt * log(p_alt) - lgamma(r) + lgamma(r_alt));
+
+      log_ratio(g, t)
+          += log_beta_neg_odds(p, parameters.hyperparameters.phi_p_1,
+                               parameters.hyperparameters.phi_p_2)
+             // NOTE: gamma_distribution takes a shape and scale parameter
+             + log_gamma(r, parameters.hyperparameters.phi_r_1,
+                         1 / parameters.hyperparameters.phi_r_2);
+
+      log_ratio(g, t)
+          -= log_beta_neg_odds(p_alt, parameters.hyperparameters.phi_p_1,
+                               parameters.hyperparameters.phi_p_2)
+             // NOTE: gamma_distribution takes a shape and scale parameter
+             + log_gamma(r_alt, parameters.hyperparameters.phi_r_1,
+                         1 / parameters.hyperparameters.phi_r_2);
     }
+
+  if(update_phi_prior) {
   // TODO parallelize #pragma omp parallel for if (DO_PARALLEL)
   size_t accepted = 0;
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      // const double dG = - log_ratio(g, t);
-      const double dG = - log_ratio(g, t);
-      const double rnd = RandomDistribution::Uniform(EntropySource::rng);
-      if(dG > 0 or rnd <= MetropolisHastings::boltzdist(dG, parameters.temperature)) {
-        accepted++;
-        features.prior.r(g, t) = features.alt_prior.r(g, t);
-        features.prior.p(g, t) = features.alt_prior.p(g, t);
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    const size_t thread_num = omp_get_thread_num();
+    size_t accepted_ = 0;
+#pragma omp for
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t) {
+        const double dG = -log_ratio(g, t);
+        const double rnd
+            = log(RandomDistribution::Uniform(EntropySource::rngs[thread_num])) * parameters.temperature;
+            // = RandomDistribution::Uniform(EntropySource::rngs[thread_num]);
+        // const double p = MetropolisHastings::boltzdist(dG,
+        //                                             parameters.temperature);
+        const double p = dG;
+        LOG(verbose) << "dG(" << g << ", " << t << ") = " << dG << "\tp=" << p << "\t" << (p > rnd ? "> " : "<=") << " rnd=" << rnd
+          << "\t" << "r:\t" << features.prior.r(g, t) << " <-> " << features.alt_prior.r(g, t)
+          << "\t" << "p:\t" << features.prior.p(g, t) << " <-> " << features.alt_prior.p(g, t);
+        if (dG > 0 or rnd <= p) {
+          accepted_++;
+          features.prior.r(g, t) = features.alt_prior.r(g, t);
+          features.prior.p(g, t) = features.alt_prior.p(g, t);
+        }
       }
-    }
+#pragma omp critical
+    accepted += accepted_;
+  }
+
   LOG(info) << "Accepted " << accepted << " / " << (G * T) << " = "
             << 100.0 * accepted / G / T << "%.";
-  // TODO features.update_alternative_prior();
+  }
 }
 
 template <Partial::Kind feat_kind>
@@ -367,7 +408,9 @@ void do_sample_fields(
                         + model.experiments[e2].contributions_spot_type(s2, t));
               explained[e1](s1, t)
                   += w * (model.experiments[e2].weights.prior.p(t)
+                          // TODO play with switching
                           + intensities[t] * model.experiments[e2].spot[s2]
+                          // + model.experiments[e2].theta_explained_spot_type(s2, t)
                                 * (e1 == e2 and s1 == s2
                                        ? 1
                                        : model.experiments[e2].field(s2, t)));
@@ -407,7 +450,8 @@ void Model<Type>::sample_global_theta_priors() {
   Matrix explained(0, T);
   for (auto &experiment : experiments)
     explained = arma::join_vert(
-        explained, experiment.explained_spot_type(features.matrix));
+        explained, experiment.explained_spot_type(features));
+        // explained, experiment.theta_explained_spot_type);
 
   assert(observed.n_rows == explained.n_rows);
 
@@ -432,7 +476,7 @@ double Model<Type>::log_likelihood_poisson_counts() const {
 
 template <typename Type>
 double Model<Type>::log_likelihood() const {
-  double l = features.log_likelihood();
+  double l = 0; // TODO remove unused features.log_likelihood();
   LOG(verbose) << "Global feature log likelihood: " << l;
   for (auto &experiment : experiments)
     l += experiment.log_likelihood();
@@ -462,7 +506,7 @@ template <typename Type>
 Matrix Model<Type>::expected_gene_type() const {
   Matrix m(G, T, arma::fill::zeros);
   for (auto &experiment : experiments)
-    m += experiment.expected_gene_type(features.matrix);
+    m += experiment.expected_gene_type(features);
   return m;
 }
 

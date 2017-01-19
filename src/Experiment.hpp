@@ -38,6 +38,9 @@ struct Experiment {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
 
+  Matrix theta_explained_spot_type;
+  Vector sigma_explained_spot;
+
   /** factor loading matrix */
   features_t features;
   features_t baseline_feature;
@@ -92,35 +95,37 @@ struct Experiment {
   double sample_contributions_sub(const features_t &global_features, size_t g,
                                   size_t s, RNG &rng, Matrix &contrib_gene_type,
                                   Matrix &contrib_spot_type, Matrix &log_ratios,
+                                  Matrix &theta_explained_spot_type_,
+                                  Float &sigma_explained_spot_,
                                   bool dropout_gene, bool dropout_spot) const;
 
   /** sample spot scaling factors */
   void sample_spot(const Matrix &global_phi);
 
   /** sample baseline feature */
-  void sample_baseline(const Matrix &global_phi);
+  void sample_baseline(const features_t &global_features);
 
   Vector marginalize_genes(const Matrix &global_phi) const;
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
   // with M(g,t) = baseline_phi(g) global_phi(g,t) sum_s theta(s,t) sigma(s)
-  Matrix explained_gene_type(const Matrix &global_phi) const;
+  Matrix explained_gene_type(const features_t &global_features) const;
   // computes a matrix M(g,t)
   // with M(g,t) = baseline_phi(g) global_phi(g,t) phi(g,t) sum_s theta(s,t) sigma(s)
-  Matrix expected_gene_type(const Matrix &global_phi) const;
+  Matrix expected_gene_type(const features_t &global_features) const;
   // computes a matrix M(s,t)
   // with M(s,t) = sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
-  Matrix explained_spot_type(const Matrix &global_phi) const;
+  Matrix explained_spot_type(const features_t &global_features) const;
   // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
-  Matrix expected_spot_type(const Matrix &global_phi) const;
+  Matrix expected_spot_type(const features_t &global_features) const;
   // computes a vector V(g)
   // with V(g) = sum_t phi(g,t) global_phi(g,t) sum_s theta(s,t) sigma(s)
-  Vector explained_gene(const Matrix &global_phi) const;
+  Vector explained_gene(const features_t &global_features) const;
 
-  std::vector<std::vector<size_t>> active_factors(const Matrix &global_phi,
-                                                  double threshold = 1.0) const;
+  std::vector<std::vector<size_t>> active_factors(
+      const features_t &global_features, double threshold = 1.0) const;
 
   Matrix pairwise_dge(const features_t &global_features) const;
   Vector pairwise_dge_sub(const features_t &global_features, size_t t1,
@@ -151,6 +156,8 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(rowSums<Vector>(data.counts)),
       contributions_spot(colSums<Vector>(data.counts)),
+      theta_explained_spot_type(S, T, arma::fill::zeros),
+      sigma_explained_spot(S, arma::fill::zeros),
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
@@ -231,11 +238,11 @@ void Experiment<Type>::store(const std::string &prefix,
     write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
 #pragma omp section
-    write_matrix(expected_spot_type(global_features.matrix),
+    write_matrix(expected_spot_type(global_features),
                  prefix + "expected-mix" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
 #pragma omp section
-    write_matrix(expected_gene_type(global_features.matrix),
+    write_matrix(expected_gene_type(global_features),
                  prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
@@ -351,7 +358,7 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
       case 0:
         // TODO add baseline prior
         if (parameters.targeted(Target::baseline))
-          sample_baseline(global_features.matrix);
+          sample_baseline(global_features);
         break;
 
       case 1:
@@ -373,12 +380,12 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
       case 2:
         if (parameters.targeted(Target::phi_prior_local))
           // TODO FIXME make this work!
-          features.prior.sample(*this, global_features.matrix);
+          features.prior.sample(*this, global_features);
         break;
 
       case 3:
         if (parameters.targeted(Target::phi_local))
-          features.sample(*this, global_features.matrix);
+          features.sample(*this, global_features);
         break;
 
       case 4:
@@ -389,6 +396,7 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
       default:
         break;
     }
+  LOG(info) << "column sums of theta: " << colSums<Vector>(weights.matrix).t();
 }
 
 template <typename Type>
@@ -460,10 +468,13 @@ Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
 
 template <typename Type>
 /** sample count decomposition */
-void Experiment<Type>::sample_contributions(const features_t &global_features, Matrix &log_ratios) {
+void Experiment<Type>::sample_contributions(const features_t &global_features,
+                                            Matrix &log_ratios) {
   LOG(verbose) << "Sampling contributions";
   contributions_gene_type.fill(0);
   contributions_spot_type.fill(0);
+  theta_explained_spot_type.fill(0);
+  sigma_explained_spot.fill(0);
 
   std::vector<bool> dropout_gene(G, false);
   size_t dropped_genes = 0;
@@ -490,75 +501,153 @@ void Experiment<Type>::sample_contributions(const features_t &global_features, M
   {
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
     Matrix contrib_spot_type(S, T, arma::fill::zeros);
+    Matrix theta_explained_spot_type_(S, T, arma::fill::zeros);
+    Vector sigma_explained_spot_(S, arma::fill::zeros);
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t g = 0; g < G; ++g) {
       for (size_t s = 0; s < S; ++s)
         lambda_gene_spot(g, s) = sample_contributions_sub(
             global_features, g, s, EntropySource::rngs[thread_num],
-            contrib_gene_type, contrib_spot_type, log_ratios, dropout_gene[g],
+            contrib_gene_type, contrib_spot_type, log_ratios,
+            theta_explained_spot_type_, sigma_explained_spot_[s], dropout_gene[g],
             dropout_spot[s]);
     }
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
       contributions_spot_type += contrib_spot_type;
+      theta_explained_spot_type += theta_explained_spot_type_;
+      sigma_explained_spot += sigma_explained_spot_;
     }
   }
 
   parameters.dropout_gene *= parameters.dropout_anneal;
   parameters.dropout_spot *= parameters.dropout_anneal;
+
+  /*
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t) {
+      theta_explained_spot_type(s, t) = 0;
+      for (size_t g = 0; g < G; ++g)
+        theta_explained_spot_type(s, t)
+            += global_features.prior.r(g, t) / global_features.prior.p(g, t)
+               * baseline_phi(g) * phi(g, t) * spot(s);
+    }
+    */
 }
 
 template <typename Type>
 double Experiment<Type>::sample_contributions_sub(
     const features_t &global_features, size_t g, size_t s, RNG &rng,
     Matrix &contrib_gene_type, Matrix &contrib_spot_type, Matrix &log_ratios,
+    Matrix &theta_explained_spot_type_, Float &sigma_explained_spot_,
     bool dropout_gene, bool dropout_spot) const {
-  // TODO remove conditionals; perhaps templatize?
-  std::vector<double> rel_rate(T);
-  double z = 0;
+
+  /*
+  auto expected_observations = [&](size_t t) {
+    return global_features.prior.r(g, t) / global_features.prior.p(g, t)
+           * baseline_feature.matrix(g) * phi(g, t) * theta(s, t) * spot(s);
+  };
+
+  auto phi0 = [&](size_t t) {
+    // NOTE: std::gamma_distribution takes a shape and scale parameter
+    return std::gamma_distribution<double>(
+        global_features.prior.r(g, t) + expected_observations(t),
+        1 / (global_features.prior.p(g, t)
+             + baseline_feature.matrix(g) * phi(g, t) * theta(s, t) * spot(s)))(
+        rng);
+        // NOTE: the expectation of this is: r / p
+        // NOTE: the variance of this is:
+        // r / p / p / (1 + baseline_feature.matrix(g) * phi(g, t)
+        //                  * theta(s, t) * spot(s)
+        //                  / global_features.prior.p(g, t))
+  };
+
+  auto phi_prior = [&](size_t t) {
+    // NOTE: std::gamma_distribution takes a shape and scale parameter
+    return std::gamma_distribution<double>(
+        global_features.prior.r(g, t), 1 / global_features.prior.p(g, t))(rng);
+  };
+  */
+
   // NOTE: in principle, lambda(g,s,t) is proportional to the baseline feature
   // and the spot scaling. However, these terms would cancel. Thus, we don't
   // respect them here.
-  if (dropout_spot)
+
+  Vector phi_(T);
+  for (size_t t = 0; t < T; ++t)
+    // phi_[t] = phi(g, t) * phi_prior(t);
+    // phi_[t] = phi(g, t) * global_features.prior.r(g, t)
+    //           / global_features.prior.p(g, t);
+    phi_[t] = phi(g, t) * global_features.matrix(g, t);
+
+  // TODO remove conditionals; perhaps templatize?
+  std::vector<double> rel_rate(T);
+  double z = 0;
+  if (true) {
+    if (dropout_spot)
+      for (size_t t = 0; t < T; ++t)
+        z += rel_rate[t] = phi_(t);
+    else if (dropout_gene)
+      for (size_t t = 0; t < T; ++t)
+        z += rel_rate[t] = theta(s, t);
+    else
+      for (size_t t = 0; t < T; ++t)
+        z += rel_rate[t] = phi_(t) * theta(s, t);
+  } else
     for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = phi(g, t) * global_features.matrix(g, t);
-  else if (dropout_gene)
-    for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = theta(s, t);
-  else
-    for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = phi(g, t) * global_features.matrix(g, t) * theta(s, t);
+      z += rel_rate[t] = std::gamma_distribution<double>(
+          global_features.prior.r(g, t),
+          1 / (global_features.prior.p(g, t) + theta(s, t) * spot(s)))(rng);
   for (size_t t = 0; t < T; ++t)
     rel_rate[t] /= z;
-  if (data.counts(g, s) > 0) {
+
+  // if (data.counts(g, s) > 0) {
+  if (true) {
     if (parameters.expected_contributions) {
       for (size_t t = 0; t < T; ++t) {
         double expected = data.counts(g, s) * rel_rate[t];
         contrib_gene_type(g, t) += expected;
         contrib_spot_type(s, t) += expected;
       }
+
     } else {
       auto v = sample_multinomial<Int>(data.counts(g, s), begin(rel_rate),
                                        end(rel_rate), rng);
       for (size_t t = 0; t < T; ++t) {
         contrib_gene_type(g, t) += v[t];
         contrib_spot_type(s, t) += v[t];
+
         const Float x_gst = v[t];
         const Float r_gt = global_features.prior.r(g, t);
         const Float p_gt = global_features.prior.p(g, t);
         const Float r_gt_alt = global_features.alt_prior.r(g, t);
         const Float p_gt_alt = global_features.alt_prior.p(g, t);
-        const Float other = baseline_feature.matrix(g, 0)
+        const Float other = baseline_phi(g)
                             * features.matrix(g, t) * theta(s, t) * spot[s];
-        log_ratios(g, t)
-            +=  // x_gst * log(other) - lgamma(x_gst + 1) - lgamma(r_gt)
-            -(x_gst + r_gt) * log(other + p_gt) - lgamma(x_gst + r_gt);
-        log_ratios(g, t)
-            -=  // x_gst * log(other) - lgamma(x_gst + 1) - lgamma(r_gt_alt);
-            -(x_gst + r_gt_alt) * log(other + p_gt_alt)
-            - lgamma(x_gst + r_gt_alt);
+
+        log_ratios(g, t) +=
+          lgamma(r_gt + x_gst) - (r_gt + x_gst) * log(p_gt + other);
+        log_ratios(g, t) -=
+          lgamma(r_gt_alt + x_gst) - (r_gt_alt + x_gst) * log(p_gt_alt + other);
+
+        if (true) {
+          // NOTE: std::gamma_distribution takes a shape and scale parameter
+          const double phi_gst
+              = baseline_phi(g) * features.matrix(g, t)
+                * std::gamma_distribution<Float>(
+                      r_gt + x_gst,
+                      1.0 / (p_gt
+                             + baseline_phi(g) * features.matrix(g, t)
+                                   * theta(s, t)
+                                   * spot(s)))(EntropySource::rng);
+          theta_explained_spot_type_(s, t) += phi_gst * spot(s);
+          sigma_explained_spot_ += phi_gst * theta(s, t);
+        } else {
+          theta_explained_spot_type_(s, t) += phi_[t] * spot(s);
+          sigma_explained_spot_ += phi_[t] * theta(s, t);
+        }
       }
     }
   }
@@ -575,25 +664,33 @@ void Experiment<Type>::sample_spot(const Matrix &global_phi) {
     Float intensity_sum = 0;
     for (size_t t = 0; t < T; ++t)
       intensity_sum += phi_marginal(t) * theta(s, t);
-
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     spot[s] = std::gamma_distribution<Float>(
         parameters.hyperparameters.spot_a + contributions_spot(s),
         1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
         EntropySource::rng);
   }
+
+  if (false)
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    // NOTE: std::gamma_distribution takes a shape and scale parameter
+    spot[s] = std::gamma_distribution<Float>(
+        parameters.hyperparameters.spot_a + contributions_spot(s),
+        1.0 / (parameters.hyperparameters.spot_b + sigma_explained_spot(s)))(
+        EntropySource::rng);
 }
 
 /** sample baseline feature */
 template <typename Type>
-void Experiment<Type>::sample_baseline(const Matrix &global_phi) {
+void Experiment<Type>::sample_baseline(const features_t &global_features) {
   LOG(verbose) << "Sampling baseline feature from Gamma distribution";
 
   // TODO add CLI switch
   const double prior1 = parameters.hyperparameters.baseline1;
   const double prior2 = parameters.hyperparameters.baseline2;
   Vector observed = prior1 + contributions_gene;
-  Vector explained = prior2 + explained_gene(global_phi);
+  Vector explained = prior2 + explained_gene(global_features);
 
   Partial::perform_sampling(observed, explained, baseline_feature.matrix,
                             parameters.over_relax);
@@ -620,39 +717,50 @@ Vector Experiment<Type>::marginalize_spots() const {
 }
 
 template <typename Type>
-Matrix Experiment<Type>::explained_gene_type(const Matrix &global_phi) const {
+Matrix Experiment<Type>::explained_gene_type(
+    const features_t &global_features) const {
   Vector theta_t = marginalize_spots();
   Matrix explained(G, T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t) = baseline_phi(g) * global_phi(g, t) * theta_t(t);
+      explained(g, t)
+          = baseline_phi(g) * global_features.matrix(g, t) * theta_t(t);
+  // explained(g, t) = baseline_phi(g) * global_features.prior.r(g, t)
+  //                   / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 }
 
 template <typename Type>
-Matrix Experiment<Type>::expected_gene_type(const Matrix &global_phi) const {
-  return features.matrix % explained_gene_type(global_phi);
+Matrix Experiment<Type>::expected_gene_type(
+    const features_t &global_features) const {
+  return features.matrix % explained_gene_type(global_features);
 }
 
 template <typename Type>
-Vector Experiment<Type>::explained_gene(const Matrix &global_phi) const {
+Vector Experiment<Type>::explained_gene(
+    const features_t &global_features) const {
   Vector theta_t = marginalize_spots();
   Vector explained(G, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += phi(g, t) * global_phi(g, t) * theta_t(t);
+      explained(g) += phi(g, t) * global_features.matrix(g, t) * theta_t(t);
+      // explained(g) += phi(g, t) * global_features.prior.r(g, t)
+      //                 / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 };
 
 template <typename Type>
-Matrix Experiment<Type>::explained_spot_type(const Matrix &global_phi) const {
+Matrix Experiment<Type>::explained_spot_type(
+    const features_t &global_features) const {
   Matrix m = Matrix(S, T, arma::fill::ones);
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += baseline_phi(g) * phi(g, t) * global_phi(g, t);
+      x += baseline_phi(g) * phi(g, t) * global_features.matrix(g, t);
+      // x += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
+      //      / global_features.prior.p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
@@ -660,14 +768,15 @@ Matrix Experiment<Type>::explained_spot_type(const Matrix &global_phi) const {
 }
 
 template <typename Type>
-Matrix Experiment<Type>::expected_spot_type(const Matrix &global_phi) const {
-  return weights.matrix % explained_spot_type(global_phi);
+Matrix Experiment<Type>::expected_spot_type(
+    const features_t &global_features) const {
+  return weights.matrix % explained_spot_type(global_features);
 }
 
 template <typename Type>
 std::vector<std::vector<size_t>> Experiment<Type>::active_factors(
-    const Matrix &global_phi, double threshold) const {
-  auto w = expected_spot_type(global_phi);
+    const features_t &global_features, double threshold) const {
+  auto w = expected_spot_type(global_features);
   std::vector<std::vector<size_t>> vs;
   for (size_t s = 0; s < S; ++s) {
     std::vector<size_t> v;

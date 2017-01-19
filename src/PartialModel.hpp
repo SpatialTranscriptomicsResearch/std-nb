@@ -234,7 +234,9 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
   const auto intensities = experiment.marginalize_genes(args...);
 
   Matrix observed = experiment.contributions_spot_type;
+  // TODO play with switching
   Matrix explained = experiment.spot * intensities.t();
+  // Matrix explained = experiment.theta_explained_spot_type;
   if (convolve) {
     explained %= field;
     observed += PRIOR;
