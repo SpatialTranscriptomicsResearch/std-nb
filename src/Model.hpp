@@ -23,6 +23,8 @@ struct Model {
   /** number of experiments */
   size_t E;
 
+  size_t iteration;
+
   std::vector<experiment_t> experiments;
 
   Parameters parameters;
@@ -94,6 +96,7 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
     : G(max_row_number(c)),
       T(T_),
       E(0),
+      iteration(0),
       experiments(),
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
@@ -296,6 +299,7 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
     }
   LOG(info) << "column sums of r: " << colSums<Vector>(features.prior.r).t();
   LOG(info) << "column sums of p: " << colSums<Vector>(features.prior.p).t();
+  iteration++;
 }
 
 template <typename F>
