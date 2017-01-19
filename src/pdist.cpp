@@ -31,10 +31,13 @@ double log_gamma(double x, double shape, double scale) {
   if (x == 0) {
     if (shape == 1)
       return - log(scale);
-    else if (shape > 1)
+    else if (shape > 1) {
+      assert(false);
       return -std::numeric_limits<double>::infinity();
-    else
+    } else {
+      assert(false);
       return +std::numeric_limits<double>::infinity();
+    }
   } else
     return (shape - 1) * log(x) - x / scale - lgamma(shape)
            - shape * log(scale);
