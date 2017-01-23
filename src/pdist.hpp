@@ -101,7 +101,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   }
   */
 
-  const double min_scale = *std::min(begin(scales), end(scales));
+  const double min_scale = *std::min_element(begin(scales), end(scales));
   double C = 1;
   for (size_t n = 0; n < N; ++n)
     C *= std::pow(min_scale / scales[n], shapes[n]);
@@ -145,5 +145,15 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
 
   return C * q;
 }
+
+/* Based on the following publication:
+ * On the convolution of the negative binomial random variables
+ * Edward Furman
+ * Statistics & probability Letters
+ * 77 (2007), 169-172
+ */
+double convolved_negative_binomial(double x, size_t K,
+                                   const std::vector<double> &shapes,
+                                   const std::vector<double> &scales);
 
 #endif
