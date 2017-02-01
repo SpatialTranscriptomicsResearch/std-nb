@@ -529,9 +529,9 @@ double Experiment<Type>::sample_contributions_sub(const Matrix &global_phi,
   else
     for (size_t t = 0; t < T; ++t)
       z += rel_rate[t] = phi(g, t) * global_phi(g, t) * theta(s, t);
-  for (size_t t = 0; t < T; ++t)
-    rel_rate[t] /= z;
   if (data.counts(g, s) > 0) {
+    for (size_t t = 0; t < T; ++t)
+      rel_rate[t] /= z;
     if (parameters.expected_contributions) {
       for (size_t t = 0; t < T; ++t) {
         double expected = data.counts(g, s) * rel_rate[t];
