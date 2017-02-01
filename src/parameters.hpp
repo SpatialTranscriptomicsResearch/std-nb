@@ -8,7 +8,7 @@
 
 namespace PoissonFactorization {
 struct Hyperparameters {
-  Hyperparameters(Float phi_r_1_ = 10, Float phi_r_2_ = 10, Float phi_p_1_ = 2,
+  Hyperparameters(Float phi_r_1_ = 1, Float phi_r_2_ = 1e-3, Float phi_p_1_ = 2,
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,
                   Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
                   Float theta_p_2_ = 0.95, Float spot_a_ = 10,
