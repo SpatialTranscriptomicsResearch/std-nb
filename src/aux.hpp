@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include "types.hpp"
 
 /**
  * Create a lower case copy of a string
@@ -104,5 +105,16 @@ V rowSums(const M &m) {
 }
 
 std::vector<size_t> random_order(size_t n);
+
+template <typename T>
+void min_max(const std::string &label, const T &v) {
+  arma::running_stat<double> stats;
+  for (auto &x : v)
+    stats(x);
+
+  std::cout << label << " mean = " << stats.mean() << " var  = " << stats.var()
+            << " min  = " << stats.min() << " max  = " << stats.max()
+            << std::endl;
+}
 
 #endif

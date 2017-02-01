@@ -192,6 +192,10 @@ int main(int argc, char **argv) {
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("stepsize", po::value(&parameters.sgd_step_size)->default_value(parameters.sgd_step_size),
+     "Step size scaling to use for stochastic gradient ascent.")
+    ("sgd_freq", po::value(&parameters.sgd_inclusion_prob)->default_value(parameters.sgd_inclusion_prob),
+     "Probability with which to include spots in stochastic gradient ascent.")
     ("dropout_gene", po::value(&parameters.dropout_gene)->default_value(parameters.dropout_gene),
      "Randomly discard a fraction of the genes during contributions sampling.")
     ("dropout_spot", po::value(&parameters.dropout_spot)->default_value(parameters.dropout_spot),
@@ -371,9 +375,11 @@ int main(int argc, char **argv) {
     */
     case Kind::Gamma: {
       switch (options.mixing_type) {
+        /*
         case Kind::Dirichlet:
           run<Kind::Gamma, Kind::Dirichlet>(data_sets, options, parameters);
           break;
+          */
         case Kind::HierGamma:
           run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
           break;

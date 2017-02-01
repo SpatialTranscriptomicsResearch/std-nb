@@ -80,6 +80,16 @@ void Gamma::restore(const std::string &prefix) {
   p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING, read_matrix, "\t");
 }
 
+void Gamma::enforce_positive_parameters() {
+  for (size_t i = 0; i < dim1; ++i)
+    for (size_t j = 0; j < dim2; ++j) {
+      r(i, j) = std::max<double>(r(i, j),
+                                 std::numeric_limits<double>::denorm_min());
+      p(i, j) = std::max<double>(p(i, j),
+                                 std::numeric_limits<double>::denorm_min());
+    }
+}
+
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
     : dim1(dim1_),
       dim2(dim2_),
@@ -148,6 +158,23 @@ double compute_conditional(const pair<Float, Float> &x, const V &observed,
   return l;
 }
 
+template <typename V>
+double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
+                                 const Hyperparameters &hyperparameters) {
+  const size_t S = theta.size();
+  const Float r = x.first;
+  const Float p = x.second;
+  double l
+      = log_beta_neg_odds(p, hyperparameters.theta_p_1,
+                          hyperparameters.theta_p_2)
+        // NOTE: gamma_distribution takes a shape and scale parameter
+        + log_gamma(r, hyperparameters.theta_r_1, 1 / hyperparameters.theta_r_2);
+  for (size_t s = 0; s < S; ++s)
+    // NOTE: gamma_distribution takes a shape and scale parameter
+    l += log_gamma(theta(s), r, 1 / p);
+  return l;
+}
+
 Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
     : dim1(dim1_), dim2(dim2_), r(dim2), p(dim2), parameters(params) {
   initialize_r();
@@ -187,7 +214,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed, const Matrix &explained) {
+void Gamma::sample(const Matrix &observed, const Matrix &explained __attribute__((unused))) {
   LOG(verbose) << "Sampling P and R of Θ";
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
@@ -198,8 +225,8 @@ void Gamma::sample(const Matrix &observed, const Matrix &explained) {
       auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]),
                            parameters.n_iter, EntropySource::rngs[thread_num],
                            gen_log_normal_pair<Float>,
-                           compute_conditional<Vector>, observed.col(t),
-                           explained.col(t), parameters.hyperparameters);
+                           compute_conditional_gamma<Vector>,
+                           observed.col(t), parameters.hyperparameters);
       r[t] = res.first;
       p[t] = res.second;
     }
@@ -230,6 +257,13 @@ void Gamma::restore(const std::string &prefix) {
                          read_vector<Vector>, "\t");
   p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING,
                          read_vector<Vector>, "\t");
+}
+
+void Gamma::enforce_positive_parameters() {
+  for (size_t i = 0; i < dim2; ++i) {
+    r(i) = std::max<double>(r(i), std::numeric_limits<double>::denorm_min());
+    p(i) = std::max<double>(p(i), std::numeric_limits<double>::denorm_min());
+  }
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)

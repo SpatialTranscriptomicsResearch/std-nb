@@ -70,6 +70,14 @@ struct Model {
   void initialize_factor(size_t t);
   void initialize();
 
+  void enforce_positive_parameters() {
+    prior.enforce_positive_parameters();
+    for (size_t i = 0; i < dim1; ++i)
+      for (size_t j = 0; j < dim2; ++j)
+        matrix(i, j) = std::max<double>(
+            matrix(i, j), std::numeric_limits<double>::denorm_min());
+  };
+
   // TODO rename to something like sample_features
   template <typename Experiment, typename... Args>
   void sample(const Experiment &experiment, const Args &... args);

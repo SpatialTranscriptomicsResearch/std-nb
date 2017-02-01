@@ -86,6 +86,8 @@ struct Parameters {
   bool theta_local_priors = false;
   bool identity_kernels = false;
   bool normalize_spot_stats = false;
+  double sgd_step_size = 1e-3;
+  double sgd_inclusion_prob = 1; // stochastic gradient descent inclusion probability
   double dropout_gene = 0;
   double dropout_spot = 0;
   double dropout_anneal = 0.999;

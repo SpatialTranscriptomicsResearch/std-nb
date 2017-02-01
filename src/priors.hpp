@@ -53,6 +53,8 @@ struct Gamma {
   void set_unit(double x = 1.0);
   Matrix ratio() const;
 
+  void enforce_positive_parameters();
+
 private:
   void initialize_r();
   void initialize_p();
@@ -158,6 +160,8 @@ struct Gamma {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
+
+  void enforce_positive_parameters();
 
 private:
   void initialize_r();

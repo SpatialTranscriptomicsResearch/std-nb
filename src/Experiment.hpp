@@ -38,8 +38,10 @@ struct Experiment {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
 
-  Matrix theta_explained_spot_type;
-  Vector sigma_explained_spot;
+  Matrix prev_g_theta;
+  Vector prev_g_spot;
+  IMatrix prev_sign_theta;
+  IVector prev_sign_spot;
 
   /** factor loading matrix */
   features_t features;
@@ -58,6 +60,8 @@ struct Experiment {
 
   Experiment(const Counts &counts, size_t T,
              const Parameters &parameters);
+
+  void enforce_positive_parameters();
 
   void store(const std::string &prefix, const features_t &global_features,
              const std::vector<size_t> &order) const;
@@ -90,7 +94,8 @@ struct Experiment {
 
   /** sample count decomposition */
   void sample_contributions(const features_t &global_features,
-                            Matrix &log_ratios);
+                            Matrix &gradient_r,
+                            Matrix &gradient_p);
   /** sub-routine for count decomposition sampling */
   double sample_contributions_sub(const features_t &global_features, size_t g,
                                   size_t s, RNG &rng, Matrix &contrib_gene_type,
@@ -100,12 +105,12 @@ struct Experiment {
                                   bool dropout_gene, bool dropout_spot) const;
 
   /** sample spot scaling factors */
-  void sample_spot(const Matrix &global_phi);
+  void sample_spot(const features_t &global_features);
 
   /** sample baseline feature */
   void sample_baseline(const features_t &global_features);
 
-  Vector marginalize_genes(const Matrix &global_phi) const;
+  Vector marginalize_genes(const features_t &global_features) const;
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
@@ -156,8 +161,10 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(rowSums<Vector>(data.counts)),
       contributions_spot(colSums<Vector>(data.counts)),
-      theta_explained_spot_type(S, T, arma::fill::zeros),
-      sigma_explained_spot(S, arma::fill::zeros),
+      prev_g_theta(S, T),
+      prev_g_spot(S),
+      prev_sign_theta(S, T, arma::fill::zeros),
+      prev_sign_spot(S, arma::fill::zeros),
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
@@ -165,6 +172,8 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
+  prev_g_theta.fill(parameters.sgd_step_size);
+  prev_g_spot.fill(parameters.sgd_step_size);
 /* TODO consider to reactivate
 if (false) {
   // initialize:
@@ -188,10 +197,10 @@ if (false) {
       spot(s) /= z;
   }
 
-  if (not parameters.targeted(Target::phi_local))
+  // if (not parameters.targeted(Target::phi_local))
     features.matrix.ones();
 
-  if (not parameters.targeted(Target::phi_prior_local))
+  // if (not parameters.targeted(Target::phi_prior_local))
     features.prior.set_unit();
 
   if (not parameters.targeted(Target::baseline)) {
@@ -247,7 +256,7 @@ void Experiment<Type>::store(const std::string &prefix,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     {
-      auto phi_marginal = marginalize_genes(global_features.matrix);
+      auto phi_marginal = marginalize_genes(global_features);
       auto f = field;
       f.each_row() %= phi_marginal.t();
       f.each_col() %= spot;
@@ -349,7 +358,7 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
   //     sample_contributions(global_features, );
 
   if (parameters.targeted(Target::theta))
-    weights.sample_field(*this, field, global_features.matrix);
+    weights.sample_field(*this, field, global_features);
 
   // TODO add CLI switch
   auto order = random_order(5);
@@ -390,7 +399,7 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
 
       case 4:
         if (parameters.targeted(Target::spot))
-          sample_spot(global_features.matrix);
+          sample_spot(global_features);
         break;
 
       default:
@@ -466,15 +475,100 @@ Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
   return m;
 }
 
+template <typename T> int sgn(T val) {
+    return (T(0) < val) - (val < T(0));
+}
+
+template <typename T, typename U>
+void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
+  // auto rate_iter = rate.begin();
+  // for (auto &s : prev_sgn)
+  //   s = sgn(*rate_iter++);
+
+  // const double bump_up = 1.2;
+  // const double bump_down = 0.5;
+  const double eta_plus = 1.1;
+  const double eta_minus = 1.0 - 1.0 / 3;
+  // const double notch_up = 0.1;
+  // const double notch_down = -1.0/3;
+
+  const double max_change = log(10);
+  // const double min_change = 1 / max_change;
+  const double min_change = 0;
+
+  auto grad_iter = grad.begin();
+  auto data_iter = data.begin();
+  auto sgn_iter = prev_sgn.begin();
+  size_t caseP = 0, case0 = 0, caseN = 0;
+  for (auto &r : rate) {
+    auto sgn_grad = sgn(*grad_iter);
+    switch (sgn_grad * *sgn_iter) {
+      case 1:
+        // r = std::min(*data_iter * 3, r * eta_plus);
+        // r = r * eta_plus;
+        // while (*data_iter - sgn_grad * r <= 0)
+        //   r *= eta_minus;
+        r = std::min(max_change, r * eta_plus);
+        // r = std::min(max_change, r + notch_up);
+        // *data_iter += sgn_grad * r;
+        *data_iter *= exp(sgn_grad * r);
+        *sgn_iter = sgn_grad;
+        caseP++;
+        break;
+      case 0:
+        // while (*data_iter - sgn_grad * r <= 0)
+        //   r *= eta_minus;
+        // *data_iter += sgn_grad * r;
+        *data_iter *= exp(sgn_grad * r);
+        *sgn_iter = sgn_grad;
+        case0++;
+        break;
+      case -1:
+        // r = std::max(*data_iter / 3, r * eta_minus);
+        // r = r * eta_minus;
+        r = std::max(min_change, r * eta_minus);
+        // r = std::max(min_change, r + notch_down);
+        *sgn_iter = 0;
+        caseN++;
+        break;
+    }
+    /*
+    bool sign_grad = *grad_iter >= 0;
+    bool sign_prev = r >= 0;
+    bool identical_sign = sign_grad == sign_prev;
+    if (true) {
+      if (identical_sign)
+        r += notch_up;
+      else
+        r += notch_down;
+    } else {
+      if (identical_sign)
+        r *= bump_up;
+      else
+        r *= bump_down;
+    }
+
+    r = (sign_grad ? 1 : -1) * fabs(r);
+
+    *data_iter *= exp(r);
+    */
+
+    grad_iter++;
+    data_iter++;
+    sgn_iter++;
+  }
+  LOG(info) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
+}
+
 template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const features_t &global_features,
-                                            Matrix &log_ratios) {
+                                            Matrix &g_r, Matrix &g_p) {
   LOG(verbose) << "Sampling contributions";
   contributions_gene_type.fill(0);
   contributions_spot_type.fill(0);
-  theta_explained_spot_type.fill(0);
-  sigma_explained_spot.fill(0);
+  Matrix g_theta(S, T, arma::fill::zeros);
+  Vector g_spot(S, arma::fill::zeros);
 
   std::vector<bool> dropout_gene(G, false);
   size_t dropped_genes = 0;
@@ -497,44 +591,195 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
     LOG(verbose) << "Spot dropout rate = " << parameters.dropout_spot * 100
                  << "\% Dropping " << dropped_spots << " spots";
 
+  size_t total_accepted = 0;
+  size_t total_performed = 0;
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
     Matrix contrib_spot_type(S, T, arma::fill::zeros);
-    Matrix theta_explained_spot_type_(S, T, arma::fill::zeros);
-    Vector sigma_explained_spot_(S, arma::fill::zeros);
-    const size_t thread_num = omp_get_thread_num();
+
+    Matrix g_theta_(S, T, arma::fill::zeros);
+    Vector g_spot_(S, arma::fill::zeros);
+    size_t accepted = 0;
+    size_t performed = 0;
+
+    auto rng = EntropySource::rngs[omp_get_thread_num()];
 #pragma omp for
     for (size_t g = 0; g < G; ++g) {
       for (size_t s = 0; s < S; ++s)
-        lambda_gene_spot(g, s) = sample_contributions_sub(
-            global_features, g, s, EntropySource::rngs[thread_num],
-            contrib_gene_type, contrib_spot_type, log_ratios,
-            theta_explained_spot_type_, sigma_explained_spot_[s], dropout_gene[g],
-            dropout_spot[s]);
+        // if(RandomDistribution::Uniform(rng) < parameters.sgd_inclusion_prob)
+        if (not dropout_spot[s]) {
+          std::vector<size_t> cnts(T, 0);
+          if (data.counts(g, s) > 0) {
+            auto val = [&](const std::vector<size_t> &v) {
+              double l = 0;
+              for (size_t t = 0; t < T; ++t) {
+                const double r = global_features.prior.r(g, t);
+                const double no = global_features.prior.p(g, t);
+                const double prod = r * theta(s, t) * spot(s);
+                if(prod + v[t] == 0)
+                  return -std::numeric_limits<double>::infinity();
+                l += lgamma(prod + v[t]) - lgamma(v[t] + 1)
+                     - v[t] * log(1 + no);
+              }
+              return l;
+            };
+
+            // sample x_gst for all t
+            std::vector<double> mean_prob(T, 0);
+            double z = 0;
+            for (size_t t = 0; t < T; ++t)
+              z += mean_prob[t] = global_features.prior.r(g, t)
+                                  / global_features.prior.p(g, t) * theta(s, t);
+            for (size_t t = 0; t < T; ++t)
+              mean_prob[t] /= z;
+            cnts = sample_multinomial<size_t>(
+                data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
+
+            if (T > 1) {
+              // calculate score
+              double l = val(cnts);
+
+              // perform several Metropolis-Hastings steps
+              const size_t initial = 100;
+              int n_iter = initial;
+              while (n_iter--) {
+                // modify
+                size_t i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+                while (cnts[i] == 0)
+                  i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+                size_t j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+                while (i == j)
+                  j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+                size_t n
+                    = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
+                cnts[i] -= n;
+                cnts[j] += n;
+
+                // calculate updated score
+                double l_ = val(cnts);
+                if (l_ > l or (std::isfinite(l_)
+                               and log(RandomDistribution::Uniform(rng))
+                                           * parameters.temperature
+                                       <= l_ - l)) {
+                  // keep
+                  l = l_;
+                  accepted++;
+                } else {
+                  // un-do
+                  cnts[i] += n;
+                  cnts[j] -= n;
+                }
+                performed++;
+              }
+            }
+
+            for (size_t t = 0; t < T; ++t) {
+              contrib_gene_type(g, t) += cnts[t];
+              contrib_spot_type(s, t) += cnts[t];
+            }
+          }
+
+          // calculate gradients
+          for (size_t t = 0; t < T; ++t) {
+            const double r = global_features.prior.r(g, t);
+            const double negodds = global_features.prior.p(g, t);
+            const auto prod = r * spot(s) * theta(s, t);
+            if (prod < 1e-300)
+              LOG(info) << g << " / " << s << " / " << t << " prod=" << prod
+                        << " cnts=" << cnts[t]
+                        << " cnts+prod=" << prod + cnts[t] << " r=" << r
+                        << " sigma=" << spot(s) << " theta=" << theta(s, t)
+                        << " no=" << negodds;  // << " p=" << p;
+            const double digamma_diff
+                = (cnts[t] == 0)
+                      ? 0
+                      : (prod == 0 ? -std::numeric_limits<double>::infinity()
+                                   : digamma(cnts[t] + prod) - digamma(prod));
+            const double grad
+                = prod * (digamma_diff + log(negodds) - log(negodds + 1));
+            if (true) {
+              g_r(g, t) += grad;
+              g_p(g, t) += prod - cnts[t] * negodds; // * (negodds^2 + negodds)^-1
+              g_theta_(s, t) += grad;
+              g_spot_(s) += grad;
+            } else {
+              g_r(g, t) += grad / r;
+              g_p(g, t) += (r - data.counts[t] * negodds) / (negodds + 1);
+              g_theta_(s, t) += grad;
+              g_spot_(s) += grad;
+            }
+          }
+        }
     }
 #pragma omp critical
     {
       contributions_gene_type += contrib_gene_type;
       contributions_spot_type += contrib_spot_type;
-      theta_explained_spot_type += theta_explained_spot_type_;
-      sigma_explained_spot += sigma_explained_spot_;
+      g_theta += g_theta_;
+      g_spot += g_spot_;
+      total_accepted += accepted;
+      total_performed += performed;
     }
   }
+
+  if (total_performed > 0)
+    LOG(info) << "accepted=" << 100.0 * total_accepted / total_performed << "%";
+
+  if (true) {
+    if (true)
+      for (size_t s = 0; s < S; ++s)
+        g_spot(s) += parameters.hyperparameters.spot_a - 1
+                     - parameters.hyperparameters.spot_b * spot(s);
+
+    if (true)
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          g_theta(s, t)
+              += weights.prior.r(t) - 1 - weights.prior.p(t) * theta(s, t);
+  }
+
+  // g_spot /= G * T;
+  // g_theta /= G;
 
   parameters.dropout_gene *= parameters.dropout_anneal;
   parameters.dropout_spot *= parameters.dropout_anneal;
 
-  /*
-  for (size_t s = 0; s < S; ++s)
+  // weights.matrix += g_theta * parameters.sgd_step_size;
+  // spot += g_spot * parameters.sgd_step_size;
+
+  rprop_update(g_spot, prev_sign_spot, prev_g_spot, spot);
+  rprop_update(g_theta, prev_sign_theta, prev_g_theta, weights.matrix);
+  min_max("rates spot", prev_g_spot);
+  min_max("rates theta", prev_g_theta);
+  // spot.fill(1.0);
+  // weights.matrix.fill(1.0);
+
+  enforce_positive_parameters();
+
+  min_max("theta", weights.matrix);
+  min_max("spot", spot);
+  min_max("r(theta)", weights.prior.r);
+  min_max("p(theta)", weights.prior.p);
+}
+
+template <typename Type>
+void Experiment<Type>::enforce_positive_parameters() {
+  features.enforce_positive_parameters();
+  baseline_feature.enforce_positive_parameters();
+  weights.enforce_positive_parameters();
+  for (size_t g = 0; g < G; ++g) {
     for (size_t t = 0; t < T; ++t) {
-      theta_explained_spot_type(s, t) = 0;
-      for (size_t g = 0; g < G; ++g)
-        theta_explained_spot_type(s, t)
-            += global_features.prior.r(g, t) / global_features.prior.p(g, t)
-               * baseline_phi(g) * phi(g, t) * spot(s);
+      phi(g, t) = std::max<double>(phi(g, t),
+                                   std::numeric_limits<double>::denorm_min());
+      features.prior.r(g, t) = std::max<double>(
+          features.prior.r(g, t), std::numeric_limits<double>::denorm_min());
+      features.prior.p(g, t) = std::max<double>(
+          features.prior.p(g, t), std::numeric_limits<double>::denorm_min());
     }
-    */
+  }
+
 }
 
 template <typename Type>
@@ -656,9 +901,9 @@ double Experiment<Type>::sample_contributions_sub(
 
 /** sample spot scaling factors */
 template <typename Type>
-void Experiment<Type>::sample_spot(const Matrix &global_phi) {
+void Experiment<Type>::sample_spot(const features_t &global_features) {
   LOG(verbose) << "Sampling spot scaling factors";
-  auto phi_marginal = marginalize_genes(global_phi);
+  auto phi_marginal = marginalize_genes(global_features);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s) {
     Float intensity_sum = 0;
@@ -677,7 +922,7 @@ void Experiment<Type>::sample_spot(const Matrix &global_phi) {
     // NOTE: std::gamma_distribution takes a shape and scale parameter
     spot[s] = std::gamma_distribution<Float>(
         parameters.hyperparameters.spot_a + contributions_spot(s),
-        1.0 / (parameters.hyperparameters.spot_b + sigma_explained_spot(s)))(
+        1.0 / (parameters.hyperparameters.spot_b + 0))( // TODO hack explained_spot(s)))(
         EntropySource::rng);
 }
 
@@ -697,12 +942,17 @@ void Experiment<Type>::sample_baseline(const features_t &global_features) {
 }
 
 template <typename Type>
-Vector Experiment<Type>::marginalize_genes(const Matrix &global_phi) const {
+Vector Experiment<Type>::marginalize_genes(
+    const features_t &global_features) const {
   Vector intensities(T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < T; ++t) {
+    double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensities(t) += baseline_phi(g) * phi(g, t) * global_phi(g, t);
+      intensity += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
+                   / global_features.prior.p(g, t);
+    intensities[t] = intensity;
+  }
   return intensities;
 };
 
@@ -710,9 +960,12 @@ template <typename Type>
 Vector Experiment<Type>::marginalize_spots() const {
   Vector intensities(T, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t)
+  for (size_t t = 0; t < T; ++t) {
+    double intensity = 0;
     for (size_t s = 0; s < S; ++s)
-      intensities[t] += theta(s, t) * spot[s];
+      intensity += theta(s, t) * spot[s];
+    intensities[t] = intensity;
+  }
   return intensities;
 }
 
@@ -724,10 +977,8 @@ Matrix Experiment<Type>::explained_gene_type(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t)
-          = baseline_phi(g) * global_features.matrix(g, t) * theta_t(t);
-  // explained(g, t) = baseline_phi(g) * global_features.prior.r(g, t)
-  //                   / global_features.prior.p(g, t) * theta_t(t);
+      explained(g, t) = baseline_phi(g) * global_features.prior.r(g, t)
+                        / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 }
 
@@ -745,9 +996,8 @@ Vector Experiment<Type>::explained_gene(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += phi(g, t) * global_features.matrix(g, t) * theta_t(t);
-      // explained(g) += phi(g, t) * global_features.prior.r(g, t)
-      //                 / global_features.prior.p(g, t) * theta_t(t);
+      explained(g) += phi(g, t) * global_features.prior.r(g, t)
+                      / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 };
 
@@ -758,9 +1008,8 @@ Matrix Experiment<Type>::explained_spot_type(
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += baseline_phi(g) * phi(g, t) * global_features.matrix(g, t);
-      // x += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
-      //      / global_features.prior.p(g, t);
+      x += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
+           / global_features.prior.p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }

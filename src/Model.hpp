@@ -32,6 +32,8 @@ struct Model {
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
   Vector contributions_gene;
+  Matrix prev_g_r, prev_g_p;
+  IMatrix prev_sign_r, prev_sign_p;
 
   /** factor loading matrix */
   features_t features;
@@ -54,6 +56,8 @@ struct Model {
 
   Model(const std::vector<Counts> &data, size_t T,
         const Parameters &parameters, bool same_coord_sys);
+
+  void enforce_positive_parameters();
 
   void store(const std::string &prefix, bool reorder = true) const;
   void restore(const std::string &prefix);
@@ -101,9 +105,15 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
+      prev_g_r(G, T),
+      prev_g_p(G, T),
+      prev_sign_r(G, T, arma::fill::zeros),
+      prev_sign_p(G, T, arma::fill::zeros),
       features(G, T, parameters),
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
+  prev_g_r.fill(parameters.sgd_step_size);
+  prev_g_p.fill(parameters.sgd_step_size);
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
@@ -113,10 +123,12 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
 
   // TODO move this code into the classes for prior and features
   // if (not parameters.targeted(Target::phi_prior_local))
-  //   features.prior.set_unit();
+  // features.prior.set_unit();
 
   // if (not parameters.targeted(Target::phi_local))
   //   features.matrix.ones();
+
+  enforce_positive_parameters();
 
   if (parameters.targeted(Target::field)) {
     if (parameters.identity_kernels)
@@ -255,8 +267,17 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
 template <typename Type>
 void Model<Type>::gibbs_sample(bool report_likelihood) {
   LOG(verbose) << "perform Gibbs step for " << parameters.targets;
+  min_max("r(phi)", features.prior.r);
+  min_max("p(phi)", features.prior.p);
   if (parameters.targeted(Target::contributions))
     sample_contributions(true);
+
+  min_max("r(phi)", features.prior.r);
+  min_max("p(phi)", features.prior.p);
+  enforce_positive_parameters();
+  sample_global_theta_priors();
+  enforce_positive_parameters();
+  return;
 
   if (report_likelihood) {
       if (verbosity >= Verbosity::verbose)
@@ -314,74 +335,49 @@ void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
 
 template <typename Type>
 void Model<Type>::sample_contributions(bool update_phi_prior) {
-  Matrix log_ratio(G, T, arma::fill::zeros);
+  Matrix g_r(G, T, arma::fill::zeros);
+  Matrix g_p(G, T, arma::fill::zeros);
   generate_alternative_prior(features, parameters.phi_prior_gen_sd);
   for (auto &experiment : experiments)
-    experiment.sample_contributions(features, log_ratio);
+    experiment.sample_contributions(features, g_r, g_p);
   update_contributions();
 
-  double S = 0;  // TODO factor
-  for (auto &experiment : experiments)
-    S += experiment.S;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      const double r = features.prior.r(g, t);
-      const double p = features.prior.p(g, t);
-      const double r_alt = features.alt_prior.r(g, t);
-      const double p_alt = features.alt_prior.p(g, t);
+  if (true) {
+    if (true)
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          g_r(g, t)
+              += parameters.hyperparameters.phi_r_1 - 1
+                 - parameters.hyperparameters.phi_r_2 * features.prior.r(g, t);
 
-      log_ratio(g, t)
-          += S * (r * log(p) - r_alt * log(p_alt) - lgamma(r) + lgamma(r_alt));
-
-      log_ratio(g, t)
-          += log_beta_neg_odds(p, parameters.hyperparameters.phi_p_1,
-                               parameters.hyperparameters.phi_p_2)
-             // NOTE: gamma_distribution takes a shape and scale parameter
-             + log_gamma(r, parameters.hyperparameters.phi_r_1,
-                         1 / parameters.hyperparameters.phi_r_2);
-
-      log_ratio(g, t)
-          -= log_beta_neg_odds(p_alt, parameters.hyperparameters.phi_p_1,
-                               parameters.hyperparameters.phi_p_2)
-             // NOTE: gamma_distribution takes a shape and scale parameter
-             + log_gamma(r_alt, parameters.hyperparameters.phi_r_1,
-                         1 / parameters.hyperparameters.phi_r_2);
-    }
-
-  if(update_phi_prior) {
-  // TODO parallelize #pragma omp parallel for if (DO_PARALLEL)
-  size_t accepted = 0;
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    const size_t thread_num = omp_get_thread_num();
-    size_t accepted_ = 0;
-#pragma omp for
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) {
-        const double dG = -log_ratio(g, t);
-        const double rnd
-            = log(RandomDistribution::Uniform(EntropySource::rngs[thread_num])) * parameters.temperature;
-            // = RandomDistribution::Uniform(EntropySource::rngs[thread_num]);
-        // const double p = MetropolisHastings::boltzdist(dG,
-        //                                             parameters.temperature);
-        const double p = dG;
-        LOG(verbose) << "dG(" << g << ", " << t << ") = " << dG << "\tp=" << p << "\t" << (p > rnd ? "> " : "<=") << " rnd=" << rnd
-          << "\t" << "r:\t" << features.prior.r(g, t) << " <-> " << features.alt_prior.r(g, t)
-          << "\t" << "p:\t" << features.prior.p(g, t) << " <-> " << features.alt_prior.p(g, t);
-        if (dG > 0 or rnd <= p) {
-          accepted_++;
-          features.prior.r(g, t) = features.alt_prior.r(g, t);
-          features.prior.p(g, t) = features.alt_prior.p(g, t);
-        }
-      }
-#pragma omp critical
-    accepted += accepted_;
+    if (true)
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          g_p(g, t) += parameters.hyperparameters.phi_p_2 - 1
+                       - (parameters.hyperparameters.phi_p_1 - 1)
+                             * features.prior.p(g, t);
   }
 
-  LOG(info) << "Accepted " << accepted << " / " << (G * T) << " = "
-            << 100.0 * accepted / G / T << "%.";
-  }
+  // g_p = -g_p;
+
+  rprop_update(g_r, prev_sign_r, prev_g_r, features.prior.r);
+  rprop_update(g_p, prev_sign_p, prev_g_p, features.prior.p);
+
+  // features.prior.r.fill(100.0);
+  // features.prior.p.fill(1.0);
+  // features.prior.p.fill(0.1 / 0.9);
+
+  min_max("rates r", prev_g_r);
+  min_max("rates p", prev_g_p);
+
+  enforce_positive_parameters();
+}
+
+template <typename Type>
+void Model<Type>::enforce_positive_parameters() {
+  features.enforce_positive_parameters();
+  for(auto &experiment: experiments)
+    experiment.enforce_positive_parameters();
 }
 
 template <Partial::Kind feat_kind>
@@ -398,7 +394,7 @@ void do_sample_fields(
   for (auto &coordinate_system : model.coordinate_systems)
     for (auto e2 : coordinate_system.members) {
       const auto intensities
-          = model.experiments[e2].marginalize_genes(model.features.matrix);
+          = model.experiments[e2].marginalize_genes(model.features);
 #pragma omp parallel for if (DO_PARALLEL)
       for (size_t t = 0; t < model.T; ++t)
         for (auto e1 : coordinate_system.members) {
@@ -411,13 +407,16 @@ void do_sample_fields(
                      * (model.experiments[e2].weights.prior.r(t)
                         + model.experiments[e2].contributions_spot_type(s2, t));
               explained[e1](s1, t)
-                  += w * (model.experiments[e2].weights.prior.p(t)
-                          // TODO play with switching
-                          + intensities[t] * model.experiments[e2].spot[s2]
-                          // + model.experiments[e2].theta_explained_spot_type(s2, t)
-                                * (e1 == e2 and s1 == s2
-                                       ? 1
-                                       : model.experiments[e2].field(s2, t)));
+                  += w
+                     * (model.experiments[e2].weights.prior.p(t)
+                        // TODO play with switching
+                        + intensities[t] * model.experiments[e2].spot[s2]
+                              // +
+                              // TODO hack: remove theta_explained_spot_type
+                              // model.experiments[e2].theta_explained_spot_type(s2, t)
+                              * (e1 == e2 and s1 == s2
+                                     ? 1
+                                     : model.experiments[e2].field(s2, t)));
             }
           }
         }
@@ -449,15 +448,18 @@ void Model<Type>::sample_global_theta_priors() {
     return;
   Matrix observed(0, T);
   for (auto &experiment : experiments)
-    observed = arma::join_vert(observed, experiment.contributions_spot_type);
+    // observed = arma::join_vert(observed, experiment.contributions_spot_type);
+    observed = arma::join_vert(observed, experiment.weights.matrix);
 
   Matrix explained(0, T);
+  /*
   for (auto &experiment : experiments)
     explained = arma::join_vert(
         explained, experiment.explained_spot_type(features));
         // explained, experiment.theta_explained_spot_type);
 
   assert(observed.n_rows == explained.n_rows);
+  */
 
   if (parameters.normalize_spot_stats) {
     observed.each_col() /= rowSums<Vector>(observed);
@@ -468,6 +470,9 @@ void Model<Type>::sample_global_theta_priors() {
 
   for (auto &experiment : experiments)
     experiment.weights.prior = mix_prior;
+
+  min_max("weights r", mix_prior.r);
+  min_max("weights p", mix_prior.p);
 }
 
 template <typename Type>
