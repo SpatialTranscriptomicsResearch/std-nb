@@ -612,17 +612,36 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
         if (not dropout_spot[s]) {
           std::vector<size_t> cnts(T, 0);
           if (data.counts(g, s) > 0) {
-            auto val = [&](const std::vector<size_t> &v) {
+            auto log_posterior_difference = [&](const std::vector<size_t> &v,
+                                                size_t i, size_t j, size_t n) {
               double l = 0;
-              for (size_t t = 0; t < T; ++t) {
-                const double r = global_features.prior.r(g, t);
-                const double no = global_features.prior.p(g, t);
-                const double prod = r * theta(s, t) * spot(s);
-                if(prod + v[t] == 0)
-                  return -std::numeric_limits<double>::infinity();
-                l += lgamma(prod + v[t]) - lgamma(v[t] + 1)
-                     - v[t] * log(1 + no);
-              }
+
+              const double r_i = global_features.prior.r(g, i);
+              const double no_i = global_features.prior.p(g, i);
+              const double prod_i = r_i * theta(s, i) * spot(s);
+
+              const double r_j = global_features.prior.r(g, j);
+              const double no_j = global_features.prior.p(g, j);
+              const double prod_j = r_j * theta(s, j) * spot(s);
+
+              // TODO handle infinities
+              /*
+              if(prod + v[t] == 0)
+                return -std::numeric_limits<double>::infinity();
+               */
+
+              // subtract current score contributions
+              l -= lgamma(prod_i + v[i]) - lgamma(v[i] + 1)
+                   - v[i] * log(1 + no_i);
+              l -= lgamma(prod_j + v[j]) - lgamma(v[j] + 1)
+                   - v[j] * log(1 + no_j);
+
+              // add proposed score contributions
+              l += lgamma(prod_i + v[i] - n) - lgamma(v[i] - n + 1)
+                   - (v[i] - n) * log(1 + no_i);
+              l += lgamma(prod_j + v[j] + n) - lgamma(v[j] + n + 1)
+                   - (v[j] + n) * log(1 + no_j);
+
               return l;
             };
 
@@ -638,9 +657,6 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
                 data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
 
             if (T > 1) {
-              // calculate score
-              double l = val(cnts);
-
               // perform several Metropolis-Hastings steps
               const size_t initial = 100;
               int n_iter = initial;
@@ -654,22 +670,17 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
                   j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
                 size_t n
                     = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
-                cnts[i] -= n;
-                cnts[j] += n;
 
-                // calculate updated score
-                double l_ = val(cnts);
-                if (l_ > l or (std::isfinite(l_)
-                               and log(RandomDistribution::Uniform(rng))
-                                           * parameters.temperature
-                                       <= l_ - l)) {
-                  // keep
-                  l = l_;
+                // calculate score difference
+                double l = log_posterior_difference(cnts, i, j, n);
+                if (l > 0 or (std::isfinite(l)
+                              and log(RandomDistribution::Uniform(rng))
+                                          * parameters.temperature
+                                      <= l)) {
+                  // accept the candidate
+                  cnts[i] -= n;
+                  cnts[j] += n;
                   accepted++;
-                } else {
-                  // un-do
-                  cnts[i] += n;
-                  cnts[j] -= n;
                 }
                 performed++;
               }
