@@ -153,7 +153,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &observed, const Matrix &explained);
+  void sample(const Matrix &observed);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
@@ -177,7 +177,7 @@ struct Dirichlet {
   Dirichlet(const Dirichlet &other);
   /** This routine does nothing, as this sub-model doesn't have random variables
    * but only hyper-parameters */
-  void sample(const Matrix &observed, const Matrix &explained) const;
+  void sample(const Matrix &observed) const;
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,

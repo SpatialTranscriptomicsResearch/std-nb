@@ -214,7 +214,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed, const Matrix &explained __attribute__((unused))) {
+void Gamma::sample(const Matrix &observed) {
   LOG(verbose) << "Sampling P and R of Θ";
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
@@ -278,8 +278,7 @@ Dirichlet::Dirichlet(const Dirichlet &other)
       alpha_prior(other.alpha_prior),
       alpha(other.alpha) {}
 
-void Dirichlet::sample(const Matrix &observed __attribute__((unused)),
-                       const Matrix &explained __attribute__((unused))) const {}
+void Dirichlet::sample(const Matrix &observed __attribute__((unused))) const {}
 
 void Dirichlet::store(const std::string &prefix __attribute__((unused)),
                       const std::vector<std::string> &spot_names

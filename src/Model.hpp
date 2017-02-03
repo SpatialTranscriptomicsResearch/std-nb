@@ -448,25 +448,12 @@ void Model<Type>::sample_global_theta_priors() {
     return;
   Matrix observed(0, T);
   for (auto &experiment : experiments)
-    // observed = arma::join_vert(observed, experiment.contributions_spot_type);
     observed = arma::join_vert(observed, experiment.weights.matrix);
 
-  Matrix explained(0, T);
-  /*
-  for (auto &experiment : experiments)
-    explained = arma::join_vert(
-        explained, experiment.explained_spot_type(features));
-        // explained, experiment.theta_explained_spot_type);
-
-  assert(observed.n_rows == explained.n_rows);
-  */
-
-  if (parameters.normalize_spot_stats) {
+  if (parameters.normalize_spot_stats)
     observed.each_col() /= rowSums<Vector>(observed);
-    explained.each_col() /= rowSums<Vector>(explained);
-  }
 
-  mix_prior.sample(observed, explained);
+  mix_prior.sample(observed);
 
   for (auto &experiment : experiments)
     experiment.weights.prior = mix_prior;
