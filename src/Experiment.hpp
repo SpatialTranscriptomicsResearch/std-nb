@@ -524,8 +524,6 @@ template <typename Type>
 void Experiment<Type>::sample_contributions(const features_t &global_features,
                                             Matrix &g_r, Matrix &g_p) {
   LOG(verbose) << "Sampling contributions";
-  contributions_gene_type.fill(0);
-  contributions_spot_type.fill(0);
   Matrix g_theta(S, T, arma::fill::zeros);
   Vector g_spot(S, arma::fill::zeros);
 
@@ -542,6 +540,18 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
     for (size_t s = 0; s < S; ++s)
       if (RandomDistribution::Uniform(EntropySource::rng) < parameters.dropout_spot)
         dropped_spots += dropout_spot[s] = true;
+
+  // reset contributions for those genes that are not dropped
+  for (size_t g = 0; g < G; ++g)
+    if (not dropout_gene[g])
+      for (size_t t = 0; t < T; ++t)
+        contributions_gene_type(g, t) = 0;
+
+  // reset contributions for those spots that are not dropped
+  for (size_t s = 0; s < S; ++s)
+    if (not dropout_spot[s])
+      for (size_t t = 0; t < T; ++t)
+        contributions_spot_type(s, t) = 0;
 
   if (parameters.dropout_gene > 0.0)
     LOG(verbose) << "Gene dropout rate = " << parameters.dropout_gene * 100
