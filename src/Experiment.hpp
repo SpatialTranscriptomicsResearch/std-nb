@@ -481,16 +481,10 @@ template <typename T> int sgn(T val) {
 
 template <typename T, typename U>
 void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
-  // auto rate_iter = rate.begin();
-  // for (auto &s : prev_sgn)
-  //   s = sgn(*rate_iter++);
-
   // const double bump_up = 1.2;
   // const double bump_down = 0.5;
   const double eta_plus = 1.1;
   const double eta_minus = 1.0 - 1.0 / 3;
-  // const double notch_up = 0.1;
-  // const double notch_down = -1.0/3;
 
   const double max_change = log(10);
   // const double min_change = 1 / max_change;
@@ -504,59 +498,24 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
     auto sgn_grad = sgn(*grad_iter);
     switch (sgn_grad * *sgn_iter) {
       case 1:
-        // r = std::min(*data_iter * 3, r * eta_plus);
-        // r = r * eta_plus;
-        // while (*data_iter - sgn_grad * r <= 0)
-        //   r *= eta_minus;
         r = std::min(max_change, r * eta_plus);
-        // r = std::min(max_change, r + notch_up);
-        // *data_iter += sgn_grad * r;
-        *data_iter *= exp(sgn_grad * r);
-        *sgn_iter = sgn_grad;
         caseP++;
-        break;
       case 0:
-        // while (*data_iter - sgn_grad * r <= 0)
-        //   r *= eta_minus;
-        // *data_iter += sgn_grad * r;
         *data_iter *= exp(sgn_grad * r);
         *sgn_iter = sgn_grad;
         case0++;
         break;
       case -1:
-        // r = std::max(*data_iter / 3, r * eta_minus);
-        // r = r * eta_minus;
         r = std::max(min_change, r * eta_minus);
-        // r = std::max(min_change, r + notch_down);
         *sgn_iter = 0;
         caseN++;
         break;
     }
-    /*
-    bool sign_grad = *grad_iter >= 0;
-    bool sign_prev = r >= 0;
-    bool identical_sign = sign_grad == sign_prev;
-    if (true) {
-      if (identical_sign)
-        r += notch_up;
-      else
-        r += notch_down;
-    } else {
-      if (identical_sign)
-        r *= bump_up;
-      else
-        r *= bump_down;
-    }
-
-    r = (sign_grad ? 1 : -1) * fabs(r);
-
-    *data_iter *= exp(r);
-    */
-
     grad_iter++;
     data_iter++;
     sgn_iter++;
   }
+  case0 -= caseP;
   LOG(info) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
 }
 
@@ -751,19 +710,15 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
               += weights.prior.r(t) - 1 - weights.prior.p(t) * theta(s, t);
   }
 
-  // g_spot /= G * T;
-  // g_theta /= G;
-
   parameters.dropout_gene *= parameters.dropout_anneal;
   parameters.dropout_spot *= parameters.dropout_anneal;
 
-  // weights.matrix += g_theta * parameters.sgd_step_size;
-  // spot += g_spot * parameters.sgd_step_size;
 
   rprop_update(g_spot, prev_sign_spot, prev_g_spot, spot);
   rprop_update(g_theta, prev_sign_theta, prev_g_theta, weights.matrix);
   min_max("rates spot", prev_g_spot);
   min_max("rates theta", prev_g_theta);
+
   // spot.fill(1.0);
   // weights.matrix.fill(1.0);
 

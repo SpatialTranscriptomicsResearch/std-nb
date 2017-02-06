@@ -358,8 +358,6 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                              * features.prior.p(g, t);
   }
 
-  // g_p = -g_p;
-
   rprop_update(g_r, prev_sign_r, prev_g_r, features.prior.r);
   rprop_update(g_p, prev_sign_p, prev_g_p, features.prior.p);
 

@@ -164,11 +164,11 @@ double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
   const size_t S = theta.size();
   const Float r = x.first;
   const Float p = x.second;
-  double l
-      = log_beta_neg_odds(p, hyperparameters.theta_p_1,
-                          hyperparameters.theta_p_2)
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        + log_gamma(r, hyperparameters.theta_r_1, 1 / hyperparameters.theta_r_2);
+  double l = log_beta_neg_odds(p, hyperparameters.theta_p_1,
+                               hyperparameters.theta_p_2)
+             // NOTE: gamma_distribution takes a shape and scale parameter
+             + log_gamma(r, hyperparameters.theta_r_1,
+                         1 / hyperparameters.theta_r_2);
   for (size_t s = 0; s < S; ++s)
     // NOTE: gamma_distribution takes a shape and scale parameter
     l += log_gamma(theta(s), r, 1 / p);
