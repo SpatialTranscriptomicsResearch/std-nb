@@ -335,32 +335,83 @@ void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
 
 template <typename Type>
 void Model<Type>::sample_contributions(bool update_phi_prior) {
-  Matrix g_r(G, T, arma::fill::zeros);
-  Matrix g_p(G, T, arma::fill::zeros);
+  Matrix grad_r(G, T, arma::fill::zeros);
+  Matrix grad_p(G, T, arma::fill::zeros);
+  Matrix curv_r(G, T, arma::fill::zeros);
+  Matrix curv_p(G, T, arma::fill::zeros);
+  Matrix curv_rp(G, T, arma::fill::zeros);
   generate_alternative_prior(features, parameters.phi_prior_gen_sd);
   for (auto &experiment : experiments)
-    experiment.sample_contributions(features, g_r, g_p);
+    experiment.sample_contributions(features, grad_r, grad_p,
+                                    curv_r, curv_p, curv_rp);
   update_contributions();
 
   if (true) {
     if (true)
       for (size_t g = 0; g < G; ++g)
         for (size_t t = 0; t < T; ++t)
-          g_r(g, t)
+          grad_r(g, t)
               += parameters.hyperparameters.phi_r_1 - 1
                  - parameters.hyperparameters.phi_r_2 * features.prior.r(g, t);
 
     if (true)
       for (size_t g = 0; g < G; ++g)
         for (size_t t = 0; t < T; ++t)
-          g_p(g, t) += parameters.hyperparameters.phi_p_2 - 1
-                       - (parameters.hyperparameters.phi_p_1 - 1)
-                             * features.prior.p(g, t);
+          grad_p(g, t) += (parameters.hyperparameters.phi_p_2 - 1
+                           - (parameters.hyperparameters.phi_p_1 - 1)
+                                 * features.prior.p(g, t))
+                          / (features.prior.p(g, t) + 1);
   }
 
-  rprop_update(g_r, prev_sign_r, prev_g_r, features.prior.r);
-  rprop_update(g_p, prev_sign_p, prev_g_p, features.prior.p);
+  if (true) {
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        curv_r(g, t)
+            += -parameters.hyperparameters.phi_r_2 * features.prior.r(g, t);
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t) {
+        double negodds = features.prior.p(g, t);
+        curv_p(g, t) += -(parameters.hyperparameters.phi_r_1
+                          + parameters.hyperparameters.phi_r_2 - 2)
+                        * negodds / (negodds * negodds + 2 * negodds + 1);
+      }
+  }
 
+  if (false) {
+    min_max("grad r", grad_r);
+    min_max("grad p", grad_p);
+    min_max("curv r", curv_r);
+    min_max("curv p", curv_p);
+    min_max("curv rp", curv_rp);
+
+    if (false) {
+      double alpha = 0.5;
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          features.prior.r(g, t) *= exp(-alpha * grad_r(g, t) / curv_r(g, t));
+
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          features.prior.p(g, t) *= exp(-alpha * grad_p(g, t) / curv_p(g, t));
+    } else {
+      // curv_r.fill(1.0);
+      // curv_p.fill(1.0);
+      // curv_rp.fill(0.0);
+      // auto r_copy = features.prior.r;
+      // auto p_copy = features.prior.p;
+      newton_raphson(grad_r, grad_p, curv_r, curv_p, curv_rp, features.prior.r,
+                     features.prior.p, contributions_gene_type);
+      // features.prior.r = r_copy;
+      // rprop_update(grad_r, prev_sign_r, prev_g_r, features.prior.r);
+      // features.prior.p = p_copy;
+      // rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
+    }
+  } else {
+    rprop_update(grad_r, prev_sign_r, prev_g_r, features.prior.r);
+    rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
+  }
+
+  // features.prior.r.fill(1024.0);
   // features.prior.r.fill(100.0);
   // features.prior.p.fill(1.0);
   // features.prior.p.fill(0.1 / 0.9);

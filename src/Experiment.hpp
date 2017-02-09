@@ -38,8 +38,8 @@ struct Experiment {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
 
-  Matrix prev_g_theta;
-  Vector prev_g_spot;
+  Matrix prev_grad_theta;
+  Vector prev_grad_spot;
   IMatrix prev_sign_theta;
   IVector prev_sign_spot;
 
@@ -94,8 +94,8 @@ struct Experiment {
 
   /** sample count decomposition */
   void sample_contributions(const features_t &global_features,
-                            Matrix &gradient_r,
-                            Matrix &gradient_p);
+                            Matrix &gradient_r, Matrix &gradient_p,
+                            Matrix &curv_r, Matrix &curv_p, Matrix &curv_rp);
   /** sub-routine for count decomposition sampling */
   double sample_contributions_sub(const features_t &global_features, size_t g,
                                   size_t s, RNG &rng, Matrix &contrib_gene_type,
@@ -161,8 +161,8 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(rowSums<Vector>(data.counts)),
       contributions_spot(colSums<Vector>(data.counts)),
-      prev_g_theta(S, T),
-      prev_g_spot(S),
+      prev_grad_theta(S, T),
+      prev_grad_spot(S),
       prev_sign_theta(S, T, arma::fill::zeros),
       prev_sign_spot(S, arma::fill::zeros),
       features(G, T, parameters),
@@ -172,8 +172,8 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
-  prev_g_theta.fill(parameters.sgd_step_size);
-  prev_g_spot.fill(parameters.sgd_step_size);
+  prev_grad_theta.fill(parameters.sgd_step_size);
+  prev_grad_spot.fill(parameters.sgd_step_size);
 /* TODO consider to reactivate
 if (false) {
   // initialize:
@@ -479,6 +479,157 @@ template <typename T> int sgn(T val) {
     return (T(0) < val) - (val < T(0));
 }
 
+template <typename T>
+void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
+                    const T &curv_p, const T &curv_rp, T &r, T &p, const T&cnts) {
+  min_max("r", r);
+  min_max("p", p);
+  r = log(r);
+  p = log(p);
+  min_max("log r", r);
+  min_max("log p", p);
+  min_max("grad r", grad_r);
+  min_max("grad p", grad_p);
+  min_max("curv r", curv_r);
+  min_max("curv p", curv_p);
+  min_max("curv rp", curv_rp);
+  // const double alpha = 1.00;
+  const double alpha = 0.5;
+  const size_t N = grad_r.size();
+
+  size_t neg_det = 0;
+  size_t zero_det = 0;
+// #pragma omp parallel if(DO_PARALLEL)
+  {
+    // Hessian matrix
+    Matrix H(2, 2);
+
+    Vector v(2);
+    Vector g(2);
+    Vector w(2);
+// #pragma omp for
+    for (size_t n = 0; n < N; ++n) {
+      // set up Hessian matrix
+      H(0, 0) = curv_r[n];
+      H(0, 1) = curv_rp[n];
+      H(1, 0) = curv_rp[n];
+      H(1, 1) = curv_p[n];
+
+      // H(0, 0) = 0;
+      // H(0, 1) = 0;
+      // H(1, 0) = 0;
+      // H(1, 1) = 1;
+
+      // check determinant of Hessian to ensure H is negative definite
+      // if it is, then the Newton direction will be an ascent direction.
+      double det = arma::det(H);
+
+      LOG(verbose) << "det(H)= " << det
+                     << " n=" << n << " k=" << cnts[n]
+                     << " r=" << r[n] << " p=" << p[n]
+                     << " grad_r=" << grad_r[n]
+                     << " grad_p=" << grad_p[n]
+                     << " H=" << H;
+
+      if (det == 0) {
+        LOG(warning) << "Warning: determinant of Hessian is zero: " << det
+                     << " n=" << n << " r=" << r[n] << " p=" << p[n]
+                     << " grad_r=" << grad_r[n]
+                     << " grad_p=" << grad_p[n]
+                     << " H=" << H;
+        zero_det++;
+      } else {
+      // else {
+        if (det > 0 and H(0,0) < 0 and H(1,1) < 0) {
+          LOG(debug) << "OK: positive determinant of Hessian: " << det
+            << " and negative curvatures! n=" << n << " r=" << r[n] << " p=" << p[n]
+            << " H=" << H;
+        } else {
+          neg_det++;
+          LOG(warning) << "Something may be not right!";
+          if (H(0, 0) >= 0 or H(1, 1) >= 0) {
+            LOG(fatal) << "Non-negative curvatures! n=" << n << " r=" << r[n]
+                       << " p=" << p[n] << " H=" << H;
+            // assert(false);
+          }
+          if(det < 0)
+            LOG(fatal) << "Negative determinant of Hessian! n=" << n << " r=" << r[n]
+                       << " p=" << p[n] << " H=" << H;
+        }
+        if (H(0, 0) >= 0)
+          LOG(warning) << "Warning: non-negative curvature for r!";
+        if (H(1, 1) >= 0)
+          LOG(warning) << "Warning: non-negative curvature for p!";
+
+        if (H(0, 0) < 0 and H(1, 1) < 0) {
+          v(0) = r[n];
+          v(1) = p[n];
+
+          g(0) = grad_r[n];
+          g(1) = grad_p[n];
+
+          // H(0,0) -= 1e-3;
+          // H(1,1) -= 1e-3;
+
+          auto H_inv = arma::inv(H);
+          // compute next location
+          Vector x = -alpha * H_inv * g;
+          // x(0) = 0;
+          // x(1) = 0;
+
+          if (true) {
+            LOG(info) << "H = " << std::endl << H;
+            LOG(info) << "H_inv = " << std::endl << H_inv;
+            LOG(info) << "g = " << std::endl << g;
+            LOG(info) << "x = " << std::endl << x;
+          }
+
+          /*
+          Vector y = exp(x);
+          w = v % y;
+          */
+          w = v + x;
+
+          if (true) {
+            // LOG(info) << "y = " << y;
+            LOG(info) << "v = " << std::endl << v;
+            LOG(info) << "w = " << std::endl << w;
+            LOG(info) << "exp v = " << std::endl << exp(v);
+            LOG(info) << "exp w = " << std::endl << exp(w);
+          }
+
+          // update
+          r[n] = w(0);
+          p[n] = w(1);
+
+          if (std::isnan(w(0)) or std::isnan(w(1))) { // or w(0) < 1e-300 or w(1) < 1e-300) {
+            LOG(fatal) << "w=" << w;
+            LOG(fatal) << "nan!";
+            assert(false);
+          }
+          if (H(0, 0) >= 0 or H(1, 1) >= 0)
+            assert(false);
+        }
+      }
+    }
+  }
+  LOG(info) << neg_det << " / " << N << " = " << 100.0 * neg_det / N << "\% determinants were negative";
+  LOG(info) << zero_det << " / " << N << " = " << 100.0 * zero_det / N << "\% determinants were zero";
+  min_max("log r", r);
+  min_max("log p", p);
+  min_max("grad r", grad_r);
+  min_max("grad p", grad_p);
+  min_max("curv r", curv_r);
+  min_max("curv p", curv_p);
+  min_max("curv rp", curv_rp);
+
+  r = exp(r);
+  p = exp(p);
+
+  min_max("r", r);
+  min_max("p", p);
+}
+
 template <typename T, typename U>
 void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
   // const double bump_up = 1.2;
@@ -522,10 +673,12 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
 template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const features_t &global_features,
-                                            Matrix &g_r, Matrix &g_p) {
+                                            Matrix &g_r, Matrix &g_p,
+                                            Matrix &curv_r, Matrix &curv_p,
+                                            Matrix &curv_rp) {
   LOG(verbose) << "Sampling contributions";
-  Matrix g_theta(S, T, arma::fill::zeros);
-  Vector g_spot(S, arma::fill::zeros);
+  Matrix grad_theta(S, T, arma::fill::zeros);
+  Vector grad_spot(S, arma::fill::zeros);
 
   std::vector<bool> dropout_gene(G, false);
   size_t dropped_genes = 0;
@@ -568,8 +721,8 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
     Matrix contrib_gene_type(G, T, arma::fill::zeros);
     Matrix contrib_spot_type(S, T, arma::fill::zeros);
 
-    Matrix g_theta_(S, T, arma::fill::zeros);
-    Vector g_spot_(S, arma::fill::zeros);
+    Matrix g_theta(S, T, arma::fill::zeros);
+    Vector g_spot(S, arma::fill::zeros);
     size_t accepted = 0;
     size_t performed = 0;
 
@@ -613,6 +766,8 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
 
               return l;
             };
+
+            // TODO use full-conditional expected counts instead of one sample
 
             // sample x_gst for all t
             std::vector<double> mean_prob(T, 0);
@@ -665,6 +820,7 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
           for (size_t t = 0; t < T; ++t) {
             const double r = global_features.prior.r(g, t);
             const double negodds = global_features.prior.p(g, t);
+            const double p = neg_odds_to_prob(negodds);
             const auto prod = r * spot(s) * theta(s, t);
             if (prod < 1e-300)
               LOG(info) << g << " / " << s << " / " << t << " prod=" << prod
@@ -673,22 +829,48 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
                         << " sigma=" << spot(s) << " theta=" << theta(s, t)
                         << " no=" << negodds;  // << " p=" << p;
             const double digamma_diff
-                = (cnts[t] == 0)
+                // = (cnts[t] == 0)
+                = (cnts[t] + prod == prod)
                       ? 0
-                      : (prod == 0 ? -std::numeric_limits<double>::infinity()
-                                   : digamma(cnts[t] + prod) - digamma(prod));
-            const double grad
-                = prod * (digamma_diff + log(negodds) - log(negodds + 1));
-            if (true) {
-              g_r(g, t) += grad;
-              g_p(g, t) += prod - cnts[t] * negodds; // * (negodds^2 + negodds)^-1
-              g_theta_(s, t) += grad;
-              g_spot_(s) += grad;
-            } else {
-              g_r(g, t) += grad / r;
-              g_p(g, t) += (r - data.counts[t] * negodds) / (negodds + 1);
-              g_theta_(s, t) += grad;
-              g_spot_(s) += grad;
+                      // : (prod == 0 ? -std::numeric_limits<double>::infinity()
+                                   : digamma(prod + cnts[t]) - digamma(prod); //);
+            const double trigamma_diff
+                // = (cnts[t] == 0)
+                = (cnts[t] + prod == prod)
+                      ? 0
+                      // : (prod == 0 ? -std::numeric_limits<double>::infinity() // TODO check this value
+                                   : trigamma(prod + cnts[t]) - trigamma(prod); //);
+
+            // q = 1 - p
+            const double log_q = log(negodds) - log(negodds + 1);
+            const double grad = prod * (digamma_diff + log_q);
+            g_r(g, t) += grad;
+            g_p(g, t) += (prod - cnts[t] * negodds) / (negodds + 1);
+            g_theta(s, t) += grad;
+            g_spot(s) += grad;
+            // g_p(g, t) += prod - cnts[t] * negodds;  // * (negodds^2 + negodds)^-1
+
+            curv_r(g, t)
+                += prod * (log_q + prod * trigamma_diff + digamma_diff);
+            curv_p(g, t) += -(prod + cnts[t]) * negodds
+                            / (negodds * negodds + 2 * negodds + 1);
+            curv_rp(g, t) += prod / (negodds + 1);
+
+            if (not(std::isfinite(curv_r(g, t)) and std::isfinite(curv_p(g, t))
+                    and std::isfinite(curv_rp(g, t)))) {
+              LOG(fatal) << "Error: found infinite curvature!";
+              LOG(fatal) << "g = " << g;
+              LOG(fatal) << "t = " << t;
+              LOG(fatal) << "r = " << r;
+              LOG(fatal) << "negodds = " << negodds;
+              LOG(fatal) << "p = " << p;
+              LOG(fatal) << "curv_r = " << curv_r(g, t);
+              LOG(fatal) << "curv_p = " << curv_p(g, t);
+              LOG(fatal) << "curv_rp = " << curv_rp(g, t);
+              LOG(fatal) << "grad = " << grad;
+              LOG(fatal) << "digamma_diff = " << digamma_diff;
+              LOG(fatal) << "trigamma_diff = " << trigamma_diff;
+              assert(false);
             }
           }
         }
@@ -697,8 +879,8 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
     {
       contributions_gene_type += contrib_gene_type;
       contributions_spot_type += contrib_spot_type;
-      g_theta += g_theta_;
-      g_spot += g_spot_;
+      grad_theta += g_theta;
+      grad_spot += g_spot;
       total_accepted += accepted;
       total_performed += performed;
     }
@@ -710,24 +892,33 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
   if (true) {
     if (true)
       for (size_t s = 0; s < S; ++s)
-        g_spot(s) += parameters.hyperparameters.spot_a - 1
-                     - parameters.hyperparameters.spot_b * spot(s);
+        grad_spot(s) += parameters.hyperparameters.spot_a - 1
+                        - parameters.hyperparameters.spot_b * spot(s);
+    /*
+      for (size_t s = 0; s < S; ++s)
+        curv_spot(s) += - parameters.hyperparameters.spot_b * spot(s);
+    */
 
     if (true)
       for (size_t s = 0; s < S; ++s)
         for (size_t t = 0; t < T; ++t)
-          g_theta(s, t)
+          grad_theta(s, t)
               += weights.prior.r(t) - 1 - weights.prior.p(t) * theta(s, t);
+    /*
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+        curv_theta(s, t) += - weights.prior.p(t) * theta(s, t);
+    */
   }
 
   parameters.dropout_gene *= parameters.dropout_anneal;
   parameters.dropout_spot *= parameters.dropout_anneal;
 
 
-  rprop_update(g_spot, prev_sign_spot, prev_g_spot, spot);
-  rprop_update(g_theta, prev_sign_theta, prev_g_theta, weights.matrix);
-  min_max("rates spot", prev_g_spot);
-  min_max("rates theta", prev_g_theta);
+  rprop_update(grad_spot, prev_sign_spot, prev_grad_spot, spot);
+  rprop_update(grad_theta, prev_sign_theta, prev_grad_theta, weights.matrix);
+  min_max("rates spot", prev_grad_spot);
+  min_max("rates theta", prev_grad_theta);
 
   // spot.fill(1.0);
   // weights.matrix.fill(1.0);
