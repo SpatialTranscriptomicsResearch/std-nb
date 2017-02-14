@@ -95,6 +95,7 @@ struct Experiment {
   /** sample count decomposition */
   void sample_contributions(const features_t &global_features,
                             Matrix &gradient_r, Matrix &gradient_p,
+                            Matrix &gradient_mu, Matrix &gradient_nu,
                             Matrix &curv_r, Matrix &curv_p, Matrix &curv_rp);
   /** sub-routine for count decomposition sampling */
   double sample_contributions_sub(const features_t &global_features, size_t g,
@@ -208,7 +209,7 @@ if (false) {
     baseline_feature.prior.set_unit();
   }
 
-  if (not parameters.targeted(Target::theta))
+  // if (not parameters.targeted(Target::theta))
     weights.matrix.ones();
 
   if (not parameters.targeted(Target::spot))
@@ -484,8 +485,8 @@ void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
                     const T &curv_p, const T &curv_rp, T &r, T &p, const T&cnts) {
   min_max("r", r);
   min_max("p", p);
-  r = log(r);
-  p = log(p);
+  // r = log(r);
+  // p = log(p);
   min_max("log r", r);
   min_max("log p", p);
   min_max("grad r", grad_r);
@@ -594,8 +595,8 @@ void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
             // LOG(info) << "y = " << y;
             LOG(info) << "v = " << std::endl << v;
             LOG(info) << "w = " << std::endl << w;
-            LOG(info) << "exp v = " << std::endl << exp(v);
-            LOG(info) << "exp w = " << std::endl << exp(w);
+            // LOG(info) << "exp v = " << std::endl << exp(v);
+            // LOG(info) << "exp w = " << std::endl << exp(w);
           }
 
           // update
@@ -623,8 +624,8 @@ void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
   min_max("curv p", curv_p);
   min_max("curv rp", curv_rp);
 
-  r = exp(r);
-  p = exp(p);
+  // r = exp(r);
+  // p = exp(p);
 
   min_max("r", r);
   min_max("p", p);
@@ -653,6 +654,9 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
         caseP++;
       case 0:
         *data_iter *= exp(sgn_grad * r);
+        if(*data_iter < 1e-200)
+          LOG(fatal) << "Warning: an update to a value < 1e-200" << std::endl
+            << "g=" << grad_iter << " prev_sgn=" << *sgn_iter << " rate=" << r << " x=" << *data_iter;
         *sgn_iter = sgn_grad;
         case0++;
         break;
@@ -670,10 +674,113 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
   LOG(info) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
 }
 
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+inline double deriv_log_nb_r(double k, double r, double p, double theta) {
+  const double prod = r * theta;
+  const double digamma_diff
+      = (prod + k == prod)
+            ? 0
+            // TODO if prod is low then use the sum of logs expression for the
+            // difference of gammas
+            : digamma(prod + k) - digamma(prod);
+
+  return theta * (digamma_diff + log(1 - p));
+}
+
+inline double deriv_log_nb_p(double k, double r, double p, double theta) {
+  return k / p - r * theta / (1 - p);
+}
+
+/* -------------------------------------------------------------------------- */
+
+inline double curv_log_nb_r(double k, double r, double p, double theta) {
+  const double prod = r * theta;
+  const double trigamma_diff
+      = (prod + k == prod)
+            ? 0
+            // TODO if prod is low then use the sum of logs expression for the
+            // difference of gammas
+            : trigamma(prod + k) - trigamma(prod);
+
+  return theta * theta * trigamma_diff;
+}
+
+inline double curv_log_nb_rp(double k, double r, double p, double theta) {
+  return - theta * (1-p);
+}
+
+inline double curv_log_nb_p(double k, double r, double p, double theta) {
+  return - r * theta / (1-p) / (1-p) - k / p / p;
+}
+
+/* -------------------------------------------------------------------------- */
+/* -------------------------------------------------------------------------- */
+
+inline double deriv_log_nb_exp_mu(double k, double mu, double nu, double theta) {
+  return mu * mu
+         * ((2 * nu - mu) * theta
+                * (digamma((mu * mu * theta + k * nu - k * mu) / (nu - mu))
+                   - digamma((mu * mu * theta) / (nu - mu)))
+            + theta * (nu * (2 * log(mu / nu) + 1) - mu * (log(mu / nu) + 1))
+            - k * (nu / mu - 1))
+         / (nu - mu) / (nu - mu);
+}
+
+inline double deriv_log_nb_exp_nu(double k, double mu, double nu, double theta) {
+  return mu * mu
+         * (nu * theta * (digamma((mu * mu * theta + k * nu - k * mu) / nu - mu)
+                          - digamma(mu * mu * theta / (nu - mu)))
+            + ((log(mu / nu) + 1) * nu - mu) * theta - k * nu / mu + k)
+         / (nu - mu) / (nu - mu);
+}
+
+inline double deriv_log_nb_exp_mu_nu(double k, double mu, double nu, double theta) {
+  return mu * mu
+         * (nu * theta * (digamma((mu * mu * theta + k * nu - k * mu) / nu - mu)
+                          - digamma(mu * mu * theta / (nu - mu)))
+            + ((log(mu / nu) + 1) * nu - mu) * theta - k * nu / mu + k)
+         / (nu - mu) / (nu - mu);
+}
+
+inline double deriv_prior_nb_mu(double mu, double nu, const Hyperparameters &params) {
+  const double a = params.phi_r_1;
+  const double b = params.phi_r_2;
+  const double alpha = params.phi_p_1;
+  const double beta = params.phi_p_2;
+  return ((beta + 2 * a - 3) * nu * nu
+          + ((-2 * beta - alpha - 3 * a + 6) * mu - 2 * b * mu * mu) * nu
+          + b * mu * mu * mu + (beta + alpha + a - 3) * mu * mu)
+         / (nu - mu) / (nu - mu);
+}
+
+inline double deriv_prior_nb_nu(double mu, double nu, const Hyperparameters &params) {
+  const double a = params.phi_r_1;
+  const double b = params.phi_r_2;
+  const double alpha = params.phi_p_1;
+  const double beta = params.phi_p_2;
+  return ((beta + 2 * a - 3) * nu * nu
+          + ((-2 * beta - alpha - a + 4) * mu - b * mu * mu) * nu
+          + mu * mu * (beta + alpha + a - 3))
+         / (nu - mu) / (nu - mu);
+}
+
+double mean_NB_rp(double r, double p) { return r * p / (1 - p); }
+
+double var_NB_rp(double r, double p) { return r * p / (1 - p) / (1 - p); }
+
+double mean_NB_rno(double r, double no) { return r / no; }
+
+double var_NB_rno(double r, double no) {
+  return var_NB_rp(r, neg_odds_to_prob(no));
+}
+
 template <typename Type>
 /** sample count decomposition */
 void Experiment<Type>::sample_contributions(const features_t &global_features,
                                             Matrix &g_r, Matrix &g_p,
+                                            Matrix &g_mu, Matrix &g_nu,
                                             Matrix &curv_r, Matrix &curv_p,
                                             Matrix &curv_rp) {
   LOG(verbose) << "Sampling contributions";
@@ -832,6 +939,7 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
                 // = (cnts[t] == 0)
                 = (cnts[t] + prod == prod)
                       ? 0
+                      // TODO if prod is low then use the sum of logs expression for the dufference of gammas
                       // : (prod == 0 ? -std::numeric_limits<double>::infinity()
                                    : digamma(prod + cnts[t]) - digamma(prod); //);
             const double trigamma_diff
@@ -844,17 +952,43 @@ void Experiment<Type>::sample_contributions(const features_t &global_features,
             // q = 1 - p
             const double log_q = log(negodds) - log(negodds + 1);
             const double grad = prod * (digamma_diff + log_q);
-            g_r(g, t) += grad;
-            g_p(g, t) += (prod - cnts[t] * negodds) / (negodds + 1);
-            g_theta(s, t) += grad;
-            g_spot(s) += grad;
-            // g_p(g, t) += prod - cnts[t] * negodds;  // * (negodds^2 + negodds)^-1
 
-            curv_r(g, t)
-                += prod * (log_q + prod * trigamma_diff + digamma_diff);
-            curv_p(g, t) += -(prod + cnts[t]) * negodds
-                            / (negodds * negodds + 2 * negodds + 1);
-            curv_rp(g, t) += prod / (negodds + 1);
+            if (false) {
+              g_r(g, t) += grad;
+              g_p(g, t) += (prod - cnts[t] * negodds) / (negodds + 1);
+              g_theta(s, t) += grad;
+              g_spot(s) += grad;
+
+              g_mu(g, t) += deriv_log_nb_exp_mu(cnts[t], mean_NB_rp(r, p),
+                                                var_NB_rp(r, p),
+                                                spot(s) * theta(s, t));
+              /*
+              g_nu(g, t)
+                  += deriv_log_nb_exp_nu(cnts[t], mean_NB_rp(r, p),
+                                         var_NB_rp(r, p), spot(s) * theta(s,
+              t));
+
+              g_nu(g, t)
+                  += deriv_log_nb_exp_mu_nu(cnts[t], mean_NB_rp(r, p),
+                                         var_NB_rp(r, p), spot(s) * theta(s,
+              t));
+              */
+
+              // g_p(g, t) += prod - cnts[t] * negodds;  // * (negodds^2 +
+              // negodds)^-1
+
+              curv_r(g, t)
+                  += prod * (log_q + prod * trigamma_diff + digamma_diff);
+              curv_p(g, t) += -(prod + cnts[t]) * negodds
+                              / (negodds * negodds + 2 * negodds + 1);
+              curv_rp(g, t) += prod / (negodds + 1);
+            } else {
+              g_r(g, t) = deriv_log_nb_r(cnts[t], r, p, spot(s) * theta(s, t));
+              g_p(g, t) = deriv_log_nb_p(cnts[t], r, p, spot(s) * theta(s, t));
+              curv_r(g, t) = curv_log_nb_r(cnts[t], r, p, spot(s) * theta(s, t));
+              curv_p(g, t) = curv_log_nb_p(cnts[t], r, p, spot(s) * theta(s, t));
+              curv_rp(g, t) = curv_log_nb_rp(cnts[t], r, p, spot(s) * theta(s, t));
+            }
 
             if (not(std::isfinite(curv_r(g, t)) and std::isfinite(curv_p(g, t))
                     and std::isfinite(curv_rp(g, t)))) {

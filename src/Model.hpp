@@ -337,16 +337,19 @@ template <typename Type>
 void Model<Type>::sample_contributions(bool update_phi_prior) {
   Matrix grad_r(G, T, arma::fill::zeros);
   Matrix grad_p(G, T, arma::fill::zeros);
+  Matrix grad_mu(G, T, arma::fill::zeros);
+  Matrix grad_nu(G, T, arma::fill::zeros);
   Matrix curv_r(G, T, arma::fill::zeros);
   Matrix curv_p(G, T, arma::fill::zeros);
   Matrix curv_rp(G, T, arma::fill::zeros);
   generate_alternative_prior(features, parameters.phi_prior_gen_sd);
   for (auto &experiment : experiments)
-    experiment.sample_contributions(features, grad_r, grad_p,
+    experiment.sample_contributions(features, grad_r, grad_p, grad_mu, grad_nu,
                                     curv_r, curv_p, curv_rp);
   update_contributions();
 
   if (true) {
+    // exponentially transformed variables
     if (true)
       for (size_t g = 0; g < G; ++g)
         for (size_t t = 0; t < T; ++t)
@@ -361,23 +364,67 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                            - (parameters.hyperparameters.phi_p_1 - 1)
                                  * features.prior.p(g, t))
                           / (features.prior.p(g, t) + 1);
+
+    if (true)
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          double r = features.prior.r(g, t);
+          double p = neg_odds_to_prob(features.prior.p(g, t));
+          grad_mu(g, t) += deriv_prior_nb_mu(mean_NB_rp(r, p), var_NB_rp(r, p),
+                                       parameters.hyperparameters);
+        }
+
+    if (true)
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          double r = features.prior.r(g, t);
+          double p = neg_odds_to_prob(features.prior.p(g, t));
+          grad_nu(g, t) += deriv_prior_nb_nu(mean_NB_rp(r, p), var_NB_rp(r, p),
+                                       parameters.hyperparameters);
+        }
+  } else {
+    // non-transformed variables
+    for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          grad_r(g, t)
+              += (parameters.hyperparameters.phi_r_1 - 1) / features.prior.r(g, t)
+                 - parameters.hyperparameters.phi_r_2;
+
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        grad_p(g, t)
+            += (parameters.hyperparameters.phi_p_1 - 1) / features.prior.p(g, t)
+               - (parameters.hyperparameters.phi_p_2 - 1)
+                     / (1 - features.prior.p(g, t));
   }
 
   if (true) {
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         curv_r(g, t)
-            += -parameters.hyperparameters.phi_r_2 * features.prior.r(g, t);
+            // exponentiall-transformed
+            // += -parameters.hyperparameters.phi_r_2 * features.prior.r(g, t);
+            // non-transformed
+            += -(parameters.hyperparameters.phi_r_1 - 1)
+               / features.prior.r(g, t) / features.prior.r(g, t);
+
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) {
-        double negodds = features.prior.p(g, t);
-        curv_p(g, t) += -(parameters.hyperparameters.phi_r_1
-                          + parameters.hyperparameters.phi_r_2 - 2)
-                        * negodds / (negodds * negodds + 2 * negodds + 1);
+        // non-transformed
+        curv_p(g, t) += -(parameters.hyperparameters.phi_p_1 - 1)
+                   / features.prior.p(g, t) / features.prior.p(g, t)
+               - (parameters.hyperparameters.phi_p_2 - 1)
+                     / (1 - features.prior.p(g, t))
+                     / (1 - features.prior.p(g, t));
+        // exponentiall-transformed
+        // double negodds = features.prior.p(g, t);
+        // curv_p(g, t) += -(parameters.hyperparameters.phi_r_1
+        //                   + parameters.hyperparameters.phi_r_2 - 2)
+        //                 * negodds / (negodds * negodds + 2 * negodds + 1);
       }
   }
 
-  if (false) {
+  if (true) {
     min_max("grad r", grad_r);
     min_max("grad p", grad_p);
     min_max("curv r", curv_r);
@@ -399,16 +446,76 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
       // curv_rp.fill(0.0);
       // auto r_copy = features.prior.r;
       // auto p_copy = features.prior.p;
+      for(auto &x: features.prior.p)
+        x = neg_odds_to_prob(x);
       newton_raphson(grad_r, grad_p, curv_r, curv_p, curv_rp, features.prior.r,
                      features.prior.p, contributions_gene_type);
+      for(auto &x: features.prior.p)
+        x = prob_to_neg_odds(x);
       // features.prior.r = r_copy;
       // rprop_update(grad_r, prev_sign_r, prev_g_r, features.prior.r);
       // features.prior.p = p_copy;
       // rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
     }
   } else {
-    rprop_update(grad_r, prev_sign_r, prev_g_r, features.prior.r);
-    rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
+    if (false) {
+      rprop_update(grad_r, prev_sign_r, prev_g_r, features.prior.r);
+      rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
+    } else {
+      Matrix mu = features.prior.r;
+      Matrix nu = features.prior.p;
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          mu(g, t) = mean_NB_rno(mu(g, t), nu(g, t));
+          nu(g, t) = var_NB_rno(mu(g, t), nu(g, t));
+        }
+
+      Matrix mu_prev = mu;
+      min_max("MU pre", mu);
+      rprop_update(grad_mu, prev_sign_r, prev_g_r, mu);
+      min_max("MU post", mu);
+      Matrix diff = mu - mu_prev;
+      Matrix ratio = mu / mu_prev;
+      min_max("MU diff", diff);
+      min_max("MU ratio", ratio);
+
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          if (mu(g, t) < 1e-200)
+            LOG(fatal) << "Warning: a mean value updated to < 1e-200"
+                       << " g=" << g << " t=" << t << " mu=" << mu(g, t);
+          if (false)
+            if (nu(g, t) < 1e-200)
+              LOG(fatal) << "Warning: a var value updated to < 1e-200"
+                         << " g=" << g << " t=" << t << " nu=" << mu(g, t);
+        }
+
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          features.prior.r(g, t) = mu(g, t) * features.prior.p(g, t);
+          // features.prior.r(g, t) = mu(g, t) * mu(g, t) / (nu(g, t) - mu(g, t));
+          if (false)
+            features.prior.p(g, t) = prob_to_neg_odds(1 - mu(g, t) / nu(g, t));
+        }
+
+      if (false)
+        rprop_update(grad_nu, prev_sign_p, prev_g_p, nu);
+      else
+        rprop_update(grad_p, prev_sign_p, prev_g_p, features.prior.p);
+
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t) {
+          if (features.prior.r(g, t) < 1e-200)
+            LOG(fatal) << "Warning: an r value updated to < 1e-200"
+                       << " g=" << g << " t=" << t << " features.prior.r=" << features.prior.r(g, t) << " mu=" << mu(g,t) << " nu=" << nu(g,t);
+          if (features.prior.p(g, t) < 1e-200)
+            LOG(fatal) << "Warning: an p value updated to < 1e-200"
+                       << " g=" << g << " t=" << t << " features.prior.p=" << features.prior.p(g, t) << " mu=" << mu(g,t) << " nu=" << nu(g,t);
+//          if (nu(g, t) < 1e-200)
+//            LOG(fatal) << "Warning: a var value updated to < 1e-200"
+//                       << " g=" << g << " t=" << t << " nu=" << mu(g, t);
+        }
+    }
   }
 
   // features.prior.r.fill(1024.0);
