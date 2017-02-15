@@ -2,6 +2,8 @@
 #define MODEL_HPP
 
 #include <map>
+// #define BOOST_MATH_INSTRUMENT
+#include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
 
 namespace PoissonFactorization {
@@ -335,19 +337,207 @@ void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
 
 template <typename Type>
 void Model<Type>::sample_contributions(bool update_phi_prior) {
-  Matrix grad_r(G, T, arma::fill::zeros);
-  Matrix grad_p(G, T, arma::fill::zeros);
-  Matrix grad_mu(G, T, arma::fill::zeros);
-  Matrix grad_nu(G, T, arma::fill::zeros);
-  Matrix curv_r(G, T, arma::fill::zeros);
-  Matrix curv_p(G, T, arma::fill::zeros);
-  Matrix curv_rp(G, T, arma::fill::zeros);
-  generate_alternative_prior(features, parameters.phi_prior_gen_sd);
+   for (auto &experiment : experiments)
+    experiment.weights.matrix.ones();
   for (auto &experiment : experiments)
-    experiment.sample_contributions(features, grad_r, grad_p, grad_mu, grad_nu,
-                                    curv_r, curv_p, curv_rp);
-  update_contributions();
+    experiment.spot.ones();
 
+  Matrix theta(0, T);
+  // Vector spot(0);
+  for (auto &experiment : experiments)
+    // TODO multiply in the spot scaling values
+    theta = arma::join_vert(
+        theta,
+        experiment.weights.matrix);
+
+  const Vector theta_marginals = colSums<Vector>(theta);
+
+  const size_t S = theta.n_rows;
+
+  const double lower = std::numeric_limits<double>::denorm_min();
+  const double upper = 1e4;
+  // Maximum possible binary digits accuracy for type T.
+  const int digits = std::numeric_limits<double>::digits;
+  // Accuracy doubles with each step, so stop when we have just over half
+  // the digits correct.
+  const int get_digits = static_cast<int>(digits * 0.6);
+
+  const double alpha = parameters.hyperparameters.phi_p_1;
+  const double beta = parameters.hyperparameters.phi_p_2;
+  const double a = parameters.hyperparameters.phi_r_1;
+  const double b = parameters.hyperparameters.phi_r_2;
+
+  const size_t max_iter = 100;
+
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    auto rng = EntropySource::rngs[omp_get_thread_num()];
+
+#pragma omp for
+    for (size_t g = 0; g < G; ++g) {
+      Matrix counts_gst(0, T);
+      for (auto &experiment : experiments)
+        counts_gst = arma::join_vert(
+            counts_gst, experiment.sample_contributions(g, features, rng));
+      for (size_t t = 0; t < T; ++t) {
+        contributions_gene_type(g, t) = 0;
+        for (auto &experiment : experiments)
+          contributions_gene_type(g, t)
+              += experiment.contributions_gene_type(g, t);
+      }
+
+      // TODO optimize r(g,t) and p(g,t)
+
+      for (size_t t = 0; t < T; ++t) {
+        auto r2p = [&](double r) {
+          // LOG(info) << "r2p: r = " << r;
+          // LOG(info) << "r2p: alpha = " << alpha;
+          // LOG(info) << "r2p: beta = " << beta;
+          // LOG(info) << "r2p: contributions = " << contributions_gene_type(g, t);
+          // LOG(info) << "r2p: theta marginal = " << theta_marginals[t];
+          return (alpha + contributions_gene_type(g, t) - 1)
+                 / (alpha + contributions_gene_type(g, t) + beta
+                    + r * theta_marginals[t] - 2);
+        };
+        auto r2no = [&](double r) {
+          return (beta + r * theta_marginals[t] - 1)
+                 / (alpha + contributions_gene_type(g, t) - 1);
+        };
+
+        auto fn0 = [&](double r) {
+          const double p = r2p(r);
+          // const double no = r2no(r);
+          // LOG(info) << "log(1-p): " << log(1-p) << " log(no)-log(1 + no): "
+          // << log(no)-log(1+no);
+
+          double fnc = theta_marginals[t] * log(1 - p);
+          // double fnc = (a - 1) / r - b + theta_marginals[t] * log(1 - p);
+          for (size_t s = 0; s < S; ++s)
+            if (counts_gst(s, t) + r * theta(s, t) != r * theta(s, t))
+              fnc += theta(s, t) * (digamma(counts_gst(s, t) + r * theta(s, t))
+                                    - digamma(r * theta(s, t)));
+
+          return fnc;
+        };
+        auto fn = [&](double r) {
+          const double p = r2p(r);
+
+          double fnc = theta_marginals[t] * log(1 - p);
+          // double fnc = (a - 1) / r - b + theta_marginals[t] * log(1 - p);
+          for (size_t s = 0; s < S; ++s)
+            if (counts_gst(s, t) + r * theta(s, t) != r * theta(s, t))
+              fnc += theta(s, t) * (digamma(counts_gst(s, t) + r * theta(s, t))
+                                    - digamma(r * theta(s, t)));
+
+          double grad = 0;
+          // double grad = -(a - 1) / r / r;
+          for (size_t s = 0; s < S; ++s)
+            if (counts_gst(s, t) + r * theta(s, t) != r * theta(s, t))
+              grad += theta(s, t) * theta(s, t)
+                      * (trigamma(counts_gst(s, t) + r * theta(s, t))
+                         - trigamma(r * theta(s, t)));
+
+          // LOG(info) << "fn r/fn/gr = " << r << " / " << fnc << " / " << grad;
+          // LOG(info) << "fn log(1-p): " << log(1-p);
+          // LOG(info) << "fn theta_marginal: " << theta_marginals[t];
+          // for (size_t s = 0; s < 10; ++s)
+          //   LOG(info) << "fn counts_gst: " << counts_gst(s, t);
+          // for (size_t s = 0; s < 10; ++s)
+          //   LOG(info) << "fn theta_st: " << theta(s, t);
+          return std::pair<double, double>(fnc, grad);
+        };
+
+        LOG(verbose) << "BEFORE: " << experiments[0].data.row_names[g]
+                     << " f=" << fn0(features.prior.r(g, t))
+                     << " r=" << features.prior.r(g, t)
+                     // << " no=" << features.prior.p(g, t)
+                     << " p=" << neg_odds_to_prob(features.prior.p(g, t))
+                     << " m="
+                     << features.prior.r(g, t) / features.prior.p(g, t)
+                            * theta_marginals[t];
+        if(false) {
+        LOG(fatal) << "f(1) = " << fn0(1);
+        LOG(fatal) << "f(2) = " << fn0(2);
+        LOG(fatal) << "f(3) = " << fn0(3);
+        LOG(fatal) << "f(4) = " << fn0(4);
+        }
+
+        boost::uintmax_t it = max_iter;
+        // if (true) {
+        double guess = contributions_gene_type(g, t) * features.prior.p(g, t)
+                       / theta_marginals[t];
+        double previous = features.prior.r(g, t);
+        // LOG(verbose) << "prev = " << previous << " guess = " << guess;
+        features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
+            fn, guess, lower, upper, get_digits, it);
+        /*
+        } else {
+          double factor = 2;       // How big steps to take when searching.
+
+          bool is_rising = true;  // So if result if guess^3 is too low, then
+                                  // try increasing guess.
+          int digits = std::numeric_limits<double>::digits;  // Maximum
+        possible
+                                                             // binary digits
+          // accuracy for type double.
+          // Some fraction of digits is used to control how accurate to try to
+          // make the result.
+          int get_digits
+              = digits
+                - 3;  // We have to have a non-zero interval at each step, so
+                      // maximum accuracy is digits - 1.  But we also have to
+                      // allow for inaccuracy in f(x), otherwise the last few
+                      // iterations just thrash around.
+          boost::math::tools::eps_tolerance<double> tol(
+              get_digits);  // Set the tolerance.
+          std::pair<double, double> r
+              = boost::math::tools::bracket_and_solve_root(
+                  fn0, features.prior.r(g, t), factor, is_rising, tol, it);
+          features.prior.r(g, t) = r.first + (r.second - r.first) / 2;
+        }
+        */
+        if (it >= max_iter) {
+          LOG(fatal) << "Unable to locate solution in " << max_iter
+                     << " iterations:"
+                        " Current best guess is "
+                     << features.prior.r(g, t);
+          exit(-1);
+        }
+
+        double p = r2p(features.prior.r(g, t));
+
+        bool reached_upper = features.prior.r(g, t) >= upper;
+
+        features.prior.p(g, t) = prob_to_neg_odds(p);
+
+        LOG(verbose) << "AFTER: " << experiments[0].data.row_names[g]
+                     << " f=" << fn0(features.prior.r(g, t))
+                     << " r=" << features.prior.r(g, t)
+                     << " no=" << features.prior.p(g, t)
+                     << " no=" << r2no(features.prior.r(g, t)) << " p=" << p
+                     << " p=" << neg_odds_to_prob(features.prior.p(g, t))
+                     << " m="
+                     << features.prior.r(g, t) / features.prior.p(g, t)
+                            * theta_marginals[t];
+        if (reached_upper)
+          LOG(fatal) << "Error: reached upper limit!";
+        if(false) {
+        // LOG(fatal) << "f(lower) = " << fn0(lower);
+        LOG(fatal) << "f(1) = " << fn0(1);
+        LOG(fatal) << "f(2) = " << fn0(2);
+        LOG(fatal) << "f(3) = " << fn0(3);
+        LOG(fatal) << "f(4) = " << fn0(4);
+        LOG(fatal) << "f(guess) = " << fn0(guess);
+        LOG(fatal) << "f(upper) = " << fn0(upper);
+        LOG(fatal) << "f(previous) = " << fn0(previous);
+        LOG(fatal) << "f(final) = " << fn0(features.prior.r(g, t));
+        }
+      }
+    }
+    update_contributions();
+  }
+
+  /*
   if (true) {
     // exponentially transformed variables
     if (true)
@@ -371,7 +561,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           double r = features.prior.r(g, t);
           double p = neg_odds_to_prob(features.prior.p(g, t));
           grad_mu(g, t) += deriv_prior_nb_mu(mean_NB_rp(r, p), var_NB_rp(r, p),
-                                       parameters.hyperparameters);
+                                             parameters.hyperparameters);
         }
 
     if (true)
@@ -380,15 +570,15 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           double r = features.prior.r(g, t);
           double p = neg_odds_to_prob(features.prior.p(g, t));
           grad_nu(g, t) += deriv_prior_nb_nu(mean_NB_rp(r, p), var_NB_rp(r, p),
-                                       parameters.hyperparameters);
+                                             parameters.hyperparameters);
         }
   } else {
     // non-transformed variables
     for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          grad_r(g, t)
-              += (parameters.hyperparameters.phi_r_1 - 1) / features.prior.r(g, t)
-                 - parameters.hyperparameters.phi_r_2;
+      for (size_t t = 0; t < T; ++t)
+        grad_r(g, t)
+            += (parameters.hyperparameters.phi_r_1 - 1) / features.prior.r(g, t)
+               - parameters.hyperparameters.phi_r_2;
 
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
@@ -527,6 +717,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
   min_max("rates p", prev_g_p);
 
   enforce_positive_parameters();
+  */
 }
 
 template <typename Type>
