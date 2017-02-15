@@ -544,10 +544,10 @@ void Model<Type>::update_contributions() {
 template <typename Type>
 void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
   Parameters experiment_parameters = parameters;
-  parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
-  parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
+  experiment_parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
+  experiment_parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
+  experiment_parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
+  experiment_parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
   experiments.push_back({counts, T, experiment_parameters});
   E++;
   // TODO check redundancy with Experiment constructor
