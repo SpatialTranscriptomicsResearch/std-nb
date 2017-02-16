@@ -815,6 +815,38 @@ Matrix Experiment<Type>::sample_contributions_spot(
   return contributions;
 }
 
+inline double lgamma_diff(double a, double b) {
+  double s = a + b;
+  if (s != a)
+    return lgamma(s) - lgamma(a);
+  else
+    return 0;
+}
+
+inline double lgamma_diff_1p(double a, double b) {
+  double s = a + b;
+  if (s != a + 1)
+    return lgamma(s) - lgamma(a + 1);
+  else
+    return 0;
+}
+
+inline double digamma_diff(double a, double b) {
+  double s = a + b;
+  if (s != a)
+    return digamma(s) - digamma(a);
+  else
+    return 0;
+}
+
+inline double trigamma_diff(double a, double b) {
+  double s = a + b;
+  if (s != a)
+    return trigamma(s) - trigamma(a);
+  else
+    return 0;
+}
+
 template <typename Type>
 /** sample count decomposition */
 std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
@@ -841,14 +873,12 @@ std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
        */
 
       // subtract current score contributions
-      l -= lgamma(prod_i + v[i]) - lgamma(v[i] + 1) - v[i] * log(1 + no_i);
-      l -= lgamma(prod_j + v[j]) - lgamma(v[j] + 1) - v[j] * log(1 + no_j);
+      l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);
+      l -= lgamma_diff_1p(v[j], prod_j) - v[j] * log(1 + no_j);
 
       // add proposed score contributions
-      l += lgamma(prod_i + v[i] - n) - lgamma(v[i] - n + 1)
-           - (v[i] - n) * log(1 + no_i);
-      l += lgamma(prod_j + v[j] + n) - lgamma(v[j] + n + 1)
-           - (v[j] + n) * log(1 + no_j);
+      l += lgamma_diff_1p(v[i] - n, prod_i) - (v[i] - n) * log(1 + no_i);
+      l += lgamma_diff_1p(v[j] + n, prod_j) - (v[j] + n) * log(1 + no_j);
 
       return l;
     };

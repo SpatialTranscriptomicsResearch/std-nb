@@ -415,8 +415,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           double fnc = theta_marginals[t] * log(1 - p);
           for (size_t s = 0; s < S; ++s)
             if (counts_gst(s, t) + r * theta(s, t) != r * theta(s, t))
-              fnc += theta(s, t) * (digamma(counts_gst(s, t) + r * theta(s, t))
-                                    - digamma(r * theta(s, t)));
+              fnc += theta(s, t)
+                     * digamma_diff(r * theta(s, t), counts_gst(s, t));
           if (respect_priors)
             fnc += (a - 1) / r - b + theta_marginals[t] * log(1 - p);
 
@@ -429,8 +429,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           for (size_t s = 0; s < S; ++s)
             if (counts_gst(s, t) + r * theta(s, t) != r * theta(s, t))
               grad += theta(s, t) * theta(s, t)
-                      * (trigamma(counts_gst(s, t) + r * theta(s, t))
-                         - trigamma(r * theta(s, t)));
+                      * trigamma_diff(r * theta(s, t), counts_gst(s, t));
           if (respect_priors)
             grad += -(a - 1) / r / r;
 
@@ -528,9 +527,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               if (counts_gst(g, t) + features.prior.r(g, t) * x * sigma(s)
                   != features.prior.r(g, t) * x * sigma(s))
                 fnc += features.prior.r(g, t)
-                       * (digamma(features.prior.r(g, t) * x * sigma(s)
-                                  + counts_gst(g, t))
-                          - digamma(features.prior.r(g, t) * x * sigma(s)));
+                       * digamma_diff(features.prior.r(g, t) * x * sigma(s),
+                                      counts_gst(g, t));
             }
             fnc *= sigma(s);
             if (respect_priors)
@@ -547,9 +545,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               if (counts_gst(g, t) + features.prior.r(g, t) * x * sigma(s)
                   != features.prior.r(g, t) * x * sigma(s))
                 grad += features.prior.r(g, t) * features.prior.r(g, t)
-                        * (trigamma(features.prior.r(g, t) * x * sigma(s)
-                                    + counts_gst(g, t))
-                           - trigamma(features.prior.r(g, t) * x * sigma(s)));
+                        * trigamma_diff(features.prior.r(g, t) * x * sigma(s),
+                                        counts_gst(g, t));
             }
             grad *= sigma(s) * sigma(s);
             if (respect_priors)
