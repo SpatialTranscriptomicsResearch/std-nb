@@ -204,7 +204,7 @@ if (false) {
     baseline_feature.prior.set_unit();
   }
 
-  // if (not parameters.targeted(Target::theta))
+  if (not parameters.targeted(Target::theta))
     weights.matrix.ones();
 
   if (not parameters.targeted(Target::spot))
