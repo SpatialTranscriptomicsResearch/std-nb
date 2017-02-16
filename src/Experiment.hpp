@@ -93,15 +93,12 @@ struct Experiment {
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
 
   /** sample count decomposition */
-  Matrix sample_contributions(size_t g, const features_t &global_features,
-                            RNG &rng);
-  /** sub-routine for count decomposition sampling */
-  double sample_contributions_sub(const features_t &global_features, size_t g,
-                                  size_t s, RNG &rng, Matrix &contrib_gene_type,
-                                  Matrix &contrib_spot_type, Matrix &log_ratios,
-                                  Matrix &theta_explained_spot_type_,
-                                  Float &sigma_explained_spot_,
-                                  bool dropout_gene, bool dropout_spot) const;
+  Matrix sample_contributions_gene(size_t g, const features_t &global_features,
+                                   RNG &rng);
+  Matrix sample_contributions_spot(size_t s, const features_t &global_features,
+                                   RNG &rng);
+  std::vector<size_t> sample_contributions_gene_spot(
+      size_t g, size_t s, const features_t &global_features, RNG &rng);
 
   /** sample spot scaling factors */
   void sample_spot(const features_t &global_features);
@@ -776,253 +773,128 @@ double var_NB_rno(double r, double no) {
 
 template <typename Type>
 /** sample count decomposition */
-Matrix Experiment<Type>::sample_contributions(size_t g,
-                                              const features_t &global_features,
-                                              RNG &rng) {
+Matrix Experiment<Type>::sample_contributions_gene(
+    size_t g, const features_t &global_features, RNG &rng) {
   LOG(debug) << "Sampling contributions for gene " << g;
-  Matrix contributions(S, T);
+  Matrix contributions(S, T, arma::fill::zeros);
 
   // reset contributions for those genes that are not dropped
   for (size_t t = 0; t < T; ++t)
     contributions_gene_type(g, t) = 0;
 
-  // size_t total_accepted = 0;
-  // size_t total_performed = 0;
-
-  // Matrix contrib_gene_type(G, T, arma::fill::zeros);
-  // Matrix contrib_spot_type(S, T, arma::fill::zeros);
-
-  // Matrix g_theta(S, T, arma::fill::zeros);
-  // Vector g_spot(S, arma::fill::zeros);
-  size_t accepted = 0;
-  size_t performed = 0;
-
   for (size_t s = 0; s < S; ++s) {
-    std::vector<size_t> cnts(T, 0);
-    if (data.counts(g, s) > 0) {
-      auto log_posterior_difference = [&](const std::vector<size_t> &v,
-                                          size_t i, size_t j, size_t n) {
-        double l = 0;
+    auto cnts = sample_contributions_gene_spot(
+        g, s, global_features, rng);
+    for (size_t t = 0; t < T; ++t) {
+      contributions(s, t) = cnts[t];
+      contributions_gene_type(g, t) += cnts[t];
+    }
+  }
+  return contributions;
+}
 
-        const double r_i = global_features.prior.r(g, i);
-        const double no_i = global_features.prior.p(g, i);
-        const double prod_i = r_i * theta(s, i) * spot(s);
+template <typename Type>
+/** sample count decomposition */
+Matrix Experiment<Type>::sample_contributions_spot(
+    size_t s, const features_t &global_features, RNG &rng) {
+  LOG(debug) << "Sampling contributions for spot " << s;
+  Matrix contributions(G, T, arma::fill::zeros);
 
-        const double r_j = global_features.prior.r(g, j);
-        const double no_j = global_features.prior.p(g, j);
-        const double prod_j = r_j * theta(s, j) * spot(s);
+  // reset contributions for those genes that are not dropped
+  for (size_t t = 0; t < T; ++t)
+    contributions_spot_type(s, t) = 0;
 
-        // TODO determine continous-valued mean by optimizing the posterior
-        // TODO handle infinities
-        /*
-        if(prod + v[t] == 0)
-          return -std::numeric_limits<double>::infinity();
-         */
+  for (size_t g = 0; g < G; ++g) {
+    auto cnts = sample_contributions_gene_spot(
+        g, s, global_features, rng);
+    for (size_t t = 0; t < T; ++t) {
+      contributions(g, t) = cnts[t];
+      contributions_spot_type(s, t) += cnts[t];
+    }
+  }
+  return contributions;
+}
 
-        // subtract current score contributions
-        l -= lgamma(prod_i + v[i]) - lgamma(v[i] + 1) - v[i] * log(1 + no_i);
-        l -= lgamma(prod_j + v[j]) - lgamma(v[j] + 1) - v[j] * log(1 + no_j);
+template <typename Type>
+/** sample count decomposition */
+std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
+    size_t g, size_t s, const features_t &global_features, RNG &rng) {
+  std::vector<size_t> cnts(T, 0);
+  if (data.counts(g, s) > 0) {
+    auto log_posterior_difference = [&](const std::vector<size_t> &v, size_t i,
+                                        size_t j, size_t n) {
+      double l = 0;
 
-        // add proposed score contributions
-        l += lgamma(prod_i + v[i] - n) - lgamma(v[i] - n + 1)
-             - (v[i] - n) * log(1 + no_i);
-        l += lgamma(prod_j + v[j] + n) - lgamma(v[j] + n + 1)
-             - (v[j] + n) * log(1 + no_j);
+      const double r_i = global_features.prior.r(g, i);
+      const double no_i = global_features.prior.p(g, i);
+      const double prod_i = r_i * theta(s, i) * spot(s);
 
-        return l;
-      };
+      const double r_j = global_features.prior.r(g, j);
+      const double no_j = global_features.prior.p(g, j);
+      const double prod_j = r_j * theta(s, j) * spot(s);
 
-      // TODO use full-conditional expected counts instead of one sample
+      // TODO determine continous-valued mean by optimizing the posterior
+      // TODO handle infinities
+      /*
+      if(prod + v[t] == 0)
+        return -std::numeric_limits<double>::infinity();
+       */
 
-      // sample x_gst for all t
-      std::vector<double> mean_prob(T, 0);
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = global_features.prior.r(g, t)
-                            / global_features.prior.p(g, t) * theta(s, t);
-      for (size_t t = 0; t < T; ++t)
-        mean_prob[t] /= z;
-      cnts = sample_multinomial<size_t>(data.counts(g, s), begin(mean_prob),
-                                        end(mean_prob), rng);
+      // subtract current score contributions
+      l -= lgamma(prod_i + v[i]) - lgamma(v[i] + 1) - v[i] * log(1 + no_i);
+      l -= lgamma(prod_j + v[j]) - lgamma(v[j] + 1) - v[j] * log(1 + no_j);
 
-      if (T > 1) {
-        // perform several Metropolis-Hastings steps
-        const size_t initial = 100;
-        int n_iter = initial;
-        while (n_iter--) {
-          // modify
-          size_t i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-          while (cnts[i] == 0)
-            i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-          size_t j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-          while (i == j)
-            j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-          size_t n = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
+      // add proposed score contributions
+      l += lgamma(prod_i + v[i] - n) - lgamma(v[i] - n + 1)
+           - (v[i] - n) * log(1 + no_i);
+      l += lgamma(prod_j + v[j] + n) - lgamma(v[j] + n + 1)
+           - (v[j] + n) * log(1 + no_j);
 
-          // calculate score difference
-          double l = log_posterior_difference(cnts, i, j, n);
-          if (l > 0 or (std::isfinite(l)
-                        and log(RandomDistribution::Uniform(rng))
-                                    * parameters.temperature
-                                <= l)) {
-            // accept the candidate
-            cnts[i] -= n;
-            cnts[j] += n;
-            accepted++;
-          }
-          performed++;
+      return l;
+    };
+
+    // TODO use full-conditional expected counts instead of one sample
+
+    // sample x_gst for all t
+    std::vector<double> mean_prob(T, 0);
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += mean_prob[t] = global_features.prior.r(g, t)
+                          / global_features.prior.p(g, t) * theta(s, t);
+    for (size_t t = 0; t < T; ++t)
+      mean_prob[t] /= z;
+    cnts = sample_multinomial<size_t>(data.counts(g, s), begin(mean_prob),
+                                      end(mean_prob), rng);
+
+    if (T > 1) {
+      // perform several Metropolis-Hastings steps
+      const size_t initial = 100;
+      int n_iter = initial;
+      while (n_iter--) {
+        // modify
+        size_t i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+        while (cnts[i] == 0)
+          i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+        size_t j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+        while (i == j)
+          j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+        size_t n = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
+
+        // calculate score difference
+        double l = log_posterior_difference(cnts, i, j, n);
+        if (l > 0 or (std::isfinite(l)
+                      and log(RandomDistribution::Uniform(rng))
+                                  * parameters.temperature
+                              <= l)) {
+          // accept the candidate
+          cnts[i] -= n;
+          cnts[j] += n;
         }
       }
-
-      for (size_t t = 0; t < T; ++t) {
-        contributions_gene_type(g, t) += cnts[t];
-        // contrib_spot_type(s, t) += cnts[t];
-      }
     }
-    for (size_t t = 0; t < T; ++t)
-      contributions(s, t) = cnts[t];
-
-    /*
-    // calculate gradients
-    for (size_t t = 0; t < T; ++t) {
-      const double r = global_features.prior.r(g, t);
-      const double negodds = global_features.prior.p(g, t);
-      const double p = neg_odds_to_prob(negodds);
-      const auto prod = r * spot(s) * theta(s, t);
-      if (prod < 1e-300)
-        LOG(info) << g << " / " << s << " / " << t << " prod=" << prod
-                  << " cnts=" << cnts[t] << " cnts+prod=" << prod + cnts[t]
-                  << " r=" << r << " sigma=" << spot(s)
-                  << " theta=" << theta(s, t)
-                  << " no=" << negodds;  // << " p=" << p;
-      const double digamma_diff
-          // = (cnts[t] == 0)
-          = (cnts[t] + prod == prod)
-                ? 0
-                // TODO if prod is low then use the sum of logs expression
-                // for the dufference of gammas
-                // : (prod == 0 ? -std::numeric_limits<double>::infinity()
-                : digamma(prod + cnts[t]) - digamma(prod);  //);
-      const double trigamma_diff
-          // = (cnts[t] == 0)
-          = (cnts[t] + prod == prod)
-                ? 0
-                // : (prod == 0 ? -std::numeric_limits<double>::infinity()
-                // // TODO check this value
-                : trigamma(prod + cnts[t]) - trigamma(prod);  //);
-
-      // q = 1 - p
-      const double log_q = log(negodds) - log(negodds + 1);
-      const double grad = prod * (digamma_diff + log_q);
-
-      if (false) {
-        g_r(g, t) += grad;
-        g_p(g, t) += (prod - cnts[t] * negodds) / (negodds + 1);
-        g_theta(s, t) += grad;
-        g_spot(s) += grad;
-
-        g_mu(g, t) += deriv_log_nb_exp_mu(
-            cnts[t], mean_NB_rp(r, p), var_NB_rp(r, p), spot(s) * theta(s, t));
-        / *
-        g_nu(g, t)
-            += deriv_log_nb_exp_nu(cnts[t], mean_NB_rp(r, p),
-                                   var_NB_rp(r, p), spot(s) * theta(s,
-        t));
-
-        g_nu(g, t)
-            += deriv_log_nb_exp_mu_nu(cnts[t], mean_NB_rp(r, p),
-                                   var_NB_rp(r, p), spot(s) * theta(s,
-        t));
-        * /
-
-        // g_p(g, t) += prod - cnts[t] * negodds;  // * (negodds^2 +
-        // negodds)^-1
-
-        curv_r(g, t) += prod * (log_q + prod * trigamma_diff + digamma_diff);
-        curv_p(g, t) += -(prod + cnts[t]) * negodds
-                        / (negodds * negodds + 2 * negodds + 1);
-        curv_rp(g, t) += prod / (negodds + 1);
-      } else {
-        g_r(g, t) = deriv_log_nb_r(cnts[t], r, p, spot(s) * theta(s, t));
-        g_p(g, t) = deriv_log_nb_p(cnts[t], r, p, spot(s) * theta(s, t));
-        curv_r(g, t) = curv_log_nb_r(cnts[t], r, p, spot(s) * theta(s, t));
-        curv_p(g, t) = curv_log_nb_p(cnts[t], r, p, spot(s) * theta(s, t));
-        curv_rp(g, t) = curv_log_nb_rp(cnts[t], r, p, spot(s) * theta(s, t));
-      }
-
-      if (not(std::isfinite(curv_r(g, t)) and std::isfinite(curv_p(g, t))
-              and std::isfinite(curv_rp(g, t)))) {
-        LOG(fatal) << "Error: found infinite curvature!";
-        LOG(fatal) << "g = " << g;
-        LOG(fatal) << "t = " << t;
-        LOG(fatal) << "r = " << r;
-        LOG(fatal) << "negodds = " << negodds;
-        LOG(fatal) << "p = " << p;
-        LOG(fatal) << "curv_r = " << curv_r(g, t);
-        LOG(fatal) << "curv_p = " << curv_p(g, t);
-        LOG(fatal) << "curv_rp = " << curv_rp(g, t);
-        LOG(fatal) << "grad = " << grad;
-        LOG(fatal) << "digamma_diff = " << digamma_diff;
-        LOG(fatal) << "trigamma_diff = " << trigamma_diff;
-        assert(false);
-      }
-    }
-    */
-  }
-// #pragma omp critical
-//   {
-    // contributions_spot_type += contrib_spot_type;
-    // grad_theta += g_theta;
-    // grad_spot += g_spot;
-//   }
-
-  if (performed > 0)
-    LOG(info) << "accepted=" << 100.0 * accepted / performed << "%";
-
-  /*
-  if (true) {
-    if (true)
-      for (size_t s = 0; s < S; ++s)
-        grad_spot(s) += parameters.hyperparameters.spot_a - 1
-                        - parameters.hyperparameters.spot_b * spot(s);
-    / *
-      for (size_t s = 0; s < S; ++s)
-        curv_spot(s) += - parameters.hyperparameters.spot_b * spot(s);
-    * /
-
-    if (true)
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          grad_theta(s, t)
-              += weights.prior.r(t) - 1 - weights.prior.p(t) * theta(s, t);
-    / *
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-        curv_theta(s, t) += - weights.prior.p(t) * theta(s, t);
-    * /
   }
 
-  parameters.dropout_gene *= parameters.dropout_anneal;
-  parameters.dropout_spot *= parameters.dropout_anneal;
-
-  rprop_update(grad_spot, prev_sign_spot, prev_grad_spot, spot);
-  rprop_update(grad_theta, prev_sign_theta, prev_grad_theta, weights.matrix);
-  min_max("rates spot", prev_grad_spot);
-  min_max("rates theta", prev_grad_theta);
-
-  // spot.fill(1.0);
-  // weights.matrix.fill(1.0);
-
-  enforce_positive_parameters();
-
-  min_max("theta", weights.matrix);
-  min_max("spot", spot);
-  min_max("r(theta)", weights.prior.r);
-  min_max("p(theta)", weights.prior.p);
-
-  */
-
-  return contributions;
+  return cnts;
 }
 
 template <typename Type>
@@ -1041,123 +913,6 @@ void Experiment<Type>::enforce_positive_parameters() {
     }
   }
 
-}
-
-template <typename Type>
-double Experiment<Type>::sample_contributions_sub(
-    const features_t &global_features, size_t g, size_t s, RNG &rng,
-    Matrix &contrib_gene_type, Matrix &contrib_spot_type, Matrix &log_ratios,
-    Matrix &theta_explained_spot_type_, Float &sigma_explained_spot_,
-    bool dropout_gene, bool dropout_spot) const {
-
-  /*
-  auto expected_observations = [&](size_t t) {
-    return global_features.prior.r(g, t) / global_features.prior.p(g, t)
-           * baseline_feature.matrix(g) * phi(g, t) * theta(s, t) * spot(s);
-  };
-
-  auto phi0 = [&](size_t t) {
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    return std::gamma_distribution<double>(
-        global_features.prior.r(g, t) + expected_observations(t),
-        1 / (global_features.prior.p(g, t)
-             + baseline_feature.matrix(g) * phi(g, t) * theta(s, t) * spot(s)))(
-        rng);
-        // NOTE: the expectation of this is: r / p
-        // NOTE: the variance of this is:
-        // r / p / p / (1 + baseline_feature.matrix(g) * phi(g, t)
-        //                  * theta(s, t) * spot(s)
-        //                  / global_features.prior.p(g, t))
-  };
-
-  auto phi_prior = [&](size_t t) {
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    return std::gamma_distribution<double>(
-        global_features.prior.r(g, t), 1 / global_features.prior.p(g, t))(rng);
-  };
-  */
-
-  // NOTE: in principle, lambda(g,s,t) is proportional to the baseline feature
-  // and the spot scaling. However, these terms would cancel. Thus, we don't
-  // respect them here.
-
-  Vector phi_(T);
-  for (size_t t = 0; t < T; ++t)
-    // phi_[t] = phi(g, t) * phi_prior(t);
-    // phi_[t] = phi(g, t) * global_features.prior.r(g, t)
-    //           / global_features.prior.p(g, t);
-    phi_[t] = phi(g, t) * global_features.matrix(g, t);
-
-  // TODO remove conditionals; perhaps templatize?
-  std::vector<double> rel_rate(T);
-  double z = 0;
-  if (true) {
-    if (dropout_spot)
-      for (size_t t = 0; t < T; ++t)
-        z += rel_rate[t] = phi_(t);
-    else if (dropout_gene)
-      for (size_t t = 0; t < T; ++t)
-        z += rel_rate[t] = theta(s, t);
-    else
-      for (size_t t = 0; t < T; ++t)
-        z += rel_rate[t] = phi_(t) * theta(s, t);
-  } else
-    for (size_t t = 0; t < T; ++t)
-      z += rel_rate[t] = std::gamma_distribution<double>(
-          global_features.prior.r(g, t),
-          1 / (global_features.prior.p(g, t) + theta(s, t) * spot(s)))(rng);
-  for (size_t t = 0; t < T; ++t)
-    rel_rate[t] /= z;
-
-  // if (data.counts(g, s) > 0) {
-  if (true) {
-    if (parameters.expected_contributions) {
-      for (size_t t = 0; t < T; ++t) {
-        double expected = data.counts(g, s) * rel_rate[t];
-        contrib_gene_type(g, t) += expected;
-        contrib_spot_type(s, t) += expected;
-      }
-
-    } else {
-      auto v = sample_multinomial<Int>(data.counts(g, s), begin(rel_rate),
-                                       end(rel_rate), rng);
-      for (size_t t = 0; t < T; ++t) {
-        contrib_gene_type(g, t) += v[t];
-        contrib_spot_type(s, t) += v[t];
-
-        const Float x_gst = v[t];
-        const Float r_gt = global_features.prior.r(g, t);
-        const Float p_gt = global_features.prior.p(g, t);
-        const Float r_gt_alt = global_features.alt_prior.r(g, t);
-        const Float p_gt_alt = global_features.alt_prior.p(g, t);
-        const Float other = baseline_phi(g)
-                            * features.matrix(g, t) * theta(s, t) * spot[s];
-
-        log_ratios(g, t) +=
-          lgamma(r_gt + x_gst) - (r_gt + x_gst) * log(p_gt + other);
-        log_ratios(g, t) -=
-          lgamma(r_gt_alt + x_gst) - (r_gt_alt + x_gst) * log(p_gt_alt + other);
-
-        if (true) {
-          // NOTE: std::gamma_distribution takes a shape and scale parameter
-          const double phi_gst
-              = baseline_phi(g) * features.matrix(g, t)
-                * std::gamma_distribution<Float>(
-                      r_gt + x_gst,
-                      1.0 / (p_gt
-                             + baseline_phi(g) * features.matrix(g, t)
-                                   * theta(s, t)
-                                   * spot(s)))(EntropySource::rng);
-          theta_explained_spot_type_(s, t) += phi_gst * spot(s);
-          sigma_explained_spot_ += phi_gst * theta(s, t);
-        } else {
-          theta_explained_spot_type_(s, t) += phi_[t] * spot(s);
-          sigma_explained_spot_ += phi_[t] * theta(s, t);
-        }
-      }
-    }
-  }
-  return z;
 }
 
 /** sample spot scaling factors */
