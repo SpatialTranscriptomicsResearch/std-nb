@@ -74,6 +74,12 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   const size_t iteration_num_digits
       = 1 + floor(log(options.num_steps) / log(10));
 
+  const string initial_prefix = options.output + "init/";
+  if (boost::filesystem::create_directory(initial_prefix))
+    pfa.store(initial_prefix);
+  else
+    throw(std::runtime_error("Couldn't create directory " + initial_prefix));
+
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
 

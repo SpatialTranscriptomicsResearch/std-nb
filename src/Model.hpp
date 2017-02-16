@@ -488,9 +488,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
   Vector phi_marginals(T, arma::fill::zeros);
   for (size_t t = 0; t < T; ++t)
-    for (size_t g = 0; g < G; ++g) {
+    for (size_t g = 0; g < G; ++g)
       phi_marginals[t] += features.prior.r(g,t) / features.prior.p(g,t);
-    }
 
   Vector contributions_spot(S, arma::fill::zeros);
   Matrix contributions_spot_type(S, T, arma::fill::zeros);
