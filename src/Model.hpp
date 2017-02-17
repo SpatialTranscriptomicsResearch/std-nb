@@ -10,6 +10,8 @@ namespace PoissonFactorization {
 
 const double local_phi_scaling_factor = 50;
 const int EXPERIMENT_NUM_DIGITS = 4;
+// TODO make configurable
+const double CONTRIB_PSEUDO_COUNT = 1e-6;
 
 const bool respect_priors = false;
 
@@ -447,9 +449,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
         boost::uintmax_t it = max_iter;
         // we add a pseudo count to the contributions
-        // TODO make configurable
-        double guess = (contributions_gene_type(g, t) + 1) * features.prior.p(g, t)
-                       / theta_marginals[t];
+        double guess = (contributions_gene_type(g, t) + CONTRIB_PSEUDO_COUNT)
+                       * features.prior.p(g, t) / theta_marginals[t];
         // double previous = features.prior.r(g, t);
         // LOG(verbose) << "prev = " << previous << " guess = " << guess;
         features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
@@ -564,13 +565,11 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
           boost::uintmax_t it = max_iter;
           // we add a pseudo count to the contributions
-          // TODO make configurable
-          double guess
-              = (contributions_spot_type(s, t) + 1) / sigma(s) / phi_marginals[t];
+          double guess = (contributions_spot_type(s, t) + CONTRIB_PSEUDO_COUNT)
+                         / sigma(s) / phi_marginals[t];
           double previous = theta_unscaled(s, t);
-          experiment.theta(s_, t)
-              = boost::math::tools::newton_raphson_iterate(
-                  fn, guess, lower, upper, get_digits, it);
+          experiment.theta(s_, t) = boost::math::tools::newton_raphson_iterate(
+              fn, guess, lower, upper, get_digits, it);
           if (it >= max_iter) {
             LOG(fatal) << "Unable to locate solution in " << max_iter
                        << " iterations. Current best guess is "
