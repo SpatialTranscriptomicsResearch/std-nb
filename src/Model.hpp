@@ -446,7 +446,9 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                             * theta_marginals[t];
 
         boost::uintmax_t it = max_iter;
-        double guess = contributions_gene_type(g, t) * features.prior.p(g, t)
+        // we add a pseudo count to the contributions
+        // TODO make configurable
+        double guess = (contributions_gene_type(g, t) + 1) * features.prior.p(g, t)
                        / theta_marginals[t];
         // double previous = features.prior.r(g, t);
         // LOG(verbose) << "prev = " << previous << " guess = " << guess;
@@ -561,8 +563,10 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                        << " spot=" << sigma(s);
 
           boost::uintmax_t it = max_iter;
+          // we add a pseudo count to the contributions
+          // TODO make configurable
           double guess
-              = contributions_spot_type(s, t) / sigma(s) / phi_marginals[t];
+              = (contributions_spot_type(s, t) + 1) / sigma(s) / phi_marginals[t];
           double previous = theta_unscaled(s, t);
           experiment.theta(s_, t)
               = boost::math::tools::newton_raphson_iterate(
