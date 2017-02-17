@@ -418,7 +418,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               fnc += theta(s, t)
                      * digamma_diff(r * theta(s, t), counts_gst(s, t));
           if (respect_priors)
-            fnc += (a - 1) / r - b + theta_marginals[t] * log(1 - p);
+            fnc += (a - 1) / r - b;
 
           return fnc;
         };
