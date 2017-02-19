@@ -146,14 +146,88 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   return C * q;
 }
 
+/** Compute the logarithms of the sum of two logarithmic values */
+inline double exp_add(double x, double y) {
+  if (std::isinf(x) and x < 0 and std::isinf(y) and y < 0)
+    return -std::numeric_limits<double>::infinity();
+  double m = std::max(x, y);
+  return log(exp(x - m) + exp(y - m)) + m;
+  // TODO make more efficient
+  // if(x > y)
+  // return log(1 + exp(y - x)) + x;
+  // else
+  // return log(exp(x-y) + 1) + y
+}
+
 /* Based on the following publication:
  * On the convolution of the negative binomial random variables
  * Edward Furman
  * Statistics & probability Letters
  * 77 (2007), 169-172
+ *
+ * returns the logarithm of the probability of observing X=x counts where X is
+ * distributed as the convolution of negative binomially distributed variables
+ *
+ * rs: vector of r parameters for the negative binomial distributions
+ * ps: vector of p parameters for the negative binomial distributions
  */
-double convolved_negative_binomial(double x, size_t K,
-                                   const std::vector<double> &shapes,
-                                   const std::vector<double> &scales);
+template <typename V>
+double convolved_negative_binomial(double x, size_t K, const V &rs,
+                                   const V &ps) {
+  const size_t N = rs.size();
+  assert(ps.size() == N);
+
+  K = std::min<size_t>(K, N);
+
+  V neg_odds(N);
+  for (size_t n = 0; n < N; ++n)
+    neg_odds[n] = (1 - ps[n]) / ps[n];
+
+  const double max_p = *std::max_element(ps.begin(), ps.end());
+  const double max_neg_odds = (1 - max_p) / max_p;
+  double R = 1;
+  for (size_t n = 0; n < N; ++n)
+    R *= std::pow(neg_odds[n] / max_neg_odds, -rs[n]);
+
+  LOG(debug) << "R=" << R;
+
+  V xi(K);
+  for (size_t k = 0; k < K; ++k) {
+    xi[k] = 0;
+    for (size_t n = 0; n < N; ++n) {
+      xi[k] += rs[n] * std::pow(1 - max_neg_odds / neg_odds[n], k + 1);
+      xi[k] /= (k + 1);
+      LOG(debug) << "k=" << k << " n=" << n << " xi[k]=" << xi[k];
+    }
+  }
+
+  double alpha = 0;
+  for (size_t n = 0; n < N; ++n)
+    alpha += rs[n];
+  LOG(debug) << "alpha=" << alpha;
+
+  V delta(K);
+  delta[0] = 1;
+  for (size_t k = 1; k < K; ++k) {
+    delta[k] = 0;
+    for (size_t i = 1; i <= k; ++i)
+      delta[k] += i * xi[i - 1] * delta[k - i];
+    delta[k] /= k;
+    LOG(debug) << "k=" << k << " delta[k]=" << delta[k];
+  }
+
+  double q = -std::numeric_limits<double>::infinity();
+  for (size_t k = 0; k < K; ++k) {
+    // double p = exp(log(delta[k]) + (rho + k - 1) * log(x) - x / min_scale
+    //                 - lgamma(rho + k) - (rho + k) * log(min_scale));
+    double log_p
+        = log(delta[k]) + lgamma(alpha + x + k) - lgamma(alpha + k)
+              - lgamma(x + 1) + (alpha + k) * log(max_p) + x * log(1 - max_p);
+    q = exp_add(q, log_p);
+    LOG(debug) << "k=" << k << " p=" << log_p << " q=" << q;
+  }
+
+  return R * q;
+};
 
 #endif

@@ -74,7 +74,7 @@ struct Experiment {
   void gibbs_sample(const features_t &global_features);
 
   double log_likelihood() const;
-  double log_likelihood_poisson_counts() const;
+  double log_likelihood_conv_NB_counts() const;
 
   Matrix posterior_expectations_poisson() const;
   Matrix posterior_expectations_negative_multinomial(
@@ -406,45 +406,29 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
 
 template <typename Type>
 double Experiment<Type>::log_likelihood() const {
-  double l_features = features.log_likelihood();
-  double l_baseline_feature = baseline_feature.log_likelihood();
-  double l_mix = weights.log_likelihood();
-
-  double l_spot = 0;
-  for (size_t s = 0; s < S; ++s)
-    // NOTE: log_gamma takes a shape and scale parameter
-    l_spot += log_gamma(spot(s), parameters.hyperparameters.spot_a,
-                        1.0 / parameters.hyperparameters.spot_b);
-
-  double l_poisson = log_likelihood_poisson_counts();
-
-  double l = l_features + l_baseline_feature + l_mix + l_spot + l_poisson;
-
-  LOG(verbose) << "Local feature log likelihood: " << l_features;
-  LOG(verbose) << "Local baseline feature log likelihood: " << l_baseline_feature;
-  LOG(verbose) << "Factor activity log likelihood: " << l_mix;
-  LOG(verbose) << "Spot scaling log likelihood: " << l_spot;
-  LOG(verbose) << "Counts log likelihood: " << l_poisson;
-  LOG(verbose) << "Experiment log likelihood: " << l;
-
-  return l;
+  // TODO respect posteriors of priors
+  return log_likelihood_conv_NB_counts();
 }
 
 template <typename Type>
-double Experiment<Type>::log_likelihood_poisson_counts() const {
+double Experiment<Type>::log_likelihood_conv_NB_counts() const {
+  const size_t K = std::min<size_t>(20, T);
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
+  for (size_t g = 0; g < G; ++g) {
+    Vector ps = features.prior.p.row(g);
+    for (size_t t = 0; t < T; ++t)
+      ps[t] = neg_odds_to_prob(ps[t]);
+    Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
-      double rate = lambda_gene_spot(g, s) * spot(s) * baseline_phi(g);
-      auto cur = log_poisson(data.counts(g, s), rate);
-      if (std::isinf(cur) or std::isnan(cur))
-        LOG(warning) << "ll poisson(g=" << g << ",s=" << s << ") = " << cur
-                     << " counts = " << data.counts(g, s)
-                     << " lambda = " << lambda_gene_spot(g, s)
-                     << " rate = " << rate;
-      l += cur;
+      for (size_t t = 0; t < T; ++t)
+        rs[t] = features.prior.r(g, t) * theta(s, t) * spot(s);
+      double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
+      LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
+                 << " counts = " << data.counts(g, s) << " l = " << x;
+      l += x;
     }
+  }
   return l;
 }
 

@@ -79,7 +79,7 @@ struct Model {
   void sample_fields();
 
   double log_likelihood() const;
-  double log_likelihood_poisson_counts() const;
+  double log_likelihood_conv_NB_counts() const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -289,7 +289,7 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
       if (verbosity >= Verbosity::verbose)
         LOG(info) << "Log-likelihood = " << log_likelihood();
       else
-        LOG(info) << "Observed Log-likelihood = " << log_likelihood_poisson_counts();
+        LOG(info) << "Observed Log-likelihood = " << log_likelihood_conv_NB_counts();
     }
 
   // TODO add CLI switch
@@ -684,17 +684,16 @@ void Model<Type>::sample_global_theta_priors() {
 }
 
 template <typename Type>
-double Model<Type>::log_likelihood_poisson_counts() const {
+double Model<Type>::log_likelihood_conv_NB_counts() const {
   double l = 0;
   for (auto &experiment : experiments)
-    l += experiment.log_likelihood_poisson_counts();
+    l += experiment.log_likelihood_conv_NB_counts();
   return l;
 }
 
 template <typename Type>
 double Model<Type>::log_likelihood() const {
-  double l = 0; // TODO remove unused features.log_likelihood();
-  LOG(verbose) << "Global feature log likelihood: " << l;
+  double l = 0;
   for (auto &experiment : experiments)
     l += experiment.log_likelihood();
   return l;
