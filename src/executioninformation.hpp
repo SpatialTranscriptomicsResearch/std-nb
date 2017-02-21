@@ -35,15 +35,16 @@
 
 struct ExecutionInformation {
   ExecutionInformation();
-  ExecutionInformation(const std::string &name, const std::string &hmm_version,
-                       const std::string &git_branch, int argc,
-                       const char **argv);
-  ExecutionInformation(const std::string &name, const std::string &hmm_version,
-                       const std::string &git_branch,
+  ExecutionInformation(const std::string &name, const std::string &version,
+                       const std::string &git_branch, const std::string &build,
+                       int argc, const char **argv);
+  ExecutionInformation(const std::string &name, const std::string &version,
+                       const std::string &git_branch, const std::string &build,
                        const std::string &cmdline);
   std::string program_name;
   std::string program_version;
   std::string git_branch;
+  std::string build_type;
   std::string cmdline;
   std::string datetime;
   std::string directory;
