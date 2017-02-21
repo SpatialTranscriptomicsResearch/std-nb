@@ -495,7 +495,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             LOG(fatal) << "Unable to locate solution for r in " << max_iter
                        << " iterations. Current best guess is "
                        << features.prior.r(g, t);
-            // exit(-1);
+            exit(-1);
           }
 
           double p = r2p(features.prior.r(g, t));
@@ -514,8 +514,10 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                        << " m="
                        << features.prior.r(g, t) / features.prior.p(g, t)
                               * theta_marginals[t];
-          if (reached_upper)
+          if (reached_upper) {
             LOG(fatal) << "Error: reached upper limit!";
+            exit(-1);
+          }
         }
       }
     }
@@ -641,8 +643,10 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                          << " theta=" << experiment.theta(s_, t)
                          << " previous=" << previous << " spot=" << sigma(s);
 
-            if (reached_upper)
+            if (reached_upper) {
               LOG(fatal) << "Error: reached upper limit!";
+              exit(-1);
+            }
           }
       }
       cumul_s += experiment.S;
