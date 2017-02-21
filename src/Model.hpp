@@ -414,8 +414,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
         };
 
         if (cs[t] == 0) {
-          LOG(verbose) << "Sampling r and p of (" << g << ", " << t
-                       << ") from prior:." << experiments[0].data.row_names[g];
+          LOG(verbose) << "Gibbs sampling r and p of (" << g << ", " << t
+                       << "):." << experiments[0].data.row_names[g];
 
           features.prior.r(g, t) = std::gamma_distribution<Float>(
               a, 1.0 / (b
@@ -553,8 +553,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
         for (size_t t = 0; t < T; ++t)
           if (cs[t] == 0) {
-            LOG(verbose) << "Sampling theta(" << s << ", " << t
-                         << ") from prior.";
+            LOG(verbose) << "Gibbs sampling theta(" << s << ", " << t << ").";
             double marginal = 0;
             for (size_t g = 0; g < G; ++g)
               marginal += features.prior.r(g, t)
@@ -626,8 +625,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                 = boost::math::tools::newton_raphson_iterate(
                     fn, guess, lower, upper, get_digits, it);
             if (it >= max_iter) {
-              LOG(fatal) << "Unable to locate solution for theta in " << max_iter
-                         << " iterations. Current best guess is "
+              LOG(fatal) << "Unable to locate solution for theta in "
+                         << max_iter << " iterations. Current best guess is "
                          << experiment.theta(s_, t);
               exit(-1);
             }
