@@ -2,7 +2,9 @@
 #define MODEL_HPP
 
 #include <map>
-// #define BOOST_MATH_INSTRUMENT
+#ifndef NDEBUG
+#define BOOST_MATH_INSTRUMENT
+#endif
 #include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
 
