@@ -25,6 +25,10 @@ template <class T, class V, class Iter>
 V sample_multinomial(size_t n, const Iter begin, const Iter end,
                                   std::mt19937 &rng = EntropySource::rng) {
   V x(std::distance(begin, end));
+  for (auto &y : x)
+    y = 0;
+  if (n == 0)
+    return x;
   Iter p = begin;
   double cum_prob = 0;
   for (auto &y : x) {
