@@ -17,6 +17,12 @@
 
 namespace PoissonFactorization {
 
+#ifdef NDEBUG
+const bool noisy = false;
+#else
+const bool noisy = true;
+#endif
+
 template <typename Type>
 struct Experiment {
   using features_t = typename Type::features_t;
@@ -841,6 +847,10 @@ std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
                                         size_t j, size_t n) {
       double l = 0;
 
+      if (noisy)
+      LOG(verbose) << "i=" << i << " j=" << j << " n=" << n
+        << " v[i]=" << v[i] << " v[j]=" << v[j];
+
       const double r_i = global_features.prior.r(g, i);
       const double no_i = global_features.prior.p(g, i);
       const double prod_i = r_i * theta(s, i) * spot(s);
@@ -854,7 +864,12 @@ std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
       /*
       if(prod + v[t] == 0)
         return -std::numeric_limits<double>::infinity();
-       */
+      */
+
+      if (noisy)
+        LOG(verbose) << "r_i=" << r_i << " no_i=" << no_i << " prod_i=" << prod_i
+                     << " r_j=" << r_j << " no_j=" << no_j
+                     << " prod_j=" << prod_j;
 
       // subtract current score contributions
       l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);
