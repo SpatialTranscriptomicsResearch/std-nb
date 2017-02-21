@@ -422,7 +422,10 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                         - theta_marginals[t]
                               * log(1 - neg_odds_to_prob(
                                             features.prior.p(g, t)))))(rng);
-          features.prior.p(g, t) = r2no(features.prior.r(g, t));
+
+          features.prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
+              alpha, beta + features.prior.r(g, t) * theta_marginals[t], rng));
+
           LOG(verbose) << "r/p= " << features.prior.r(g, t) << "/"
                        << features.prior.p(g, t);
         } else {
