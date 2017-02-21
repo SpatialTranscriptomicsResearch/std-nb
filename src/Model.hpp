@@ -389,9 +389,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
     for (size_t g = 0; g < G; ++g) {
       Matrix counts_gst(0, T);
       for (auto &experiment : experiments)
-        counts_gst = arma::join_vert(counts_gst,
-                                     experiment.sample_contributions_gene(
-                                         g, features, rng));
+        counts_gst = arma::join_vert(
+            counts_gst, experiment.sample_contributions_gene(g, features, rng));
       contributions_gene(g) = 0;
       for (size_t t = 0; t < T; ++t)
         contributions_gene_type(g, t) = 0;
@@ -401,18 +400,32 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           contributions_gene_type(g, t) += counts_gst(s, t);
         }
 
-      for (size_t t = 0; t < T; ++t) {
-        LOG(verbose) << "t = " << t << " cs[t] = " << cs[t];
-          auto r2p = [&](double r) {
-            return (alpha + contributions_gene_type(g, t) - 1)
-                   / (alpha + contributions_gene_type(g, t) + beta
-                      + r * theta_marginals[t] - 2);
-          };
-          auto r2no = [&](double r) {
-            return (beta + r * theta_marginals[t] - 1)
-                   / (alpha + contributions_gene_type(g, t) - 1);
-          };
+      auto cs = colSums<Vector>(counts_gst);
 
+      for (size_t t = 0; t < T; ++t) {
+        auto r2p = [&](double r) {
+          return (alpha + contributions_gene_type(g, t) - 1)
+                 / (alpha + contributions_gene_type(g, t) + beta
+                    + r * theta_marginals[t] - 2);
+        };
+        auto r2no = [&](double r) {
+          return (beta + r * theta_marginals[t] - 1)
+                 / (alpha + contributions_gene_type(g, t) - 1);
+        };
+
+        if (cs[t] == 0) {
+          LOG(verbose) << "Sampling r and p of (" << g << ", " << t
+                       << ") from prior.";
+          features.prior.r(g, t) = std::gamma_distribution<Float>(
+              a, 1.0 / (b
+                        - theta_marginals[t]
+                              * log(1 - neg_odds_to_prob(
+                                            features.prior.p(g, t)))))(rng);
+          features.prior.p(g, t) = r2no(features.prior.r(g, t));
+          LOG(verbose) << "r/p= " << features.prior.r(g, t) << "/"
+                       << features.prior.p(g, t);
+        } else {
+          LOG(verbose) << "t = " << t << " cs[t] = " << cs[t];
           auto fn0 = [&](double r) {
             const double p = r2p(r);
             if (noisy)
@@ -499,6 +512,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                               * theta_marginals[t];
           if (reached_upper)
             LOG(fatal) << "Error: reached upper limit!";
+        }
       }
     }
     update_contributions();
