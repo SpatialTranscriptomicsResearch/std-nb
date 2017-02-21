@@ -21,10 +21,10 @@ T sample_compound_gamma(T a, T b, T c, std::mt19937 &rng) {
       a, 1/std::gamma_distribution<>(b, 1/c)(rng))(rng);
 }
 
-template <class T, class Iter>
-std::vector<T> sample_multinomial(size_t n, const Iter begin, const Iter end,
+template <class T, class V, class Iter>
+V sample_multinomial(size_t n, const Iter begin, const Iter end,
                                   std::mt19937 &rng = EntropySource::rng) {
-  std::vector<T> x(std::distance(begin, end), 0);
+  V x(std::distance(begin, end));
   Iter p = begin;
   double cum_prob = 0;
   for (auto &y : x) {

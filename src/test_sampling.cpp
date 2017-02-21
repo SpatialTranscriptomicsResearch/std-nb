@@ -33,7 +33,7 @@ int main(int argc, char **argv) {
   }
   return EXIT_SUCCESS;
   for (size_t i = 0; i < N; ++i) {
-    auto x = sample_multinomial<size_t>(N, begin(p), end(p));
+    auto x = sample_multinomial<size_t, vector<double>>(N, begin(p), end(p));
     auto y = sample_dirichlet<double>(begin(x), end(x));
     print_vec(x);
     print_vec(y);

@@ -103,8 +103,9 @@ struct Experiment {
                                    RNG &rng);
   Matrix sample_contributions_spot(size_t s, const features_t &global_features,
                                    RNG &rng);
-  std::vector<size_t> sample_contributions_gene_spot(
-      size_t g, size_t s, const features_t &global_features, RNG &rng);
+  IVector sample_contributions_gene_spot(size_t g, size_t s,
+                                         const features_t &global_features,
+                                         RNG &rng) const;
 
   /** sample spot scaling factors */
   void sample_spot(const features_t &global_features);
@@ -839,17 +840,18 @@ inline double trigamma_diff(double a, double b) {
 
 template <typename Type>
 /** sample count decomposition */
-std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
-    size_t g, size_t s, const features_t &global_features, RNG &rng) {
-  std::vector<size_t> cnts(T, 0);
-  if (data.counts(g, s) > 0) {
-    auto log_posterior_difference = [&](const std::vector<size_t> &v, size_t i,
-                                        size_t j, size_t n) {
+IVector Experiment<Type>::sample_contributions_gene_spot(
+    size_t g, size_t s, const features_t &global_features, RNG &rng) const {
+  IVector cnts(T, arma::fill::zeros);
+  const size_t count = data.counts(g, s);
+  if (count > 0) {
+    auto log_posterior_difference = [&](const IVector &v, size_t i, size_t j,
+                                        size_t n) {
       double l = 0;
 
       if (noisy)
-      LOG(verbose) << "i=" << i << " j=" << j << " n=" << n
-        << " v[i]=" << v[i] << " v[j]=" << v[j];
+        LOG(verbose) << "i=" << i << " j=" << j << " n=" << n
+                     << " v[i]=" << v[i] << " v[j]=" << v[j];
 
       const double r_i = global_features.prior.r(g, i);
       const double no_i = global_features.prior.p(g, i);
@@ -892,10 +894,11 @@ std::vector<size_t> Experiment<Type>::sample_contributions_gene_spot(
                           / global_features.prior.p(g, t) * theta(s, t);
     for (size_t t = 0; t < T; ++t)
       mean_prob[t] /= z;
-    cnts = sample_multinomial<size_t>(data.counts(g, s), begin(mean_prob),
-                                      end(mean_prob), rng);
+    cnts = sample_multinomial<size_t, IVector>(
+        data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
 
-    if (T > 1) {
+
+    if (false and T > 1) {
       // perform several Metropolis-Hastings steps
       const size_t initial = 100;
       int n_iter = initial;

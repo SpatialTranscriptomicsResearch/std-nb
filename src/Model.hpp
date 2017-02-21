@@ -486,9 +486,9 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           // double previous = features.prior.r(g, t);
           // LOG(verbose) << "prev = " << previous << " guess = " << guess;
           features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
-              fn, guess, lower, upper, get_digits, it);
+              fn, guess, lower, guess * 100, get_digits, it);
           if (it >= max_iter) {
-            LOG(fatal) << "Unable to locate solution in " << max_iter
+            LOG(fatal) << "Unable to locate solution for r in " << max_iter
                        << " iterations. Current best guess is "
                        << features.prior.r(g, t);
             // exit(-1);
@@ -625,7 +625,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                 = boost::math::tools::newton_raphson_iterate(
                     fn, guess, lower, upper, get_digits, it);
             if (it >= max_iter) {
-              LOG(fatal) << "Unable to locate solution in " << max_iter
+              LOG(fatal) << "Unable to locate solution for theta in " << max_iter
                          << " iterations. Current best guess is "
                          << experiment.theta(s_, t);
               exit(-1);
