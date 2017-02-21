@@ -1,4 +1,5 @@
-build
+build/release
+build/debug
 *.swp
 *.swo
 *~
