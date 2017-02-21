@@ -558,7 +558,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             for (size_t g = 0; g < G; ++g)
               marginal += features.prior.r(g, t)
                           * log(1 - neg_odds_to_prob(features.prior.p(g, t)));
-            marginal *= sigma(s, t);
+            marginal *= sigma(s);
             experiment.theta(s_, t) = std::gamma_distribution<Float>(
                 mix_prior.r(t), 1.0 / (mix_prior.p(t) - marginal))(rng);
             LOG(verbose) << "theta = " << experiment.theta(s_, t);
