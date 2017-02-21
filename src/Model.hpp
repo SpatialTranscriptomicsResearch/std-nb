@@ -440,7 +440,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               throw std::runtime_error("Error: trying to score r=0!");
             */
 
-            double fnc = theta_marginals[t] * log(1 - p);
+            const double no = r2no(r);
+            double fnc = theta_marginals[t] * (log(no) - log(1 + no));
             for (size_t s = 0; s < S; ++s)
               fnc += theta(s, t)
                      * digamma_diff(r * theta(s, t), counts_gst(s, t));
