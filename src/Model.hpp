@@ -415,7 +415,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
         if (cs[t] == 0) {
           LOG(verbose) << "Sampling r and p of (" << g << ", " << t
-                       << ") from prior.";
+                       << ") from prior:." << experiments[0].data.row_names[g];
+
           features.prior.r(g, t) = std::gamma_distribution<Float>(
               a, 1.0 / (b
                         - theta_marginals[t]
