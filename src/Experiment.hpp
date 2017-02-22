@@ -423,7 +423,7 @@ double Experiment<Type>::log_likelihood_conv_NB_counts() const {
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    Vector ps = features.prior.p.row(g);
+    Vector ps = features.prior.p.row(g).t();
     for (size_t t = 0; t < T; ++t)
       ps[t] = neg_odds_to_prob(ps[t]);
     Vector rs(T);
