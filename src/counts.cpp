@@ -59,12 +59,29 @@ void select_top(vector<Counts> &counts_v, size_t top) {
 void discard_empty_spots(Counts &c) {
   auto cs = colSums<Vector>(c.counts);
   const size_t N = cs.n_elem;
+  auto cnt = 0;
   for (size_t n = 0; n < N; ++n)
     if (cs(N - n - 1) == 0) {
+      cnt++;
       c.counts.shed_col(N - n - 1);
       c.col_names.erase(begin(c.col_names) + N - n - 1);
     }
+  LOG(verbose) << "Discarded " << cnt << " spots with zero counts.";
 }
+
+void discard_empty_genes(Counts &c) {
+  auto rs = rowSums<Vector>(c.counts);
+  const size_t N = rs.n_elem;
+  auto cnt = 0;
+  for (size_t n = 0; n < N; ++n)
+    if (rs(N - n - 1) == 0) {
+      cnt++;
+      c.counts.shed_row(N - n - 1);
+      c.row_names.erase(begin(c.row_names) + N - n - 1);
+    }
+  LOG(verbose) << "Discarded " << cnt << " genes with zero counts.";
+}
+
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
                          size_t top, bool discard_empty) {
@@ -82,8 +99,10 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
   select_top(counts_v, top);
 
   if (discard_empty)
-    for (auto &counts : counts_v)
+    for (auto &counts : counts_v) {
       discard_empty_spots(counts);
+      discard_empty_genes(counts);
+    }
 
   LOG(verbose) << "Done loading";
   return counts_v;
