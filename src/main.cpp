@@ -72,7 +72,10 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   const size_t iteration_num_digits
       = 1 + floor(log(options.num_steps) / log(10));
 
-  const string initial_prefix = options.output + "init/";
+  const string initial_prefix = options.output + "iter"
+                                + to_string_embedded(0, iteration_num_digits)
+                                + "/";
+
   if (boost::filesystem::create_directory(initial_prefix))
     pfa.store(initial_prefix);
   else
