@@ -850,8 +850,8 @@ IVector Experiment<Type>::sample_contributions_gene_spot(
       double l = 0;
 
       if (noisy)
-        LOG(verbose) << "i=" << i << " j=" << j << " n=" << n
-                     << " v[i]=" << v[i] << " v[j]=" << v[j];
+        LOG(debug) << "i=" << i << " j=" << j << " n=" << n << " v[i]=" << v[i]
+                   << " v[j]=" << v[j];
 
       const double r_i = global_features.prior.r(g, i);
       const double no_i = global_features.prior.p(g, i);
@@ -869,9 +869,9 @@ IVector Experiment<Type>::sample_contributions_gene_spot(
       */
 
       if (noisy)
-        LOG(verbose) << "r_i=" << r_i << " no_i=" << no_i << " prod_i=" << prod_i
-                     << " r_j=" << r_j << " no_j=" << no_j
-                     << " prod_j=" << prod_j;
+        LOG(debug) << "r_i=" << r_i << " no_i=" << no_i << " prod_i=" << prod_i
+                   << " r_j=" << r_j << " no_j=" << no_j
+                   << " prod_j=" << prod_j;
 
       // subtract current score contributions
       l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);

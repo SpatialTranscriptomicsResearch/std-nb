@@ -417,8 +417,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
         };
 
         if (cs[t] == 0) {
-          LOG(verbose) << "Gibbs sampling r and p of (" << g << ", " << t
-                       << "):." << experiments[0].data.row_names[g];
+          LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t << "):."
+                     << experiments[0].data.row_names[g];
 
           features.prior.r(g, t) = std::gamma_distribution<Float>(
               a, 1.0 / (b
@@ -436,15 +436,15 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           features.prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
               alpha, beta + features.prior.r(g, t) * theta_marginals[t], rng));
 
-          LOG(verbose) << "r/p= " << features.prior.r(g, t) << "/"
-                       << features.prior.p(g, t);
+          LOG(debug) << "r/p= " << features.prior.r(g, t) << "/"
+                     << features.prior.p(g, t);
         } else {
-          LOG(verbose) << "t = " << t << " cs[t] = " << cs[t];
+          LOG(debug) << "t = " << t << " cs[t] = " << cs[t];
           auto fn0 = [&](double r) {
             const double p = r2p(r);
             if (noisy)
-              LOG(verbose) << "g/t = " << g << "/" << t << " r=" << r
-                           << " p=" << p;
+              LOG(debug) << "g/t = " << g << "/" << t << " r=" << r
+                         << " p=" << p;
             /*
             if (r <= 0)
               throw std::runtime_error("Error: trying to score r=0!");
@@ -478,18 +478,18 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             double func = fn0(r);
             double grad = gr0(r);
             if (noisy)
-              LOG(verbose) << "fnc/grad = " << func << "/" << grad;
+              LOG(debug) << "fnc/grad = " << func << "/" << grad;
             return std::pair<double, double>(func, grad);
           };
 
-          LOG(verbose) << "BEFORE: " << experiments[0].data.row_names[g]
-                       << " f=" << fn0(features.prior.r(g, t))
-                       << " r=" << features.prior.r(g, t)
-                       // << " no=" << features.prior.p(g, t)
-                       << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                       << " m="
-                       << features.prior.r(g, t) / features.prior.p(g, t)
-                              * theta_marginals[t];
+          LOG(debug) << "BEFORE: " << experiments[0].data.row_names[g]
+                     << " f=" << fn0(features.prior.r(g, t))
+                     << " r=" << features.prior.r(g, t)
+                     // << " no=" << features.prior.p(g, t)
+                     << " p=" << neg_odds_to_prob(features.prior.p(g, t))
+                     << " m="
+                     << features.prior.r(g, t) / features.prior.p(g, t)
+                            * theta_marginals[t];
 
           boost::uintmax_t it = NewtonRaphson::max_iter;
           double guess = features.prior.r(g, t);
@@ -499,7 +499,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                          * features.prior.p(g, t) / theta_marginals[t];
           */
           // double previous = features.prior.r(g, t);
-          // LOG(verbose) << "prev = " << previous << " guess = " << guess;
+          // LOG(debug) << "prev = " << previous << " guess = " << guess;
           features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
               fn, guess, NewtonRaphson::lower, guess * 100,
               NewtonRaphson::get_digits, it);
@@ -519,15 +519,15 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
           features.prior.p(g, t) = prob_to_neg_odds(p);
 
-          LOG(verbose) << "AFTER: " << experiments[0].data.row_names[g]
-                       << " f=" << fn0(features.prior.r(g, t))
-                       << " r=" << features.prior.r(g, t)
-                       // << " no=" << features.prior.p(g, t)
-                       << " no=" << r2no(features.prior.r(g, t)) << " p=" << p
-                       << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                       << " m="
-                       << features.prior.r(g, t) / features.prior.p(g, t)
-                              * theta_marginals[t];
+          LOG(debug) << "AFTER: " << experiments[0].data.row_names[g]
+                     << " f=" << fn0(features.prior.r(g, t))
+                     << " r=" << features.prior.r(g, t)
+                     // << " no=" << features.prior.p(g, t)
+                     << " no=" << r2no(features.prior.r(g, t)) << " p=" << p
+                     << " p=" << neg_odds_to_prob(features.prior.p(g, t))
+                     << " m="
+                     << features.prior.r(g, t) / features.prior.p(g, t)
+                            * theta_marginals[t];
           if (reached_upper) {
             LOG(fatal) << "Error: reached upper limit for r!";
             if (abort_on_fatal_errors)
@@ -573,7 +573,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
 
         for (size_t t = 0; t < T; ++t)
           if (cs[t] == 0) {
-            LOG(verbose) << "Gibbs sampling theta(" << s << ", " << t << ").";
+            LOG(debug) << "Gibbs sampling theta(" << s << ", " << t << ").";
             double marginal = 0;
             for (size_t g = 0; g < G; ++g)
               marginal += features.prior.r(g, t)
@@ -581,13 +581,13 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             marginal *= sigma(s);
             experiment.theta(s_, t) = std::gamma_distribution<Float>(
                 mix_prior.r(t), 1.0 / (mix_prior.p(t) - marginal))(rng);
-            LOG(verbose) << "theta = " << experiment.theta(s_, t);
+            LOG(debug) << "theta = " << experiment.theta(s_, t);
           } else {
             auto fn0 = [&](double x) {
               double fnc = 0;
               for (size_t g = 0; g < G; ++g) {
                 if (noisy)
-                  LOG(verbose)
+                  LOG(debug)
                       << "g/s/t = " << g << "/" << s << "/" << t
                       << " theta=" << x << " r=" << features.prior.r(g, t)
                       << " p=" << neg_odds_to_prob(features.prior.p(g, t))
@@ -623,14 +623,14 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               double func = fn0(x);
               double grad = gr0(x);
               if (noisy)
-                LOG(verbose) << "func/grad = " << func << "/" << grad;
+                LOG(debug) << "func/grad = " << func << "/" << grad;
               return std::pair<double, double>(func, grad);
             };
 
-            LOG(verbose) << "BEFORE: "
-                         << " f=" << fn0(theta_unscaled(s, t))
-                         << " theta=" << theta_unscaled(s, t)
-                         << " spot=" << sigma(s);
+            LOG(debug) << "BEFORE: "
+                       << " f=" << fn0(theta_unscaled(s, t))
+                       << " theta=" << theta_unscaled(s, t)
+                       << " spot=" << sigma(s);
 
             boost::uintmax_t it = NewtonRaphson::max_iter;
             // we add a pseudo count to the contributions
@@ -657,10 +657,10 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             bool reached_upper
                 = experiment.theta(s_, t) >= NewtonRaphson::upper;
 
-            LOG(verbose) << "AFTER : "
-                         << " f=" << fn0(experiment.theta(s_, t))
-                         << " theta=" << experiment.theta(s_, t)
-                         << " previous=" << previous << " spot=" << sigma(s);
+            LOG(debug) << "AFTER : "
+                       << " f=" << fn0(experiment.theta(s_, t))
+                       << " theta=" << experiment.theta(s_, t)
+                       << " previous=" << previous << " spot=" << sigma(s);
 
             if (reached_upper) {
               LOG(fatal) << "Error: reached upper limit for theta!";
