@@ -1,4 +1,5 @@
-SUBDIRS := $(wildcard */.)  # e.g. "foo/. bar/."
+# SUBDIRS := $(wildcard */.)  # e.g. "foo/. bar/."
+SUBDIRS := release/. debug/.
 TARGETS := all install clean  # whatever else, but must not contain '/'
 
 # foo/.all bar/.all foo/.clean bar/.clean
