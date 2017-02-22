@@ -16,6 +16,7 @@ const int EXPERIMENT_NUM_DIGITS = 4;
 const double CONTRIB_PSEUDO_COUNT = 1e-6;
 
 const bool respect_priors = false;
+const bool abort_on_fatal_errors = false;
 
 template <typename Type>
 struct Model {
@@ -496,7 +497,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             LOG(fatal) << "Unable to locate solution for r in " << max_iter
                        << " iterations. Current best guess is "
                        << features.prior.r(g, t);
-            exit(-1);
+            if (abort_on_fatal_errors)
+              exit(-1);
           }
 
           double p = r2p(features.prior.r(g, t));
@@ -516,8 +518,9 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                        << features.prior.r(g, t) / features.prior.p(g, t)
                               * theta_marginals[t];
           if (reached_upper) {
-            LOG(fatal) << "Error: reached upper limit!";
-            exit(-1);
+            LOG(fatal) << "Error: reached upper limit for r!";
+            if (abort_on_fatal_errors)
+              exit(-1);
           }
         }
       }
@@ -634,7 +637,8 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
               LOG(fatal) << "Unable to locate solution for theta in "
                          << max_iter << " iterations. Current best guess is "
                          << experiment.theta(s_, t);
-              exit(-1);
+              if (abort_on_fatal_errors)
+                exit(-1);
             }
 
             bool reached_upper = experiment.theta(s_, t) >= upper;
@@ -645,8 +649,9 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                          << " previous=" << previous << " spot=" << sigma(s);
 
             if (reached_upper) {
-              LOG(fatal) << "Error: reached upper limit!";
-              exit(-1);
+              LOG(fatal) << "Error: reached upper limit for theta!";
+              if (abort_on_fatal_errors)
+                exit(-1);
             }
           }
       }
