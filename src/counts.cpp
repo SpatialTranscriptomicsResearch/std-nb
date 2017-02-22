@@ -69,16 +69,27 @@ void discard_empty_spots(Counts &c) {
   LOG(verbose) << "Discarded " << cnt << " spots with zero counts.";
 }
 
-void discard_empty_genes(Counts &c) {
-  auto rs = rowSums<Vector>(c.counts);
-  const size_t N = rs.n_elem;
-  auto cnt = 0;
-  for (size_t n = 0; n < N; ++n)
-    if (rs(N - n - 1) == 0) {
+void discard_empty_genes(vector<Counts> &cs) {
+  if (cs.empty())
+    return;
+
+  const size_t G = cs[0].counts.n_rows;
+
+  Vector rowsums(G, arma::fill::zeros);
+  for(auto &c: cs)
+    rowsums = rowsums + rowSums<Vector>(c.counts);
+
+  size_t cnt = 0;
+  for (auto &rowsum: rowsums)
+    if (rowsum == 0)
       cnt++;
-      c.counts.shed_row(N - n - 1);
-      c.row_names.erase(begin(c.row_names) + N - n - 1);
-    }
+
+  for(auto &c: cs)
+    for (size_t g = 0; g < G; ++g)
+      if (rowsums(G - g - 1) == 0) {
+        c.counts.shed_row(G - g - 1);
+        c.row_names.erase(begin(c.row_names) + G - g - 1);
+      }
   LOG(verbose) << "Discarded " << cnt << " genes with zero counts.";
 }
 
@@ -98,11 +109,11 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
 
   select_top(counts_v, top);
 
-  if (discard_empty)
-    for (auto &counts : counts_v) {
+  if (discard_empty) {
+    for (auto &counts : counts_v)
       discard_empty_spots(counts);
-      discard_empty_genes(counts);
-    }
+    discard_empty_genes(counts_v);
+  }
 
   LOG(verbose) << "Done loading";
   return counts_v;
