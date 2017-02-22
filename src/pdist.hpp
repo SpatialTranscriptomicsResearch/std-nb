@@ -220,11 +220,17 @@ double convolved_negative_binomial(double x, size_t K, const V &rs,
   for (size_t k = 0; k < K; ++k) {
     // double p = exp(log(delta[k]) + (rho + k - 1) * log(x) - x / min_scale
     //                 - lgamma(rho + k) - (rho + k) * log(min_scale));
-    double log_p
-        = log(delta[k]) + lgamma(alpha + x + k) - lgamma(alpha + k)
-              - lgamma(x + 1) + (alpha + k) * log(max_p) + x * log(1 - max_p);
-    q = exp_add(q, log_p);
-    LOG(debug) << "k=" << k << " p=" << log_p << " q=" << q;
+    if (delta[k] > 0) {
+      double log_p = log(delta[k]) + lgamma(alpha + x + k) - lgamma(alpha + k)
+                     - lgamma(x + 1) + (alpha + k) * log(max_p)
+                     + x * log(1 - max_p);
+      q = exp_add(q, log_p);
+      LOG(debug) << "k=" << k << " p=" << log_p << " q=" << q;
+    } else {
+      LOG(debug) << "k=" << k
+                 << " p=" << -std::numeric_limits<double>::infinity()
+                 << " q=" << q;
+    }
   }
 
   return R * q;
