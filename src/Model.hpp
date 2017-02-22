@@ -10,6 +10,19 @@
 
 namespace PoissonFactorization {
 
+namespace NewtonRaphson {
+const double lower = std::numeric_limits<double>::denorm_min();
+const double upper = 1e5;
+
+// Maximum possible binary digits accuracy for type T.
+const int digits = std::numeric_limits<double>::digits;
+// Accuracy doubles with each step, so stop when we have just over half the
+// digits correct.
+const int get_digits = static_cast<int>(digits * 0.6);
+
+const size_t max_iter = 100;
+};
+
 const double local_phi_scaling_factor = 50;
 const int EXPERIMENT_NUM_DIGITS = 4;
 // TODO make configurable
@@ -349,17 +362,6 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
   for (auto &experiment : experiments)
     experiment.spot.ones();
 
-  const double lower = std::numeric_limits<double>::denorm_min();
-  const double upper = 1e5;
-  // Maximum possible binary digits accuracy for type T.
-  const int digits = std::numeric_limits<double>::digits;
-  // Accuracy doubles with each step, so stop when we have just over half
-  // the digits correct.
-  const int get_digits = static_cast<int>(digits * 0.6);
-  // const int get_digits = static_cast<int>(digits * 0.2);
-
-  const size_t max_iter = 100;
-
   const double a = parameters.hyperparameters.phi_r_1;
   const double b = parameters.hyperparameters.phi_r_2;
   const double alpha = parameters.hyperparameters.phi_p_1;
@@ -482,7 +484,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                        << features.prior.r(g, t) / features.prior.p(g, t)
                               * theta_marginals[t];
 
-          boost::uintmax_t it = max_iter;
+          boost::uintmax_t it = NewtonRaphson::max_iter;
           double guess = features.prior.r(g, t);
           /*
           // we add a pseudo count to the contributions
@@ -492,9 +494,11 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           // double previous = features.prior.r(g, t);
           // LOG(verbose) << "prev = " << previous << " guess = " << guess;
           features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
-              fn, guess, lower, guess * 100, get_digits, it);
-          if (it >= max_iter) {
-            LOG(fatal) << "Unable to locate solution for r in " << max_iter
+              fn, guess, NewtonRaphson::lower, guess * 100,
+              NewtonRaphson::get_digits, it);
+          if (it >= NewtonRaphson::max_iter) {
+            LOG(fatal) << "Unable to locate solution for r in "
+                       << NewtonRaphson::max_iter
                        << " iterations. Current best guess is "
                        << features.prior.r(g, t);
             if (abort_on_fatal_errors)
@@ -504,7 +508,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
           double p = r2p(features.prior.r(g, t));
           // TODO sample from posterior instead of MAP
 
-          bool reached_upper = features.prior.r(g, t) >= upper;
+          bool reached_upper = features.prior.r(g, t) >= NewtonRaphson::upper;
 
           features.prior.p(g, t) = prob_to_neg_odds(p);
 
@@ -621,7 +625,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                          << " theta=" << theta_unscaled(s, t)
                          << " spot=" << sigma(s);
 
-            boost::uintmax_t it = max_iter;
+            boost::uintmax_t it = NewtonRaphson::max_iter;
             // we add a pseudo count to the contributions
             double guess = experiment.theta(s_, t);
             /*
@@ -632,16 +636,19 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             double previous = theta_unscaled(s, t);
             experiment.theta(s_, t)
                 = boost::math::tools::newton_raphson_iterate(
-                    fn, guess, lower, upper, get_digits, it);
-            if (it >= max_iter) {
+                    fn, guess, NewtonRaphson::lower, NewtonRaphson::upper,
+                    NewtonRaphson::get_digits, it);
+            if (it >= NewtonRaphson::max_iter) {
               LOG(fatal) << "Unable to locate solution for theta in "
-                         << max_iter << " iterations. Current best guess is "
+                         << NewtonRaphson::max_iter
+                         << " iterations. Current best guess is "
                          << experiment.theta(s_, t);
               if (abort_on_fatal_errors)
                 exit(-1);
             }
 
-            bool reached_upper = experiment.theta(s_, t) >= upper;
+            bool reached_upper
+                = experiment.theta(s_, t) >= NewtonRaphson::upper;
 
             LOG(verbose) << "AFTER : "
                          << " f=" << fn0(experiment.theta(s_, t))
