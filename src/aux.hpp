@@ -7,6 +7,7 @@
 #include <string>
 #include <sstream>
 #include <vector>
+#include "log.hpp"
 #include "types.hpp"
 
 /**
@@ -112,9 +113,9 @@ void min_max(const std::string &label, const T &v) {
   for (auto &x : v)
     stats(x);
 
-  std::cout << label << " mean = " << stats.mean() << " var  = " << stats.var()
-            << " min  = " << stats.min() << " max  = " << stats.max()
-            << std::endl;
+  LOG(debug) << label << " mean = " << stats.mean() << " var  = " << stats.var()
+             << " min  = " << stats.min() << " max  = " << stats.max()
+             << std::endl;
 }
 
 #endif
