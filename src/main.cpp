@@ -31,7 +31,7 @@ struct Options {
   bool share_coord_sys = false;
   bool predict_field = false;
   bool perform_dge = false;
-  bool discard_empty = false;
+  bool keep_empty = false;
   size_t top = 0;
   PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
   PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
@@ -194,7 +194,7 @@ int main(int argc, char **argv) {
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
      "When sampling theta priors normalize spot statistics.")
-    ("drop_empty", po::bool_switch(&options.discard_empty),
+    ("keep_empty", po::bool_switch(&options.keep_empty),
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
@@ -333,7 +333,7 @@ int main(int argc, char **argv) {
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
   auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
-                             options.discard_empty);
+                             not options.keep_empty);
 
   LOG(info) << "Using " << options.feature_type
             << " distribution for the features.";
