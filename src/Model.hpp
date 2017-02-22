@@ -426,6 +426,13 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                               * log(1 - neg_odds_to_prob(
                                             features.prior.p(g, t)))))(rng);
 
+          // TODO reconsider using this
+          // when this is used the r/p values lie along a curve, separated from
+          // the MAP estimated ones
+          // features.prior.p(g, t) = r2no(features.prior.r(g, t));
+
+          // even when this is used the r/p values are somewhat separated
+          // from the other values
           features.prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
               alpha, beta + features.prior.r(g, t) * theta_marginals[t], rng));
 
