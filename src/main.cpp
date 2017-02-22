@@ -97,7 +97,13 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   moments.evaluate(options.output);
   if (options.compute_likelihood) {
     pfa.sample_contributions(false);  // make sure that the lambda_gst are up to date
-    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
+    double l = pfa.log_likelihood();
+    LOG(info) << "Final log-likelihood = " << l;
+    double Z = 0;
+    for(auto &experiment: pfa.experiments)
+      for(auto count: experiment.data.counts)
+        Z += count;
+    LOG(info) << "Final perplexity = " << exp(- l / Z); // TODO should use base two
   }
   pfa.store(options.output);
   if (options.predict_field) {
