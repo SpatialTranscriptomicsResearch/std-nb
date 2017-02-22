@@ -417,7 +417,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
         };
 
         if (cs[t] == 0) {
-          LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t << "):."
+          LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t << "): "
                      << experiments[0].data.row_names[g];
 
           features.prior.r(g, t) = std::gamma_distribution<Float>(
