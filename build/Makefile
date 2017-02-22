@@ -17,4 +17,4 @@ $(TARGETS) : % : $(addsuffix %,$(SUBDIRS))
 #   $(@F) is .all, with leading period
 #   $(@F:.%=%) is just all
 $(SUBDIRS_TARGETS) :
-	$(MAKE) -C $(@D) $(@F:.%=%)
+	$(MAKE) --no-print-directory -C $(@D) $(@F:.%=%)
