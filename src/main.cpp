@@ -26,8 +26,6 @@ struct Options {
   bool intersect = false;
   string load_prefix = "";
   bool compute_likelihood = false;
-  bool no_local_gene_expression = false;
-  bool sample_local_phi_priors = false;
   bool share_coord_sys = false;
   bool predict_field = false;
   bool perform_dge = false;
@@ -230,10 +228,6 @@ int main(int argc, char **argv) {
      "Standard deviation of zero-centered normal distribution from which factors are sampled and exp-transformed to generate propositions for the feature priors.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
-    ("localphi", po::bool_switch(&options.sample_local_phi_priors),
-     "Sample the local feature priors.")
-    ("nolocal", po::bool_switch(&options.no_local_gene_expression),
-     "Deactivate local gene expression profiles.")
     ("lambda", po::bool_switch(&parameters.store_lambda),
      "Store to disk the lambda matrix for genes and types every time parameters are written. "
      "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
@@ -339,19 +333,6 @@ int main(int argc, char **argv) {
             << " distribution for the mixing weights.";
 
   using Kind = PF::Partial::Kind;
-
-  if (options.sample_local_phi_priors)
-    parameters.targets = parameters.targets | PF::Target::phi_prior_local;
-
-  if (data_sets.size() < 2) {
-    LOG(info) << "Deactivating local features.";
-    options.no_local_gene_expression = true;
-  }
-
-  if (options.no_local_gene_expression)
-    parameters.targets
-        = parameters.targets
-          & (~(PF::Target::phi_local | PF::Target::phi_prior_local));
 
   if (options.mixing_type == Kind::Dirichlet)
     parameters.targets = parameters.targets & ~PF::Target::field;
