@@ -99,8 +99,6 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   moments.evaluate(options.output);
   if (options.compute_likelihood) {
     pfa.sample_contributions(false);  // make sure that the lambda_gst are up to date
-    LOG(info) << "Final observed log-likelihood = "
-              << pfa.log_likelihood_conv_NB_counts();
     LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   }
   pfa.store(options.output);
