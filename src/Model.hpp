@@ -54,8 +54,6 @@ struct Model {
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
   Vector contributions_gene;
-  Matrix prev_g_r, prev_g_p;
-  IMatrix prev_sign_r, prev_sign_p;
 
   /** factor loading matrix */
   features_t features;
@@ -127,15 +125,9 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
-      prev_g_r(G, T),
-      prev_g_p(G, T),
-      prev_sign_r(G, T, arma::fill::zeros),
-      prev_sign_p(G, T, arma::fill::zeros),
       features(G, T, parameters),
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
-  prev_g_r.fill(parameters.sgd_step_size);
-  prev_g_p.fill(parameters.sgd_step_size);
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);

@@ -44,11 +44,6 @@ struct Experiment {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
 
-  Matrix prev_grad_theta;
-  Vector prev_grad_spot;
-  IMatrix prev_sign_theta;
-  IVector prev_sign_spot;
-
   /** factor loading matrix */
   features_t features;
   features_t baseline_feature;
@@ -164,10 +159,6 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(rowSums<Vector>(data.counts)),
       contributions_spot(colSums<Vector>(data.counts)),
-      prev_grad_theta(S, T),
-      prev_grad_spot(S),
-      prev_sign_theta(S, T, arma::fill::zeros),
-      prev_sign_spot(S, arma::fill::zeros),
       features(G, T, parameters),
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
@@ -175,8 +166,6 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
-  prev_grad_theta.fill(parameters.sgd_step_size);
-  prev_grad_spot.fill(parameters.sgd_step_size);
 /* TODO consider to reactivate
 if (false) {
   // initialize:
