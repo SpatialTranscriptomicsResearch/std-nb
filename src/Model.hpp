@@ -28,7 +28,6 @@ const int EXPERIMENT_NUM_DIGITS = 4;
 // TODO make configurable
 const double CONTRIB_PSEUDO_COUNT = 1e-6;
 
-const bool respect_priors = false;
 const bool abort_on_fatal_errors = false;
 
 template <typename Type>
@@ -418,15 +417,16 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                               * log(1 - neg_odds_to_prob(
                                             features.prior.p(g, t)))))(rng);
 
-          // TODO reconsider using this
-          // when this is used the r/p values lie along a curve, separated from
-          // the MAP estimated ones
-          // features.prior.p(g, t) = r2no(features.prior.r(g, t));
-
-          // even when this is used the r/p values are somewhat separated
-          // from the other values
-          features.prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
-              alpha, beta + features.prior.r(g, t) * theta_marginals[t], rng));
+          if (not parameters.p_empty_map)
+            // when this is used the r/p values lie along a curve, separated
+            // from the MAP estimated ones
+            features.prior.p(g, t) = r2no(features.prior.r(g, t));
+          else
+            // even when this is used the r/p values are somewhat separated
+            // from the other values
+            features.prior.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
+                alpha, beta + features.prior.r(g, t) * theta_marginals[t],
+                rng));
 
           LOG(debug) << "r/p= " << features.prior.r(g, t) << "/"
                      << features.prior.p(g, t);
@@ -447,7 +447,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             for (size_t s = 0; s < S; ++s)
               fnc += theta(s, t)
                      * digamma_diff(r * theta(s, t), counts_gst(s, t));
-            if (respect_priors)
+            if (not parameters.ignore_priors)
               fnc += (a - 1) / r - b;
 
             return fnc;
@@ -458,7 +458,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
             for (size_t s = 0; s < S; ++s)
               grad += theta(s, t) * theta(s, t)
                       * trigamma_diff(r * theta(s, t), counts_gst(s, t));
-            if (respect_priors)
+            if (not parameters.ignore_priors)
               grad += -(a - 1) / r / r;
             return grad;
           };
@@ -592,7 +592,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                                       counts_gst(g, t));
               }
               fnc *= sigma(s);
-              if (respect_priors)
+              if (not parameters.ignore_priors)
                 // TODO ensure mix_prior.p is stored as negative odds
                 fnc += (mix_prior.r(t) - 1) / x - mix_prior.p(t);
 
@@ -606,7 +606,7 @@ void Model<Type>::sample_contributions(bool update_phi_prior) {
                         * trigamma_diff(features.prior.r(g, t) * x * sigma(s),
                                         counts_gst(g, t));
               grad *= sigma(s) * sigma(s);
-              if (respect_priors)
+              if (not parameters.ignore_priors)
                 grad += (mix_prior.r(t) - 1) / x / x;
               return grad;
             };

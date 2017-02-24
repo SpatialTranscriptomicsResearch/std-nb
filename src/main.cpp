@@ -198,6 +198,10 @@ int main(int argc, char **argv) {
      "Discard spots that have zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
+    ("nopriors", po::bool_switch(&parameters.ignore_priors),
+     "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
+    ("p_map", po::bool_switch(&parameters.p_empty_map),
+     "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("stepsize", po::value(&parameters.sgd_step_size)->default_value(parameters.sgd_step_size),
      "Step size scaling to use for stochastic gradient ascent.")
     ("sgd_freq", po::value(&parameters.sgd_inclusion_prob)->default_value(parameters.sgd_inclusion_prob),
