@@ -410,7 +410,7 @@ void Model<Type>::sample_contributions() {
                               * log(1 - neg_odds_to_prob(
                                             features.prior.p(g, t)))))(rng);
 
-          if (not parameters.p_empty_map)
+          if (parameters.p_empty_map)
             // when this is used the r/p values lie along a curve, separated
             // from the MAP estimated ones
             features.prior.p(g, t) = r2no(features.prior.r(g, t));
