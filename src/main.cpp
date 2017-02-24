@@ -98,11 +98,8 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     moments.update(iteration, pfa);
   }
   moments.evaluate(options.output);
-  if (options.compute_likelihood) {
-    pfa.sample_contributions(false);  // make sure that the lambda_gst are up to date
-    double l = pfa.log_likelihood();
-    LOG(info) << "Final log-likelihood = " << l;
-  }
+  if (options.compute_likelihood)
+    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
   pfa.store(options.output);
   if (options.predict_field) {
     for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
