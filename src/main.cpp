@@ -201,10 +201,6 @@ int main(int argc, char **argv) {
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
      "Sample contributions by maximum-a-posteriori.")
-    ("stepsize", po::value(&parameters.sgd_step_size)->default_value(parameters.sgd_step_size),
-     "Step size scaling to use for stochastic gradient ascent.")
-    ("sgd_freq", po::value(&parameters.sgd_inclusion_prob)->default_value(parameters.sgd_inclusion_prob),
-     "Probability with which to include spots in stochastic gradient ascent.")
     ("dropout_gene", po::value(&parameters.dropout_gene)->default_value(parameters.dropout_gene),
      "Randomly discard a fraction of the genes during contributions sampling.")
     ("dropout_spot", po::value(&parameters.dropout_spot)->default_value(parameters.dropout_spot),

@@ -89,8 +89,6 @@ struct Parameters {
   bool p_empty_map = false;
   bool contributions_map = false;
   bool ignore_priors = false;
-  double sgd_step_size = 1e-1;
-  double sgd_inclusion_prob = 1; // stochastic gradient descent inclusion probability
   double dropout_gene = 0;
   double dropout_spot = 0;
   double dropout_anneal = 0.999;
