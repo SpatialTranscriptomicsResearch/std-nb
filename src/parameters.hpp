@@ -72,11 +72,6 @@ struct Parameters {
   double n_iter = 100;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
-  /** How long to enforce certain means or sums
-   * 0 means forever
-   * anything else is the given number of iterations
-   */
-  size_t enforce_iter = 10;
   bool over_relax = false;
   bool respect_phi_prior_likelihood = false;
   bool respect_theta_prior_likelihood = false;

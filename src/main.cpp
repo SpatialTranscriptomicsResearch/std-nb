@@ -219,8 +219,6 @@ int main(int argc, char **argv) {
      "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("expcont", po::bool_switch(&parameters.expected_contributions),
      "Dont sample x_{gst} contributions, but use expected values instead.")
-    ("forceiter", po::value(&parameters.enforce_iter)->default_value(parameters.enforce_iter),
-     "How long to enforce means / sums of random variables. 0 means forever, anything else the given number of iterations.")
     ("dge", po::bool_switch(&options.perform_dge),
      "Perform differential gene expression analysis.\n"
      "- \tFor all factors, compare each experiment's local profile against the global one.\n"
