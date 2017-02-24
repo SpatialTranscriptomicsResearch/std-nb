@@ -87,6 +87,7 @@ struct Parameters {
   bool identity_kernels = false;
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
+  bool contributions_map = false;
   bool ignore_priors = false;
   double sgd_step_size = 1e-1;
   double sgd_inclusion_prob = 1; // stochastic gradient descent inclusion probability

@@ -84,9 +84,9 @@ struct Model {
   void perform_local_dge(const std::string &prefix) const;
 
   /** sample each of the variables from their conditional posterior */
-  void gibbs_sample(bool report_likelihood);
+  void gibbs_sample();
 
-  void sample_contributions(bool update_phi_prior);
+  void sample_contributions();
 
   void sample_global_theta_priors();
   void sample_fields();
@@ -278,12 +278,12 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
 }
 
 template <typename Type>
-void Model<Type>::gibbs_sample(bool report_likelihood) {
+void Model<Type>::gibbs_sample() {
   LOG(verbose) << "perform Gibbs step for " << parameters.targets;
   min_max("r(phi)", features.prior.r);
   min_max("p(phi)", features.prior.p);
   if (parameters.targeted(Target::contributions))
-    sample_contributions(true);
+    sample_contributions();
 
   min_max("r(phi)", features.prior.r);
   min_max("p(phi)", features.prior.p);
@@ -291,13 +291,6 @@ void Model<Type>::gibbs_sample(bool report_likelihood) {
   sample_global_theta_priors();
   enforce_positive_parameters();
   return;
-
-  if (report_likelihood) {
-      if (verbosity >= Verbosity::verbose)
-        LOG(info) << "Log-likelihood = " << log_likelihood();
-      else
-        LOG(info) << "Observed Log-likelihood = " << log_likelihood_conv_NB_counts();
-    }
 
   // TODO add CLI switch
   auto order = random_order(4);
@@ -347,7 +340,7 @@ void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
 }
 
 template <typename Type>
-void Model<Type>::sample_contributions(bool update_phi_prior) {
+void Model<Type>::sample_contributions() {
   // for (auto &experiment : experiments)
   //  experiment.weights.matrix.ones();
   for (auto &experiment : experiments)

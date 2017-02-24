@@ -98,9 +98,9 @@ struct Experiment {
                                    RNG &rng);
   Matrix sample_contributions_spot(size_t s, const features_t &global_features,
                                    RNG &rng);
-  IVector sample_contributions_gene_spot(size_t g, size_t s,
-                                         const features_t &global_features,
-                                         RNG &rng) const;
+  Vector sample_contributions_gene_spot(size_t g, size_t s,
+                                        const features_t &global_features,
+                                        RNG &rng) const;
 
   /** sample spot scaling factors */
   void sample_spot(const features_t &global_features);
@@ -829,87 +829,165 @@ inline double trigamma_diff(double a, double b) {
 
 template <typename Type>
 /** sample count decomposition */
-IVector Experiment<Type>::sample_contributions_gene_spot(
+Vector Experiment<Type>::sample_contributions_gene_spot(
     size_t g, size_t s, const features_t &global_features, RNG &rng) const {
-  IVector cnts(T, arma::fill::zeros);
+  Vector cnts(T, arma::fill::zeros);
+
   const size_t count = data.counts(g, s);
+
   if (count > 0) {
-    auto log_posterior_difference = [&](const IVector &v, size_t i, size_t j,
-                                        size_t n) {
-      double l = 0;
+    if (parameters.contributions_map) {
+      auto gibbs = [](const Vector &y_) {
+        Vector y = y_;
+        double z = 0;
+        for (auto &x : y)
+          z += x = exp(x);
+        for (auto &x : y)
+          x /= z;
+        return y;
+      };
 
-      if (noisy)
-        LOG(debug) << "i=" << i << " j=" << j << " n=" << n << " v[i]=" << v[i]
-                   << " v[j]=" << v[j];
+      auto grad_log_posterior = [&](const Vector &y) {
+        Vector x = count * gibbs(y);
 
-      const double r_i = global_features.prior.r(g, i);
-      const double no_i = global_features.prior.p(g, i);
-      const double prod_i = r_i * theta(s, i) * spot(s);
+        if (noisy) {
+          LOG(verbose) << "count = " << count;
+          LOG(verbose) << "y = " << y;
+          LOG(verbose) << "x = " << x;
+          for (size_t t = 0; t < T; ++t)
+            LOG(verbose) << "r = " << features.prior.r(g, t);
+          for (size_t t = 0; t < T; ++t)
+            LOG(verbose) << "p = " << features.prior.p(g, t);
+          for (size_t t = 0; t < T; ++t)
+            LOG(verbose) << "theta = " << theta(s, t);
+          for (size_t t = 0; t < T; ++t)
+            LOG(verbose) << "mean = "
+                         << features.prior.r(g, t) * features.prior.p(g, t)
+                                / features.prior.p(g, t) * theta(s, t)
+                                * spot(s);
+        }
 
-      const double r_j = global_features.prior.r(g, j);
-      const double no_j = global_features.prior.p(g, j);
-      const double prod_j = r_j * theta(s, j) * spot(s);
+        Vector tmp(T, arma::fill::zeros);
+        for (size_t t = 0; t < T; ++t)
+          tmp(t)
+              = log(neg_odds_to_prob(features.prior.p(g, t)))
+                + digamma(x(t) + features.prior.r(g, t) * theta(s, t) * spot(s))
+                - digamma(x(t) + 1);
 
-      // TODO determine continous-valued mean by optimizing the posterior
-      // TODO handle infinities
-      /*
-      if(prod + v[t] == 0)
-        return -std::numeric_limits<double>::infinity();
-      */
+        if (noisy)
+          LOG(verbose) << "tmp = " << tmp;
 
-      if (noisy)
-        LOG(debug) << "r_i=" << r_i << " no_i=" << no_i << " prod_i=" << prod_i
-                   << " r_j=" << r_j << " no_j=" << no_j
-                   << " prod_j=" << prod_j;
+        double z = 0;
+        for (size_t t = 0; t < T; ++t)
+          z += x(t) / count * tmp(t);
 
-      // subtract current score contributions
-      l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);
-      l -= lgamma_diff_1p(v[j], prod_j) - v[j] * log(1 + no_j);
+        Vector grad(T, arma::fill::zeros);
+        for (size_t t = 0; t < T; ++t)
+          grad(t) = x(t) * (tmp(t) - z);
 
-      // add proposed score contributions
-      l += lgamma_diff_1p(v[i] - n, prod_i) - (v[i] - n) * log(1 + no_i);
-      l += lgamma_diff_1p(v[j] + n, prod_j) - (v[j] + n) * log(1 + no_j);
+        return grad;
+      };
 
-      return l;
-    };
+      for(size_t iter = 0; iter < 10; ++iter) {
+        if (noisy)
+          LOG(verbose) << "Iteration " << iter << " cnts = " << count * gibbs(cnts);
+        auto grad = grad_log_posterior(cnts);
+        if (noisy)
+          LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
-    // TODO use full-conditional expected counts instead of one sample
+        double l = 0;
+        for(auto &x: grad)
+          l += x*x;
+        l = sqrt(l);
 
-    // sample x_gst for all t
-    std::vector<double> mean_prob(T, 0);
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += mean_prob[t] = global_features.prior.r(g, t)
-                          / global_features.prior.p(g, t) * theta(s, t);
-    for (size_t t = 0; t < T; ++t)
-      mean_prob[t] /= z;
-    cnts = sample_multinomial<size_t, IVector>(
-        data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
+        grad /= l;
+        if (noisy)
+          LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
+        cnts = cnts + grad;
+      }
+      LOG(verbose) << "Final cnts = " << count * gibbs(cnts);
+      cnts = count * gibbs(cnts);
 
-    if (false and T > 1) {
-      // perform several Metropolis-Hastings steps
-      const size_t initial = 100;
-      int n_iter = initial;
-      while (n_iter--) {
-        // modify
-        size_t i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-        while (cnts[i] == 0)
-          i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-        size_t j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-        while (i == j)
-          j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
-        size_t n = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
+    } else {
+      auto log_posterior_difference = [&](const Vector &v, size_t i, size_t j,
+                                          size_t n) {
+        double l = 0;
 
-        // calculate score difference
-        double l = log_posterior_difference(cnts, i, j, n);
-        if (l > 0 or (std::isfinite(l)
-                      and log(RandomDistribution::Uniform(rng))
-                                  * parameters.temperature
-                              <= l)) {
-          // accept the candidate
-          cnts[i] -= n;
-          cnts[j] += n;
+        if (noisy)
+          LOG(debug) << "i=" << i << " j=" << j << " n=" << n
+                     << " v[i]=" << v[i] << " v[j]=" << v[j];
+
+        const double r_i = global_features.prior.r(g, i);
+        const double no_i = global_features.prior.p(g, i);
+        const double prod_i = r_i * theta(s, i) * spot(s);
+
+        const double r_j = global_features.prior.r(g, j);
+        const double no_j = global_features.prior.p(g, j);
+        const double prod_j = r_j * theta(s, j) * spot(s);
+
+        // TODO determine continous-valued mean by optimizing the posterior
+        // TODO handle infinities
+        /*
+        if(prod + v[t] == 0)
+          return -std::numeric_limits<double>::infinity();
+        */
+
+        if (noisy)
+          LOG(debug) << "r_i=" << r_i << " no_i=" << no_i
+                     << " prod_i=" << prod_i << " r_j=" << r_j
+                     << " no_j=" << no_j << " prod_j=" << prod_j;
+
+        // subtract current score contributions
+        l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);
+        l -= lgamma_diff_1p(v[j], prod_j) - v[j] * log(1 + no_j);
+
+        // add proposed score contributions
+        l += lgamma_diff_1p(v[i] - n, prod_i) - (v[i] - n) * log(1 + no_i);
+        l += lgamma_diff_1p(v[j] + n, prod_j) - (v[j] + n) * log(1 + no_j);
+
+        return l;
+      };
+
+      // TODO use full-conditional expected counts instead of one sample
+
+      // sample x_gst for all t
+      std::vector<double> mean_prob(T, 0);
+      double z = 0;
+      for (size_t t = 0; t < T; ++t)
+        z += mean_prob[t] = global_features.prior.r(g, t)
+                            / global_features.prior.p(g, t) * theta(s, t);
+      for (size_t t = 0; t < T; ++t)
+        mean_prob[t] /= z;
+      auto icnts = sample_multinomial<size_t, IVector>(
+          data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
+      for (size_t t = 0; t < T; ++t)
+        cnts(t) = icnts(t);
+
+      if (false and T > 1) {
+        // perform several Metropolis-Hastings steps
+        const size_t initial = 100;
+        int n_iter = initial;
+        while (n_iter--) {
+          // modify
+          size_t i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+          while (cnts[i] == 0)
+            i = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+          size_t j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+          while (i == j)
+            j = std::uniform_int_distribution<size_t>(0, T - 1)(rng);
+          size_t n = std::uniform_int_distribution<size_t>(1, cnts[i])(rng);
+
+          // calculate score difference
+          double l = log_posterior_difference(cnts, i, j, n);
+          if (l > 0 or (std::isfinite(l)
+                        and log(RandomDistribution::Uniform(rng))
+                                    * parameters.temperature
+                                <= l)) {
+            // accept the candidate
+            cnts[i] -= n;
+            cnts[j] += n;
+          }
         }
       }
     }
