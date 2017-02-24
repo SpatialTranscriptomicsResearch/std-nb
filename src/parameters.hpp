@@ -78,11 +78,9 @@ struct Parameters {
    */
   size_t enforce_iter = 10;
   bool over_relax = false;
-  bool phi_prior_maximum_likelihood = false;
   bool respect_phi_prior_likelihood = false;
   bool respect_theta_prior_likelihood = false;
   bool expected_contributions = false;
-  bool store_lambda = false;
   bool theta_local_priors = false;
   bool identity_kernels = false;
   bool normalize_spot_stats = false;

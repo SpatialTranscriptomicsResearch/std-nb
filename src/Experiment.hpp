@@ -257,11 +257,6 @@ void Experiment<Type>::store(const std::string &prefix,
                    order);
     }
 #pragma omp section
-    if (parameters.store_lambda)
-      write_matrix(lambda_gene_spot,
-                   prefix + "lambda_gene_spot" + FILENAME_ENDING,
-                   parameters.compression_mode, gene_names, spot_names);
-#pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);

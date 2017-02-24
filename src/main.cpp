@@ -231,11 +231,6 @@ int main(int argc, char **argv) {
      "Standard deviation of zero-centered normal distribution from which factors are sampled and exp-transformed to generate propositions for the feature priors.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
-    ("lambda", po::bool_switch(&parameters.store_lambda),
-     "Store to disk the lambda matrix for genes and types every time parameters are written. "
-     "(This file is about the same size as the input files, so in order to limit storage usage you may not want to store it.)")
-    ("phi_ml", po::bool_switch(&parameters.phi_prior_maximum_likelihood),
-     "Use maximum likelihood instead of Metropolis-Hastings for the first prior of Φ.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
      "Respect the likelihood contributions of the feature priors.")
     ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),

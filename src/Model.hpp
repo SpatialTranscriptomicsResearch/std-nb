@@ -329,16 +329,6 @@ void Model<Type>::gibbs_sample() {
   iteration++;
 }
 
-template <typename F>
-void generate_alternative_prior(F &features, double phi_prior_gen_sd) {
-  std::normal_distribution<double> rnorm(0, phi_prior_gen_sd);
-  features.alt_prior = features.prior;
-  for (auto &x : features.alt_prior.r)
-    x *= exp(rnorm(EntropySource::rng));
-  for (auto &x : features.alt_prior.p)
-    x *= exp(rnorm(EntropySource::rng));
-}
-
 template <typename Type>
 void Model<Type>::sample_contributions() {
   // for (auto &experiment : experiments)
