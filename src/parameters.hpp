@@ -85,7 +85,6 @@ struct Parameters {
   double dropout_gene = 0;
   double dropout_spot = 0;
   double dropout_anneal = 0.999;
-  double phi_prior_gen_sd = 0.1;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();

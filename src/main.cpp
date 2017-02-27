@@ -31,8 +31,6 @@ struct Options {
   bool perform_dge = false;
   bool keep_empty = false;
   size_t top = 0;
-  PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
-  PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
 };
 
 
@@ -165,12 +163,6 @@ int main(int argc, char **argv) {
      "header line, and row names in the first column of each row.");
 
   basic_options.add_options()
-    ("feature,f", po::value(&options.feature_type)->default_value(options.feature_type),
-     "Which type of distribution to use for the features. "
-     "Can be one of 'gamma' or 'dirichlet'.")
-    ("mix,m", po::value(&options.mixing_type)->default_value(options.mixing_type),
-     "Which type of distribution to use for the mixing weights. "
-     "Can be one of 'gamma' or 'dirichlet'.")
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
     ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
@@ -225,8 +217,6 @@ int main(int argc, char **argv) {
      "- \tPairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
      "Which sampling steps to perform.")
-    ("sd", po::value(&parameters.phi_prior_gen_sd)->default_value(parameters.phi_prior_gen_sd),
-     "Standard deviation of zero-centered normal distribution from which factors are sampled and exp-transformed to generate propositions for the feature priors.")
     ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
      "Use local priors for the mixing weights.")
     ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
@@ -323,61 +313,9 @@ int main(int argc, char **argv) {
   auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
                              not options.keep_empty);
 
-  LOG(info) << "Using " << options.feature_type
-            << " distribution for the features.";
-  LOG(info) << "Using " << options.mixing_type
-            << " distribution for the mixing weights.";
-
   using Kind = PF::Partial::Kind;
 
-  if (options.mixing_type == Kind::Dirichlet)
-    parameters.targets = parameters.targets & ~PF::Target::field;
-
-  switch (options.feature_type) {
-    /* TODO re-activate when new variance calculation is stable
-    case Kind::Dirichlet: {
-      parameters.targets = parameters.targets & (~(PF::Target::phi_local
-                                                 | PF::Target::phi_prior_local
-                                                 | PF::Target::baseline));
-      switch (options.mixing_type) {
-        case Kind::Dirichlet:
-          run<Kind::Dirichlet, Kind::Dirichlet>(data_sets, options, parameters);
-          break;
-        case Kind::HierGamma:
-          run<Kind::Dirichlet, Kind::HierGamma>(data_sets, options, parameters);
-          break;
-        default:
-          throw std::runtime_error("Error: Mixing type '"
-                                   + to_string(options.mixing_type)
-                                   + "' not implemented.");
-          break;
-      }
-    } break;
-    */
-    case Kind::Gamma: {
-      switch (options.mixing_type) {
-        /*
-        case Kind::Dirichlet:
-          run<Kind::Gamma, Kind::Dirichlet>(data_sets, options, parameters);
-          break;
-          */
-        case Kind::HierGamma:
-          run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
-          break;
-        default:
-          throw std::runtime_error("Error: Mixing type '"
-                                   + to_string(options.mixing_type)
-                                   + "' not implemented.");
-          break;
-      }
-      break;
-      default:
-        throw std::runtime_error("Error: feature type '"
-                                 + to_string(options.feature_type)
-                                 + "' not implemented.");
-        break;
-    }
-  }
+  run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
 
   return EXIT_SUCCESS;
 }
