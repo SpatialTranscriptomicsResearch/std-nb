@@ -1071,7 +1071,7 @@ Matrix Experiment<Type>::explained_gene_type(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t) = baseline_phi(g) * global_features.prior.r(g, t)
+      explained(g, t) = global_features.prior.r(g, t)
                         / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 }
@@ -1079,7 +1079,7 @@ Matrix Experiment<Type>::explained_gene_type(
 template <typename Type>
 Matrix Experiment<Type>::expected_gene_type(
     const features_t &global_features) const {
-  return features.matrix % explained_gene_type(global_features);
+  return features.prior.r % explained_gene_type(global_features);
 }
 
 template <typename Type>
@@ -1102,8 +1102,8 @@ Matrix Experiment<Type>::explained_spot_type(
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += baseline_phi(g) * features.prior.r(g, t)
-           * global_features.prior.r(g, t) / global_features.prior.p(g, t);
+      x += features.prior.r(g, t) * global_features.prior.r(g, t)
+           / global_features.prior.p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
