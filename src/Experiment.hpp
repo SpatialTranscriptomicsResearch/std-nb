@@ -52,10 +52,6 @@ struct Experiment {
   weights_t weights;
   Matrix field;
 
-  /** Normalizing factor to translate Poisson rates \lambda_{xgst} to relative
-   * frequencies \lambda_{gst} / z_{gs} for the multionomial distribution */
-  Matrix lambda_gene_spot;
-
   /** spot scaling vector */
   Vector spot;
 
@@ -76,10 +72,6 @@ struct Experiment {
 
   double log_likelihood(const features_t &global_features) const;
   double log_likelihood_conv_NB_counts(const features_t &global_features) const;
-
-  Matrix posterior_expectations_poisson() const;
-  Matrix posterior_expectations_negative_multinomial(
-      const features_t &global_features) const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
   inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
@@ -163,7 +155,6 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       baseline_feature(G, 1, parameters),
       weights(S, T, parameters),
       field(Matrix(S, T, arma::fill::ones)),
-      lambda_gene_spot(G, S, arma::fill::zeros),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
 /* TODO consider to reactivate
@@ -171,7 +162,6 @@ if (false) {
   // initialize:
   //  * contributions_gene_type
   //  * contributions_spot_type
-  //  * lambda_gene_spot
   LOG(debug) << "Initializing contributions.";
   sample_contributions(c.counts);
 }
@@ -272,14 +262,6 @@ void Experiment<Type>::store(const std::string &prefix,
     write_vector(contributions_spot,
                  prefix + "contributions_spot" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names);
-  }
-  if (false) {
-    write_matrix(posterior_expectations_poisson(),
-                 prefix + "counts_expected_poisson" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, spot_names);
-    write_matrix(posterior_expectations_negative_multinomial(global_features),
-                 prefix + "counts_expected" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, spot_names);
   }
 }
 
@@ -424,29 +406,6 @@ double Experiment<Type>::log_likelihood_conv_NB_counts(
     }
   }
   return l;
-}
-
-template <typename Type>
-Matrix Experiment<Type>::posterior_expectations_poisson() const {
-  Matrix m(G, S);
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      m(g, s) = lambda_gene_spot(g, s) * spot(s) * baseline_phi(g);
-  return m;
-}
-
-template <typename Type>
-Matrix Experiment<Type>::posterior_expectations_negative_multinomial(
-    const features_t &global_features) const {
-  Matrix prior_ratio = global_features.prior.ratio();
-  Matrix m(G, S, arma::fill::zeros);
-#pragma omp parallel for
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t) {
-        m(g, s) += prior_ratio(g, t) * phi(g, t) * theta(s, t) * spot(s);
-      }
-  return m;
 }
 
 template <typename T> int sgn(T val) {
