@@ -751,7 +751,7 @@ template <typename Type>
 double Model<Type>::log_likelihood() const {
   double l = 0;
   for (auto &experiment : experiments)
-    l += experiment.log_likelihood();
+    l += experiment.log_likelihood(features);
   return l;
 }
 
@@ -907,7 +907,6 @@ void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
   E++;
   // TODO check redundancy with Experiment constructor
   experiments.rbegin()->features.matrix.ones();
-  experiments.rbegin()->features.prior.set_unit(local_phi_scaling_factor);
   while(coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});
   coordinate_systems[coord_sys].members.push_back(E-1);

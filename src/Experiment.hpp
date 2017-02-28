@@ -74,8 +74,8 @@ struct Experiment {
 
   void gibbs_sample(const features_t &global_features);
 
-  double log_likelihood() const;
-  double log_likelihood_conv_NB_counts() const;
+  double log_likelihood(const features_t &global_features) const;
+  double log_likelihood_conv_NB_counts(const features_t &global_features) const;
 
   Matrix posterior_expectations_poisson() const;
   Matrix posterior_expectations_negative_multinomial(
@@ -396,24 +396,27 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
 }
 
 template <typename Type>
-double Experiment<Type>::log_likelihood() const {
+double Experiment<Type>::log_likelihood(
+    const features_t &global_features) const {
   // TODO respect posteriors of priors
-  return log_likelihood_conv_NB_counts();
+  return log_likelihood_conv_NB_counts(global_features);
 }
 
 template <typename Type>
-double Experiment<Type>::log_likelihood_conv_NB_counts() const {
+double Experiment<Type>::log_likelihood_conv_NB_counts(
+    const features_t &global_features) const {
   const size_t K = std::min<size_t>(20, T);
   double l = 0;
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    Vector ps = features.prior.p.row(g).t();
+    Vector ps = global_features.prior.p.row(g).t();
     for (size_t t = 0; t < T; ++t)
       ps[t] = neg_odds_to_prob(ps[t]);
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
-        rs[t] = features.prior.r(g, t) * theta(s, t) * spot(s);
+        rs[t] = global_features.prior.r(g, t) * features.prior.r(g, t)
+                * theta(s, t) * spot(s);
       double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
                  << " counts = " << data.counts(g, s) << " l = " << x;
