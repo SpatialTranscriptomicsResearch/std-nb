@@ -902,12 +902,19 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         if (noisy)
           LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
-        double l = 0;
-        for(auto &x: grad)
-          l += x*x;
-        l = sqrt(l);
+        // TODO reconsider activating this
+        // this was mostly de-activated because it doesn't for the two-factor case
+        // it should work better for more than two factors
+        if (false) {
+          double l = 0;
+          for (auto &x : grad)
+            l += x * x;
+          l = sqrt(l);
 
-        grad /= l;
+          grad /= l;
+        } else
+          grad *= 1e-2;
+
         if (noisy)
           LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
