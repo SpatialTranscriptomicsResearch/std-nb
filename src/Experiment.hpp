@@ -837,9 +837,10 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
     if (parameters.contributions_map) {
       auto gibbs = [](const Vector &y_) {
         Vector y = y_;
+        double m = *std::max_element(y.begin(), y.end());
         double z = 0;
         for (auto &x : y)
-          z += x = exp(x);
+          z += x = exp(x - m);
         for (auto &x : y)
           x /= z;
         return y;
