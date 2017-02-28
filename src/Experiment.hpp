@@ -834,7 +834,9 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
   const size_t count = data.counts(g, s);
 
   if (count > 0) {
-    if (parameters.contributions_map) {
+    if (T == 1) {
+      cnts[0] = count;
+    } else if (parameters.contributions_map) {
       auto gibbs = [](const Vector &y_) {
         Vector y = y_;
         double m = *std::max_element(y.begin(), y.end());
