@@ -850,24 +850,30 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           LOG(verbose) << "y = " << y;
           LOG(verbose) << "x = " << x;
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "r = " << features.prior.r(g, t);
+            LOG(verbose) << "r = " << global_features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "p = " << features.prior.p(g, t);
+            LOG(verbose) << "local r = " << features.prior.r(g, t);
+          for (size_t t = 0; t < T; ++t)
+            LOG(verbose) << "p = " << global_features.prior.p(g, t);
           for (size_t t = 0; t < T; ++t)
             LOG(verbose) << "theta = " << theta(s, t);
           for (size_t t = 0; t < T; ++t)
             LOG(verbose) << "mean = "
-                         << features.prior.r(g, t) * features.prior.p(g, t)
-                                / features.prior.p(g, t) * theta(s, t)
+                         << global_features.prior.r(g, t)
+                                * features.prior.r(g, t)
+                                / global_features.prior.p(g, t) * theta(s, t)
                                 * spot(s);
         }
 
         Vector tmp(T, arma::fill::zeros);
         for (size_t t = 0; t < T; ++t)
-          tmp(t)
-              = log(neg_odds_to_prob(features.prior.p(g, t)))
-                + digamma(x(t) + features.prior.r(g, t) * theta(s, t) * spot(s))
-                - digamma(x(t) + 1);
+          tmp(t) = log(neg_odds_to_prob(global_features.prior.p(g, t)))
+            // TODO use digamma_diff
+                   + digamma(x(t)
+                             + global_features.prior.r(g, t)
+                                   * features.prior.r(g, t) * theta(s, t)
+                                   * spot(s))
+                   - digamma(x(t) + 1);
 
         if (noisy)
           LOG(verbose) << "tmp = " << tmp;
@@ -950,7 +956,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
       std::vector<double> mean_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = global_features.prior.r(g, t)
+        z += mean_prob[t] = features.prior.r(g, t)
+                            * global_features.prior.r(g, t)
                             / global_features.prior.p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
         mean_prob[t] /= z;
@@ -1059,7 +1066,8 @@ Vector Experiment<Type>::marginalize_genes(
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensity += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
+      intensity += baseline_phi(g) * features.prior.r(g, t)
+                   * global_features.prior.r(g, t)
                    / global_features.prior.p(g, t);
     intensities[t] = intensity;
   }
@@ -1106,7 +1114,7 @@ Vector Experiment<Type>::explained_gene(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += phi(g, t) * global_features.prior.r(g, t)
+      explained(g) += features.prior.r(g, t) * global_features.prior.r(g, t)
                       / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 };
@@ -1118,8 +1126,8 @@ Matrix Experiment<Type>::explained_spot_type(
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += baseline_phi(g) * phi(g, t) * global_features.prior.r(g, t)
-           / global_features.prior.p(g, t);
+      x += baseline_phi(g) * features.prior.r(g, t)
+           * global_features.prior.r(g, t) / global_features.prior.p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
