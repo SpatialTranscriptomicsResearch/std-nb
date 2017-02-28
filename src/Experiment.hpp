@@ -814,6 +814,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           LOG(verbose) << "count = " << count;
           LOG(verbose) << "y = " << y;
           LOG(verbose) << "x = " << x;
+          LOG(verbose) << "local baseline = " << baseline_feature.prior.r(g);
           for (size_t t = 0; t < T; ++t)
             LOG(verbose) << "r = " << global_features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
@@ -824,7 +825,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
             LOG(verbose) << "theta = " << theta(s, t);
           for (size_t t = 0; t < T; ++t)
             LOG(verbose) << "mean = "
-                         << global_features.prior.r(g, t)
+                         << baseline_feature.prior.r(g)
+                                * global_features.prior.r(g, t)
                                 * features.prior.r(g, t)
                                 / global_features.prior.p(g, t) * theta(s, t)
                                 * spot(s);
@@ -834,6 +836,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         for (size_t t = 0; t < T; ++t)
           tmp(t) = log(neg_odds_to_prob(global_features.prior.p(g, t)))
             // TODO use digamma_diff
+            // TODO baseline
                    + digamma(x(t)
                              + global_features.prior.r(g, t)
                                    * features.prior.r(g, t) * theta(s, t)
@@ -845,6 +848,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
         double z = 0;
         for (size_t t = 0; t < T; ++t)
+          // TODO baseline
           z += x(t) / count * tmp(t);
 
         Vector grad(T, arma::fill::zeros);
@@ -932,7 +936,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
       std::vector<double> mean_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = features.prior.r(g, t)
+        z += mean_prob[t] = baseline_feature.prior.r(g)
+                            * features.prior.r(g, t)
                             * global_features.prior.r(g, t)
                             / global_features.prior.p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)

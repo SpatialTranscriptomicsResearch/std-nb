@@ -82,7 +82,7 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
     LOG(info) << "Performing iteration " << iteration;
 
-    pfa.sample_contributions(iteration > 1, iteration > 1, true);
+    pfa.sample_contributions(iteration > 1, iteration > 1, true, iteration > 1);
     LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       const string prefix
