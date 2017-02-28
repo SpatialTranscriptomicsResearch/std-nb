@@ -921,7 +921,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         // TODO check convergence
         cnts = cnts + grad;
       }
-      LOG(verbose) << "Final cnts = " << count * gibbs(cnts);
+      if (noisy)
+        LOG(verbose) << "Final cnts = " << count * gibbs(cnts);
       cnts = count * gibbs(cnts);
 
     } else {
