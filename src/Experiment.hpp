@@ -924,11 +924,13 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           LOG(debug) << "i=" << i << " j=" << j << " n=" << n
                      << " v[i]=" << v[i] << " v[j]=" << v[j];
 
-        const double r_i = global_features.prior.r(g, i);
+        const double r_i
+            = global_features.prior.r(g, i) * features.prior.r(g, i);
         const double no_i = global_features.prior.p(g, i);
         const double prod_i = r_i * theta(s, i) * spot(s);
 
-        const double r_j = global_features.prior.r(g, j);
+        const double r_j
+            = global_features.prior.r(g, j) * features.prior.r(g, j);
         const double no_j = global_features.prior.p(g, j);
         const double prod_j = r_j * theta(s, j) * spot(s);
 
