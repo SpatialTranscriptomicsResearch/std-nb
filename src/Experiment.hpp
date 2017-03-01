@@ -863,7 +863,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
                    // TODO use digamma_diff
                    // TODO baseline
                    + digamma(x(t)
-                             + global_features.prior.r(g, t)
+                             + baseline_feature.prior.r(g)
+                                   * global_features.prior.r(g, t)
                                    * features.prior.r(g, t) * theta(s, t)
                                    * spot(s))
                    - digamma(x(t) + 1);
