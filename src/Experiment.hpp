@@ -8,6 +8,7 @@
 #include "counts.hpp"
 #include "entropy.hpp"
 #include "metropolis_hastings.hpp"
+#include "hamiltonian_monte_carlo.hpp"
 #include "odds.hpp"
 #include "parameters.hpp"
 #include "stats.hpp"
@@ -808,10 +809,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
       };
 
       auto log_posterior = [&](const Vector &y) {
-        if (noisy) {
-          LOG(debug) << "hi from log posterior!";
-          assert(y.size() == T);
-        }
+        assert(y.size() == T);
         Vector x = count * gibbs(y);
         double l = 0;
         if (noisy) {
@@ -825,14 +823,10 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           double p = neg_odds_to_prob(global_features.prior.p(g, t));
           l += log_negative_binomial(x[t], r, p);
         }
-        if (noisy)
-          LOG(debug) << "bye from log posterior: " << l;
         return l;
       };
 
       auto grad_log_posterior = [&](const Vector &y) {
-        if (noisy)
-          LOG(debug) << "hi from gradient of log posterior!";
         Vector x = count * gibbs(y);
 
         if (noisy) {
@@ -881,34 +875,66 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         for (size_t t = 0; t < T; ++t)
           grad(t) = x(t) * (tmp(t) - z);
 
+        if (noisy)
+          LOG(debug) << "grad = " << grad;
         return grad;
       };
 
-      for(size_t iter = 0; iter < 10; ++iter) {
+      if (true) {
+        for (size_t t = 0; t < T; ++t)
+          cnts[t] = log(baseline_feature.prior.r(g) * features.prior.r(g, t)
+                        * global_features.prior.r(g, t)
+                        / global_features.prior.p(g, t) * theta(s, t));
+
+        const size_t N = 15;
+        const size_t L = 5;
+        const double epsilon = 1e-1;
+
+        Vector mean = count * gibbs(cnts);
         if (noisy)
-          LOG(verbose) << "Iteration " << iter << " cnts = " << count * gibbs(cnts);
-        auto grad = grad_log_posterior(cnts);
-        if (noisy)
-          LOG(verbose) << "Iteration " << iter << " grad = " << grad;
+          LOG(verbose) << "cnts 0: " << count * gibbs(cnts);
+        for (size_t i = 0; i < N; ++i) {
+          if (noisy)
+            LOG(debug) << "cnts " << i + 1 << ": " << count * gibbs(cnts);
+          cnts = HMC::sample(cnts, log_posterior, grad_log_posterior, L,
+                             epsilon, rng);
+          mean += count * gibbs(cnts);
+        }
+        mean /= N;
+        if (noisy) {
+          LOG(verbose) << "cnts X: " << count * gibbs(cnts);
+          LOG(verbose) << "cnts m: " << mean;
+        }
+        return mean;
+      } else {
+        for (size_t iter = 0; iter < 10; ++iter) {
+          if (noisy)
+            LOG(verbose) << "Iteration " << iter
+                         << " cnts = " << count * gibbs(cnts);
+          auto grad = grad_log_posterior(cnts);
+          if (noisy)
+            LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
-        // TODO reconsider activating this
-        // this was mostly de-activated because it doesn't for the two-factor case
-        // it should work better for more than two factors
-        if (false) {
-          double l = 0;
-          for (auto &x : grad)
-            l += x * x;
-          l = sqrt(l);
+          // TODO reconsider activating this
+          // this was mostly de-activated because it doesn't for the two-factor
+          // case
+          // it should work better for more than two factors
+          if (false) {
+            double l = 0;
+            for (auto &x : grad)
+              l += x * x;
+            l = sqrt(l);
 
-          grad /= l;
-        } else
-          grad *= 1e-2;
+            grad /= l;
+          } else
+            grad *= 1e-2;
 
-        if (noisy)
-          LOG(verbose) << "Iteration " << iter << " grad = " << grad;
+          if (noisy)
+            LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
-        // TODO check convergence
-        cnts = cnts + grad;
+          // TODO check convergence
+          cnts = cnts + grad;
+        }
       }
       if (noisy)
         LOG(verbose) << "Final cnts = " << count * gibbs(cnts);
