@@ -807,24 +807,49 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         return y;
       };
 
+      auto log_posterior = [&](const Vector &y) {
+        if (noisy) {
+          LOG(debug) << "hi from log posterior!";
+          assert(y.size() == T);
+        }
+        Vector x = count * gibbs(y);
+        double l = 0;
+        if (noisy) {
+          LOG(debug) << "g s = " << g << " " << s;
+          LOG(debug) << "y = " << y;
+          LOG(debug) << "x = " << x;
+        }
+        for(size_t t = 0; t < T; ++t) {
+          double r = global_features.prior.r(g, t) * features.prior.r(g, t)
+                     * baseline_feature.prior.r(g) * theta(s, t) * spot(s);
+          double p = neg_odds_to_prob(global_features.prior.p(g, t));
+          l += log_negative_binomial(x[t], r, p);
+        }
+        if (noisy)
+          LOG(debug) << "bye from log posterior: " << l;
+        return l;
+      };
+
       auto grad_log_posterior = [&](const Vector &y) {
+        if (noisy)
+          LOG(debug) << "hi from gradient of log posterior!";
         Vector x = count * gibbs(y);
 
         if (noisy) {
-          LOG(verbose) << "count = " << count;
-          LOG(verbose) << "y = " << y;
-          LOG(verbose) << "x = " << x;
-          LOG(verbose) << "local baseline = " << baseline_feature.prior.r(g);
+          LOG(debug) << "count = " << count;
+          LOG(debug) << "y = " << y;
+          LOG(debug) << "x = " << x;
+          LOG(debug) << "local baseline = " << baseline_feature.prior.r(g);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "r = " << global_features.prior.r(g, t);
+            LOG(debug) << "r = " << global_features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "local r = " << features.prior.r(g, t);
+            LOG(debug) << "local r = " << features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "p = " << global_features.prior.p(g, t);
+            LOG(debug) << "p = " << global_features.prior.p(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "theta = " << theta(s, t);
+            LOG(debug) << "theta = " << theta(s, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(verbose) << "mean = "
+            LOG(debug) << "mean = "
                          << baseline_feature.prior.r(g)
                                 * global_features.prior.r(g, t)
                                 * features.prior.r(g, t)
@@ -835,8 +860,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         Vector tmp(T, arma::fill::zeros);
         for (size_t t = 0; t < T; ++t)
           tmp(t) = log(neg_odds_to_prob(global_features.prior.p(g, t)))
-            // TODO use digamma_diff
-            // TODO baseline
+                   // TODO use digamma_diff
+                   // TODO baseline
                    + digamma(x(t)
                              + global_features.prior.r(g, t)
                                    * features.prior.r(g, t) * theta(s, t)
@@ -844,7 +869,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
                    - digamma(x(t) + 1);
 
         if (noisy)
-          LOG(verbose) << "tmp = " << tmp;
+          LOG(debug) << "tmp = " << tmp;
 
         double z = 0;
         for (size_t t = 0; t < T; ++t)
