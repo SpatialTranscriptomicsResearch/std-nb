@@ -900,7 +900,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
                              epsilon, rng);
           mean += count * gibbs(cnts);
         }
-        mean /= N;
+        mean /= N + 1;
         if (noisy) {
           LOG(verbose) << "cnts X: " << count * gibbs(cnts);
           LOG(verbose) << "cnts m: " << mean;
