@@ -884,7 +884,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         for (size_t t = 0; t < T; ++t)
           cnts[t] = log(baseline_feature.prior.r(g) * features.prior.r(g, t)
                         * global_features.prior.r(g, t)
-                        / global_features.prior.p(g, t) * theta(s, t));
+                        / global_features.prior.p(g, t) * theta(s, t) * spot(s));
 
         const size_t N = 15;
         const size_t L = 5;
