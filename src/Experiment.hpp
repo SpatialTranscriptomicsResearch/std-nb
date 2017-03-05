@@ -808,7 +808,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         return y;
       };
 
-      auto log_posterior = [&](const Vector &y) {
+      auto neg_log_posterior = [&](const Vector &y) {
         assert(y.size() == T);
         Vector x = count * gibbs(y);
         double l = 0;
@@ -823,10 +823,10 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           double p = neg_odds_to_prob(global_features.prior.p(g, t));
           l += log_negative_binomial(x[t], r, p);
         }
-        return l;
+        return -l;
       };
 
-      auto grad_log_posterior = [&](const Vector &y) {
+      auto neg_grad_log_posterior = [&](const Vector &y) {
         Vector x = count * gibbs(y);
 
         if (noisy) {
@@ -873,7 +873,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
         Vector grad(T, arma::fill::zeros);
         for (size_t t = 0; t < T; ++t)
-          grad(t) = x(t) * (tmp(t) - z);
+          grad(t) = -x(t) * (tmp(t) - z);
 
         if (noisy)
           LOG(debug) << "grad = " << grad;
@@ -896,7 +896,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         for (size_t i = 0; i < N; ++i) {
           if (noisy)
             LOG(debug) << "cnts " << i + 1 << ": " << count * gibbs(cnts);
-          cnts = HMC::sample(cnts, log_posterior, grad_log_posterior, L,
+          cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior, L,
                              epsilon, rng);
           mean += count * gibbs(cnts);
         }
@@ -911,7 +911,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           if (noisy)
             LOG(verbose) << "Iteration " << iter
                          << " cnts = " << count * gibbs(cnts);
-          auto grad = grad_log_posterior(cnts);
+          auto grad = neg_grad_log_posterior(cnts);
           if (noisy)
             LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
@@ -933,7 +933,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
             LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
           // TODO check convergence
-          cnts = cnts + grad;
+          cnts = cnts - grad;
         }
       }
       if (noisy)
