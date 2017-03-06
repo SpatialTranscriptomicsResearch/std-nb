@@ -856,12 +856,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           for (size_t t = 0; t < T; ++t)
             LOG(trace) << "theta = " << theta(s, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "mean = "
-                         << baseline_feature.prior.r(g)
-                                * global_features.prior.r(g, t)
-                                * features.prior.r(g, t)
-                                / global_features.prior.p(g, t) * theta(s, t)
-                                * spot(s);
+            LOG(trace) << "mean = " << r[t] / global_features.prior.p(g, t);
         }
 
         Vector tmp(T, arma::fill::zeros);
@@ -888,9 +883,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
       if (true) {
         for (size_t t = 0; t < T; ++t)
-          cnts[t] = log(baseline_feature.prior.r(g) * features.prior.r(g, t)
-                        * global_features.prior.r(g, t)
-                        / global_features.prior.p(g, t) * theta(s, t) * spot(s));
+          cnts[t] = log(r[t] / global_features.prior.p(g, t));
 
         const size_t N = 15;
         const size_t L = 5;
