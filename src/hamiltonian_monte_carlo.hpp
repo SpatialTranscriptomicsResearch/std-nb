@@ -7,6 +7,7 @@
 #include "sampling.hpp"
 
 namespace HMC {
+const bool hmc_noisy = false;
 template <typename T, typename F, typename G, typename RNG, typename... Args>
 T sample(T current_q, F func, G grad, size_t L, double epsilon, RNG &rng,
          Args &... args) {
@@ -46,8 +47,12 @@ T sample(T current_q, F func, G grad, size_t L, double epsilon, RNG &rng,
   // Accept or reject the state at end of trajectory, returning either
   // the position at the end of the trajectory or the initial position
   if (score > 0 or RandomDistribution::Uniform(rng) < exp(score)) {
+    if (hmc_noisy)
+      LOG(debug) << "HMC: " << score << " accepted";
     return q;  // accept
   } else {
+    if (hmc_noisy)
+      LOG(debug) << "HMC: " << score << " rejected";
     return current_q;  // reject
   }
 };
