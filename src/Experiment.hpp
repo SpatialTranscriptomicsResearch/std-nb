@@ -829,9 +829,9 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         Vector x = count * gibbs(y);
         double l = 0;
         if (noisy) {
-          LOG(debug) << "g s = " << g << " " << s;
-          LOG(debug) << "y = " << y;
-          LOG(debug) << "x = " << x;
+          LOG(trace) << "g s = " << g << " " << s;
+          LOG(trace) << "y = " << y;
+          LOG(trace) << "x = " << x;
         }
         for(size_t t = 0; t < T; ++t)
           // TODO only compute relevant terms
@@ -843,20 +843,20 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         Vector x = count * gibbs(y);
 
         if (noisy) {
-          LOG(debug) << "count = " << count;
-          LOG(debug) << "y = " << y;
-          LOG(debug) << "x = " << x;
-          LOG(debug) << "local baseline = " << baseline_feature.prior.r(g);
+          LOG(trace) << "count = " << count;
+          LOG(trace) << "y = " << y;
+          LOG(trace) << "x = " << x;
+          LOG(trace) << "local baseline = " << baseline_feature.prior.r(g);
           for (size_t t = 0; t < T; ++t)
-            LOG(debug) << "r = " << global_features.prior.r(g, t);
+            LOG(trace) << "r = " << global_features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(debug) << "local r = " << features.prior.r(g, t);
+            LOG(trace) << "local r = " << features.prior.r(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(debug) << "p = " << global_features.prior.p(g, t);
+            LOG(trace) << "p = " << global_features.prior.p(g, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(debug) << "theta = " << theta(s, t);
+            LOG(trace) << "theta = " << theta(s, t);
           for (size_t t = 0; t < T; ++t)
-            LOG(debug) << "mean = "
+            LOG(trace) << "mean = "
                          << baseline_feature.prior.r(g)
                                 * global_features.prior.r(g, t)
                                 * features.prior.r(g, t)
@@ -870,7 +870,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           tmp(t) = log(p[t]) + digamma(x(t) + r[t]) - digamma(x(t) + 1);
 
         if (noisy)
-          LOG(debug) << "tmp = " << tmp;
+          LOG(trace) << "tmp = " << tmp;
 
         double z = 0;
         for (size_t t = 0; t < T; ++t)
