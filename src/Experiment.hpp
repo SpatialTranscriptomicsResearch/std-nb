@@ -869,7 +869,6 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
         double z = 0;
         for (size_t t = 0; t < T; ++t)
-          // TODO baseline
           z += x(t) / count * tmp(t);
 
         Vector grad(T, arma::fill::zeros);
