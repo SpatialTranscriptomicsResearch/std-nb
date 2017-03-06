@@ -785,6 +785,53 @@ inline double trigamma_diff(double a, double b) {
     return 0;
 }
 
+double neg_log_posterior(const Vector &y, size_t count, const Vector &r,
+                         const Vector &p) {
+  const size_t T = y.size();
+  Vector x = count * gibbs(y);
+  double l = 0;
+  if (noisy) {
+    LOG(trace) << "y = " << y;
+    LOG(trace) << "x = " << x;
+  }
+  for (size_t t = 0; t < T; ++t)
+    // TODO only compute relevant terms
+    l += log_negative_binomial(x[t], r[t], p[t]);
+  return -l;
+}
+
+Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
+                              const Vector &p) {
+  const size_t T = y.size();
+  Vector x = count * gibbs(y);
+
+  if (noisy) {
+    LOG(trace) << "count = " << count;
+    LOG(trace) << "y = " << y;
+    LOG(trace) << "x = " << x;
+  }
+
+  Vector tmp(T, arma::fill::zeros);
+  for (size_t t = 0; t < T; ++t)
+    // TODO use digamma_diff
+    tmp(t) = log(p[t]) + digamma(x(t) + r[t]) - digamma(x(t) + 1);
+
+  if (noisy)
+    LOG(trace) << "tmp = " << tmp;
+
+  double z = 0;
+  for (size_t t = 0; t < T; ++t)
+    z += x(t) / count * tmp(t);
+
+  Vector grad(T, arma::fill::zeros);
+  for (size_t t = 0; t < T; ++t)
+    grad(t) = -x(t) * (tmp(t) - z);
+
+  if (noisy)
+    LOG(debug) << "grad = " << grad;
+  return grad;
+}
+
 template <typename Type>
 /** sample count decomposition */
 Vector Experiment<Type>::sample_contributions_gene_spot(
@@ -813,62 +860,6 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           LOG(debug) << "p = " << p[t];
       }
 
-      auto neg_log_posterior = [&](const Vector &y) {
-        assert(y.size() == T);
-        Vector x = count * gibbs(y);
-        double l = 0;
-        if (noisy) {
-          LOG(trace) << "g s = " << g << " " << s;
-          LOG(trace) << "y = " << y;
-          LOG(trace) << "x = " << x;
-        }
-        for(size_t t = 0; t < T; ++t)
-          // TODO only compute relevant terms
-          l += log_negative_binomial(x[t], r[t], p[t]);
-        return -l;
-      };
-
-      auto neg_grad_log_posterior = [&](const Vector &y) {
-        Vector x = count * gibbs(y);
-
-        if (noisy) {
-          LOG(trace) << "count = " << count;
-          LOG(trace) << "y = " << y;
-          LOG(trace) << "x = " << x;
-          LOG(trace) << "local baseline = " << baseline_feature.prior.r(g);
-          for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "r = " << global_features.prior.r(g, t);
-          for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "local r = " << features.prior.r(g, t);
-          for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "p = " << global_features.prior.p(g, t);
-          for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "theta = " << theta(s, t);
-          for (size_t t = 0; t < T; ++t)
-            LOG(trace) << "mean = " << r[t] / global_features.prior.p(g, t);
-        }
-
-        Vector tmp(T, arma::fill::zeros);
-        for (size_t t = 0; t < T; ++t)
-          // TODO use digamma_diff
-          tmp(t) = log(p[t]) + digamma(x(t) + r[t]) - digamma(x(t) + 1);
-
-        if (noisy)
-          LOG(trace) << "tmp = " << tmp;
-
-        double z = 0;
-        for (size_t t = 0; t < T; ++t)
-          z += x(t) / count * tmp(t);
-
-        Vector grad(T, arma::fill::zeros);
-        for (size_t t = 0; t < T; ++t)
-          grad(t) = -x(t) * (tmp(t) - z);
-
-        if (noisy)
-          LOG(debug) << "grad = " << grad;
-        return grad;
-      };
-
       if (true) {
         for (size_t t = 0; t < T; ++t)
           cnts[t] = log(r[t] / global_features.prior.p(g, t));
@@ -884,7 +875,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           if (noisy)
             LOG(debug) << "cnts " << i + 1 << ": " << count * gibbs(cnts);
           cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior, L,
-                             epsilon, rng);
+                             epsilon, rng, count, r, p);
           mean += count * gibbs(cnts);
         }
         mean /= N + 1;
@@ -898,7 +889,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           if (noisy)
             LOG(verbose) << "Iteration " << iter
                          << " cnts = " << count * gibbs(cnts);
-          auto grad = neg_grad_log_posterior(cnts);
+          auto grad = neg_grad_log_posterior(cnts, count, r, p);
           if (noisy)
             LOG(verbose) << "Iteration " << iter << " grad = " << grad;
 
