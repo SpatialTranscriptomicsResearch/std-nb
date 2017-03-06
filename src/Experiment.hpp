@@ -797,17 +797,6 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
     if (T == 1) {
       cnts[0] = count;
     } else if (parameters.contributions_map) {
-      auto gibbs = [](const Vector &y_) {
-        Vector y = y_;
-        double m = *std::max_element(y.begin(), y.end());
-        double z = 0;
-        for (auto &x : y)
-          z += x = exp(x - m);
-        for (auto &x : y)
-          x /= z;
-        return y;
-      };
-
       Vector r(T);
       for (size_t t = 0; t < T; ++t)
         r[t] = global_features.prior.r(g, t) * features.prior.r(g, t)

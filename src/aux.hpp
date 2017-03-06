@@ -118,4 +118,16 @@ void min_max(const std::string &label, const T &v) {
              << std::endl;
 }
 
+template <typename V>
+V gibbs(const V &y_) {
+  V y = y_;
+  double m = *std::max_element(y.begin(), y.end());
+  double z = 0;
+  for (auto &x : y)
+    z += x = exp(x - m);
+  for (auto &x : y)
+    x /= z;
+  return y;
+}
+
 #endif
