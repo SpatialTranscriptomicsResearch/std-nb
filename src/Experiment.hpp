@@ -808,6 +808,22 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         return y;
       };
 
+      Vector r(T);
+      for (size_t t = 0; t < T; ++t)
+        r[t] = global_features.prior.r(g, t) * features.prior.r(g, t)
+               * baseline_feature.prior.r(g) * theta(s, t) * spot(s);
+
+      Vector p(T);
+      for (size_t t = 0; t < T; ++t)
+        p[t] = neg_odds_to_prob(global_features.prior.p(g, t));
+
+      if(noisy) {
+        for (size_t t = 0; t < T; ++t)
+          LOG(debug) << "r = " << r[t];
+        for (size_t t = 0; t < T; ++t)
+          LOG(debug) << "p = " << p[t];
+      }
+
       auto neg_log_posterior = [&](const Vector &y) {
         assert(y.size() == T);
         Vector x = count * gibbs(y);
@@ -817,12 +833,9 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
           LOG(debug) << "y = " << y;
           LOG(debug) << "x = " << x;
         }
-        for(size_t t = 0; t < T; ++t) {
-          double r = global_features.prior.r(g, t) * features.prior.r(g, t)
-                     * baseline_feature.prior.r(g) * theta(s, t) * spot(s);
-          double p = neg_odds_to_prob(global_features.prior.p(g, t));
-          l += log_negative_binomial(x[t], r, p);
-        }
+        for(size_t t = 0; t < T; ++t)
+          // TODO only compute relevant terms
+          l += log_negative_binomial(x[t], r[t], p[t]);
         return -l;
       };
 
@@ -853,15 +866,8 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
         Vector tmp(T, arma::fill::zeros);
         for (size_t t = 0; t < T; ++t)
-          tmp(t) = log(neg_odds_to_prob(global_features.prior.p(g, t)))
-                   // TODO use digamma_diff
-                   // TODO baseline
-                   + digamma(x(t)
-                             + baseline_feature.prior.r(g)
-                                   * global_features.prior.r(g, t)
-                                   * features.prior.r(g, t) * theta(s, t)
-                                   * spot(s))
-                   - digamma(x(t) + 1);
+          // TODO use digamma_diff
+          tmp(t) = log(p[t]) + digamma(x(t) + r[t]) - digamma(x(t) + 1);
 
         if (noisy)
           LOG(debug) << "tmp = " << tmp;
