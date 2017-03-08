@@ -394,7 +394,8 @@ double Experiment<Type>::log_likelihood_conv_NB_counts(
   for (size_t g = 0; g < G; ++g) {
     Vector ps = global_features.prior.p.row(g).t();
     for (size_t t = 0; t < T; ++t)
-      ps[t] = neg_odds_to_prob(ps[t]);
+      // NOTE conv neg bin has opposite interpretation of p
+      ps[t] = 1 - neg_odds_to_prob(ps[t]);
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
