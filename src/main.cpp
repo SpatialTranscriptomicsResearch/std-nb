@@ -308,6 +308,13 @@ int main(int argc, char **argv) {
   auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
                              not options.keep_empty);
 
+  if (data_sets.size() < 2) {
+    LOG(info)
+        << "Less than 2 data sets; deactivating local baseline and features.";
+    parameters.targets
+        = parameters.targets & ~(PF::Target::local | PF::Target::baseline);
+  }
+
   using Kind = PF::Partial::Kind;
 
   run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
