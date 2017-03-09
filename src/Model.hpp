@@ -90,7 +90,7 @@ struct Model {
   void sample_global_theta_priors();
   void sample_fields();
 
-  double log_likelihood() const;
+  double log_likelihood(const std::string &prefix) const;
   double log_likelihood_conv_NB_counts() const;
 
   inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
@@ -1012,10 +1012,25 @@ double Model<Type>::log_likelihood_conv_NB_counts() const {
 }
 
 template <typename Type>
-double Model<Type>::log_likelihood() const {
+double Model<Type>::log_likelihood(const std::string &prefix) const {
   double l = 0;
-  for (auto &experiment : experiments)
-    l += experiment.log_likelihood(features);
+  for (size_t e = 0; e < E; ++e) {
+    Matrix m = experiments[e].log_likelihood(features);
+
+    auto &gene_names = experiments[e].data.row_names;
+    auto &spot_names = experiments[e].data.col_names;
+
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
+    write_matrix(m, exp_prefix + "loglikelihood" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, spot_names);
+    write_matrix(experiments[e].data.counts,
+                 exp_prefix + "loglikelihood-counts" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, spot_names);
+    for (auto &x : m)
+      l += x;
+  }
   return l;
 }
 

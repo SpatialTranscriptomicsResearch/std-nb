@@ -97,7 +97,8 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
   }
   moments.evaluate(options.output);
   if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = " << pfa.log_likelihood();
+    LOG(info) << "Final log-likelihood = "
+              << pfa.log_likelihood(options.output);
   pfa.store(options.output);
   if (options.predict_field) {
     for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
