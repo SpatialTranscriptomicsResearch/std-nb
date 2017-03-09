@@ -15,20 +15,12 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << "contributions";
       first = false;
     }
-    if (flagged(which & Target::phi)) {
-      os << (first ? "" : ",") << "phi";
+    if (flagged(which & Target::global)) {
+      os << (first ? "" : ",") << "global";
       first = false;
     }
-    if (flagged(which & Target::phi_prior)) {
-      os << (first ? "" : ",") << "phi_prior";
-      first = false;
-    }
-    if (flagged(which & Target::phi_local)) {
-      os << (first ? "" : ",") << "phi_local";
-      first = false;
-    }
-    if (flagged(which & Target::phi_prior_local)) {
-      os << (first ? "" : ",") << "phi_prior_local";
+    if (flagged(which & Target::local)) {
+      os << (first ? "" : ",") << "local";
       first = false;
     }
     if (flagged(which & Target::theta)) {
@@ -66,18 +58,10 @@ istream &operator>>(istream &is, Target &which) {
   for (auto token : tok) {
     if (token == "contributions")
       which = which | Target::contributions;
-    else if (token == "features")
-      which = which | Target::phi | Target::phi_prior;
-    else if (token == "mixing")
-      which = which | Target::theta | Target::theta_prior;
-    else if (token == "phi")
-      which = which | Target::phi;
-    else if (token == "phi_prior")
-      which = which | Target::phi_prior;
-    else if (token == "phi_local")
-      which = which | Target::phi_local;
-    else if (token == "phi_prior_local")
-      which = which | Target::phi_prior_local;
+    else if (token == "global")
+      which = which | Target::global;
+    else if (token == "local")
+      which = which | Target::local;
     else if (token == "theta")
       which = which | Target::theta;
     else if (token == "theta_prior")

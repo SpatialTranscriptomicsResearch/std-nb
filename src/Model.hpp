@@ -381,7 +381,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
             contributions_gene_type(g, t) += counts_gst[e](s, t);
           }
 
-      if (do_global_features)
+      if (do_global_features and parameters.targeted(Target::global))
         for (size_t t = 0; t < T; ++t) {
           double cs = 0;
           for (size_t e = 0; e < E; ++e)
@@ -529,7 +529,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
 
       // baseline feature
 
-      if (do_baseline) {
+      if (do_baseline and parameters.targeted(Target::baseline)) {
         double A = a * 50;
         double B = b * 50;
 
@@ -662,7 +662,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
 
       // local features
 
-      if (do_local_features)
+      if (do_local_features and parameters.targeted(Target::local))
         for (size_t t = 0; t < T; ++t) {
           double A = a * 50;
           double B = b * 50;
@@ -791,7 +791,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
   update_contributions();
 
   // theta
-  if (do_theta)
+  if (do_theta and parameters.targeted(Target::theta))
 #pragma omp parallel if (DO_PARALLEL)
   {
     auto rng = EntropySource::rngs[omp_get_thread_num()];
@@ -912,6 +912,8 @@ void Model<Type>::sample_contributions(bool do_global_features,
     }
   }
   update_contributions();
+  if (parameters.targeted(Target::theta_prior))
+    sample_global_theta_priors();
 }
 
 template <typename Type>

@@ -341,8 +341,7 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
         break;
 
       case 1:
-        if (parameters.targeted(Target::theta_prior)
-            and parameters.theta_local_priors) {
+        if (parameters.targeted(Target::theta_prior)) {
           throw("Not implemented");
           // TODO re-implement
           /*
@@ -357,14 +356,16 @@ void Experiment<Type>::gibbs_sample(const features_t &global_features) {
         break;
 
       case 2:
-        if (parameters.targeted(Target::phi_prior_local))
-          // TODO FIXME make this work!
-          features.prior.sample(*this, global_features);
+        // TODO deactivated due to change in Target
+        // if (parameters.targeted(Target::phi_prior_local))
+        //   // TODO FIXME make this work!
+        //   features.prior.sample(*this, global_features);
         break;
 
       case 3:
-        if (parameters.targeted(Target::phi_local))
-          features.sample(*this, global_features);
+        // TODO deactivated due to change in Target
+        // if (parameters.targeted(Target::phi_local))
+        //   features.sample(*this, global_features);
         break;
 
       case 4:
