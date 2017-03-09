@@ -87,6 +87,8 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(matrix(g, t), prior.r(g, t), 1.0 / prior.p(g, t));
 
+  /*
+   // NOTE deactivated due to removal of parameters.respect_phi_prior_likelihood
   if (parameters.respect_phi_prior_likelihood)
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
     for (size_t g = 0; g < dim1; ++g)
@@ -105,6 +107,7 @@ double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
       //     parameters.hyperparameters.phi_p_2,
       //     experiment.contributions_gene_type(g, t);
       //     expected); // experiment.expected_gene_type(...);
+  */
 
   LOG(verbose) << "Feature log likelihood factor " << t << ": " << l;
   return l;

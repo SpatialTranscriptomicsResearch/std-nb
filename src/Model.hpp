@@ -81,9 +81,6 @@ struct Model {
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
-  /** sample each of the variables from their conditional posterior */
-  void gibbs_sample();
-
   void sample_contributions(bool do_global_features, bool do_local_features,
                             bool do_theta, bool do_baseline);
 
@@ -274,58 +271,6 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
         = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].perform_local_dge(exp_prefix, features);
   }
-}
-
-template <typename Type>
-void Model<Type>::gibbs_sample() {
-  LOG(verbose) << "perform Gibbs step for " << parameters.targets;
-  min_max("r(phi)", features.prior.r);
-  min_max("p(phi)", features.prior.p);
-  if (parameters.targeted(Target::contributions))
-    sample_contributions(true, true, true, true);
-
-  min_max("r(phi)", features.prior.r);
-  min_max("p(phi)", features.prior.p);
-  enforce_positive_parameters();
-  sample_global_theta_priors();
-  enforce_positive_parameters();
-  return;
-
-  // TODO add CLI switch
-  auto order = random_order(4);
-  for (auto &o : order)
-    switch (o) {
-      case 0:
-        if (parameters.targeted(Target::theta_prior)
-            and not parameters.theta_local_priors)
-          sample_global_theta_priors();
-        break;
-
-      case 1:
-        // if (parameters.targeted(Target::phi_prior))
-        //   features.prior.sample(*this);
-        break;
-
-      case 2:
-        if (parameters.targeted(Target::phi))
-          features.sample(*this);
-        break;
-
-      case 3:
-        if (parameters.targeted(Target::field))
-          sample_fields();
-
-        if (true)
-          for (auto &experiment : experiments)
-            experiment.gibbs_sample(features);
-        break;
-
-      default:
-        break;
-    }
-  LOG(info) << "column sums of r: " << colSums<Vector>(features.prior.r).t();
-  LOG(info) << "column sums of p: " << colSums<Vector>(features.prior.p).t();
-  iteration++;
 }
 
 template <typename Type>

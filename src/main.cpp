@@ -217,13 +217,7 @@ int main(int argc, char **argv) {
      "- \tFor all factors, compare each experiment's local profile against the global one.\n"
      "- \tPairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
-     "Which sampling steps to perform.")
-    ("localthetapriors", po::bool_switch(&parameters.theta_local_priors),
-     "Use local priors for the mixing weights.")
-    ("phi_likel", po::bool_switch(&parameters.respect_phi_prior_likelihood),
-     "Respect the likelihood contributions of the feature priors.")
-    ("theta_likel", po::bool_switch(&parameters.respect_theta_prior_likelihood),
-     "Respect the likelihood contributions of the mixture priors.");
+     "Which sampling steps to perform.");
 
   hyperparameter_options.add_options()
     ("feature_alpha", po::value(&parameters.hyperparameters.feature_alpha)->default_value(parameters.hyperparameters.feature_alpha),

@@ -103,6 +103,8 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
     l += cur;
   }
 
+  /*
+   * NOTE deactivated due to removal of parameters.respect_theta_prior_likelihood
   if (parameters.respect_theta_prior_likelihood)
     // NOTE: log_gamma takes a shape and scale parameter
     l += log_gamma(prior.r(t), parameters.hyperparameters.theta_r_1,
@@ -111,6 +113,7 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
   if (parameters.respect_theta_prior_likelihood)
     l += log_beta_neg_odds(prior.p(t), parameters.hyperparameters.theta_p_1,
         parameters.hyperparameters.theta_p_2);
+  */
 
   return l;
 }
