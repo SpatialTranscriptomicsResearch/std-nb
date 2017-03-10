@@ -69,19 +69,8 @@ struct Experiment {
   void perform_local_dge(const std::string &prefix,
                          const features_t &global_features) const;
 
-  void gibbs_sample(const features_t &global_features);
-
   Matrix log_likelihood(const features_t &global_features) const;
   Matrix log_likelihood_conv_NB_counts(const features_t &global_features) const;
-
-  inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
-  inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
-  inline Float &baseline_phi(size_t g) {
-    return baseline_feature.matrix(g, 0);
-  };
-  inline Float baseline_phi(size_t g) const {
-    return baseline_feature.matrix(g, 0);
-  };
 
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
@@ -94,12 +83,6 @@ struct Experiment {
   Vector sample_contributions_gene_spot(size_t g, size_t s,
                                         const features_t &global_features,
                                         RNG &rng) const;
-
-  /** sample spot scaling factors */
-  void sample_spot(const features_t &global_features);
-
-  /** sample baseline feature */
-  void sample_baseline(const features_t &global_features);
 
   Vector marginalize_genes(const features_t &global_features) const;
   Vector marginalize_spots() const;
@@ -136,8 +119,6 @@ struct Experiment {
   Float local_dge_sub(Fnc fnc, const features_t &global_features, size_t g,
                       size_t t, Float theta, Float p = 0.5) const;
 };
-
-#include "ExperimentDGE.hpp"
 
 template <typename Type>
 Experiment<Type>::Experiment(const Counts &data_, size_t T_,
@@ -318,65 +299,6 @@ void Experiment<Type>::perform_local_dge(const std::string &prefix,
       local_dge([](Float baseline, Float local __attribute__((unused))) { return baseline; }, global_features),
       prefix + "differential_gene_expression_local" + FILENAME_ENDING,
       parameters.compression_mode, gene_names, factor_names);
-}
-
-template <typename Type>
-void Experiment<Type>::gibbs_sample(const features_t &global_features) {
-  // TODO reactivate
-  // if (false)
-  //   if (parameters.targeted(Target::contributions))
-  //     sample_contributions(global_features, );
-
-  if (parameters.targeted(Target::theta))
-    weights.sample_field(*this, field, global_features);
-
-  // TODO add CLI switch
-  auto order = random_order(5);
-  for (auto &o : order)
-    switch (o) {
-      case 0:
-        // TODO add baseline prior
-        if (parameters.targeted(Target::baseline))
-          sample_baseline(global_features);
-        break;
-
-      case 1:
-        if (parameters.targeted(Target::theta_prior)) {
-          throw("Not implemented");
-          // TODO re-implement
-          /*
-          Matrix feature_matrix = features.matrix % global_features.matrix;
-          // feature_matrix.each_col() *= baseline_feature.matrix.col(0);
-          for (size_t g = 0; g < G; ++g)
-            for (size_t t = 0; t < T; ++t)
-              feature_matrix(g, t) *= baseline_phi(g);
-          weights.prior.sample(feature_matrix, contributions_spot_type, spot);
-          */
-        }
-        break;
-
-      case 2:
-        // TODO deactivated due to change in Target
-        // if (parameters.targeted(Target::phi_prior_local))
-        //   // TODO FIXME make this work!
-        //   features.prior.sample(*this, global_features);
-        break;
-
-      case 3:
-        // TODO deactivated due to change in Target
-        // if (parameters.targeted(Target::phi_local))
-        //   features.sample(*this, global_features);
-        break;
-
-      case 4:
-        if (parameters.targeted(Target::spot))
-          sample_spot(global_features);
-        break;
-
-      default:
-        break;
-    }
-  LOG(info) << "column sums of theta: " << colSums<Vector>(weights.matrix).t();
 }
 
 template <typename Type>
@@ -1018,8 +940,6 @@ void Experiment<Type>::enforce_positive_parameters() {
   weights.enforce_positive_parameters();
   for (size_t g = 0; g < G; ++g) {
     for (size_t t = 0; t < T; ++t) {
-      phi(g, t) = std::max<double>(phi(g, t),
-                                   std::numeric_limits<double>::denorm_min());
       features.prior.r(g, t) = std::max<double>(
           features.prior.r(g, t), std::numeric_limits<double>::denorm_min());
       features.prior.p(g, t) = std::max<double>(
@@ -1027,48 +947,6 @@ void Experiment<Type>::enforce_positive_parameters() {
     }
   }
 
-}
-
-/** sample spot scaling factors */
-template <typename Type>
-void Experiment<Type>::sample_spot(const features_t &global_features) {
-  LOG(verbose) << "Sampling spot scaling factors";
-  auto phi_marginal = marginalize_genes(global_features);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s) {
-    Float intensity_sum = 0;
-    for (size_t t = 0; t < T; ++t)
-      intensity_sum += phi_marginal(t) * theta(s, t);
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    spot[s] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.spot_a + contributions_spot(s),
-        1.0 / (parameters.hyperparameters.spot_b + intensity_sum))(
-        EntropySource::rng);
-  }
-
-  if (false)
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    // NOTE: std::gamma_distribution takes a shape and scale parameter
-    spot[s] = std::gamma_distribution<Float>(
-        parameters.hyperparameters.spot_a + contributions_spot(s),
-        1.0 / (parameters.hyperparameters.spot_b + 0))( // TODO hack explained_spot(s)))(
-        EntropySource::rng);
-}
-
-/** sample baseline feature */
-template <typename Type>
-void Experiment<Type>::sample_baseline(const features_t &global_features) {
-  LOG(verbose) << "Sampling baseline feature from Gamma distribution";
-
-  // TODO add CLI switch
-  const double prior1 = parameters.hyperparameters.baseline1;
-  const double prior2 = parameters.hyperparameters.baseline2;
-  Vector observed = prior1 + contributions_gene;
-  Vector explained = prior2 + explained_gene(global_features);
-
-  Partial::perform_sampling(observed, explained, baseline_feature.matrix,
-                            parameters.over_relax);
 }
 
 template <typename Type>
@@ -1079,7 +957,7 @@ Vector Experiment<Type>::marginalize_genes(
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensity += baseline_phi(g) * features.prior.r(g, t)
+      intensity += baseline_feature.prior.r(g) * features.prior.r(g, t)
                    * global_features.prior.r(g, t)
                    / global_features.prior.p(g, t);
     intensities[t] = intensity;

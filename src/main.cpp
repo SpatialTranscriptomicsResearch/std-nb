@@ -106,10 +106,6 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
       pfa.predict_field(ofs, c);
     }
   }
-  if (options.perform_dge) {
-    pfa.perform_local_dge(options.output);
-    pfa.perform_pairwise_dge(options.output);
-  }
 }
 
 template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
