@@ -442,8 +442,16 @@ void Model<Type>::sample_contributions(bool do_global_features,
             if (it >= NewtonRaphson::max_iter) {
               LOG(fatal) << "Unable to locate solution for r in "
                          << NewtonRaphson::max_iter
-                         << " iterations. Current best guess is "
-                         << features.prior.r(g, t);
+                         << " iterations.";
+              LOG(fatal) << experiments[0].data.row_names[g]
+                         << " prev=" << guess << " f(prev)=" << fn0(guess)
+                         << " r=" << features.prior.r(g, t)
+                         << " f(r)=" << fn0(features.prior.r(g, t))
+                         << " p=" << neg_odds_to_prob(features.prior.p(g, t))
+                         << " m="
+                         << features.prior.r(g, t) / features.prior.p(g, t)
+                                * theta_marginal;
+
               if (abort_on_fatal_errors)
                 exit(-1);
             }
@@ -579,9 +587,13 @@ void Model<Type>::sample_contributions(bool do_global_features,
                   NewtonRaphson::get_digits, it);
           if (it >= NewtonRaphson::max_iter) {
             LOG(fatal) << "Unable to locate solution for local baseline r in "
-                       << NewtonRaphson::max_iter
-                       << " iterations. Current best guess is "
-                       << experiments[e].baseline_feature.prior.r(g);
+                       << NewtonRaphson::max_iter << " iterations.";
+            LOG(fatal) << experiments[0].data.row_names[g] << " prev=" << guess
+                       << " f(prev)=" << fn0(guess)
+                       << " cur=" << experiments[e].baseline_feature.prior.r(g)
+                       << " f(cur)="
+                       << fn0(experiments[e].baseline_feature.prior.r(g));
+
             if (abort_on_fatal_errors)
               exit(-1);
           }
@@ -705,9 +717,13 @@ void Model<Type>::sample_contributions(bool do_global_features,
                       NewtonRaphson::get_digits, it);
               if (it >= NewtonRaphson::max_iter) {
                 LOG(fatal) << "Unable to locate solution for local r in "
-                           << NewtonRaphson::max_iter
-                           << " iterations. Current best guess is "
-                           << features.prior.r(g, t);
+                           << NewtonRaphson::max_iter << " iterations.";
+                LOG(fatal) << experiments[0].data.row_names[g]
+                           << " prev=" << guess << " f(prev)=" << fn0(guess)
+                           << " cur=" << experiments[e].features.prior.r(g, t)
+                           << " f(cur)="
+                           << fn0(experiments[e].features.prior.r(g, t));
+
                 if (abort_on_fatal_errors)
                   exit(-1);
               }
@@ -834,9 +850,11 @@ void Model<Type>::sample_contributions(bool do_global_features,
                 NewtonRaphson::get_digits, it);
             if (it >= NewtonRaphson::max_iter) {
               LOG(fatal) << "Unable to locate solution for theta in "
-                         << NewtonRaphson::max_iter
-                         << " iterations. Current best guess is "
-                         << experiment.theta(s, t);
+                         << NewtonRaphson::max_iter << " iterations.";
+              LOG(fatal) << " prev=" << guess << " f(prev)=" << fn0(guess)
+                         << " cur=" << experiment.theta(s, t)
+                         << " f(cur)=" << fn0(experiment.theta(s, t));
+
               if (abort_on_fatal_errors)
                 exit(-1);
             }
