@@ -78,6 +78,9 @@ struct Parameters {
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
   bool contributions_map = false;
+  double hmc_epsilon = 1e-2;
+  size_t hmc_L = 5;
+  size_t hmc_N = 15;
   bool ignore_priors = false;
   double dropout_gene = 0;
   double dropout_spot = 0;

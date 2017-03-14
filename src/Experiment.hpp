@@ -788,24 +788,32 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
         for (size_t t = 0; t < T; ++t)
           cnts[t] = log(r[t] / global_features.prior.p(g, t));
 
-        const size_t N = 15;
-        const size_t L = 5;
-        const double epsilon = 1e-1;
-
-        Vector mean = count * gibbs(cnts);
-        if (noisy)
-          LOG(verbose) << "cnts 0: " << count * gibbs(cnts);
-        for (size_t i = 0; i < N; ++i) {
+        Vector mean;
+        // Vector mean = count * gibbs(cnts);
+        const size_t max_iter = (noisy ? 10 : 1);
+        for (size_t iter = 0; iter < max_iter; ++iter) {
+          mean = count * gibbs(cnts);
           if (noisy)
-            LOG(debug) << "cnts " << i + 1 << ": " << count * gibbs(cnts);
-          cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior, L,
-                             epsilon, rng, count, r, p);
-          mean += count * gibbs(cnts);
-        }
-        mean /= N + 1;
-        if (noisy) {
-          LOG(verbose) << "cnts X: " << count * gibbs(cnts);
-          LOG(verbose) << "cnts m: " << mean;
+            LOG(verbose) << "cnts 0: " << (count * gibbs(cnts)).t();
+          for (size_t i = 0; i < parameters.hmc_N; ++i) {
+            if (noisy)
+              LOG(debug) << "cnts " << i + 1 << ": "
+                         << (count * gibbs(cnts).t());
+            cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior,
+                               parameters.hmc_L, parameters.hmc_epsilon, rng,
+                               count, r, p);
+            mean += count * gibbs(cnts);
+          }
+          mean /= parameters.hmc_N + 1;
+          if (noisy) {
+            double z = 0;
+            for (auto &m : mean)
+              z += m;
+            LOG(verbose) << "cnts X iter = " << iter << " z = " << z
+                         << " cnt=" << count;
+            LOG(verbose) << "cnts X: " << (count * gibbs(cnts)).t();
+            LOG(verbose) << "cnts m: " << mean.t();
+          }
         }
         return mean;
       } else {

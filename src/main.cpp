@@ -190,6 +190,12 @@ int main(int argc, char **argv) {
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
      "Sample contributions by maximum-a-posteriori.")
+    ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
+     "Epsilon parameter for the leapfrog algorithm.")
+    ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),
+     "Number of micro-steps to take in the leapfrog algorithm.")
+    ("hmc_n", po::value(&parameters.hmc_N)->default_value(parameters.hmc_N),
+     "Number of leapfrog steps to take per iteration.")
     ("dropout_gene", po::value(&parameters.dropout_gene)->default_value(parameters.dropout_gene),
      "Randomly discard a fraction of the genes during contributions sampling.")
     ("dropout_spot", po::value(&parameters.dropout_spot)->default_value(parameters.dropout_spot),
