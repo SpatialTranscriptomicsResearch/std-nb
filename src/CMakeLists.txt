@@ -14,6 +14,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED aux.cpp counts.cpp
 # ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
 ADD_EXECUTABLE(std main.cpp cli.cpp)
 ADD_EXECUTABLE(test_sampling test_sampling.cpp)
+ADD_EXECUTABLE(test_field field.cpp)
 
 ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp)
 ADD_EXECUTABLE(test_gamma_convolution test_gamma_convolution.cpp)
@@ -39,6 +40,7 @@ TARGET_LINK_LIBRARIES(test_gamma_cdf transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_negative_binomial_convolution transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
+TARGET_LINK_LIBRARIES(test_field transcriptomedeconvolution)
 # TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
 
 IF(GOOGLEPERFTOOLS_FOUND)
