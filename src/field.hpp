@@ -25,18 +25,19 @@ struct Field {
       std::vector<double> a;
       for (size_t k = 0; k < adj[i].size(); ++k) {
         size_t j = adj[i][k];
-        // for (auto j : adj[i]) {
         double d = arma::norm(pts[i] - pts[j]);
         double current_a = voronoi_weights[i][k] / d;
         a.push_back(current_a);
         A[i] += voronoi_weights[i][k] * d;
+        /*
         std::cerr << "Constructing field. i=" << i << " j=" << j << " k=" << k
                   << " v=" << voronoi_weights[i][k] << " d=" << d
                   << " cur_a=" << current_a << std::endl;
+         */
       }
       A[i] *= 0.25;
       alpha.push_back(a);
-      std::cerr << "Constructing field. i=" << i << " A=" << A[i] << std::endl;
+      // std::cerr << "Constructing field. i=" << i << " A=" << A[i] << std::endl;
     }
   };
 
