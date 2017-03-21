@@ -349,90 +349,51 @@ int main(int argc, char **argv) {
   }
   */
 
-  if (true) {
-    using namespace LBFGSpp;
-    LBFGSParam<double> param;
-    param.epsilon = 1e-9;
-    param.max_iterations = small_n_iter;
-    // Create solver and function object
-    LBFGSSolver<double> solver(param);
+  using namespace LBFGSpp;
+  LBFGSParam<double> param;
+  param.epsilon = 1e-9;
+  param.max_iterations = n_iter;
+  // Create solver and function object
+  LBFGSSolver<double> solver(param);
 
-    // using Vec = LBFGSSolver<double>::Vector;
-    using Vec = Eigen::VectorXd;
-    Vec v(n);
-    Vec grad(n);
-    for (size_t i = 0; i < n; ++i)
-      v[i] = fnc[i];
+  // using Vec = LBFGSSolver<double>::Vector;
+  using Vec = Eigen::VectorXd;
+  Vec v(n);
+  Vec grad(n);
+  for (size_t i = 0; i < n; ++i)
+    v[i] = fnc[i];
 
-    auto fun = [&](const Vec &vec, Vec &g) {
-      // double score = field.sum_sq_laplace_operator(vec);
-      double score = field.sum_dirichlet_energy(vec);
+  size_t call_cnt = 0;
+  auto fun = [&](const Vec &vec, Vec &g) {
+    // double score = field.sum_sq_laplace_operator(vec);
+    double score = field.sum_dirichlet_energy(vec);
 
-      // g = field.grad_sq_laplace_operator(vec);
-      g = field.grad_dirichlet_energy(vec);
+    // g = field.grad_sq_laplace_operator(vec);
+    g = field.grad_dirichlet_energy(vec);
 
-      for (size_t i = 0; i < num_fixed; ++i)
-        g[i] = 0;
+    for (size_t i = 0; i < num_fixed; ++i)
+      g[i] = 0;
 
+    if (call_cnt++ % report_interval == 0) {
       cerr << "score = " << score << endl;
       cerr << "sum_sq_lap = " << field.sum_sq_laplace_operator(vec) << endl;
       cerr << "dir = " << field.sum_dirichlet_energy(vec) << endl;
-      return score;
-    };
-
-    // Initial guess
-    // VectorXd x = VectorXd::Zero(n);
-    // x will be overwritten to be the best point found
-    double fx;
-    int niter = solver.minimize(fun, v, fx);
-    std::cout << niter << " iterations" << std::endl;
-    std::cout << "x = \n" << v.transpose() << std::endl;
-    std::cout << "f(x) = " << fx << std::endl;
-
-    for (size_t i = 0; i < n; ++i)
-      fnc[i] = v[i];
-
-  } else {
-    for (size_t iteration = 0; iteration < n_iter; ++iteration) {
-      // cerr << "iteration " << iteration << endl;
-      auto lap = field.laplace_operator(fnc);
-      auto grad = field.grad_sq_laplace_operator(fnc);
-      // cerr << "fnc " << fnc.t() << endl;
-      // cerr << "lap " << field.laplace_operator(fnc).t() << endl;
-      // cerr << "grad " << grad.t() << endl;
-
-      auto fncold = fnc;
-      /*
-      PoissonFactorization::Vector update = alpha * grad / lap;
-      for (size_t i = 0; i < n; ++i)
-        if (lap[i] == 0)
-          update[i] = 0;
-      // update = exp(update);
-      fnc = fnc / exp(update);
-      */
-      fnc = fnc - alpha * grad;
-      alpha *= beta;
-      // cerr << "fnc2 " << fnc.t() << endl;
-      if (true)
-        for (size_t j = 0; j < num_fixed; ++j)
-          fnc[j] = fncold[j];
-
-      if ((iteration % report_interval) == 0) {
-        double val = 0;
-        for (auto &x : field.laplace_operator(fnc))
-          val += x * x;
-        cerr << "Iteration " << iteration
-             << " Summed squared Laplacian: " << val << " alpha=" << alpha
-             << endl;
-        for (size_t i = 0; i < n; ++i) {
-          cout << iteration << "\t" << i << "\t" << pts[i][0] << "\t"
-               << pts[i][1] << "\t" << fnc[i] << "\t" << lap[i] << "\t"
-               << lap[i] * lap[i] << "\t" << grad[i] << "\t"  // << update[i]
-               << endl;
-        }
-      }
     }
-  }
+    return score;
+  };
+
+  // Initial guess
+  // VectorXd x = VectorXd::Zero(n);
+  // x will be overwritten to be the best point found
+  double fx;
+  int niter = solver.minimize(fun, v, fx);
+  std::cout << niter << " iterations" << std::endl;
+  std::cout << "x = \n" << v.transpose() << std::endl;
+  std::cout << "f(x) = " << fx << std::endl;
+
+  for (size_t i = 0; i < n; ++i)
+    fnc[i] = v[i];
+
   for (size_t i = 0; i < n; ++i) {
     cout << "final"
          << "\t" << i << "\t" << pts[i][0] << "\t" << pts[i][1] << "\t"
