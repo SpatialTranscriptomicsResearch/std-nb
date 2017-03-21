@@ -1,11 +1,11 @@
 
+#include "executioninformation.hpp"
+#include <boost/date_time/posix_time/posix_time.hpp>
+#include <boost/filesystem.hpp>
 #include <cstdio>
 #include <ctime>
 #include <random>
-#include <boost/filesystem.hpp>
-#include <boost/date_time/posix_time/posix_time.hpp>
 #include "entropy.hpp"
-#include "executioninformation.hpp"
 
 using namespace std;
 
@@ -17,22 +17,25 @@ string reconstitute_cmdline(int argc, const char **argv) {
 }
 
 ExecutionInformation::ExecutionInformation()
-    : ExecutionInformation("program_name", "unknown", "unknown", "") {}
+    : ExecutionInformation("program_name", "unknown", "unknown", "unknown", "") {}
 
 ExecutionInformation::ExecutionInformation(const string &name,
                                            const string &version,
-                                           const string &branch, int argc,
+                                           const string &branch,
+                                           const string &build, int argc,
                                            const char **argv)
-    : ExecutionInformation(name, version, branch,
+    : ExecutionInformation(name, version, branch, build,
                            reconstitute_cmdline(argc, argv)) {}
 
 ExecutionInformation::ExecutionInformation(const string &name,
                                            const string &version,
                                            const string &branch,
+                                           const string &build,
                                            const string &cmd)
     : program_name(boost::filesystem::path(name).filename().string()),
       program_version(version),
       git_branch(branch),
+      build_type(build),
       cmdline(cmd),
       datetime(),
       directory(boost::filesystem::initial_path().string()) {
@@ -43,7 +46,7 @@ ExecutionInformation::ExecutionInformation(const string &name,
 }
 
 string ExecutionInformation::name_and_version() const {
-  return program_name + " " + program_version + " [" + git_branch + " branch]";
+  return program_name + " " + program_version + " [" + git_branch + " branch] - " + build_type + " build";
 }
 
 string generate_random_label(const string &prefix, size_t n_rnd_char) {

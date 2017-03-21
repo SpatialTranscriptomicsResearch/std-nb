@@ -58,10 +58,11 @@ int process_cli_options(
     const std::string &usage_string,
     boost::program_options::options_description &cli_options,
     bool use_positional_options,
-    boost::program_options::positional_options_description &positional_options) {
+    boost::program_options::positional_options_description
+        &positional_options) {
   namespace po = boost::program_options;
-  exec_info
-      = ExecutionInformation(argv[0], GIT_DESCRIPTION, GIT_BRANCH, argc, argv);
+  exec_info = ExecutionInformation(argv[0], GIT_DESCRIPTION, GIT_BRANCH,
+                                   BUILD_TYPE, argc, argv);
 
   const size_t MIN_COLS = 60;
   const size_t MAX_COLS = 80;

@@ -22,7 +22,9 @@ SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/")
 # Change build configuration
 #
 # SET(CMAKE_BUILD_TYPE Debug)
-SET(CMAKE_BUILD_TYPE Release)
+# SET(CMAKE_BUILD_TYPE Release)
+
+SET(CMAKE_DEBUG_POSTFIX -dbg)
 
 # Set installation destination and prefix path to find libraries installed on
 # this sytem. If this is not specified, /usr/local/ will be used.
