@@ -3,24 +3,48 @@
 
 #include <unistd.h>
 #include <vector>
+#include "log.hpp"
 #include "parallel.hpp"
 #include "types.hpp"
 
 // using Point = std::vector<double>;
 using Point = PoissonFactorization::Vector;
 
+void build_voronoi_qhull(const std::vector<Point> &points,
+                         std::vector<std::vector<size_t>> &adj,
+                         std::vector<std::vector<double>> &voronoi_weights);
 struct Field {
+  size_t dim;
   size_t N;
   std::vector<Point> points;
   std::vector<std::vector<size_t>> adj;
   std::vector<std::vector<double>> alpha;
   std::vector<double> A;
 
-  Field(const std::vector<Point> &pts,
-        const std::vector<std::vector<size_t>> &adj_,
-        const std::vector<std::vector<double>> &voronoi_weights)
-      : N(pts.size()), points(pts), adj(adj_), alpha(), A(N, 0) {
-    std::cerr << "Constructing field. N=" << N << std::endl;
+  Field(size_t dim_, const std::vector<Point> &pts)
+      : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
+    std::vector<std::vector<double>> voronoi_weights;
+    build_voronoi_qhull(points, adj, voronoi_weights);
+
+    const bool verbose = false;
+    if (verbose) {
+      std::cerr << "N=" << N << std::endl;
+      std::cerr << "adj.size()=" << adj.size() << std::endl;
+      for (size_t i = 0; i < N; ++i) {
+        std::cerr << "a\t" << i;
+        for (size_t j = 0; j < adj[i].size(); ++j)
+          std::cerr << "\t" << adj[i][j];
+        std::cerr << std::endl;
+      }
+      for (size_t i = 0; i < N; ++i) {
+        std::cerr << "v\t" << i;
+        for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
+          std::cerr << "\t" << voronoi_weights[i][j];
+        std::cerr << std::endl;
+      }
+    }
+
+    LOG(verbose) << "Constructing field. N=" << N;
     for (size_t i = 0; i < N; ++i) {
       std::vector<double> a;
       for (size_t k = 0; k < adj[i].size(); ++k) {
@@ -29,15 +53,13 @@ struct Field {
         double current_a = voronoi_weights[i][k] / d;
         a.push_back(current_a);
         A[i] += voronoi_weights[i][k] * d;
-        /*
-        std::cerr << "Constructing field. i=" << i << " j=" << j << " k=" << k
-                  << " v=" << voronoi_weights[i][k] << " d=" << d
-                  << " cur_a=" << current_a << std::endl;
-         */
+        LOG(debug) << "Constructing field. i=" << i << " j=" << j << " k=" << k
+                   << " v=" << voronoi_weights[i][k] << " d=" << d
+                   << " cur_a=" << current_a;
       }
       A[i] *= 0.25;
       alpha.push_back(a);
-      // std::cerr << "Constructing field. i=" << i << " A=" << A[i] << std::endl;
+      LOG(debug) << "Constructing field. i=" << i << " A=" << A[i];
     }
   };
 
@@ -58,14 +80,14 @@ struct Field {
           z[i] += diff * diff;
         }
         if (std::isnan(z[i])) {
-          std::cerr << "ohoh!\t"
-                    << "i=" << i << "\t"
-                    << "A=" << A[i] << "\t"
-                    << "z=" << z[i] << std::endl;
+          LOG(fatal) << "ohoh!\t"
+                     << "i=" << i << "\t"
+                     << "A=" << A[i] << "\t"
+                     << "z=" << z[i];
           for (size_t k = 0; k < adj[i].size(); ++k) {
             size_t j = adj[i][k];
-            std::cerr << i << "\t" << j << "\t" << alpha[i][k] << "\t" << fnc[j]
-                      << std::endl;
+            LOG(fatal) << i << "\t" << j << "\t" << alpha[i][k] << "\t"
+                       << fnc[j];
           }
         }
       }
@@ -92,14 +114,14 @@ struct Field {
           z[i] += -2 * diff;
         }
         if (std::isnan(z[i])) {
-          std::cerr << "ohoh!\t"
-                    << "i=" << i << "\t"
-                    << "A=" << A[i] << "\t"
-                    << "z=" << z[i] << std::endl;
+          LOG(fatal) << "ohoh!\t"
+                     << "i=" << i << "\t"
+                     << "A=" << A[i] << "\t"
+                     << "z=" << z[i];
           for (size_t k = 0; k < adj[i].size(); ++k) {
             size_t j = adj[i][k];
-            std::cerr << i << "\t" << j << "\t" << alpha[i][k] << "\t" << fnc[j]
-                      << std::endl;
+            LOG(fatal) << i << "\t" << j << "\t" << alpha[i][k] << "\t"
+                       << fnc[j];
           }
         }
       }
@@ -124,9 +146,9 @@ struct Field {
       double diff = part_a - part_b;
       grad[i] = 2 / A[i] * diff;
       if (std::isnan(grad[i]))
-        std::cerr << "uhuh!\ti=" << i << "\tpart_a=" << part_a
-                  << "\tpart_b=" << part_b << "\tA=" << A[i]
-                  << "\tgrad=" << grad[i] << std::endl;
+        LOG(fatal) << "uhuh!\ti=" << i << "\tpart_a=" << part_a
+                   << "\tpart_b=" << part_b << "\tA=" << A[i]
+                   << "\tgrad=" << grad[i];
     }
     return grad;
   };
@@ -157,12 +179,12 @@ struct Field {
         z[i] = 1 / A[i] * (y - b * fnc[i]);
         if (std::isnan(y) or std::isnan(b) or std::isnan(A[i])
             or std::isnan(z[i])) {
-          std::cerr << "ohoh!\ti=" << i << "\ty=" << y << "\tb=" << b
-                    << "\tA=" << A[i] << "\tz=" << z[i] << std::endl;
+          LOG(fatal) << "ohoh!\ti=" << i << "\ty=" << y << "\tb=" << b
+                     << "\tA=" << A[i] << "\tz=" << z[i];
           for (size_t k = 0; k < adj[i].size(); ++k) {
             size_t j = adj[i][k];
-            std::cerr << i << "\t" << j << "\t" << alpha[i][k] << "\t" << fnc[j]
-                      << std::endl;
+            LOG(fatal) << i << "\t" << j << "\t" << alpha[i][k] << "\t"
+                       << fnc[j];
           }
         }
       }
@@ -203,9 +225,9 @@ struct Field {
       auto part_b = b / A[i];
       grad[i] = 2 * (part_a - part_b);
       if (std::isnan(grad[i]))
-        std::cerr << "uhuh!\ti=" << i << "\tpart_a=" << part_a
-                  << "\tpart_b=" << part_b << "\tA=" << A[i]
-                  << "\tgrad=" << grad[i] << std::endl;
+        LOG(fatal) << "uhuh!\ti=" << i << "\tpart_a=" << part_a
+                   << "\tpart_b=" << part_b << "\tA=" << A[i]
+                   << "\tgrad=" << grad[i];
     }
     return grad;
   };
@@ -227,9 +249,9 @@ struct Field {
       auto part_b = lap[i] * b / A[i];
       grad[i] = 2 * (part_a - part_b);
       if (std::isnan(grad[i]))
-        std::cerr << "uhuh!\ti=" << i << "\tpart_a=" << part_a
-                  << "\tpart_b=" << part_b << "\tA=" << A[i]
-                  << "\tgrad=" << grad[i] << std::endl;
+        LOG(fatal) << "uhuh!\ti=" << i << "\tpart_a=" << part_a
+                   << "\tpart_b=" << part_b << "\tA=" << A[i]
+                   << "\tgrad=" << grad[i];
     }
     return grad;
   };

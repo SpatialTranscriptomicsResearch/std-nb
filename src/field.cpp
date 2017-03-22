@@ -8,7 +8,8 @@ using namespace std;
 const double large_val = 100;
 const bool verbose = false;
 
-/** Shoelace formula */
+/** Shoelace formula, assumes that pts are given in sequences of the order on
+ * the polytope */
 template <typename P>
 double polytope_area(const std::vector<P> &pts) {
   double area = 0;
@@ -204,29 +205,9 @@ int main(int argc, char **argv) {
     for (size_t i = 0; i < n; ++i)
       fnc[i] = 1000 * RandomDistribution::Uniform(EntropySource::rng);
   }
-  vector<vector<size_t>> adj;
-  vector<vector<double>> voronoi_weights;
-  // build_voronoi(pts, adj, voronoi_weights);
-  build_voronoi_qhull(pts, adj, voronoi_weights);
 
-  if (verbose) {
-    cerr << "n=" << n << endl;
-    cerr << "adj.size()=" << adj.size() << endl;
-    for (size_t i = 0; i < n; ++i) {
-      cerr << "a\t" << i;
-      for (size_t j = 0; j < adj[i].size(); ++j)
-        cerr << "\t" << adj[i][j];
-      cerr << endl;
-    }
-    for (size_t i = 0; i < n; ++i) {
-      cerr << "v\t" << i;
-      for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
-        cerr << "\t" << voronoi_weights[i][j];
-      cerr << endl;
-    }
-  }
+  Field field(dim, pts);
 
-  Field field(pts, adj, voronoi_weights);
   if (verbose)
     cerr << "Field:\n" << field << endl;
 
