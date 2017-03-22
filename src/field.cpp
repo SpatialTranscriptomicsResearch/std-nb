@@ -1,6 +1,5 @@
 #include "field.hpp"
 #include <LBFGS.h>
-#include <boost/polygon/voronoi.hpp>
 #include <iostream>
 #include "sampling.hpp"
 
@@ -8,55 +7,6 @@ using namespace std;
 
 const double large_val = 100;
 const bool verbose = false;
-
-// using boost::polygon::voronoi_builder;
-// using boost::polygon::voronoi_diagram;
-
-/*
-void test() {
-  size_t n = 101;
-  vector<double> x(n);
-  for (size_t i = 0; i < n; ++i)
-    x[i] = (i - 50.0) * (i - 50.0);
-  vector<vector<size_t>> adj(n);
-  vector<vector<double>> alpha(n);
-  for (size_t i = 0; i < n; ++i) {
-    if (i > 0) {
-      adj[i].push_back(i - 1);
-      alpha[i].push_back(1);
-    }
-    if (i < n - 1) {
-      adj[i].push_back(i + 1);
-      alpha[i].push_back(1);
-    }
-  }
-  vector<double> A(n, 1);
-  auto lap = laplace_operator(x, adj, alpha, A);
-  auto sq_lap = sq_laplace_operator(x, adj, alpha, A);
-  auto grad = grad_laplace_operator(x, adj, alpha, A);
-  for (size_t i = 0; i < n; ++i)
-    cout << i << "\t" << x[i] << "\t" << lap[i] << "\t" << sq_lap[i] << "\t"
-         << grad[i] << endl;
-}
-*/
-
-namespace boost {
-namespace polygon {
-template <>
-struct geometry_concept<Point> {
-  typedef point_concept type;
-};
-
-template <>
-struct point_traits<Point> {
-  typedef double coordinate_type;
-
-  static inline coordinate_type get(const Point &point, orientation_2d orient) {
-    return (orient == HORIZONTAL) ? point[0] : point[1];
-  }
-};
-}
-}
 
 /** Shoelace formula */
 template <typename P>
@@ -163,66 +113,6 @@ void build_voronoi_qhull(const std::vector<Point> &points,
     voronoi_weights[first_point].push_back(m);
     voronoi_weights[second_point].push_back(m);
   }
-}
-
-void build_voronoi(const std::vector<Point> &points,
-                   std::vector<std::vector<size_t>> &adj,
-                   std::vector<std::vector<double>> &voronoi_weights) {
-  using namespace boost::polygon;
-  const size_t n = points.size();
-  std::cerr << "Constructing 2D Voronoi diagram with boost. n = " << n
-            << std::endl;
-  for (auto &pt : points)
-    std::cerr << pt.t();
-  adj = std::vector<std::vector<size_t>>(n);
-  voronoi_weights = std::vector<std::vector<double>>(n);
-  using VD = voronoi_diagram<double>;
-  VD vd;
-  construct_voronoi(points.begin(), points.end(), &vd);
-
-  std::cerr << "num cells = " << vd.num_cells() << std::endl;
-  std::cerr << "num edges = " << vd.num_edges() << std::endl;
-  std::cerr << "num vertices = " << vd.num_vertices() << std::endl;
-
-  size_t num_cells_visited = 0;
-  std::cerr << "There are " << vd.cells().size() << " Voronoi cells."
-            << std::endl;
-  // iterate over Voronoi cells
-  for (VD::const_cell_iterator it = vd.cells().begin(); it != vd.cells().end();
-       ++it) {
-    num_cells_visited++;
-    const VD::cell_type &cell = *it;
-    size_t i = cell.source_index();
-    std::cerr << "Visiting cell for source " << i << std::endl;
-    std::vector<size_t> adjacent;
-    std::vector<double> weights;
-    const VD::edge_type *edge = cell.incident_edge();
-    // This is convenient way to iterate edges around Voronoi cell.
-    do {
-      if (edge->is_primary()) {
-        size_t j = edge->twin()->cell()->source_index();
-        std::cerr << "Adjacent to source " << i << ": " << j << std::endl;
-        // get edge end points to compute length of Voronoi edge as weight
-        const VD::vertex_type *v0 = edge->vertex0();
-        const VD::vertex_type *v1 = edge->vertex1();
-        if (edge->is_finite()) {
-          double dx = v0->x() - v1->x();
-          double dy = v0->y() - v1->y();
-          double d = sqrt(dx * dx + dy * dy);
-          adjacent.push_back(j);
-          weights.push_back(d);
-        } else {
-          adjacent.push_back(j);
-          weights.push_back(large_val);
-        }
-      }
-      edge = edge->next();
-    } while (edge != cell.incident_edge());
-    adj[i] = adjacent;
-    voronoi_weights[i] = weights;
-  }
-  std::cerr << "Visited " << num_cells_visited << " Voronoi cells."
-            << std::endl;
 }
 
 int main(int argc, char **argv) {
