@@ -28,6 +28,7 @@ struct Options {
   bool compute_likelihood = false;
   bool share_coord_sys = false;
   bool predict_field = false;
+  bool fields = false;
   bool perform_dge = false;
   bool keep_empty = false;
   size_t top = 0;
@@ -172,6 +173,8 @@ int main(int argc, char **argv) {
      "Assume that the samples lie in the same coordinate system.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
+    ("fields", po::bool_switch(&options.fields),
+     "Activate fields.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.");
 
@@ -328,6 +331,9 @@ int main(int argc, char **argv) {
     parameters.targets
         = parameters.targets & ~(PF::Target::local | PF::Target::baseline);
   }
+
+  if (options.fields)
+    parameters.targets = parameters.targets | PF::Target::field;
 
   using Kind = PF::Partial::Kind;
 

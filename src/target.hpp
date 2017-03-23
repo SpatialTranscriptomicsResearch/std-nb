@@ -39,7 +39,7 @@ inline constexpr Target operator~(Target a) {
 inline constexpr Target DefaultTarget() {
   return Target::contributions | Target::global
          | Target::theta | Target::theta_prior | Target::local
-         | Target::baseline | Target::field;
+         | Target::baseline;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }
