@@ -160,6 +160,7 @@ double compute_conditional(const pair<Float, Float> &x, const V &observed,
 
 template <typename V>
 double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
+                                 const V &field,
                                  const Hyperparameters &hyperparameters) {
   const size_t S = theta.size();
   const Float r = x.first;
@@ -171,7 +172,7 @@ double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
                          1 / hyperparameters.theta_r_2);
   for (size_t s = 0; s < S; ++s)
     // NOTE: gamma_distribution takes a shape and scale parameter
-    l += log_gamma(theta(s), r, 1 / p);
+    l += log_gamma(theta(s), r * field(s), 1 / p);
   return l;
 }
 
@@ -214,7 +215,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed) {
+void Gamma::sample(const Matrix &observed, const Matrix &field) {
   LOG(verbose) << "Sampling P and R of Θ";
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
@@ -225,8 +226,8 @@ void Gamma::sample(const Matrix &observed) {
       auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]),
                            parameters.n_iter, EntropySource::rngs[thread_num],
                            gen_log_normal_pair<Float>,
-                           compute_conditional_gamma<Vector>,
-                           observed.col(t), parameters.hyperparameters);
+                           compute_conditional_gamma<Vector>, observed.col(t),
+                           field.col(t), parameters.hyperparameters);
       r[t] = res.first;
       p[t] = res.second;
     }

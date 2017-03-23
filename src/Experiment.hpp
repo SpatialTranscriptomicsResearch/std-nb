@@ -7,8 +7,8 @@
 #include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
-#include "metropolis_hastings.hpp"
 #include "hamiltonian_monte_carlo.hpp"
+#include "metropolis_hastings.hpp"
 #include "odds.hpp"
 #include "parameters.hpp"
 #include "stats.hpp"
@@ -56,8 +56,7 @@ struct Experiment {
   /** spot scaling vector */
   Vector spot;
 
-  Experiment(const Counts &counts, size_t T,
-             const Parameters &parameters);
+  Experiment(const Counts &counts, size_t T, const Parameters &parameters);
 
   void enforce_positive_parameters();
 
@@ -74,6 +73,9 @@ struct Experiment {
 
   inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
   inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
+
+  Matrix field_fitness_posterior(const Matrix &candidate_field) const;
+  Matrix field_fitness_posterior_gradient(const Matrix &candidate_field) const;
 
   /** sample count decomposition */
   Matrix sample_contributions_gene(size_t g, const features_t &global_features,
@@ -139,15 +141,15 @@ Experiment<Type>::Experiment(const Counts &data_, size_t T_,
       field(Matrix(S, T, arma::fill::ones)),
       spot(S, arma::fill::ones) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
-/* TODO consider to reactivate
-if (false) {
-  // initialize:
-  //  * contributions_gene_type
-  //  * contributions_spot_type
-  LOG(debug) << "Initializing contributions.";
-  sample_contributions(c.counts);
-}
-*/
+  /* TODO consider to reactivate
+  if (false) {
+    // initialize:
+    //  * contributions_gene_type
+    //  * contributions_spot_type
+    LOG(debug) << "Initializing contributions.";
+    sample_contributions(c.counts);
+  }
+  */
   LOG(debug) << "Coords: " << coords;
 
   // initialize spot scaling factors
@@ -263,42 +265,48 @@ void Experiment<Type>::restore(const std::string &prefix) {
 }
 
 template <typename Type>
-void Experiment<Type>::perform_pairwise_dge(const std::string &prefix,
-                             const features_t &global_features) const {
+void Experiment<Type>::perform_pairwise_dge(
+    const std::string &prefix, const features_t &global_features) const {
   auto &gene_names = data.row_names;
   auto x = pairwise_dge(global_features);
   std::vector<std::string> factor_pair_names;
   for (size_t t1 = 0; t1 < T; ++t1)
     for (size_t t2 = t1 + 1; t2 < T; ++t2)
-      factor_pair_names.push_back("Factor" + std::to_string(t1 + 1)
-          + "-Factor" + std::to_string(t2 + 1));
-  write_matrix(x, prefix + "pairwise_differential_gene_expression" + FILENAME_ENDING,
+      factor_pair_names.push_back("Factor" + std::to_string(t1 + 1) + "-Factor"
+                                  + std::to_string(t2 + 1));
+  write_matrix(
+      x, prefix + "pairwise_differential_gene_expression" + FILENAME_ENDING,
       parameters.compression_mode, gene_names, factor_pair_names);
 }
 
 template <typename Type>
-void Experiment<Type>::perform_local_dge(const std::string &prefix,
-                             const features_t &global_features) const {
+void Experiment<Type>::perform_local_dge(
+    const std::string &prefix, const features_t &global_features) const {
   if (std::is_same<typename Type::features_t::prior_type,
                    PRIOR::PHI::Dirichlet>::value)
     return;
 
   auto &gene_names = data.row_names;
   auto factor_names = form_factor_names(T);
-  write_matrix(
-      local_dge([](Float baseline __attribute__((unused)), Float local __attribute__((unused))) { return 1; }, global_features),
-      prefix + "differential_gene_expression_baseline_and_local" + FILENAME_ENDING,
-      parameters.compression_mode, gene_names, factor_names);
+  write_matrix(local_dge([](Float baseline __attribute__((unused)),
+                            Float local __attribute__((unused))) { return 1; },
+                         global_features),
+               prefix + "differential_gene_expression_baseline_and_local"
+                   + FILENAME_ENDING,
+               parameters.compression_mode, gene_names, factor_names);
 
   write_matrix(
-      local_dge([](Float baseline __attribute__((unused)), Float local) { return local; }, global_features),
+      local_dge([](Float baseline __attribute__((unused)),
+                   Float local) { return local; },
+                global_features),
       prefix + "differential_gene_expression_baseline" + FILENAME_ENDING,
       parameters.compression_mode, gene_names, factor_names);
 
-  write_matrix(
-      local_dge([](Float baseline, Float local __attribute__((unused))) { return baseline; }, global_features),
-      prefix + "differential_gene_expression_local" + FILENAME_ENDING,
-      parameters.compression_mode, gene_names, factor_names);
+  write_matrix(local_dge([](Float baseline, Float local
+                            __attribute__((unused))) { return baseline; },
+                         global_features),
+               prefix + "differential_gene_expression_local" + FILENAME_ENDING,
+               parameters.compression_mode, gene_names, factor_names);
 }
 
 template <typename Type>
@@ -333,13 +341,15 @@ Matrix Experiment<Type>::log_likelihood_conv_NB_counts(
   return l;
 }
 
-template <typename T> int sgn(T val) {
-    return (T(0) < val) - (val < T(0));
+template <typename T>
+int sgn(T val) {
+  return (T(0) < val) - (val < T(0));
 }
 
 template <typename T>
 void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
-                    const T &curv_p, const T &curv_rp, T &r, T &p, const T&cnts) {
+                    const T &curv_p, const T &curv_rp, T &r, T &p,
+                    const T &cnts) {
   min_max("r", r);
   min_max("p", p);
   // r = log(r);
@@ -410,9 +420,9 @@ void newton_raphson(const T &grad_r, const T &grad_p, const T &curv_r,
                        << " p=" << p[n] << " H=" << H;
             // assert(false);
           }
-          if(det < 0)
-            LOG(fatal) << "Negative determinant of Hessian! n=" << n << " r=" << r[n]
-                       << " p=" << p[n] << " H=" << H;
+          if (det < 0)
+            LOG(fatal) << "Negative determinant of Hessian! n=" << n
+                       << " r=" << r[n] << " p=" << p[n] << " H=" << H;
         }
         if (H(0, 0) >= 0)
           LOG(warning) << "Warning: non-negative curvature for r!";
@@ -511,9 +521,10 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
         caseP++;
       case 0:
         *data_iter *= exp(sgn_grad * r);
-        if(*data_iter < 1e-200)
+        if (*data_iter < 1e-200)
           LOG(fatal) << "Warning: an update to a value < 1e-200" << std::endl
-            << "g=" << grad_iter << " prev_sgn=" << *sgn_iter << " rate=" << r << " x=" << *data_iter;
+                     << "g=" << grad_iter << " prev_sgn=" << *sgn_iter
+                     << " rate=" << r << " x=" << *data_iter;
         *sgn_iter = sgn_grad;
         case0++;
         break;
@@ -565,17 +576,18 @@ inline double curv_log_nb_r(double k, double r, double p, double theta) {
 }
 
 inline double curv_log_nb_rp(double k, double r, double p, double theta) {
-  return - theta * (1-p);
+  return -theta * (1 - p);
 }
 
 inline double curv_log_nb_p(double k, double r, double p, double theta) {
-  return - r * theta / (1-p) / (1-p) - k / p / p;
+  return -r * theta / (1 - p) / (1 - p) - k / p / p;
 }
 
 /* -------------------------------------------------------------------------- */
 /* -------------------------------------------------------------------------- */
 
-inline double deriv_log_nb_exp_mu(double k, double mu, double nu, double theta) {
+inline double deriv_log_nb_exp_mu(double k, double mu, double nu,
+                                  double theta) {
   return mu * mu
          * ((2 * nu - mu) * theta
                 * (digamma((mu * mu * theta + k * nu - k * mu) / (nu - mu))
@@ -585,7 +597,8 @@ inline double deriv_log_nb_exp_mu(double k, double mu, double nu, double theta) 
          / (nu - mu) / (nu - mu);
 }
 
-inline double deriv_log_nb_exp_nu(double k, double mu, double nu, double theta) {
+inline double deriv_log_nb_exp_nu(double k, double mu, double nu,
+                                  double theta) {
   return mu * mu
          * (nu * theta * (digamma((mu * mu * theta + k * nu - k * mu) / nu - mu)
                           - digamma(mu * mu * theta / (nu - mu)))
@@ -593,7 +606,8 @@ inline double deriv_log_nb_exp_nu(double k, double mu, double nu, double theta) 
          / (nu - mu) / (nu - mu);
 }
 
-inline double deriv_log_nb_exp_mu_nu(double k, double mu, double nu, double theta) {
+inline double deriv_log_nb_exp_mu_nu(double k, double mu, double nu,
+                                     double theta) {
   return mu * mu
          * (nu * theta * (digamma((mu * mu * theta + k * nu - k * mu) / nu - mu)
                           - digamma(mu * mu * theta / (nu - mu)))
@@ -601,7 +615,8 @@ inline double deriv_log_nb_exp_mu_nu(double k, double mu, double nu, double thet
          / (nu - mu) / (nu - mu);
 }
 
-inline double deriv_prior_nb_mu(double mu, double nu, const Hyperparameters &params) {
+inline double deriv_prior_nb_mu(double mu, double nu,
+                                const Hyperparameters &params) {
   const double a = params.phi_r_1;
   const double b = params.phi_r_2;
   const double alpha = params.phi_p_1;
@@ -612,7 +627,8 @@ inline double deriv_prior_nb_mu(double mu, double nu, const Hyperparameters &par
          / (nu - mu) / (nu - mu);
 }
 
-inline double deriv_prior_nb_nu(double mu, double nu, const Hyperparameters &params) {
+inline double deriv_prior_nb_nu(double mu, double nu,
+                                const Hyperparameters &params) {
   const double a = params.phi_r_1;
   const double b = params.phi_r_2;
   const double alpha = params.phi_p_1;
@@ -633,6 +649,42 @@ double var_NB_rno(double r, double no) {
   return var_NB_rp(r, neg_odds_to_prob(no));
 }
 
+/** Calculate log posterior of theta with respect to the field */
+template <typename Type>
+Matrix Experiment<Type>::field_fitness_posterior(
+    const Matrix &candidate_field) const {
+  LOG(debug) << "dims=" << candidate_field.n_rows << "x"
+             << candidate_field.n_cols;
+  assert(candidate_field.n_rows == S);
+  assert(candidate_field.n_cols == T);
+  Matrix fit(S, T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t) {
+      double prod = weights.prior.r(t) * candidate_field(s, t);
+      fit(s, t) = (prod - 1) * log(theta(s, t))
+                  - weights.prior.p(t) * theta(s, t) - lgamma(prod)
+                  + log(weights.prior.p(t)) * prod;
+    }
+  return fit;
+}
+
+/** Calculate gradient of log posterior of theta with respect to the field */
+template <typename Type>
+Matrix Experiment<Type>::field_fitness_posterior_gradient(
+    const Matrix &candidate_field) const {
+  assert(candidate_field.n_rows == S);
+  assert(candidate_field.n_cols == T);
+  Matrix grad(S, T, arma::fill::zeros);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t)
+      grad(s, t) = weights.prior.r(t)
+                   * (log(theta(s, t)) + log(weights.prior.p(t))
+                      - digamma(weights.prior.r(t) * candidate_field(s, t)));
+  return grad;
+}
+
 template <typename Type>
 /** sample count decomposition */
 Matrix Experiment<Type>::sample_contributions_gene(
@@ -645,8 +697,7 @@ Matrix Experiment<Type>::sample_contributions_gene(
     contributions_gene_type(g, t) = 0;
 
   for (size_t s = 0; s < S; ++s) {
-    auto cnts = sample_contributions_gene_spot(
-        g, s, global_features, rng);
+    auto cnts = sample_contributions_gene_spot(g, s, global_features, rng);
     for (size_t t = 0; t < T; ++t) {
       contributions(s, t) = cnts[t];
       contributions_gene_type(g, t) += cnts[t];
@@ -667,8 +718,7 @@ Matrix Experiment<Type>::sample_contributions_spot(
     contributions_spot_type(s, t) = 0;
 
   for (size_t g = 0; g < G; ++g) {
-    auto cnts = sample_contributions_gene_spot(
-        g, s, global_features, rng);
+    auto cnts = sample_contributions_gene_spot(g, s, global_features, rng);
     for (size_t t = 0; t < T; ++t) {
       contributions(g, t) = cnts[t];
       contributions_spot_type(s, t) += cnts[t];
@@ -777,7 +827,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
       for (size_t t = 0; t < T; ++t)
         p[t] = neg_odds_to_prob(global_features.prior.p(g, t));
 
-      if(noisy) {
+      if (noisy) {
         for (size_t t = 0; t < T; ++t)
           LOG(debug) << "r = " << r[t];
         for (size_t t = 0; t < T; ++t)
@@ -898,8 +948,7 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
       std::vector<double> mean_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = baseline_feature.prior.r(g)
-                            * features.prior.r(g, t)
+        z += mean_prob[t] = baseline_feature.prior.r(g) * features.prior.r(g, t)
                             * global_features.prior.r(g, t)
                             / global_features.prior.p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
@@ -954,7 +1003,6 @@ void Experiment<Type>::enforce_positive_parameters() {
           features.prior.p(g, t), std::numeric_limits<double>::denorm_min());
     }
   }
-
 }
 
 template <typename Type>
@@ -995,6 +1043,7 @@ Matrix Experiment<Type>::explained_gene_type(
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
       explained(g, t) = global_features.prior.r(g, t)
+                        * baseline_feature.prior.r(g)
                         / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 }
@@ -1005,6 +1054,7 @@ Matrix Experiment<Type>::expected_gene_type(
   return features.prior.r % explained_gene_type(global_features);
 }
 
+// TODO never used - consider to remove
 template <typename Type>
 Vector Experiment<Type>::explained_gene(
     const features_t &global_features) const {
@@ -1014,6 +1064,7 @@ Vector Experiment<Type>::explained_gene(
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
       explained(g) += features.prior.r(g, t) * global_features.prior.r(g, t)
+                      * baseline_feature.prior.r(g)
                       / global_features.prior.p(g, t) * theta_t(t);
   return explained;
 };
@@ -1026,7 +1077,7 @@ Matrix Experiment<Type>::explained_spot_type(
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
       x += features.prior.r(g, t) * global_features.prior.r(g, t)
-           / global_features.prior.p(g, t);
+           * baseline_feature.prior.r(g) / global_features.prior.p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }

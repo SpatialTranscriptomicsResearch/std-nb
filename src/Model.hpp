@@ -5,8 +5,10 @@
 #ifndef NDEBUG
 #define BOOST_MATH_INSTRUMENT
 #endif
+#include <LBFGS.h>
 #include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
+#include "field.hpp"
 
 namespace PoissonFactorization {
 
@@ -23,7 +25,6 @@ const int get_digits = static_cast<int>(digits * 0.6);
 const size_t max_iter = 100;
 };
 
-const double local_phi_scaling_factor = 50;
 const int EXPERIMENT_NUM_DIGITS = 4;
 
 const bool abort_on_fatal_errors = false;
@@ -55,11 +56,80 @@ struct Model {
   /** factor loading matrix */
   features_t features;
   struct CoordinateSystem {
+    CoordinateSystem() : S(0), N(0), T(0){};
+    size_t S, N, T;
     // std::vector<Matrix> coords;
     std::vector<size_t> members;
+    Field field;
+    Matrix value;
   };
   std::vector<CoordinateSystem> coordinate_systems;
   std::map<std::pair<size_t, size_t>, Matrix> kernels;
+
+  void initialize_coordinate_systems(double v) {
+    for (auto &coord_sys : coordinate_systems) {
+      size_t num_additional = parameters.mesh_additional;
+      coord_sys.S = 0;
+      for (auto &member : coord_sys.members)
+        coord_sys.S += experiments[member].S;
+      if (coord_sys.S == 0)
+        num_additional = 0;
+      coord_sys.N = coord_sys.S + num_additional;
+      coord_sys.T = T;
+      coord_sys.value = Matrix(coord_sys.N, T);
+      coord_sys.value.fill(v);
+
+      using Point = Vector;
+      size_t dim = experiments[coord_sys.members[0]].data.parse_coords().n_cols;
+      std::vector<Point> pts;
+      {
+        Point pt(dim);
+        for (auto &member : coord_sys.members) {
+          Matrix coords = experiments[member].data.parse_coords();
+          for (size_t s = 0; s < experiments[member].S; ++s) {
+            for (size_t i = 0; i < dim; ++i)
+              pt[i] = coords(s, i);
+            pts.push_back(pt);
+          }
+        }
+
+        if (num_additional > 0) {
+          Point mi = pts[0];
+          Point ma = pts[0];
+          for (auto &p : pts)
+            for (size_t d = 0; d < dim; ++d) {
+              if (p[d] < mi[d])
+                mi[d] = p[d];
+              if (p[d] > ma[d])
+                ma[d] = p[d];
+            }
+          for (size_t i = 0; i < num_additional; ++i) {
+            // TODO improve this
+            // e.g. enlarge area, use convex hull instead of bounding box, etc
+            for (size_t d = 0; d < dim; ++d)
+              pt[d] = mi[d]
+                      + (ma[d] - mi[d])
+                            * RandomDistribution::Uniform(EntropySource::rng);
+
+            pts.push_back(pt);
+          }
+        }
+      }
+      coord_sys.field = Field(dim, pts);
+    }
+  };
+
+  void update_experiment_fields() {
+    LOG(verbose) << "Updating experiment fields";
+    for (auto &coord_sys : coordinate_systems) {
+      size_t cumul = 0;
+      for (auto member : coord_sys.members) {
+        experiments[member].field
+            = coord_sys.value.rows(cumul, cumul + experiments[member].S - 1);
+        cumul += experiments[member].S;
+      }
+    }
+  };
 
   template <typename Fnc1, typename Fnc2>
   Vector get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
@@ -71,8 +141,8 @@ struct Model {
 
   typename weights_t::prior_type mix_prior;
 
-  Model(const std::vector<Counts> &data, size_t T,
-        const Parameters &parameters, bool same_coord_sys);
+  Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
+        bool same_coord_sys);
 
   void enforce_positive_parameters();
 
@@ -90,8 +160,9 @@ struct Model {
   double log_likelihood(const std::string &prefix) const;
   double log_likelihood_conv_NB_counts() const;
 
-  inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
-  inline Float phi(size_t g, size_t t) const { return features.matrix(g, t); };
+  // inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
+  // inline Float phi(size_t g, size_t t) const { return features.matrix(g, t);
+  // };
 
   // computes a matrix M(g,t)
   // with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
@@ -101,6 +172,11 @@ struct Model {
   Matrix expected_gene_type() const;
 
   void update_contributions();
+  void update_fields();
+  Matrix field_fitness_posterior_gradient(const Matrix &f) const;
+
+  double field_gradient(CoordinateSystem &coord_sys, const Matrix &phi,
+                        Matrix &grad) const;
   void update_kernels();
   void identity_kernels();
   void add_experiment(const Counts &data, size_t coord_sys);
@@ -145,6 +221,8 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
     else
       update_kernels();
   }
+
+  initialize_coordinate_systems(1);
 }
 
 template <typename Type>
@@ -202,7 +280,8 @@ std::vector<size_t> get_order(const V &v) {
   size_t N = v.size();
   std::vector<size_t> order(N);
   std::iota(begin(order), end(order), 0);
-  std::sort(begin(order), end(order), [&v] (size_t a, size_t b) { return v[a] > v[b]; });
+  std::sort(begin(order), end(order),
+            [&v](size_t a, size_t b) { return v[a] > v[b]; });
   return order;
 }
 
@@ -233,6 +312,29 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
     write_vector(contributions_gene,
                  prefix + "contributions_gene" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names);
+#pragma omp section
+    {
+      std::ofstream ofs(prefix + "field" + FILENAME_ENDING);
+      ofs << "coord_sys\tpoint_idx";
+      for (size_t d = 0; d < coordinate_systems[0].field.dim; ++d)
+        ofs << "\tx" << d;
+      for (size_t t = 0; t < T; ++t)
+        ofs << "\tFactor " << t + 1;
+      ofs << std::endl;
+
+      size_t coord_sys_idx = 0;
+      for (size_t c = 0; c < coordinate_systems.size(); ++c) {
+        for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
+          ofs << coord_sys_idx << "\t" << n;
+          for (size_t d = 0; d < coordinate_systems[c].field.dim; ++d)
+            ofs << "\t" << coordinate_systems[c].field.points[n][d];
+          for (size_t t = 0; t < T; ++t)
+            ofs << "\t" << coordinate_systems[c].value(n, order[t]);
+          ofs << std::endl;
+        }
+        coord_sys_idx++;
+      }
+    }
   }
   for (size_t e = 0; e < E; ++e) {
     std::string exp_prefix = prefix + "experiment"
@@ -258,8 +360,9 @@ void Model<Type>::restore(const std::string &prefix) {
 template <typename Type>
 void Model<Type>::perform_pairwise_dge(const std::string &prefix) const {
   for (size_t e = 0; e < E; ++e) {
-    std::string exp_prefix
-        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
     experiments[e].perform_pairwise_dge(exp_prefix, features);
   }
 }
@@ -267,8 +370,9 @@ void Model<Type>::perform_pairwise_dge(const std::string &prefix) const {
 template <typename Type>
 void Model<Type>::perform_local_dge(const std::string &prefix) const {
   for (size_t e = 0; e < E; ++e) {
-    std::string exp_prefix
-        = prefix + "experiment" + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
+    std::string exp_prefix = prefix + "experiment"
+                             + to_string_embedded(e, EXPERIMENT_NUM_DIGITS)
+                             + "-";
     experiments[e].perform_local_dge(exp_prefix, features);
   }
 }
@@ -441,8 +545,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
                 NewtonRaphson::get_digits, it);
             if (it >= NewtonRaphson::max_iter) {
               LOG(fatal) << "Unable to locate solution for r in "
-                         << NewtonRaphson::max_iter
-                         << " iterations.";
+                         << NewtonRaphson::max_iter << " iterations.";
               LOG(fatal) << experiments[0].data.row_names[g]
                          << " prev=" << guess << " f(prev)=" << fn0(guess)
                          << " r=" << features.prior.r(g, t)
@@ -805,7 +908,8 @@ void Model<Type>::sample_contributions(bool do_global_features,
 
               if (not parameters.ignore_priors)
                 // TODO ensure mix_prior.p is stored as negative odds
-                fnc += (mix_prior.r(t) - 1) / x - mix_prior.p(t);
+                fnc += (mix_prior.r(t) * experiment.field(s, t) - 1) / x
+                       - mix_prior.p(t);
 
               return fnc;
             };
@@ -826,7 +930,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
 
               if (not parameters.ignore_priors)
                 // NOTE TODO this needs testing! the minus sign was missing
-                grad += -(mix_prior.r(t) - 1) / x / x;
+                grad += -(mix_prior.r(t) * experiment.field(s, t) - 1) / x / x;
 
               return grad;
             };
@@ -877,6 +981,123 @@ void Model<Type>::sample_contributions(bool do_global_features,
   update_contributions();
   if (parameters.targeted(Target::theta_prior))
     sample_global_theta_priors();
+
+  if (parameters.targeted(Target::field))
+    update_fields();
+}
+
+template <typename Type>
+Matrix Model<Type>::field_fitness_posterior_gradient(const Matrix &f) const {
+  Matrix grad(0, T);
+  size_t cumul = 0;
+  for (auto &experiment : experiments) {
+    grad = arma::join_vert(grad, experiment.field_fitness_posterior_gradient(
+                                     f.rows(cumul, cumul + experiment.S - 1)));
+    cumul += experiment.S;
+  }
+  return grad;
+}
+
+template <typename Type>
+void Model<Type>::update_fields() {
+  LOG(verbose) << "Updating fields";
+
+  using namespace LBFGSpp;
+  LBFGSParam<double> param;
+  param.epsilon = parameters.lbfgs_epsilon;
+  param.max_iterations = parameters.lbfgs_iter;
+  // Create solver and function object
+  LBFGSSolver<double> solver(param);
+
+  for (auto &coord_sys : coordinate_systems) {
+    LOG(verbose) << "Updating coordinate system";
+    using Vec = Eigen::VectorXd;
+    const size_t NT = coord_sys.N * T;
+    Vec x(NT);
+
+    LOG(debug) << "initial phi: " << std::endl
+               << Stats::summary(coord_sys.value);
+
+    for (size_t i = 0; i < NT; ++i)
+      // NOTE log for grad w.r.t. exp-transform
+      x[i] = log(coord_sys.value[i]);
+
+    size_t call_cnt = 0;
+
+    auto fnc = [&](const Vec &phi_, Vec &grad_) {
+      Matrix phi(coord_sys.N, T);
+      for (size_t i = 0; i < NT; ++i)
+        phi[i] = exp(phi_[i]);
+      Matrix grad;
+      double score = field_gradient(coord_sys, phi, grad);
+      for (size_t i = 0; i < NT; ++i)
+        // NOTE multiply w phi to compute gradient of exp-transform
+        grad_[i] = grad[i] * phi[i];
+      if (((call_cnt++) % parameters.lbfgs_report_interval) == 0) {
+        LOG(debug) << "Field score = " << score;
+        LOG(debug) << "phi: " << std::endl << Stats::summary(phi);
+        LOG(debug) << "grad: " << std::endl << Stats::summary(grad);
+        Matrix tmp = grad % phi;
+        LOG(debug) << "grad*phi: " << std::endl << Stats::summary(tmp);
+      }
+      return score;
+    };
+
+    double fx;
+    int niter = solver.minimize(fnc, x, fx);
+
+    for (size_t i = 0; i < NT; ++i)
+      coord_sys.value[i] = exp(x[i]);
+
+    LOG(verbose) << "LBFGS performed " << niter << " iterations";
+    LOG(verbose) << "LBFGS evaluated function and gradient " << call_cnt
+                 << " times";
+    LOG(verbose) << "LBFGS achieved f(x) = " << fx;
+    LOG(verbose) << "LBFGS field summary: " << std::endl
+                 << Stats::summary(coord_sys.value);
+  }
+  update_experiment_fields();
+}
+
+template <typename Type>
+double Model<Type>::field_gradient(CoordinateSystem &coord_sys,
+                                   const Matrix &phi, Matrix &grad) const {
+  LOG(debug) << "phi dim " << phi.n_rows << "x" << phi.n_cols;
+  double score = 0;
+
+  Matrix fitness(0, T);
+  size_t cumul = 0;
+  for (auto member : coord_sys.members) {
+    double s = -arma::accu(experiments[member].field_fitness_posterior(
+        phi.rows(cumul, cumul + experiments[member].S - 1)));
+    LOG(debug) << "Fitness contribution to score of sample " << member << ": "
+               << s;
+    score += s;
+    fitness = arma::join_vert(
+        fitness, experiments[member].field_fitness_posterior_gradient(
+                     phi.rows(cumul, cumul + experiments[member].S - 1)));
+    cumul += experiments[member].S;
+  }
+
+  LOG(debug) << "Fitness contribution to score: " << score;
+
+  grad = Matrix(coord_sys.N, T);
+  for (size_t t = 0; t < T; ++t) {
+    grad.col(t) = coord_sys.field.grad_dirichlet_energy(Vector(phi.col(t)));
+
+    double s = parameters.field_lambda
+               * coord_sys.field.sum_dirichlet_energy(Vector(phi.col(t)));
+    score += s;
+    LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
+               << s;
+  }
+
+  grad = grad * parameters.field_lambda;
+  grad.rows(0, coord_sys.S - 1) = -fitness + grad.rows(0, coord_sys.S - 1);
+
+  LOG(debug) << "Fitness and smoothness score: " << score;
+
+  return score;
 }
 
 template <typename Type>
@@ -959,7 +1180,11 @@ void Model<Type>::sample_global_theta_priors() {
   if (parameters.normalize_spot_stats)
     observed.each_col() /= rowSums<Vector>(observed);
 
-  mix_prior.sample(observed);
+  Matrix field(0, T);
+  for (auto &experiment : experiments)
+    field = arma::join_vert(field, experiment.field);
+
+  mix_prior.sample(observed, field);
 
   for (auto &experiment : experiments)
     experiment.weights.prior = mix_prior;
@@ -1143,17 +1368,18 @@ void Model<Type>::update_contributions() {
 template <typename Type>
 void Model<Type>::add_experiment(const Counts &counts, size_t coord_sys) {
   Parameters experiment_parameters = parameters;
-  experiment_parameters.hyperparameters.phi_p_1 *= local_phi_scaling_factor;
-  experiment_parameters.hyperparameters.phi_r_1 *= local_phi_scaling_factor;
-  experiment_parameters.hyperparameters.phi_p_2 *= local_phi_scaling_factor;
-  experiment_parameters.hyperparameters.phi_r_2 *= local_phi_scaling_factor;
+  const double factor = parameters.local_phi_scaling_factor;
+  experiment_parameters.hyperparameters.phi_p_1 *= factor;
+  experiment_parameters.hyperparameters.phi_r_1 *= factor;
+  experiment_parameters.hyperparameters.phi_p_2 *= factor;
+  experiment_parameters.hyperparameters.phi_r_2 *= factor;
   experiments.push_back({counts, T, experiment_parameters});
   E++;
   // TODO check redundancy with Experiment constructor
   experiments.rbegin()->features.matrix.ones();
-  while(coordinate_systems.size() <= coord_sys)
+  while (coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});
-  coordinate_systems[coord_sys].members.push_back(E-1);
+  coordinate_systems[coord_sys].members.push_back(E - 1);
 }
 
 template <typename Type>

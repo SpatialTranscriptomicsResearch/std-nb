@@ -186,6 +186,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),
      "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
+    ("local_phi_factor", po::value(&parameters.local_phi_scaling_factor)->default_value(parameters.local_phi_scaling_factor),
+     "Factor to scale priors of local features.")
     ("p_map", po::bool_switch(&parameters.p_empty_map),
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
@@ -204,6 +206,16 @@ int main(int argc, char **argv) {
      "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
+    ("mesh_add", po::value(&parameters.mesh_additional)->default_value(parameters.mesh_additional),
+     "Add additional mesh points uniformly distributed in the bounding box.")
+    ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
+     "Maximal number of iterations to perform per lBFGS optimization of the field.")
+    ("lbfgs_report", po::value(&parameters.lbfgs_report_interval)->default_value(parameters.lbfgs_report_interval),
+     "Report interval to use for reporting on the progress of the lBFGS optimization of the field.")
+    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
+     "Epsilon parameter for lBFGS optimization of the field.")
+    ("field_lambda", po::value(&parameters.field_lambda)->default_value(parameters.field_lambda),
+     "Lambda value for field calculations.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
     ("identity", po::bool_switch(&parameters.identity_kernels),
