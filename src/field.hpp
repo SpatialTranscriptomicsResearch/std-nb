@@ -21,7 +21,7 @@ struct Field {
   std::vector<std::vector<double>> alpha;
   std::vector<double> A;
 
-  Field(size_t dim_, const std::vector<Point> &pts)
+  Field(size_t dim_ = 0, const std::vector<Point> &pts = {})
       : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
     std::vector<std::vector<double>> voronoi_weights;
     build_voronoi_qhull(points, adj, voronoi_weights);
@@ -97,6 +97,7 @@ struct Field {
 
   template <typename V>
   V grad_dirichlet_energy(const V &fnc) const {
+    assert(fnc.size() == N);
     V z(N);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t i = 0; i < N; ++i) {
