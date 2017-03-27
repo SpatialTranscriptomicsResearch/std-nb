@@ -221,8 +221,10 @@ int main(int argc, char **argv) {
      "Report interval to use for reporting on the progress of the lBFGS optimization of the field.")
     ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
      "Epsilon parameter for lBFGS optimization of the field.")
-    ("field_lambda", po::value(&parameters.field_lambda)->default_value(parameters.field_lambda),
-     "Lambda value for field calculations.")
+    ("field_lambda_dir", po::value(&parameters.field_lambda_dirichlet)->default_value(parameters.field_lambda_dirichlet),
+     "Lambda value for Dirichlet energy in field calculations.")
+    ("field_lambda_lap", po::value(&parameters.field_lambda_laplace)->default_value(parameters.field_lambda_laplace),
+     "Lambda value for squared Laplace operator in field calculations.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
     ("identity", po::bool_switch(&parameters.identity_kernels),

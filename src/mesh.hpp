@@ -131,6 +131,28 @@ struct Mesh {
     for (size_t i = 0; i < N; ++i) {
       z[i] = 0;
       if (adj[i].size() > 0) {
+        for (auto &j : adj[i])
+          z[i] += fnc[j] - fnc[i];
+        if (std::isnan(z[i])) {
+          LOG(fatal) << "ohoh!\ti=" << i << "\tz=" << z[i];
+          for (size_t k = 0; k < adj[i].size(); ++k) {
+            size_t j = adj[i][k];
+            LOG(fatal) << i << "\t" << j << "\t" << alpha[i][k] << "\t"
+                       << fnc[j];
+          }
+        }
+      }
+    }
+    return z;
+  };
+
+  template <typename V>
+  V laplace_operator_analytic(const V &fnc) const {
+    V z(N);
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t i = 0; i < N; ++i) {
+      z[i] = 0;
+      if (adj[i].size() > 0) {
         double y = 0;
         double b = 0;
         for (size_t k = 0; k < adj[i].size(); ++k) {
@@ -197,6 +219,22 @@ struct Mesh {
   /** Compute the gradient of the squared discrete laplace operator */
   template <typename V>
   V grad_sq_laplace_operator(const V &fnc) const {
+    V lap = laplace_operator(fnc);
+    V grad(N);
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t i = 0; i < N; ++i) {
+      grad[i] = 0;
+      for (auto &j : adj[i])
+        grad[i] += 2 * (lap[j] - lap[i]);
+      if (std::isnan(grad[i]))
+        LOG(fatal) << "uhuh!\ti=" << i << "\tgrad=" << grad[i];
+    }
+    return grad;
+  };
+
+  /** Compute the gradient of the squared discrete laplace operator */
+  template <typename V>
+  V grad_sq_laplace_operator_analytic(const V &fnc) const {
     V lap = laplace_operator(fnc);
     V grad(N);
 #pragma omp parallel for if (DO_PARALLEL)

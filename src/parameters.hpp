@@ -91,7 +91,8 @@ struct Parameters {
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
 
-  double field_lambda = 1;
+  double field_lambda_dirichlet = 1;
+  double field_lambda_laplace = 1;
   size_t mesh_additional = 10000;
   double lbfgs_epsilon = 1e-5;
   size_t lbfgs_iter = 100;

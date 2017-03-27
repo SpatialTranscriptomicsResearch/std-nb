@@ -1098,19 +1098,39 @@ double Model<Type>::field_gradient(CoordinateSystem &coord_sys,
 
   LOG(debug) << "Fitness contribution to score: " << score;
 
-  grad = Matrix(coord_sys.N, T);
-  for (size_t t = 0; t < T; ++t) {
-    grad.col(t) = coord_sys.mesh.grad_dirichlet_energy(Vector(phi.col(t)));
+  grad = Matrix(coord_sys.N, T, arma::fill::zeros);
 
-    double s = parameters.field_lambda
-               * coord_sys.mesh.sum_dirichlet_energy(Vector(phi.col(t)));
-    score += s;
-    LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
-               << s;
+  grad.rows(0, coord_sys.S - 1) = -fitness + grad.rows(0, coord_sys.S - 1);
+
+  if (parameters.field_lambda_dirichlet != 0) {
+    Matrix grad_dirichlet = Matrix(coord_sys.N, T, arma::fill::zeros);
+    for (size_t t = 0; t < T; ++t) {
+      grad_dirichlet.col(t)
+          = coord_sys.mesh.grad_dirichlet_energy(Vector(phi.col(t)));
+
+      double s = parameters.field_lambda_dirichlet
+                 * coord_sys.mesh.sum_dirichlet_energy(Vector(phi.col(t)));
+      score += s;
+      LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
+                 << s;
+    }
+    grad = grad + grad_dirichlet * parameters.field_lambda_dirichlet;
   }
 
-  grad = grad * parameters.field_lambda;
-  grad.rows(0, coord_sys.S - 1) = -fitness + grad.rows(0, coord_sys.S - 1);
+  if (parameters.field_lambda_laplace != 0) {
+    Matrix grad_laplace = Matrix(coord_sys.N, T, arma::fill::zeros);
+    for (size_t t = 0; t < T; ++t) {
+      grad_laplace.col(t)
+          = coord_sys.mesh.grad_sq_laplace_operator(Vector(phi.col(t)));
+
+      double s = parameters.field_lambda_laplace
+                 * coord_sys.mesh.sum_sq_laplace_operator(Vector(phi.col(t)));
+      score += s;
+      LOG(debug) << "Curvature contribution to score of factor " << t << ": "
+                 << s;
+    }
+    grad = grad + grad_laplace * parameters.field_lambda_laplace;
+  }
 
   LOG(debug) << "Fitness and smoothness score: " << score;
 
