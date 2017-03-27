@@ -209,6 +209,10 @@ int main(int argc, char **argv) {
      "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
+    ("mesh_dist", po::value(&parameters.mesh_hull_distance)->default_value(parameters.mesh_hull_distance),
+     "Maximal distance from the closest given point in which to insert additional mesh points.")
+    ("mesh_enlarge", po::value(&parameters.mesh_hull_enlarge)->default_value(parameters.mesh_hull_enlarge),
+     "Additional mesh points are sampeled from the bounding box enlarged by this factor (only used if --mesh_dist is zero).")
     ("mesh_add", po::value(&parameters.mesh_additional)->default_value(parameters.mesh_additional),
      "Add additional mesh points uniformly distributed in the bounding box.")
     ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),

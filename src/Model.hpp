@@ -103,13 +103,30 @@ struct Model {
               if (p[d] > ma[d])
                 ma[d] = p[d];
             }
+          if (parameters.mesh_hull_distance <= 0) {
+            Point mid = (ma + mi) / 2;
+            Point half_diff = (ma - mi) / 2;
+            mi = mid - half_diff * parameters.mesh_hull_enlarge;
+            ma = mid + half_diff * parameters.mesh_hull_enlarge;
+          } else {
+            mi = mi - parameters.mesh_hull_distance;
+            ma = ma + parameters.mesh_hull_distance;
+          }
           for (size_t i = 0; i < num_additional; ++i) {
             // TODO improve this
             // e.g. enlarge area, use convex hull instead of bounding box, etc
-            for (size_t d = 0; d < dim; ++d)
-              pt[d] = mi[d]
-                      + (ma[d] - mi[d])
-                            * RandomDistribution::Uniform(EntropySource::rng);
+            bool ok = false;
+            while (not ok) {
+              for (size_t d = 0; d < dim; ++d)
+                pt[d] = mi[d]
+                        + (ma[d] - mi[d])
+                              * RandomDistribution::Uniform(EntropySource::rng);
+              for (size_t s = 0; s < coord_sys.S; ++s)
+                if (norm(pt - pts[s]) < parameters.mesh_hull_distance) {
+                  ok = true;
+                  break;
+                }
+            }
 
             pts.push_back(pt);
           }

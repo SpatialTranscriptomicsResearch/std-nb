@@ -96,6 +96,9 @@ struct Parameters {
   double lbfgs_epsilon = 1e-5;
   size_t lbfgs_iter = 100;
   size_t lbfgs_report_interval = 1000;
+
+  double mesh_hull_enlarge = 1.03;
+  double mesh_hull_distance = 2;
 };
 
 Float digamma(Float x);
