@@ -10,9 +10,6 @@
 // using Point = std::vector<double>;
 using Point = PoissonFactorization::Vector;
 
-void build_voronoi_qhull(const std::vector<Point> &points,
-                         std::vector<std::vector<size_t>> &adj,
-                         std::vector<std::vector<double>> &voronoi_weights);
 struct Field {
   size_t dim;
   size_t N;
@@ -21,47 +18,11 @@ struct Field {
   std::vector<std::vector<double>> alpha;
   std::vector<double> A;
 
-  Field(size_t dim_ = 0, const std::vector<Point> &pts = {})
-      : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
-    std::vector<std::vector<double>> voronoi_weights;
-    build_voronoi_qhull(points, adj, voronoi_weights);
+  Field(size_t dim_ = 0, const std::vector<Point> &pts = {});
 
-    const bool verbose = false;
-    if (verbose) {
-      std::cerr << "N=" << N << std::endl;
-      std::cerr << "adj.size()=" << adj.size() << std::endl;
-      for (size_t i = 0; i < N; ++i) {
-        std::cerr << "a\t" << i;
-        for (size_t j = 0; j < adj[i].size(); ++j)
-          std::cerr << "\t" << adj[i][j];
-        std::cerr << std::endl;
-      }
-      for (size_t i = 0; i < N; ++i) {
-        std::cerr << "v\t" << i;
-        for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
-          std::cerr << "\t" << voronoi_weights[i][j];
-        std::cerr << std::endl;
-      }
-    }
-
-    LOG(verbose) << "Constructing field. N=" << N;
-    for (size_t i = 0; i < N; ++i) {
-      std::vector<double> a;
-      for (size_t k = 0; k < adj[i].size(); ++k) {
-        size_t j = adj[i][k];
-        double d = arma::norm(pts[i] - pts[j]);
-        double current_a = voronoi_weights[i][k] / d;
-        a.push_back(current_a);
-        A[i] += voronoi_weights[i][k] * d;
-        LOG(debug) << "Constructing field. i=" << i << " j=" << j << " k=" << k
-                   << " v=" << voronoi_weights[i][k] << " d=" << d
-                   << " cur_a=" << current_a;
-      }
-      A[i] *= 0.25;
-      alpha.push_back(a);
-      LOG(debug) << "Constructing field. i=" << i << " A=" << A[i];
-    }
-  };
+  void store(const std::string &path,
+             const PoissonFactorization::Matrix &m) const;
+  void restore(const std::string &path, PoissonFactorization::Matrix &m);
 
   template <typename V>
   V dirichlet_energy(const V &fnc) const {
@@ -97,7 +58,7 @@ struct Field {
 
   template <typename V>
   V grad_dirichlet_energy(const V &fnc) const {
-    assert(fnc.size() == N);
+    assert(static_cast<size_t>(fnc.size()) == N);
     V z(N);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t i = 0; i < N; ++i) {
@@ -258,20 +219,6 @@ struct Field {
   };
 };
 
-std::ostream &operator<<(std::ostream &os, const Field &field) {
-  os << "N = " << field.N << std::endl;
-  os << "points = ";
-  for (size_t i = 0; i < field.N; ++i) {
-    os << i << ":\tA=" << field.A[i];
-    for (size_t j = 0; j < field.adj[i].size(); ++j)
-      os << "\t" << field.adj[i][j] << "/" << field.alpha[i][j];
-    os << std::endl;
-  }
-  for (size_t i = 0; i < field.N; ++i)
-    for (size_t j = 0; j < field.adj[i].size(); ++j)
-      os << "edge" << field.points[i].t() << "edge"
-         << field.points[field.adj[i][j]].t();
-  return os;
-};
+std::ostream &operator<<(std::ostream &os, const Field &field);
 
 #endif
