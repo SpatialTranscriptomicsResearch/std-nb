@@ -1,5 +1,5 @@
-#ifndef FIELD_HPP
-#define FIELD_HPP
+#ifndef MESH_HPP
+#define MESH_HPP
 
 #include <unistd.h>
 #include <vector>
@@ -10,7 +10,7 @@
 // using Point = std::vector<double>;
 using Point = PoissonFactorization::Vector;
 
-struct Field {
+struct Mesh {
   size_t dim;
   size_t N;
   std::vector<Point> points;
@@ -18,7 +18,7 @@ struct Field {
   std::vector<std::vector<double>> alpha;
   std::vector<double> A;
 
-  Field(size_t dim_ = 0, const std::vector<Point> &pts = {});
+  Mesh(size_t dim_ = 0, const std::vector<Point> &pts = {});
 
   void store(const std::string &path,
              const PoissonFactorization::Matrix &m) const;
@@ -219,6 +219,6 @@ struct Field {
   };
 };
 
-std::ostream &operator<<(std::ostream &os, const Field &field);
+std::ostream &operator<<(std::ostream &os, const Mesh &field);
 
 #endif

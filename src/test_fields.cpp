@@ -1,4 +1,4 @@
-#include "field.hpp"
+#include "mesh.hpp"
 #include <LBFGS.h>
 #include <iostream>
 #include "sampling.hpp"
@@ -97,10 +97,10 @@ int main(int argc, char **argv) {
       fnc[i] = 1000 * RandomDistribution::Uniform(EntropySource::rng);
   }
 
-  Field field(dim, pts);
+  Mesh mesh(dim, pts);
 
   if (verbose)
-    cerr << "Field:\n" << field << endl;
+    cerr << "Mesh:\n" << mesh << endl;
 
   /*
   std::cerr << "initial fnc: " << fnc.t() << std::endl;
@@ -127,19 +127,19 @@ int main(int argc, char **argv) {
 
   size_t call_cnt = 0;
   auto fun = [&](const Vec &vec, Vec &g) {
-    // double score = field.sum_sq_laplace_operator(vec);
-    double score = field.sum_dirichlet_energy(vec);
+    // double score = mesh.sum_sq_laplace_operator(vec);
+    double score = mesh.sum_dirichlet_energy(vec);
 
-    // g = field.grad_sq_laplace_operator(vec);
-    g = field.grad_dirichlet_energy(vec);
+    // g = mesh.grad_sq_laplace_operator(vec);
+    g = mesh.grad_dirichlet_energy(vec);
 
     for (size_t i = 0; i < num_fixed; ++i)
       g[i] = 0;
 
     if (call_cnt++ % report_interval == 0) {
       cerr << "score = " << score << endl;
-      cerr << "sum_sq_lap = " << field.sum_sq_laplace_operator(vec) << endl;
-      cerr << "dir = " << field.sum_dirichlet_energy(vec) << endl;
+      cerr << "sum_sq_lap = " << mesh.sum_sq_laplace_operator(vec) << endl;
+      cerr << "dir = " << mesh.sum_dirichlet_energy(vec) << endl;
     }
     return score;
   };

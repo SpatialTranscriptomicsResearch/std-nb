@@ -8,7 +8,7 @@
 #include <LBFGS.h>
 #include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
-#include "field.hpp"
+#include "mesh.hpp"
 
 namespace PoissonFactorization {
 
@@ -60,8 +60,8 @@ struct Model {
     size_t S, N, T;
     // std::vector<Matrix> coords;
     std::vector<size_t> members;
-    Field field;
-    Matrix value;
+    Mesh mesh;
+    Matrix field;
   };
   std::vector<CoordinateSystem> coordinate_systems;
   std::map<std::pair<size_t, size_t>, Matrix> kernels;
@@ -76,8 +76,8 @@ struct Model {
         num_additional = 0;
       coord_sys.N = coord_sys.S + num_additional;
       coord_sys.T = T;
-      coord_sys.value = Matrix(coord_sys.N, T);
-      coord_sys.value.fill(v);
+      coord_sys.field = Matrix(coord_sys.N, T);
+      coord_sys.field.fill(v);
 
       using Point = Vector;
       size_t dim = experiments[coord_sys.members[0]].data.parse_coords().n_cols;
@@ -132,7 +132,7 @@ struct Model {
           }
         }
       }
-      coord_sys.field = Field(dim, pts);
+      coord_sys.mesh = Mesh(dim, pts);
     }
   };
 
@@ -142,7 +142,7 @@ struct Model {
       size_t cumul = 0;
       for (auto member : coord_sys.members) {
         experiments[member].field
-            = coord_sys.value.rows(cumul, cumul + experiments[member].S - 1);
+            = coord_sys.field.rows(cumul, cumul + experiments[member].S - 1);
         cumul += experiments[member].S;
       }
     }
@@ -333,7 +333,7 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
     {
       std::ofstream ofs(prefix + "field" + FILENAME_ENDING);
       ofs << "coord_sys\tpoint_idx";
-      for (size_t d = 0; d < coordinate_systems[0].field.dim; ++d)
+      for (size_t d = 0; d < coordinate_systems[0].mesh.dim; ++d)
         ofs << "\tx" << d;
       for (size_t t = 0; t < T; ++t)
         ofs << "\tFactor " << t + 1;
@@ -343,10 +343,10 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
       for (size_t c = 0; c < coordinate_systems.size(); ++c) {
         for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
           ofs << coord_sys_idx << "\t" << n;
-          for (size_t d = 0; d < coordinate_systems[c].field.dim; ++d)
-            ofs << "\t" << coordinate_systems[c].field.points[n][d];
+          for (size_t d = 0; d < coordinate_systems[c].mesh.dim; ++d)
+            ofs << "\t" << coordinate_systems[c].mesh.points[n][d];
           for (size_t t = 0; t < T; ++t)
-            ofs << "\t" << coordinate_systems[c].value(n, order[t]);
+            ofs << "\t" << coordinate_systems[c].field(n, order[t]);
           ofs << std::endl;
         }
         coord_sys_idx++;
@@ -1033,11 +1033,11 @@ void Model<Type>::update_fields() {
     Vec x(NT);
 
     LOG(debug) << "initial phi: " << std::endl
-               << Stats::summary(coord_sys.value);
+               << Stats::summary(coord_sys.field);
 
     for (size_t i = 0; i < NT; ++i)
       // NOTE log for grad w.r.t. exp-transform
-      x[i] = log(coord_sys.value[i]);
+      x[i] = log(coord_sys.field[i]);
 
     size_t call_cnt = 0;
 
@@ -1064,14 +1064,14 @@ void Model<Type>::update_fields() {
     int niter = solver.minimize(fnc, x, fx);
 
     for (size_t i = 0; i < NT; ++i)
-      coord_sys.value[i] = exp(x[i]);
+      coord_sys.field[i] = exp(x[i]);
 
     LOG(verbose) << "LBFGS performed " << niter << " iterations";
     LOG(verbose) << "LBFGS evaluated function and gradient " << call_cnt
                  << " times";
     LOG(verbose) << "LBFGS achieved f(x) = " << fx;
     LOG(verbose) << "LBFGS field summary: " << std::endl
-                 << Stats::summary(coord_sys.value);
+                 << Stats::summary(coord_sys.field);
   }
   update_experiment_fields();
 }
@@ -1100,10 +1100,10 @@ double Model<Type>::field_gradient(CoordinateSystem &coord_sys,
 
   grad = Matrix(coord_sys.N, T);
   for (size_t t = 0; t < T; ++t) {
-    grad.col(t) = coord_sys.field.grad_dirichlet_energy(Vector(phi.col(t)));
+    grad.col(t) = coord_sys.mesh.grad_dirichlet_energy(Vector(phi.col(t)));
 
     double s = parameters.field_lambda
-               * coord_sys.field.sum_dirichlet_energy(Vector(phi.col(t)));
+               * coord_sys.mesh.sum_dirichlet_energy(Vector(phi.col(t)));
     score += s;
     LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
                << s;

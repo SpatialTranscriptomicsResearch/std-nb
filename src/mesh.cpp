@@ -1,4 +1,4 @@
-#include "field.hpp"
+#include "mesh.hpp"
 #include <iostream>
 #include "sampling.hpp"
 
@@ -115,13 +115,13 @@ void build_voronoi_qhull(const vector<Point> &points,
   }
 }
 
-Field::Field(size_t dim_, const vector<Point> &pts)
+Mesh::Mesh(size_t dim_, const vector<Point> &pts)
     : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
   vector<vector<double>> voronoi_weights;
   build_voronoi_qhull(points, adj, voronoi_weights);
 
+  LOG(verbose) << "Constructing mesh. N=" << N << " dim=" << dim;
   if (verbose) {
-    cerr << "N=" << N << endl;
     cerr << "adj.size()=" << adj.size() << endl;
     for (size_t i = 0; i < N; ++i) {
       cerr << "a\t" << i;
@@ -137,7 +137,6 @@ Field::Field(size_t dim_, const vector<Point> &pts)
     }
   }
 
-  LOG(verbose) << "Constructing field. N=" << N;
   for (size_t i = 0; i < N; ++i) {
     vector<double> a;
     for (size_t k = 0; k < adj[i].size(); ++k) {
@@ -146,33 +145,33 @@ Field::Field(size_t dim_, const vector<Point> &pts)
       double current_a = voronoi_weights[i][k] / d;
       a.push_back(current_a);
       A[i] += voronoi_weights[i][k] * d;
-      LOG(debug) << "Constructing field. i=" << i << " j=" << j << " k=" << k
+      LOG(debug) << "Constructing mesh. i=" << i << " j=" << j << " k=" << k
                  << " v=" << voronoi_weights[i][k] << " d=" << d
                  << " cur_a=" << current_a;
     }
     A[i] *= 0.25;
     alpha.push_back(a);
-    LOG(debug) << "Constructing field. i=" << i << " A=" << A[i];
+    LOG(debug) << "Constructing mesh. i=" << i << " A=" << A[i];
   }
 }
 
-void Field::store(const string &path,
+void Mesh::store(const string &path,
                   const PoissonFactorization::Matrix &m) const {}
 
-void Field::restore(const string &path, PoissonFactorization::Matrix &m) {}
+void Mesh::restore(const string &path, PoissonFactorization::Matrix &m) {}
 
-ostream &operator<<(ostream &os, const Field &field) {
-  os << "N = " << field.N << endl;
+ostream &operator<<(ostream &os, const Mesh &mesh) {
+  os << "N = " << mesh.N << endl;
   os << "points = ";
-  for (size_t i = 0; i < field.N; ++i) {
-    os << i << ":\tA=" << field.A[i];
-    for (size_t j = 0; j < field.adj[i].size(); ++j)
-      os << "\t" << field.adj[i][j] << "/" << field.alpha[i][j];
+  for (size_t i = 0; i < mesh.N; ++i) {
+    os << i << ":\tA=" << mesh.A[i];
+    for (size_t j = 0; j < mesh.adj[i].size(); ++j)
+      os << "\t" << mesh.adj[i][j] << "/" << mesh.alpha[i][j];
     os << endl;
   }
-  for (size_t i = 0; i < field.N; ++i)
-    for (size_t j = 0; j < field.adj[i].size(); ++j)
-      os << "edge" << field.points[i].t() << "edge"
-         << field.points[field.adj[i][j]].t();
+  for (size_t i = 0; i < mesh.N; ++i)
+    for (size_t j = 0; j < mesh.adj[i].size(); ++j)
+      os << "edge" << mesh.points[i].t() << "edge"
+         << mesh.points[mesh.adj[i][j]].t();
   return os;
 }
