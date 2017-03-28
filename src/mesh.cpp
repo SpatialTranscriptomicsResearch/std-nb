@@ -40,7 +40,7 @@ void build_voronoi_qhull(const vector<Point> &points,
   int res = system(
       (string() + "cat " + coord_path + " | qvoronoi s o Fv TO " + voronoi_path)
           .c_str());
-  cerr << "return val = " << res << endl;
+  LOG << "qvoronoi return val = " << res;
 
   ifstream ifs(voronoi_path);
   double bla;
@@ -49,9 +49,9 @@ void build_voronoi_qhull(const vector<Point> &points,
   ifs >> num_voronoi_vertices;
   ifs >> num_voronoi_cells;
   ifs >> num_unknown;
-  cerr << "num_voronoi_vertices = " << num_voronoi_vertices << endl;
-  cerr << "num_voronoi_cells = " << num_voronoi_cells << endl;
-  cerr << "num_unknown = " << num_unknown << endl;
+  LOG(verbose) << "num_voronoi_vertices = " << num_voronoi_vertices;
+  LOG(verbose) << "num_voronoi_cells = " << num_voronoi_cells;
+  LOG(verbose) << "num_unknown = " << num_unknown;
   vector<vector<double>> voronoi_vertices(num_voronoi_vertices,
                                           vector<double>(dim, 0));
   for (size_t i = 0; i < num_voronoi_vertices; ++i)
@@ -68,7 +68,7 @@ void build_voronoi_qhull(const vector<Point> &points,
   }
   size_t num_ridges;
   ifs >> num_ridges;
-  cerr << "num_ridges = " << num_ridges << endl;
+  LOG(verbose) << "num_ridges = " << num_ridges;
   vector<pair<pair<size_t, size_t>, vector<size_t>>> ridges;
 
   adj = vector<vector<size_t>>(num_points);
