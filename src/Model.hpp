@@ -331,26 +331,37 @@ void Model<Type>::store(const std::string &prefix, bool reorder) const {
                  parameters.compression_mode, gene_names);
 #pragma omp section
     {
-      std::ofstream ofs(prefix + "field" + FILENAME_ENDING);
-      ofs << "coord_sys\tpoint_idx";
-      for (size_t d = 0; d < coordinate_systems[0].mesh.dim; ++d)
-        ofs << "\tx" << d;
-      for (size_t t = 0; t < T; ++t)
-        ofs << "\tFactor " << t + 1;
-      ofs << std::endl;
+      auto print_field_matrix
+          = [&](const std::string &path, const Vector &weights) {
+              std::ofstream ofs(path);
+              ofs << "coord_sys\tpoint_idx";
+              for (size_t d = 0; d < coordinate_systems[0].mesh.dim; ++d)
+                ofs << "\tx" << d;
+              for (size_t t = 0; t < T; ++t)
+                ofs << "\tFactor " << t + 1;
+              ofs << std::endl;
 
-      size_t coord_sys_idx = 0;
-      for (size_t c = 0; c < coordinate_systems.size(); ++c) {
-        for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
-          ofs << coord_sys_idx << "\t" << n;
-          for (size_t d = 0; d < coordinate_systems[c].mesh.dim; ++d)
-            ofs << "\t" << coordinate_systems[c].mesh.points[n][d];
-          for (size_t t = 0; t < T; ++t)
-            ofs << "\t" << coordinate_systems[c].field(n, order[t]);
-          ofs << std::endl;
-        }
-        coord_sys_idx++;
-      }
+              size_t coord_sys_idx = 0;
+              for (size_t c = 0; c < coordinate_systems.size(); ++c) {
+                for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
+                  ofs << coord_sys_idx << "\t" << n;
+                  for (size_t d = 0; d < coordinate_systems[c].mesh.dim; ++d)
+                    ofs << "\t" << coordinate_systems[c].mesh.points[n][d];
+                  for (size_t t = 0; t < T; ++t)
+                    ofs << "\t"
+                        << coordinate_systems[c].field(n, order[t])
+                               * weights[order[t]];
+                  ofs << std::endl;
+                }
+                coord_sys_idx++;
+              }
+            };
+      Vector weights(T, arma::fill::ones);
+      print_field_matrix(prefix + "field" + FILENAME_ENDING, weights);
+      // NOTE we ignore local features and local baseline
+      Matrix mean = features.prior.r / features.prior.p;
+      weights = colSums<Vector>(mean) % mix_prior.r / mix_prior.p;
+      print_field_matrix(prefix + "expfield" + FILENAME_ENDING, weights);
     }
   }
   for (size_t e = 0; e < E; ++e) {
