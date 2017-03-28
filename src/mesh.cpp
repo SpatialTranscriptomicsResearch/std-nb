@@ -40,7 +40,7 @@ void build_voronoi_qhull(const vector<Point> &points,
   int res = system(
       (string() + "cat " + coord_path + " | qvoronoi s o Fv TO " + voronoi_path)
           .c_str());
-  LOG << "qvoronoi return val = " << res;
+  LOG(verbose) << "qvoronoi return val = " << res;
 
   ifstream ifs(voronoi_path);
   double bla;
