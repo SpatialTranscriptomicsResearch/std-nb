@@ -1017,6 +1017,8 @@ void Model<Type>::sample_contributions(bool do_global_features,
 
   if (parameters.targeted(Target::field))
     update_fields();
+
+  enforce_positive_parameters();
 }
 
 template <typename Type>
