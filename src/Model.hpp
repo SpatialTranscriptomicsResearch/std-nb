@@ -168,6 +168,10 @@ struct Model {
   void perform_pairwise_dge(const std::string &prefix) const;
   void perform_local_dge(const std::string &prefix) const;
 
+  void sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
+                      const Vector &experiment_counts_gt,
+                      const Matrix &experiment_theta_marginals,
+                      std::mt19937 &rng);
   void sample_contributions(bool do_global_features, bool do_local_features,
                             bool do_theta, bool do_baseline);
 
@@ -405,6 +409,123 @@ void Model<Type>::perform_local_dge(const std::string &prefix) const {
   }
 }
 
+template <typename Fnc, typename Grad>
+void optimize_newton_raphson(const std::string &tag, double &x, Fnc func,
+                             Grad grad) {
+  auto fnc = [&](double r) {
+    double fn = func(r);
+    double gr = grad(r);
+    if (noisy)
+      LOG(debug) << "local fnc/grad = " << fn << "/" << gr;
+    return std::pair<double, double>(fn, gr);
+  };
+
+  if (noisy)
+    LOG(debug) << "BEFORE: " << tag << "=" << x << " f=" << func(x);
+
+  boost::uintmax_t it = NewtonRaphson::max_iter;
+  double guess = x;
+  x = boost::math::tools::newton_raphson_iterate(
+      fnc, guess, NewtonRaphson::lower, guess * 100, NewtonRaphson::get_digits,
+      it);
+  if (it >= NewtonRaphson::max_iter) {
+    LOG(fatal) << "Unable to locate solution for " << tag << " in "
+               << NewtonRaphson::max_iter << " iterations.";
+    LOG(fatal) << "prev=" << guess << " f(prev)=" << func(guess) << " cur=" << x
+               << " f(cur)=" << func(x);
+
+    if (abort_on_fatal_errors)
+      exit(-1);
+  }
+
+  bool reached_upper = x >= NewtonRaphson::upper;
+
+  if (noisy)
+    LOG(debug) << "AFTER: " << tag << "=" << x << " f=" << func(x);
+
+  if (reached_upper) {
+    LOG(fatal) << "Error: reached upper limit for " << tag << "!";
+    if (abort_on_fatal_errors)
+      exit(-1);
+  }
+}
+
+template <typename Type>
+void Model<Type>::sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
+                                 const Vector &experiment_counts_gt,
+                                 const Matrix &experiment_theta_marginals,
+                                 std::mt19937 &rng) {
+  const double a = parameters.hyperparameters.phi_r_1;
+  const double b = parameters.hyperparameters.phi_r_2;
+  for (size_t t = 0; t < T; ++t) {
+    double A = a * 50;
+    double B = b * 50;
+
+    for (size_t e = 0; e < E; ++e) {
+      double theta_marginal = experiment_theta_marginals(e, t)
+                              * experiments[e].baseline_feature.prior.r(g)
+                              * features.prior.r(g, t);
+
+      if (experiment_counts_gt[t] == 0) {
+        if (noisy)
+          LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
+                     << ") for experiment " << e << ": "
+                     << experiments[e].data.row_names[g];
+
+        experiments[e].features.prior.r(g, t) = std::gamma_distribution<Float>(
+            A,
+            1.0 / (B
+                   - theta_marginal * log(1 - neg_odds_to_prob(features.prior.p(
+                                                  g, t)))))(rng);
+
+        if (noisy)
+          LOG(debug) << "local r= " << experiments[e].features.prior.r(g, t);
+      } else {
+        if (noisy)
+          LOG(debug) << "t = " << t << " experiment_counts_gt[t] = "
+                     << experiment_counts_gt[t];
+        auto fn0 = [&](double r) {
+          if (noisy)
+            LOG(debug) << "g/t/e = " << g << "/" << t << "/" << e << " r=" << r;
+
+          const double no = features.prior.p(g, t);
+          double fnc = theta_marginal * (log(no) - log(1 + no));
+          for (size_t s = 0; s < experiments[e].S; ++s) {
+            double prod = experiments[e].baseline_feature.prior.r(g)
+                          * features.prior.r(g, t) * experiments[e].theta(s, t)
+                          * experiments[e].spot(s);
+            fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
+          }
+
+          if (not parameters.ignore_priors)
+            fnc += (A - 1) / r - B;
+
+          return fnc;
+        };
+
+        auto gr0 = [&](double r) {
+          double grad = 0;
+          for (size_t s = 0; s < experiments[e].S; ++s) {
+            double prod = experiments[e].baseline_feature.prior.r(g)
+                          * features.prior.r(g, t) * experiments[e].theta(s, t)
+                          * experiments[e].spot(s);
+            double prod_sq = prod * prod;
+            grad += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
+          }
+
+          if (not parameters.ignore_priors)
+            grad += -(A - 1) / r / r;
+
+          return grad;
+        };
+
+        optimize_newton_raphson(
+            "local r", experiments[e].features.prior.r(g, t), fn0, gr0);
+      }
+    }
+  }
+}
+
 template <typename Type>
 void Model<Type>::sample_contributions(bool do_global_features,
                                        bool do_local_features, bool do_theta,
@@ -549,65 +670,9 @@ void Model<Type>::sample_contributions(bool do_global_features,
               return grad;
             };
 
-            auto fn = [&](double r) {
-              double func = fn0(r);
-              double grad = gr0(r);
-              if (noisy)
-                LOG(debug) << "fnc/grad = " << func << "/" << grad;
-              return std::pair<double, double>(func, grad);
-            };
-
-            if (noisy)
-              LOG(debug) << "BEFORE: " << experiments[0].data.row_names[g]
-                         << " f=" << fn0(features.prior.r(g, t))
-                         << " r=" << features.prior.r(g, t)
-                         << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                         << " m="
-                         << features.prior.r(g, t) / features.prior.p(g, t)
-                                * theta_marginal;
-
-            boost::uintmax_t it = NewtonRaphson::max_iter;
-            double guess = features.prior.r(g, t);
-            features.prior.r(g, t) = boost::math::tools::newton_raphson_iterate(
-                fn, guess, NewtonRaphson::lower, guess * 100,
-                NewtonRaphson::get_digits, it);
-            if (it >= NewtonRaphson::max_iter) {
-              LOG(fatal) << "Unable to locate solution for r in "
-                         << NewtonRaphson::max_iter << " iterations.";
-              LOG(fatal) << experiments[0].data.row_names[g]
-                         << " prev=" << guess << " f(prev)=" << fn0(guess)
-                         << " r=" << features.prior.r(g, t)
-                         << " f(r)=" << fn0(features.prior.r(g, t))
-                         << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                         << " m="
-                         << features.prior.r(g, t) / features.prior.p(g, t)
-                                * theta_marginal;
-
-              if (abort_on_fatal_errors)
-                exit(-1);
-            }
-
-            double p = r2p(features.prior.r(g, t));
-            // TODO sample from posterior instead of MAP
-
-            bool reached_upper = features.prior.r(g, t) >= NewtonRaphson::upper;
-
-            features.prior.p(g, t) = prob_to_neg_odds(p);
-
-            if (noisy)
-              LOG(debug) << "AFTER: " << experiments[0].data.row_names[g]
-                         << " f=" << fn0(features.prior.r(g, t))
-                         << " r=" << features.prior.r(g, t)
-                         << " no=" << r2no(features.prior.r(g, t)) << " p=" << p
-                         << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                         << " m="
-                         << features.prior.r(g, t) / features.prior.p(g, t)
-                                * theta_marginal;
-            if (reached_upper) {
-              LOG(fatal) << "Error: reached upper limit for r!";
-              if (abort_on_fatal_errors)
-                exit(-1);
-            }
+            optimize_newton_raphson("global feature r", features.prior.r(g, t),
+                                    fn0, gr0);
+            features.prior.p(g, t) = r2no(features.prior.r(g, t));
           }
         }
 
@@ -627,28 +692,6 @@ void Model<Type>::sample_contributions(bool do_global_features,
                   * features.prior.r(g, t);
           }
 
-          // TODO baseline
-          /*
-          if (experiment_counts_gt[t] == 0)
-            if (noisy)
-              LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
-                         << ") for experiment " << e << ": "
-                         << experiments[e].data.row_names[g];
-
-            experiments[e].features.prior.r(g, t)
-                = std::gamma_distribution<Float>(
-                    A, 1.0 / (B
-                              - theta_marginal
-                                    * log(1 - neg_odds_to_prob(features.prior.p(
-                                                  g, t)))))(rng);
-
-            if (noisy)
-              LOG(debug) << "local r= "
-                         << experiments[e].features.prior.r(g, t);
-            if (noisy)
-              LOG(debug) << "t = " << t << " experiment_counts_gt[t] = "
-                         << experiment_counts_gt[t];
-            */
           auto fn0 = [&](double r) {
             if (noisy)
               LOG(debug) << "g/e = " << g << "/" << e << " r=" << r;
@@ -690,194 +733,17 @@ void Model<Type>::sample_contributions(bool do_global_features,
             return grad;
           };
 
-          auto fn = [&](double r) {
-            double func = fn0(r);
-            double grad = gr0(r);
-            if (noisy)
-              LOG(debug) << "local fnc/grad = " << func << "/" << grad;
-            return std::pair<double, double>(func, grad);
-          };
-
-          /*
-          if (noisy)
-            LOG(debug) << "BEFORE: " << experiments[0].data.row_names[g]
-                       << " f=" << fn0(experiments[e].features.prior.r(g, t))
-                       << " local r=" << experiments[e].features.prior.r(g, t)
-                       << " r=" << features.prior.r(g, t)
-                       << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                       << " m="
-                       << experiments[e].features.prior.r(g, t)
-                              / features.prior.p(g, t) * theta_marginal;
-                              */
-
-          boost::uintmax_t it = NewtonRaphson::max_iter;
-          double guess = experiments[e].baseline_feature.prior.r(g);
-          experiments[e].baseline_feature.prior.r(g)
-              = boost::math::tools::newton_raphson_iterate(
-                  fn, guess, NewtonRaphson::lower, guess * 100,
-                  NewtonRaphson::get_digits, it);
-          if (it >= NewtonRaphson::max_iter) {
-            LOG(fatal) << "Unable to locate solution for local baseline r in "
-                       << NewtonRaphson::max_iter << " iterations.";
-            LOG(fatal) << experiments[0].data.row_names[g] << " prev=" << guess
-                       << " f(prev)=" << fn0(guess)
-                       << " cur=" << experiments[e].baseline_feature.prior.r(g)
-                       << " f(cur)="
-                       << fn0(experiments[e].baseline_feature.prior.r(g));
-
-            if (abort_on_fatal_errors)
-              exit(-1);
-          }
-
-          bool reached_upper = experiments[e].baseline_feature.prior.r(g)
-                               >= NewtonRaphson::upper;
-
-          /*
-          if (false and noisy)
-            LOG(debug) << "AFTER: " << experiments[0].data.row_names[g]
-                       << " f=" << fn0(experiments[e].features.prior.r(g, t))
-                       << " local r=" << experiments[e].features.prior.r(g, t)
-                       << " r=" << features.prior.r(g, t)
-                       << " no=" << features.prior.p(g, t);
-                       */
-          if (reached_upper) {
-            LOG(fatal) << "Error: reached upper limit for local baseline r!";
-            if (abort_on_fatal_errors)
-              exit(-1);
-          }
+          optimize_newton_raphson("local feature baseline r",
+                                  experiments[e].baseline_feature.prior.r(g),
+                                  fn0, gr0);
         }
       }
 
       // local features
 
       if (do_local_features and parameters.targeted(Target::local))
-        for (size_t t = 0; t < T; ++t) {
-          double A = a * 50;
-          double B = b * 50;
-
-          for (size_t e = 0; e < E; ++e) {
-            double theta_marginal = experiment_theta_marginals(e, t)
-                                    * experiments[e].baseline_feature.prior.r(g)
-                                    * features.prior.r(g, t);
-
-            if (experiment_counts_gt[t] == 0) {
-              if (noisy)
-                LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
-                           << ") for experiment " << e << ": "
-                           << experiments[e].data.row_names[g];
-
-              experiments[e].features.prior.r(g, t)
-                  = std::gamma_distribution<Float>(
-                      A,
-                      1.0 / (B
-                             - theta_marginal
-                                   * log(1 - neg_odds_to_prob(features.prior.p(
-                                                 g, t)))))(rng);
-
-              if (noisy)
-                LOG(debug) << "local r= "
-                           << experiments[e].features.prior.r(g, t);
-            } else {
-              if (noisy)
-                LOG(debug) << "t = " << t << " experiment_counts_gt[t] = "
-                           << experiment_counts_gt[t];
-              auto fn0 = [&](double r) {
-                if (noisy)
-                  LOG(debug) << "g/t/e = " << g << "/" << t << "/" << e
-                             << " r=" << r;
-
-                const double no = features.prior.p(g, t);
-                double fnc = theta_marginal * (log(no) - log(1 + no));
-                for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod = experiments[e].baseline_feature.prior.r(g)
-                                * features.prior.r(g, t)
-                                * experiments[e].theta(s, t)
-                                * experiments[e].spot(s);
-                  fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
-                }
-
-                if (not parameters.ignore_priors)
-                  fnc += (A - 1) / r - B;
-
-                return fnc;
-              };
-
-              auto gr0 = [&](double r) {
-                double grad = 0;
-                for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod = experiments[e].baseline_feature.prior.r(g)
-                                * features.prior.r(g, t)
-                                * experiments[e].theta(s, t)
-                                * experiments[e].spot(s);
-                  double prod_sq = prod * prod;
-                  grad
-                      += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
-                }
-
-                if (not parameters.ignore_priors)
-                  grad += -(A - 1) / r / r;
-
-                return grad;
-              };
-
-              auto fn = [&](double r) {
-                double func = fn0(r);
-                double grad = gr0(r);
-                if (noisy)
-                  LOG(debug) << "local fnc/grad = " << func << "/" << grad;
-                return std::pair<double, double>(func, grad);
-              };
-
-              if (noisy)
-                LOG(debug) << "BEFORE: " << experiments[0].data.row_names[g]
-                           << " f="
-                           << fn0(experiments[e].features.prior.r(g, t))
-                           << " local r="
-                           << experiments[e].features.prior.r(g, t)
-                           << " r=" << features.prior.r(g, t)
-                           << " p=" << neg_odds_to_prob(features.prior.p(g, t))
-                           << " m="
-                           << experiments[e].features.prior.r(g, t)
-                                  / features.prior.p(g, t) * theta_marginal;
-
-              boost::uintmax_t it = NewtonRaphson::max_iter;
-              double guess = experiments[e].features.prior.r(g, t);
-              experiments[e].features.prior.r(g, t)
-                  = boost::math::tools::newton_raphson_iterate(
-                      fn, guess, NewtonRaphson::lower, guess * 100,
-                      NewtonRaphson::get_digits, it);
-              if (it >= NewtonRaphson::max_iter) {
-                LOG(fatal) << "Unable to locate solution for local r in "
-                           << NewtonRaphson::max_iter << " iterations.";
-                LOG(fatal) << experiments[0].data.row_names[g]
-                           << " prev=" << guess << " f(prev)=" << fn0(guess)
-                           << " cur=" << experiments[e].features.prior.r(g, t)
-                           << " f(cur)="
-                           << fn0(experiments[e].features.prior.r(g, t));
-
-                if (abort_on_fatal_errors)
-                  exit(-1);
-              }
-
-              bool reached_upper = experiments[e].features.prior.r(g, t)
-                                   >= NewtonRaphson::upper;
-
-              if (noisy)
-                LOG(debug) << "AFTER: " << experiments[0].data.row_names[g]
-                           << " f="
-                           << fn0(experiments[e].features.prior.r(g, t))
-                           << " local r="
-                           << experiments[e].features.prior.r(g, t)
-                           << " r=" << features.prior.r(g, t)
-                           << " no=" << features.prior.p(g, t);
-              if (reached_upper) {
-                LOG(fatal) << "Error: reached upper limit for local r!";
-                if (abort_on_fatal_errors)
-                  exit(-1);
-              }
-            }
-          }
-        }
+        sample_local_r(g, counts_gst, experiment_counts_gt,
+                       experiment_theta_marginals, rng);
     }
   }
   update_contributions();
@@ -963,45 +829,8 @@ void Model<Type>::sample_contributions(bool do_global_features,
               return grad;
             };
 
-            auto fn = [&](double x) {
-              double func = fn0(x);
-              double grad = gr0(x);
-              if (noisy)
-                LOG(debug) << "func/grad = " << func << "/" << grad;
-              return std::pair<double, double>(func, grad);
-            };
-
-            if (noisy)
-              LOG(debug) << "BEFORE spot=" << experiment.spot(s);
-
-            boost::uintmax_t it = NewtonRaphson::max_iter;
-            double guess = experiment.theta(s, t);
-            double previous = guess;
-            experiment.theta(s, t) = boost::math::tools::newton_raphson_iterate(
-                fn, guess, NewtonRaphson::lower, NewtonRaphson::upper,
-                NewtonRaphson::get_digits, it);
-            if (it >= NewtonRaphson::max_iter) {
-              LOG(fatal) << "Unable to locate solution for theta in "
-                         << NewtonRaphson::max_iter << " iterations.";
-              LOG(fatal) << " prev=" << guess << " f(prev)=" << fn0(guess)
-                         << " cur=" << experiment.theta(s, t)
-                         << " f(cur)=" << fn0(experiment.theta(s, t));
-
-              if (abort_on_fatal_errors)
-                exit(-1);
-            }
-
-            bool reached_upper = experiment.theta(s, t) >= NewtonRaphson::upper;
-
-            if (noisy)
-              LOG(debug) << "AFTER spot=" << experiment.spot(s)
-                         << " previous=" << previous;
-
-            if (reached_upper) {
-              LOG(fatal) << "Error: reached upper limit for theta!";
-              if (abort_on_fatal_errors)
-                exit(-1);
-            }
+            optimize_newton_raphson(
+                "theta", experiment.theta(s, t), fn0, gr0);
           }
       }
     }
