@@ -47,7 +47,7 @@ Hierarchy hierarchical_kmeans(const Matrix &m, const Profile &profile, I begin,
     }
 
     auto res = kmeans(rem, k);
-    LOG(verbose) << res;
+    // LOG(verbose) << res;
 
     begin++;
     for (size_t r = 0; r < res.profiles.size(); ++r) {
