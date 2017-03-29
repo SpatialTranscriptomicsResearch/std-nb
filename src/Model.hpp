@@ -3,7 +3,8 @@
 
 #include <map>
 #ifndef NDEBUG
-#define BOOST_MATH_INSTRUMENT
+// Uncomment the next line for debug output from Boost's Newton-Raphson code
+// #define BOOST_MATH_INSTRUMENT
 #endif
 #include <LBFGS.h>
 #include <boost/math/tools/roots.hpp>
