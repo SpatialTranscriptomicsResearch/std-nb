@@ -65,7 +65,6 @@ struct Model {
     Matrix field;
   };
   std::vector<CoordinateSystem> coordinate_systems;
-  std::map<std::pair<size_t, size_t>, Matrix> kernels;
 
   void initialize_coordinate_systems(double v) {
     for (auto &coord_sys : coordinate_systems) {
@@ -177,14 +176,9 @@ struct Model {
                             bool do_theta, bool do_baseline);
 
   void sample_global_theta_priors();
-  void sample_fields();
 
   double log_likelihood(const std::string &prefix) const;
   double log_likelihood_conv_NB_counts() const;
-
-  // inline Float &phi(size_t g, size_t t) { return features.matrix(g, t); };
-  // inline Float phi(size_t g, size_t t) const { return features.matrix(g, t);
-  // };
 
   // computes a matrix M(g,t)
   // with M(g,t) = sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
@@ -199,8 +193,6 @@ struct Model {
 
   double field_gradient(CoordinateSystem &coord_sys, const Matrix &phi,
                         Matrix &grad) const;
-  void update_kernels();
-  void identity_kernels();
   void add_experiment(const Counts &data, size_t coord_sys);
 };
 
@@ -237,64 +229,7 @@ Model<Type>::Model(const std::vector<Counts> &c, size_t T_,
 
   enforce_positive_parameters();
 
-  if (parameters.targeted(Target::field)) {
-    if (parameters.identity_kernels)
-      identity_kernels();
-    else
-      update_kernels();
-  }
-
   initialize_coordinate_systems(1);
-}
-
-template <typename Type>
-void Model<Type>::identity_kernels() {
-  LOG(debug) << "Updating kernels: using identity kernels";
-  for (auto &coordinate_system : coordinate_systems)
-    for (auto e1 : coordinate_system.members)
-      for (auto e2 : coordinate_system.members) {
-        Matrix m(experiments[e1].S, experiments[e2].S, arma::fill::zeros);
-        if (e1 == e2)
-          m.eye();
-        kernels[{e1, e2}] = m;
-      }
-}
-
-template <typename Type>
-void Model<Type>::update_kernels() {
-  LOG(debug) << "Updating kernels";
-  for (auto &coordinate_system : coordinate_systems)
-    for (auto e1 : coordinate_system.members) {
-      for (auto e2 : coordinate_system.members)
-        kernels[{e1, e2}]
-            = apply_kernel(compute_sq_distances(experiments[e1].coords,
-                                                experiments[e2].coords),
-                           parameters.hyperparameters.sigma);
-    }
-
-  // row normalize
-  // TODO check should we do column normalization?
-  for (auto &coordinate_system : coordinate_systems)
-    if (true)
-      for (auto e1 : coordinate_system.members) {
-        Vector z(experiments[e1].S, arma::fill::zeros);
-        for (auto e2 : coordinate_system.members)
-          z += rowSums<Vector>(kernels[{e1, e2}]);
-        for (auto e2 : coordinate_system.members)
-          kernels[{e1, e2}].each_col() /= z;
-      }
-    else
-      for (auto e2 : coordinate_system.members) {
-        Vector z(experiments[e2].S, arma::fill::zeros);
-        for (auto e1 : coordinate_system.members)
-          z += colSums<Vector>(kernels[{e1, e2}]);
-        for (auto e1 : coordinate_system.members)
-          kernels[{e1, e2}].each_row() /= z.t();
-      }
-  for (auto &kernel : kernels)
-    LOG(debug) << "Kernel " << kernel.first.first << " " << kernel.first.second
-               << std::endl
-               << kernel.second;
 }
 
 template <typename V>
@@ -992,66 +927,6 @@ void Model<Type>::enforce_positive_parameters() {
   features.enforce_positive_parameters("global feature");
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
-}
-
-template <Partial::Kind feat_kind>
-void do_sample_fields(
-    Model<ModelType<feat_kind, Partial::Kind::HierGamma>> &model) {
-  LOG(verbose) << "Sampling fields";
-  std::vector<Matrix> observed;
-  std::vector<Matrix> explained;
-  for (auto &experiment : model.experiments) {
-    observed.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
-    explained.push_back(Matrix(experiment.S, experiment.T, arma::fill::zeros));
-  }
-
-  for (auto &coordinate_system : model.coordinate_systems)
-    for (auto e2 : coordinate_system.members) {
-      const auto intensities
-          = model.experiments[e2].marginalize_genes(model.features);
-#pragma omp parallel for if (DO_PARALLEL)
-      for (size_t t = 0; t < model.T; ++t)
-        for (auto e1 : coordinate_system.members) {
-          const auto &kernel = model.kernels.find({e2, e1})->second;
-          for (size_t s2 = 0; s2 < model.experiments[e2].S; ++s2) {
-            for (size_t s1 = 0; s1 < model.experiments[e1].S; ++s1) {
-              const Float w = kernel(s2, s1);
-              observed[e1](s1, t)
-                  += w
-                     * (model.experiments[e2].weights.prior.r(t)
-                        + model.experiments[e2].contributions_spot_type(s2, t));
-              explained[e1](s1, t)
-                  += w
-                     * (model.experiments[e2].weights.prior.p(t)
-                        // TODO play with switching
-                        + intensities[t] * model.experiments[e2].spot[s2]
-                              // +
-                              // TODO hack: remove theta_explained_spot_type
-                              // model.experiments[e2].theta_explained_spot_type(s2, t)
-                              * (e1 == e2 and s1 == s2
-                                     ? 1
-                                     : model.experiments[e2].field(s2, t)));
-            }
-          }
-        }
-    }
-
-  for (size_t e = 0; e < model.E; ++e) {
-    LOG(verbose) << "Sampling field for experiment " << e;
-    Partial::perform_sampling(observed[e], explained[e],
-                              model.experiments[e].field,
-                              model.parameters.over_relax);
-  }
-}
-
-template <Partial::Kind feat_kind>
-void do_sample_fields(
-    Model<ModelType<feat_kind, Partial::Kind::Dirichlet>> &model
-    __attribute__((unused))) {}
-
-template <typename Type>
-void Model<Type>::sample_fields() {
-  do_sample_fields(*this);
 }
 
 template <typename Type>
