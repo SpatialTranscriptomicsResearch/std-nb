@@ -170,7 +170,7 @@ struct Model {
   void perform_local_dge(const std::string &prefix) const;
 
   void sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
-                      const Vector &experiment_counts_gt,
+                      const Matrix &experiment_counts_gt,
                       const Matrix &experiment_theta_marginals,
                       std::mt19937 &rng);
   void sample_contributions(bool do_global_features, bool do_local_features,
@@ -453,7 +453,7 @@ void optimize_newton_raphson(const std::string &tag, double &x, Fnc func,
 
 template <typename Type>
 void Model<Type>::sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
-                                 const Vector &experiment_counts_gt,
+                                 const Matrix &experiment_counts_gt,
                                  const Matrix &experiment_theta_marginals,
                                  std::mt19937 &rng) {
   const double a = parameters.hyperparameters.phi_r_1;
@@ -467,7 +467,7 @@ void Model<Type>::sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
                               * experiments[e].baseline_feature.prior.r(g)
                               * features.prior.r(g, t);
 
-      if (experiment_counts_gt[t] == 0) {
+      if (experiment_counts_gt(e, t) == 0) {
         if (noisy)
           LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
                      << ") for experiment " << e << ": "
@@ -483,8 +483,8 @@ void Model<Type>::sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
           LOG(debug) << "local r= " << experiments[e].features.prior.r(g, t);
       } else {
         if (noisy)
-          LOG(debug) << "t = " << t << " experiment_counts_gt[t] = "
-                     << experiment_counts_gt[t];
+          LOG(debug) << "t = " << t << " experiment_counts_gt(e,t) = "
+                     << experiment_counts_gt(e, t);
         auto fn0 = [&](double r) {
           if (noisy)
             LOG(debug) << "g/t/e = " << g << "/" << t << "/" << e << " r=" << r;
