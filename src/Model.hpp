@@ -1007,8 +1007,13 @@ void Model<Type>::sample_contributions(bool do_global_features,
     }
   }
   update_contributions();
+
+  enforce_positive_parameters();
+
   if (parameters.targeted(Target::theta_prior))
     sample_global_theta_priors();
+
+  enforce_positive_parameters();
 
   if (parameters.targeted(Target::field))
     update_fields();
@@ -1150,7 +1155,9 @@ double Model<Type>::field_gradient(CoordinateSystem &coord_sys,
 
 template <typename Type>
 void Model<Type>::enforce_positive_parameters() {
-  features.enforce_positive_parameters();
+  for (auto &coord_sys : coordinate_systems)
+    enforce_positive_and_warn("field", coord_sys.field);
+  features.enforce_positive_parameters("global feature");
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
 }

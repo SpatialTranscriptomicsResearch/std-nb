@@ -992,17 +992,11 @@ Vector Experiment<Type>::sample_contributions_gene_spot(
 
 template <typename Type>
 void Experiment<Type>::enforce_positive_parameters() {
-  features.enforce_positive_parameters();
-  baseline_feature.enforce_positive_parameters();
-  weights.enforce_positive_parameters();
-  for (size_t g = 0; g < G; ++g) {
-    for (size_t t = 0; t < T; ++t) {
-      features.prior.r(g, t) = std::max<double>(
-          features.prior.r(g, t), std::numeric_limits<double>::denorm_min());
-      features.prior.p(g, t) = std::max<double>(
-          features.prior.p(g, t), std::numeric_limits<double>::denorm_min());
-    }
-  }
+  enforce_positive_and_warn("local field", field);
+  enforce_positive_and_warn("spot", spot);
+  features.enforce_positive_parameters("local feature");
+  baseline_feature.enforce_positive_parameters("local baseline feature");
+  weights.enforce_positive_parameters("weights");
 }
 
 template <typename Type>

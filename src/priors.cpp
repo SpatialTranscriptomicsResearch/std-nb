@@ -1,4 +1,5 @@
 #include "priors.hpp"
+#include "aux.hpp"
 #include "compression.hpp"
 #include "io.hpp"
 #include "log.hpp"
@@ -80,14 +81,9 @@ void Gamma::restore(const std::string &prefix) {
   p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING, read_matrix, "\t");
 }
 
-void Gamma::enforce_positive_parameters() {
-  for (size_t i = 0; i < dim1; ++i)
-    for (size_t j = 0; j < dim2; ++j) {
-      r(i, j) = std::max<double>(r(i, j),
-                                 std::numeric_limits<double>::denorm_min());
-      p(i, j) = std::max<double>(p(i, j),
-                                 std::numeric_limits<double>::denorm_min());
-    }
+void Gamma::enforce_positive_parameters(const string &tag) {
+  enforce_positive_and_warn(tag + " r prior", r);
+  enforce_positive_and_warn(tag + " p prior", p);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -260,11 +256,9 @@ void Gamma::restore(const std::string &prefix) {
                          read_vector<Vector>, "\t");
 }
 
-void Gamma::enforce_positive_parameters() {
-  for (size_t i = 0; i < dim2; ++i) {
-    r(i) = std::max<double>(r(i), std::numeric_limits<double>::denorm_min());
-    p(i) = std::max<double>(p(i), std::numeric_limits<double>::denorm_min());
-  }
+void Gamma::enforce_positive_parameters(const string &tag) {
+  enforce_positive_and_warn(tag + " r prior", r);
+  enforce_positive_and_warn(tag + " r prior", r);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
