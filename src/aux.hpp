@@ -131,8 +131,10 @@ V gibbs(const V &y_) {
 }
 
 void enforce_positive_and_warn(const std::string &tag,
-                               PoissonFactorization::Matrix &m);
+                               PoissonFactorization::Matrix &m,
+                               bool warn = true);
 void enforce_positive_and_warn(const std::string &tag,
-                               PoissonFactorization::Vector &v);
+                               PoissonFactorization::Vector &v,
+                               bool warn = true);
 
 #endif

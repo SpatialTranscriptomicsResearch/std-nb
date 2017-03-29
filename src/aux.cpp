@@ -1,6 +1,6 @@
+#include "aux.hpp"
 #include <algorithm>
 #include <random>
-#include "aux.hpp"
 #include "entropy.hpp"
 
 using namespace std;
@@ -25,26 +25,30 @@ vector<size_t> random_order(size_t n) {
 }
 
 void enforce_positive_and_warn(const string &tag,
-                               PoissonFactorization::Matrix &m) {
+                               PoissonFactorization::Matrix &m, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
   for (size_t i = 0; i < m.n_rows; ++i)
     for (size_t j = 0; j < m.n_cols; ++j)
       if (m(i, j) < min_val) {
-        LOG(warning) << "Found problematic value " << m(i, j) << " in " << tag
-                     << " matrix at position " << i << " / " << j;
-        LOG(warning) << "Setting to " << min_val << " and continuing.";
+        if (warn) {
+          LOG(warning) << "Found problematic value " << m(i, j) << " in " << tag
+                       << " matrix at position " << i << " / " << j;
+          LOG(warning) << "Setting to " << min_val << " and continuing.";
+        }
         m(i, j) = min_val;
       }
 }
 
 void enforce_positive_and_warn(const string &tag,
-                               PoissonFactorization::Vector &v) {
+                               PoissonFactorization::Vector &v, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
   for (size_t i = 0; i < v.n_rows; ++i)
     if (v(i) < min_val) {
-      LOG(warning) << "Found problematic value " << v(i) << " in " << tag
-                   << " vector at position " << i;
-      LOG(warning) << "Setting to " << min_val << " and continuing.";
+      if (warn) {
+        LOG(warning) << "Found problematic value " << v(i) << " in " << tag
+                     << " vector at position " << i;
+        LOG(warning) << "Setting to " << min_val << " and continuing.";
+      }
       v(i) = min_val;
     }
 }
