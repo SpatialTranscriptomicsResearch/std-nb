@@ -343,7 +343,16 @@ int main(int argc, char **argv) {
 
   using Kind = PF::Partial::Kind;
 
-  run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+  try {
+    run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+  } catch (std::exception &e) {
+    LOG(fatal) << "An error occurred during program execution.";
+    LOG(fatal) << e.what();
+    LOG(fatal) << "Please consult the command line help with -h and the "
+                  "documentation.";
+    LOG(fatal) << "If errors persist please get in touch with the developers.";
+    return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 }
