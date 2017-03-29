@@ -44,6 +44,10 @@ struct Existence : public std::runtime_error {
   Existence(const std::string& path)
       : std::runtime_error("Error: file does not exist: '" + path + "'."){};
 };
+struct IsDirectory : public std::runtime_error {
+  IsDirectory(const std::string& path)
+      : std::runtime_error("Error: path points to a directory: '" + path + "'."){};
+};
 struct NoRegularFile : public std::runtime_error {
   NoRegularFile(const std::string& path)
       : std::runtime_error("Error: not a regular file: '" + path + "'."){};
@@ -119,6 +123,12 @@ T parse_file(const std::string& p_, Fnc fnc, Args&... args) {
   bool use_bzip2 = path(p).extension() == ".bz2";
   std::ios_base::openmode flags = std::ios_base::in;
   if (use_gzip or use_bzip2) flags |= std::ios_base::binary;
+
+  if (not exists(p))
+    throw Exception::File::Existence(p);
+
+  if (is_directory(p))
+    throw Exception::File::IsDirectory(p);
 
   std::ifstream file(p, flags);
   if (not file) throw Exception::File::Access(p);
