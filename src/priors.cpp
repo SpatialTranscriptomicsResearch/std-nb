@@ -257,7 +257,7 @@ void Gamma::restore(const string &prefix) {
 
 void Gamma::enforce_positive_parameters(const string &tag) {
   enforce_positive_and_warn(tag + " r prior", r);
-  enforce_positive_and_warn(tag + " r prior", r);
+  enforce_positive_and_warn(tag + " p prior", p);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
