@@ -66,96 +66,6 @@ struct Model {
   };
   std::vector<CoordinateSystem> coordinate_systems;
 
-  void initialize_coordinate_systems(double v) {
-    for (auto &coord_sys : coordinate_systems) {
-      size_t num_additional = parameters.mesh_additional;
-      coord_sys.S = 0;
-      for (auto &member : coord_sys.members)
-        coord_sys.S += experiments[member].S;
-      if (coord_sys.S == 0)
-        num_additional = 0;
-      coord_sys.N = coord_sys.S + num_additional;
-      coord_sys.T = T;
-      coord_sys.field = Matrix(coord_sys.N, T);
-      coord_sys.field.fill(v);
-
-      using Point = Vector;
-      size_t dim = experiments[coord_sys.members[0]].data.parse_coords().n_cols;
-      std::vector<Point> pts;
-      {
-        Point pt(dim);
-        for (auto &member : coord_sys.members) {
-          Matrix coords = experiments[member].data.parse_coords();
-          for (size_t s = 0; s < experiments[member].S; ++s) {
-            for (size_t i = 0; i < dim; ++i)
-              pt[i] = coords(s, i);
-            pts.push_back(pt);
-          }
-        }
-
-        if (num_additional > 0) {
-          Point mi = pts[0];
-          Point ma = pts[0];
-          for (auto &p : pts)
-            for (size_t d = 0; d < dim; ++d) {
-              if (p[d] < mi[d])
-                mi[d] = p[d];
-              if (p[d] > ma[d])
-                ma[d] = p[d];
-            }
-          if (parameters.mesh_hull_distance <= 0) {
-            Point mid = (ma + mi) / 2;
-            Point half_diff = (ma - mi) / 2;
-            mi = mid - half_diff * parameters.mesh_hull_enlarge;
-            ma = mid + half_diff * parameters.mesh_hull_enlarge;
-          } else {
-            mi = mi - parameters.mesh_hull_distance;
-            ma = ma + parameters.mesh_hull_distance;
-          }
-          for (size_t i = 0; i < num_additional; ++i) {
-            // TODO improve this
-            // e.g. enlarge area, use convex hull instead of bounding box, etc
-            bool ok = false;
-            while (not ok) {
-              for (size_t d = 0; d < dim; ++d)
-                pt[d] = mi[d]
-                        + (ma[d] - mi[d])
-                              * RandomDistribution::Uniform(EntropySource::rng);
-              for (size_t s = 0; s < coord_sys.S; ++s)
-                if (norm(pt - pts[s]) < parameters.mesh_hull_distance) {
-                  ok = true;
-                  break;
-                }
-            }
-
-            pts.push_back(pt);
-          }
-        }
-      }
-      coord_sys.mesh = Mesh(dim, pts);
-    }
-  };
-
-  void update_experiment_fields() {
-    LOG(verbose) << "Updating experiment fields";
-    for (auto &coord_sys : coordinate_systems) {
-      size_t cumul = 0;
-      for (auto member : coord_sys.members) {
-        experiments[member].field
-            = coord_sys.field.rows(cumul, cumul + experiments[member].S - 1);
-        cumul += experiments[member].S;
-      }
-    }
-  };
-
-  template <typename Fnc1, typename Fnc2>
-  Vector get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
-                      Fnc2 fnc2) const;
-  Vector get_low(size_t coord_sys_idx) const;
-  Vector get_high(size_t coord_sys_idx) const;
-
-  void predict_field(std::ofstream &ofs, size_t coord_sys_idx) const;
-
   typename weights_t::prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
@@ -187,12 +97,14 @@ struct Model {
   // with M(g,t) = phi(g,t) sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
-  void update_contributions();
   void update_fields();
+  void update_experiment_fields();
+  void update_contributions();
   Matrix field_fitness_posterior_gradient(const Matrix &f) const;
 
   double field_gradient(CoordinateSystem &coord_sys, const Matrix &phi,
                         Matrix &grad) const;
+  void initialize_coordinate_systems(double v);
   void add_experiment(const Counts &data, size_t coord_sys);
 };
 
@@ -765,8 +677,7 @@ void Model<Type>::sample_contributions(bool do_global_features,
               return grad;
             };
 
-            optimize_newton_raphson(
-                "theta", experiment.theta(s, t), fn0, gr0);
+            optimize_newton_raphson("theta", experiment.theta(s, t), fn0, gr0);
           }
       }
     }
@@ -1029,88 +940,16 @@ bool generate_next(V &v, const V &low, const V &high, double step) {
 }
 
 template <typename Type>
-template <typename Fnc1, typename Fnc2>
-Vector Model<Type>::get_low_high(size_t coord_sys_idx, Float init, Fnc1 fnc1,
-                                 Fnc2 fnc2) const {
-  if (coordinate_systems.size() <= coord_sys_idx
-      or coordinate_systems[coord_sys_idx].members.empty())
-    return {0};
-  size_t D = 0;
-  for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
-    D = std::max<size_t>(D, experiments[exp_idx].coords.n_cols);
-  Vector v(D, arma::fill::ones);
-  v *= init;
-  for (size_t d = 0; d < D; ++d)
-    for (auto &exp_idx : coordinate_systems[coord_sys_idx].members)
-      v[d] = fnc1(v[d], fnc2(experiments[exp_idx].coords.col(d)));
-  return v;
-}
-
-template <typename Type>
-Vector Model<Type>::get_low(size_t coord_sys_idx) const {
-  return get_low_high(coord_sys_idx, std::numeric_limits<Float>::infinity(),
-                      [](double a, double b) { return std::min(a, b); },
-                      [](const Vector &x) { return arma::min(x); });
-}
-
-template <typename Type>
-Vector Model<Type>::get_high(size_t coord_sys_idx) const {
-  return get_low_high(coord_sys_idx, -std::numeric_limits<Float>::infinity(),
-                      [](double a, double b) { return std::max(a, b); },
-                      [](const Vector &x) { return arma::max(x); });
-}
-
-template <typename Type>
-void Model<Type>::predict_field(std::ofstream &ofs,
-                                size_t coord_sys_idx) const {
-  const double sigma = parameters.hyperparameters.sigma;
-  // Matrix feature_marginal(E, T, arma::fill::zeros); TODO
-  double N = 8e8;
-  Vector low = get_low(coord_sys_idx);
-  Vector high = get_high(coord_sys_idx);
-  double alpha = 0.05;
-  low = low - (high - low) * alpha;
-  high = high + (high - low) * alpha;
-  // one over N of the total volume
-  double step = arma::prod((high - low) % (high - low)) / N;
-  // n-th root of step
-  step = exp(log(step) / low.n_elem);
-  Vector coord = low;
-  do {
-    bool first = true;
-    for (auto &c : coord) {
-      if (first)
-        first = false;
-      else
-        ofs << ",";
-      ofs << c;
+void Model<Type>::update_experiment_fields() {
+  LOG(verbose) << "Updating experiment fields";
+  for (auto &coord_sys : coordinate_systems) {
+    size_t cumul = 0;
+    for (auto member : coord_sys.members) {
+      experiments[member].field
+          = coord_sys.field.rows(cumul, cumul + experiments[member].S - 1);
+      cumul += experiments[member].S;
     }
-    Vector observed(T, arma::fill::ones);
-    Vector explained(T, arma::fill::ones);
-    for (auto exp_idx : coordinate_systems[coord_sys_idx].members) {
-      for (size_t s = 0; s < experiments[exp_idx].S; ++s) {
-        const Vector diff = coord - experiments[exp_idx].coords.row(s).t();
-        const double d = arma::accu(diff % diff);
-        const double w
-            = 1 / sqrt(2 * M_PI) / sigma * exp(-d / 2 / sigma / sigma);
-        for (size_t t = 0; t < T; ++t) {
-          observed[t] += w * experiments[exp_idx].contributions_spot_type(s, t);
-          explained[t] += w * 1  // TODO feature_marginal(exp_idx, t)
-                          // * experiments[exp_idx].theta(s, t)
-                          // / experiments[exp_idx].field(s, t)
-                          * experiments[exp_idx].spot(s);
-        }
-      }
-    }
-    double z = 0;
-    for (size_t t = 0; t < T; ++t)
-      z += observed[t] / explained[t];
-    for (size_t t = 0; t < T; ++t) {
-      double predicted = observed[t] / explained[t] / z;
-      ofs << "," << predicted;
-    }
-    ofs << std::endl;
-  } while (generate_next(coord, low, high, step));
+  }
 }
 
 template <typename Type>
@@ -1125,6 +964,77 @@ void Model<Type>::update_contributions() {
         contributions_gene_type(g, t)
             += experiment.contributions_gene_type(g, t);
     }
+}
+
+template <typename Type>
+void Model<Type>::initialize_coordinate_systems(double v) {
+  for (auto &coord_sys : coordinate_systems) {
+    size_t num_additional = parameters.mesh_additional;
+    coord_sys.S = 0;
+    for (auto &member : coord_sys.members)
+      coord_sys.S += experiments[member].S;
+    if (coord_sys.S == 0)
+      num_additional = 0;
+    coord_sys.N = coord_sys.S + num_additional;
+    coord_sys.T = T;
+    coord_sys.field = Matrix(coord_sys.N, T);
+    coord_sys.field.fill(v);
+
+    using Point = Vector;
+    size_t dim = experiments[coord_sys.members[0]].data.parse_coords().n_cols;
+    std::vector<Point> pts;
+    {
+      Point pt(dim);
+      for (auto &member : coord_sys.members) {
+        Matrix coords = experiments[member].data.parse_coords();
+        for (size_t s = 0; s < experiments[member].S; ++s) {
+          for (size_t i = 0; i < dim; ++i)
+            pt[i] = coords(s, i);
+          pts.push_back(pt);
+        }
+      }
+
+      if (num_additional > 0) {
+        Point mi = pts[0];
+        Point ma = pts[0];
+        for (auto &p : pts)
+          for (size_t d = 0; d < dim; ++d) {
+            if (p[d] < mi[d])
+              mi[d] = p[d];
+            if (p[d] > ma[d])
+              ma[d] = p[d];
+          }
+        if (parameters.mesh_hull_distance <= 0) {
+          Point mid = (ma + mi) / 2;
+          Point half_diff = (ma - mi) / 2;
+          mi = mid - half_diff * parameters.mesh_hull_enlarge;
+          ma = mid + half_diff * parameters.mesh_hull_enlarge;
+        } else {
+          mi = mi - parameters.mesh_hull_distance;
+          ma = ma + parameters.mesh_hull_distance;
+        }
+        for (size_t i = 0; i < num_additional; ++i) {
+          // TODO improve this
+          // e.g. enlarge area, use convex hull instead of bounding box, etc
+          bool ok = false;
+          while (not ok) {
+            for (size_t d = 0; d < dim; ++d)
+              pt[d] = mi[d]
+                      + (ma[d] - mi[d])
+                            * RandomDistribution::Uniform(EntropySource::rng);
+            for (size_t s = 0; s < coord_sys.S; ++s)
+              if (norm(pt - pts[s]) < parameters.mesh_hull_distance) {
+                ok = true;
+                break;
+              }
+          }
+
+          pts.push_back(pt);
+        }
+      }
+    }
+    coord_sys.mesh = Mesh(dim, pts);
+  }
 }
 
 template <typename Type>

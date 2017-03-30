@@ -74,7 +74,6 @@ struct Parameters {
   double temperature = 1.0;
   bool over_relax = false;
   bool expected_contributions = false;
-  bool identity_kernels = false;
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
   bool contributions_map = false;

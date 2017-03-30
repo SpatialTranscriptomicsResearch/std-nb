@@ -27,7 +27,6 @@ struct Options {
   string load_prefix = "";
   bool compute_likelihood = false;
   bool share_coord_sys = false;
-  bool predict_field = false;
   bool fields = false;
   bool perform_dge = false;
   bool keep_empty = false;
@@ -101,12 +100,6 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(options.output);
   pfa.store(options.output);
-  if (options.predict_field) {
-    for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
-      ofstream ofs("prediction" + to_string(c) + ".csv");
-      pfa.predict_field(ofs, c);
-    }
-  }
 }
 
 template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
@@ -227,10 +220,6 @@ int main(int argc, char **argv) {
      "Lambda value for squared Laplace operator in field calculations.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
-    ("identity", po::bool_switch(&parameters.identity_kernels),
-     "Use identity kernels to debug the field code.")
-    ("predict", po::bool_switch(&options.predict_field),
-     "Predict the field in a cube around every coordinate system's entries.")
     ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
      "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("expcont", po::bool_switch(&parameters.expected_contributions),
