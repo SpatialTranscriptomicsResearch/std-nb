@@ -33,15 +33,14 @@ struct Options {
   size_t top = 0;
 };
 
-
 template <typename T>
 struct Moments {
   long warm_up;
   size_t n;
   T sum;
   T sumsq;
-  Moments(long warm_up_, const T &m) : warm_up(warm_up_), n(0), sum(m * 0), sumsq(m * 0) {
-  }
+  Moments(long warm_up_, const T &m)
+      : warm_up(warm_up_), n(0), sum(m * 0), sumsq(m * 0) {}
   void update(long iteration, const T &m) {
     if (warm_up >= 0 and iteration >= warm_up) {
       sum = sum + m;
@@ -59,13 +58,12 @@ struct Moments {
   }
 };
 
-template <typename T>
-void perform_gibbs_sampling(T &pfa, const Options &options) {
+void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
-  Moments<T> moments(options.num_warm_up,
-                     options.num_warm_up >= 0
-                         ? pfa
-                         : T({}, 0, pfa.parameters, options.share_coord_sys));
+  Moments<PF::Model> moments(
+      options.num_warm_up,
+      options.num_warm_up >= 0 ? pfa : PF::Model({}, 0, pfa.parameters,
+                                                 options.share_coord_sys));
 
   const size_t iteration_num_digits
       = 1 + floor(log(options.num_steps) / log(10));
@@ -96,17 +94,16 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     moments.update(iteration, pfa);
   }
   moments.evaluate(options.output);
+  pfa.store(options.output);
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(options.output);
-  pfa.store(options.output);
 }
 
-template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const PF::Parameters &parameters) {
-  PF::Model<PF::ModelType<Feature, Mix>> pfa(
-      data_sets, options.num_factors, parameters, options.share_coord_sys);
+  PF::Model pfa(data_sets, options.num_factors, parameters,
+                options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   perform_gibbs_sampling(pfa, options);
@@ -330,10 +327,8 @@ int main(int argc, char **argv) {
   if (options.fields)
     parameters.targets = parameters.targets | PF::Target::field;
 
-  using Kind = PF::Partial::Kind;
-
   try {
-    run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+    run(data_sets, options, parameters);
   } catch (std::exception &e) {
     LOG(fatal) << "An error occurred during program execution.";
     LOG(fatal) << e.what();

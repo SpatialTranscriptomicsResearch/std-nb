@@ -182,7 +182,7 @@ void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
   LOG(verbose) << "Sampling Φ from Gamma distribution";
 
   Matrix observed = prior.r + experiment.contributions_gene_type;
-  Matrix explained = prior.p + experiment.explained_gene_type(args...);
+  Matrix explained = prior.p + experiment.explained_gene_type();
 
   perform_sampling(observed, explained, matrix, parameters.over_relax);
 }
