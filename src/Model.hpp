@@ -978,18 +978,16 @@ void Model<Type>::initialize_coordinate_systems(double v) {
     coord_sys.field.fill(v);
 
     using Point = Vector;
-    size_t dim = experiments[coord_sys.members[0]].data.parse_coords().n_cols;
+    size_t dim = experiments[coord_sys.members[0]].coords.n_cols;
     std::vector<Point> pts;
     {
       Point pt(dim);
-      for (auto &member : coord_sys.members) {
-        Matrix coords = experiments[member].data.parse_coords();
+      for (auto &member : coord_sys.members)
         for (size_t s = 0; s < experiments[member].S; ++s) {
           for (size_t i = 0; i < dim; ++i)
-            pt[i] = coords(s, i);
+            pt[i] = experiments[member].coords(s, i);
           pts.push_back(pt);
         }
-      }
 
       if (num_additional > 0) {
         Point mi = pts[0];
