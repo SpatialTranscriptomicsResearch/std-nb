@@ -32,10 +32,15 @@ double log_gamma(double x, double shape, double scale) {
     if (shape == 1)
       return -log(scale);
     else if (shape > 1) {
+      LOG(warning) << "Warning: log probability of Gamma distribution wanted "
+                      "for x=0 and shape > 1!";
+      LOG(warning) << "We could return negative infinity. Aborting.";
       assert(false);
       return -std::numeric_limits<double>::infinity();
     } else {
-      assert(false);
+      LOG(warning) << "Warning: log probability of Gamma distribution wanted "
+                      "for x=0 and shape < 1!";
+      LOG(warning) << "Returning infinity and continuing.";
       return +std::numeric_limits<double>::infinity();
     }
   } else

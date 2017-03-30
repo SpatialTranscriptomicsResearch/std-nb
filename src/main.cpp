@@ -27,7 +27,7 @@ struct Options {
   string load_prefix = "";
   bool compute_likelihood = false;
   bool share_coord_sys = false;
-  bool predict_field = false;
+  bool fields = false;
   bool perform_dge = false;
   bool keep_empty = false;
   size_t top = 0;
@@ -100,12 +100,6 @@ void perform_gibbs_sampling(T &pfa, const Options &options) {
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(options.output);
   pfa.store(options.output);
-  if (options.predict_field) {
-    for (size_t c = 0; c < pfa.coordinate_systems.size(); ++c) {
-      ofstream ofs("prediction" + to_string(c) + ".csv");
-      pfa.predict_field(ofs, c);
-    }
-  }
 }
 
 template <PF::Partial::Kind Feature, PF::Partial::Kind Mix>
@@ -172,6 +166,8 @@ int main(int argc, char **argv) {
      "Assume that the samples lie in the same coordinate system.")
     ("output,o", po::value(&options.output),
      "Prefix for generated output files.")
+    ("fields", po::bool_switch(&options.fields),
+     "Activate fields.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.");
 
@@ -186,6 +182,8 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),
      "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
+    ("local_phi_factor", po::value(&parameters.local_phi_scaling_factor)->default_value(parameters.local_phi_scaling_factor),
+     "Factor to scale priors of local features.")
     ("p_map", po::bool_switch(&parameters.p_empty_map),
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
@@ -204,12 +202,24 @@ int main(int argc, char **argv) {
      "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
+    ("mesh_dist", po::value(&parameters.mesh_hull_distance)->default_value(parameters.mesh_hull_distance),
+     "Maximal distance from the closest given point in which to insert additional mesh points.")
+    ("mesh_enlarge", po::value(&parameters.mesh_hull_enlarge)->default_value(parameters.mesh_hull_enlarge),
+     "Additional mesh points are sampeled from the bounding box enlarged by this factor (only used if --mesh_dist is zero).")
+    ("mesh_add", po::value(&parameters.mesh_additional)->default_value(parameters.mesh_additional),
+     "Add additional mesh points uniformly distributed in the bounding box.")
+    ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
+     "Maximal number of iterations to perform per lBFGS optimization of the field.")
+    ("lbfgs_report", po::value(&parameters.lbfgs_report_interval)->default_value(parameters.lbfgs_report_interval),
+     "Report interval to use for reporting on the progress of the lBFGS optimization of the field.")
+    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
+     "Epsilon parameter for lBFGS optimization of the field.")
+    ("field_lambda_dir", po::value(&parameters.field_lambda_dirichlet)->default_value(parameters.field_lambda_dirichlet),
+     "Lambda value for Dirichlet energy in field calculations.")
+    ("field_lambda_lap", po::value(&parameters.field_lambda_laplace)->default_value(parameters.field_lambda_laplace),
+     "Lambda value for squared Laplace operator in field calculations.")
     ("overrelax", po::bool_switch(&parameters.over_relax),
      "Perform overrelaxation. See arXiv:bayes-an/9506004.")
-    ("identity", po::bool_switch(&parameters.identity_kernels),
-     "Use identity kernels to debug the field code.")
-    ("predict", po::bool_switch(&options.predict_field),
-     "Predict the field in a cube around every coordinate system's entries.")
     ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
      "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
     ("expcont", po::bool_switch(&parameters.expected_contributions),
@@ -317,9 +327,21 @@ int main(int argc, char **argv) {
         = parameters.targets & ~(PF::Target::local | PF::Target::baseline);
   }
 
+  if (options.fields)
+    parameters.targets = parameters.targets | PF::Target::field;
+
   using Kind = PF::Partial::Kind;
 
-  run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+  try {
+    run<Kind::Gamma, Kind::HierGamma>(data_sets, options, parameters);
+  } catch (std::exception &e) {
+    LOG(fatal) << "An error occurred during program execution.";
+    LOG(fatal) << e.what();
+    LOG(fatal) << "Please consult the command line help with -h and the "
+                  "documentation.";
+    LOG(fatal) << "If errors persist please get in touch with the developers.";
+    return EXIT_FAILURE;
+  }
 
   return EXIT_SUCCESS;
 }

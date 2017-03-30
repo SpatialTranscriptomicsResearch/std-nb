@@ -58,24 +58,20 @@ struct Model {
         dim2(dim2_),
         matrix(dim1, dim2),
         parameters(params),
-        prior(dim1, dim2, parameters),
-        alt_prior(dim1, dim2, parameters) {
+        prior(dim1, dim2, parameters) {
     initialize();
   };
   size_t dim1, dim2;
   Matrix matrix;
   Parameters parameters;
-  prior_type prior, alt_prior;
+  prior_type prior;
 
   void initialize_factor(size_t t);
   void initialize();
 
-  void enforce_positive_parameters() {
-    prior.enforce_positive_parameters();
-    for (size_t i = 0; i < dim1; ++i)
-      for (size_t j = 0; j < dim2; ++j)
-        matrix(i, j) = std::max<double>(
-            matrix(i, j), std::numeric_limits<double>::denorm_min());
+  void enforce_positive_parameters(const std::string &tag) {
+    enforce_positive_and_warn(tag, matrix);
+    prior.enforce_positive_parameters(tag);
   };
 
   // TODO rename to something like sample_features

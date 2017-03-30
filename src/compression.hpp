@@ -30,12 +30,12 @@
 #ifndef COMPRESSION_HPP
 #define COMPRESSION_HPP
 
+#include <boost/filesystem.hpp>
+#include <boost/iostreams/filter/bzip2.hpp>
+#include <boost/iostreams/filter/gzip.hpp>
+#include <boost/iostreams/filtering_stream.hpp>
 #include <fstream>
 #include <stdexcept>
-#include <boost/filesystem.hpp>
-#include <boost/iostreams/filter/gzip.hpp>
-#include <boost/iostreams/filter/bzip2.hpp>
-#include <boost/iostreams/filtering_stream.hpp>
 #include "compression_mode.hpp"
 
 namespace Exception {
@@ -43,6 +43,11 @@ namespace File {
 struct Existence : public std::runtime_error {
   Existence(const std::string& path)
       : std::runtime_error("Error: file does not exist: '" + path + "'."){};
+};
+struct IsDirectory : public std::runtime_error {
+  IsDirectory(const std::string& path)
+      : std::runtime_error("Error: path points to a directory: '" + path
+                           + "'."){};
 };
 struct NoRegularFile : public std::runtime_error {
   NoRegularFile(const std::string& path)
@@ -68,7 +73,7 @@ struct Writing : public std::runtime_error {
 }
 }
 
-template <typename T=void>
+template <typename T = void>
 std::string find_suffix_alternatives(const std::string& path,
                                      const std::vector<std::string>& suffixes
                                      = {"", ".gz", ".bz2"}) {
@@ -81,18 +86,21 @@ std::string find_suffix_alternatives(const std::string& path,
 }
 
 template <typename Fnc, typename... Args>
-void write_file(const std::string& p_, CompressionMode mode, Fnc fnc, Args&... args) {
+void write_file(const std::string& p_, CompressionMode mode, Fnc fnc,
+                Args&... args) {
   using namespace boost::filesystem;
 
   std::string p = p_ + to_string(mode);
 
   std::ios_base::openmode flags = std::ios_base::out;
-  if (mode != CompressionMode::none) flags |= std::ios_base::binary;
+  if (mode != CompressionMode::none)
+    flags |= std::ios_base::binary;
 
   std::ofstream file(p, flags);
-  if (not file) throw Exception::File::Access(p);
+  if (not file)
+    throw Exception::File::Access(p);
   boost::iostreams::filtering_stream<boost::iostreams::output> out;
-  switch(mode) {
+  switch (mode) {
     case CompressionMode::gzip:
       out.push(boost::iostreams::gzip_compressor());
       break;
@@ -105,7 +113,8 @@ void write_file(const std::string& p_, CompressionMode mode, Fnc fnc, Args&... a
   out.push(file);
 
   fnc(out, args...);
-  if (out.bad()) throw Exception::File::Writing(p);
+  if (out.bad())
+    throw Exception::File::Writing(p);
   // if (in.fail())
   //   throw Exception::File::Parsing(p);
 }
@@ -118,17 +127,28 @@ T parse_file(const std::string& p_, Fnc fnc, Args&... args) {
   bool use_gzip = path(p).extension() == ".gz";
   bool use_bzip2 = path(p).extension() == ".bz2";
   std::ios_base::openmode flags = std::ios_base::in;
-  if (use_gzip or use_bzip2) flags |= std::ios_base::binary;
+  if (use_gzip or use_bzip2)
+    flags |= std::ios_base::binary;
+
+  if (not exists(p))
+    throw Exception::File::Existence(p);
+
+  if (is_directory(p))
+    throw Exception::File::IsDirectory(p);
 
   std::ifstream file(p, flags);
-  if (not file) throw Exception::File::Access(p);
+  if (not file)
+    throw Exception::File::Access(p);
   boost::iostreams::filtering_stream<boost::iostreams::input> in;
-  if (use_gzip) in.push(boost::iostreams::gzip_decompressor());
-  if (use_bzip2) in.push(boost::iostreams::bzip2_decompressor());
+  if (use_gzip)
+    in.push(boost::iostreams::gzip_decompressor());
+  if (use_bzip2)
+    in.push(boost::iostreams::bzip2_decompressor());
   in.push(file);
 
   T return_value = fnc(in, args...);
-  if (in.bad()) throw Exception::File::Reading(p);
+  if (in.bad())
+    throw Exception::File::Reading(p);
   // if (in.fail())
   //   throw Exception::File::Parsing(p);
   return return_value;

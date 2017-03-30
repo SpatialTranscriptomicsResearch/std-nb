@@ -1,4 +1,5 @@
 #include "priors.hpp"
+#include "aux.hpp"
 #include "compression.hpp"
 #include "io.hpp"
 #include "log.hpp"
@@ -45,11 +46,11 @@ void Gamma::initialize_r() {
   for (size_t g = 0; g < dim1; ++g) {
     const size_t thread_num = omp_get_thread_num();
     for (size_t t = 0; t < dim2; ++t)
-      // NOTE: std::gamma_distribution takes a shape and scale parameter
-      r(g, t) = std::gamma_distribution<Float>(
-          parameters.hyperparameters.phi_r_1,
-          1 / parameters.hyperparameters.phi_r_2)(
-          EntropySource::rngs[thread_num]);
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      r(g, t)
+          = gamma_distribution<Float>(parameters.hyperparameters.phi_r_1,
+                                      1 / parameters.hyperparameters.phi_r_2)(
+              EntropySource::rngs[thread_num]);
   }
 }
 void Gamma::initialize_p() {
@@ -65,29 +66,25 @@ void Gamma::initialize_p() {
   }
 }
 
-void Gamma::store(const std::string &prefix,
-                  const std::vector<std::string> &gene_names,
-                  const std::vector<std::string> &factor_names,
-                  const std::vector<size_t> &order) const {
+void Gamma::store(const string &prefix, const vector<string> &gene_names,
+                  const vector<string> &factor_names,
+                  const vector<size_t> &order) const {
   write_matrix(r, prefix + "_prior-r" + FILENAME_ENDING,
                parameters.compression_mode, gene_names, factor_names, order);
   write_matrix(p, prefix + "_prior-p" + FILENAME_ENDING,
                parameters.compression_mode, gene_names, factor_names, order);
 }
 
-void Gamma::restore(const std::string &prefix) {
-  r = parse_file<Matrix>(prefix + "_prior-r" + FILENAME_ENDING, read_matrix, "\t");
-  p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING, read_matrix, "\t");
+void Gamma::restore(const string &prefix) {
+  r = parse_file<Matrix>(prefix + "_prior-r" + FILENAME_ENDING, read_matrix,
+                         "\t");
+  p = parse_file<Matrix>(prefix + "_prior-p" + FILENAME_ENDING, read_matrix,
+                         "\t");
 }
 
-void Gamma::enforce_positive_parameters() {
-  for (size_t i = 0; i < dim1; ++i)
-    for (size_t j = 0; j < dim2; ++j) {
-      r(i, j) = std::max<double>(r(i, j),
-                                 std::numeric_limits<double>::denorm_min());
-      p(i, j) = std::max<double>(p(i, j),
-                                 std::numeric_limits<double>::denorm_min());
-    }
+void Gamma::enforce_positive_parameters(const string &tag) {
+  enforce_positive_and_warn(tag + " r prior", r);
+  enforce_positive_and_warn(tag + " p prior", p);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -112,15 +109,14 @@ void Dirichlet::set_unit(double x) {}
 
 Matrix Dirichlet::ratio() const { return Matrix(dim1, dim2, arma::fill::ones); }
 
-void Dirichlet::store(const std::string &prefix __attribute__((unused)),
-                      const std::vector<std::string> &gene_names
+void Dirichlet::store(const string &prefix __attribute__((unused)),
+                      const vector<string> &gene_names __attribute__((unused)),
+                      const vector<string> &factor_names
                       __attribute__((unused)),
-                      const std::vector<std::string> &factor_names
-                      __attribute__((unused)),
-                      const std::vector<size_t> &order
+                      const vector<size_t> &order
                       __attribute__((unused))) const {}
 
-void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
+void Dirichlet::restore(const string &prefix __attribute__((unused))) {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_matrix_head(os, x.r, "R of Φ");
@@ -160,6 +156,7 @@ double compute_conditional(const pair<Float, Float> &x, const V &observed,
 
 template <typename V>
 double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
+                                 const V &field,
                                  const Hyperparameters &hyperparameters) {
   const size_t S = theta.size();
   const Float r = x.first;
@@ -171,7 +168,7 @@ double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
                          1 / hyperparameters.theta_r_2);
   for (size_t s = 0; s < S; ++s)
     // NOTE: gamma_distribution takes a shape and scale parameter
-    l += log_gamma(theta(s), r, 1 / p);
+    l += log_gamma(theta(s), r * field(s), 1 / p);
   return l;
 }
 
@@ -193,8 +190,8 @@ void Gamma::initialize_r() {
   LOG(debug) << "Initializing R of Θ.";
   if (parameters.targeted(Target::theta_prior))
     for (size_t t = 0; t < dim2; ++t)
-      // NOTE: std::gamma_distribution takes a shape and scale parameter
-      r[t] = std::gamma_distribution<Float>(
+      // NOTE: gamma_distribution takes a shape and scale parameter
+      r[t] = gamma_distribution<Float>(
           parameters.hyperparameters.theta_r_1,
           1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
   else
@@ -214,7 +211,7 @@ void Gamma::initialize_p() {
     p.ones();
 }
 
-void Gamma::sample(const Matrix &observed) {
+void Gamma::sample(const Matrix &observed, const Matrix &field) {
   LOG(verbose) << "Sampling P and R of Θ";
   MetropolisHastings mh(parameters.temperature);
 #pragma omp parallel if (DO_PARALLEL)
@@ -222,22 +219,21 @@ void Gamma::sample(const Matrix &observed) {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
     for (size_t t = 0; t < observed.n_cols; ++t) {
-      auto res = mh.sample(std::pair<Float, Float>(r[t], p[t]),
-                           parameters.n_iter, EntropySource::rngs[thread_num],
+      auto res = mh.sample(pair<Float, Float>(r[t], p[t]), parameters.n_iter,
+                           EntropySource::rngs[thread_num],
                            gen_log_normal_pair<Float>,
-                           compute_conditional_gamma<Vector>,
-                           observed.col(t), parameters.hyperparameters);
+                           compute_conditional_gamma<Vector>, observed.col(t),
+                           field.col(t), parameters.hyperparameters);
       r[t] = res.first;
       p[t] = res.second;
     }
   }
 }
 
-void Gamma::store(const std::string &prefix,
-                  const std::vector<std::string> &spot_names
-                  __attribute__((unused)),
-                  const std::vector<std::string> &factor_names,
-                  const std::vector<size_t> &order) const {
+void Gamma::store(const string &prefix,
+                  const vector<string> &spot_names __attribute__((unused)),
+                  const vector<string> &factor_names,
+                  const vector<size_t> &order) const {
   Vector r_ = r;
   Vector p_ = p;
   if (not order.empty()) {
@@ -252,18 +248,16 @@ void Gamma::store(const std::string &prefix,
                parameters.compression_mode, factor_names);
 }
 
-void Gamma::restore(const std::string &prefix) {
+void Gamma::restore(const string &prefix) {
   r = parse_file<Vector>(prefix + "_prior-r" + FILENAME_ENDING,
                          read_vector<Vector>, "\t");
   p = parse_file<Vector>(prefix + "_prior-p" + FILENAME_ENDING,
                          read_vector<Vector>, "\t");
 }
 
-void Gamma::enforce_positive_parameters() {
-  for (size_t i = 0; i < dim2; ++i) {
-    r(i) = std::max<double>(r(i), std::numeric_limits<double>::denorm_min());
-    p(i) = std::max<double>(p(i), std::numeric_limits<double>::denorm_min());
-  }
+void Gamma::enforce_positive_parameters(const string &tag) {
+  enforce_positive_and_warn(tag + " r prior", r, false);
+  enforce_positive_and_warn(tag + " p prior", p, false);
 }
 
 Dirichlet::Dirichlet(size_t dim1_, size_t dim2_, const Parameters &parameters)
@@ -280,15 +274,14 @@ Dirichlet::Dirichlet(const Dirichlet &other)
 
 void Dirichlet::sample(const Matrix &observed __attribute__((unused))) const {}
 
-void Dirichlet::store(const std::string &prefix __attribute__((unused)),
-                      const std::vector<std::string> &spot_names
+void Dirichlet::store(const string &prefix __attribute__((unused)),
+                      const vector<string> &spot_names __attribute__((unused)),
+                      const vector<string> &factor_names
                       __attribute__((unused)),
-                      const std::vector<std::string> &factor_names
-                      __attribute__((unused)),
-                      const std::vector<size_t> &order
+                      const vector<size_t> &order
                       __attribute__((unused))) const {}
 
-void Dirichlet::restore(const std::string &prefix __attribute__((unused))) {}
+void Dirichlet::restore(const string &prefix __attribute__((unused))) {}
 
 ostream &operator<<(ostream &os, const Gamma &x) {
   print_vector_head(os, x.r, "R of Θ");

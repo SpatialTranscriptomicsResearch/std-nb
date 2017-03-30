@@ -53,7 +53,7 @@ struct Gamma {
   void set_unit(double x = 1.0);
   Matrix ratio() const;
 
-  void enforce_positive_parameters();
+  void enforce_positive_parameters(const std::string &tag);
 
 private:
   void initialize_r();
@@ -153,7 +153,7 @@ struct Gamma {
   Gamma(const Gamma &other);
   /** sample p_phi and r_phi */
   /* This is a simple Metropolis-Hastings sampling scheme */
-  void sample(const Matrix &observed);
+  void sample(const Matrix &observed, const Matrix &field);
 
   void store(const std::string &prefix,
              const std::vector<std::string> &spot_names,
@@ -161,7 +161,7 @@ struct Gamma {
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
 
-  void enforce_positive_parameters();
+  void enforce_positive_parameters(const std::string &tag);
 
 private:
   void initialize_r();

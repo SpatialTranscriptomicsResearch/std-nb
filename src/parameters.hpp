@@ -74,7 +74,6 @@ struct Parameters {
   double temperature = 1.0;
   bool over_relax = false;
   bool expected_contributions = false;
-  bool identity_kernels = false;
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
   bool contributions_map = false;
@@ -82,6 +81,7 @@ struct Parameters {
   size_t hmc_L = 5;
   size_t hmc_N = 15;
   bool ignore_priors = false;
+  double local_phi_scaling_factor = 50;
   double dropout_gene = 0;
   double dropout_spot = 0;
   double dropout_anneal = 0.999;
@@ -89,6 +89,16 @@ struct Parameters {
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
+
+  double field_lambda_dirichlet = 1;
+  double field_lambda_laplace = 1;
+  size_t mesh_additional = 10000;
+  double lbfgs_epsilon = 1e-5;
+  size_t lbfgs_iter = 100;
+  size_t lbfgs_report_interval = 1000;
+
+  double mesh_hull_enlarge = 1.03;
+  double mesh_hull_distance = 2;
 };
 
 Float digamma(Float x);

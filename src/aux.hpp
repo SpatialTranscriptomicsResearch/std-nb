@@ -4,8 +4,8 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include "log.hpp"
 #include "types.hpp"
@@ -19,7 +19,7 @@
 std::string to_lower(std::string x);
 
 template <typename T>
-std::string to_string_embedded(const T &t, size_t w, char symbol='0') {
+std::string to_string_embedded(const T &t, size_t w, char symbol = '0') {
   std::stringstream ss;
   ss.fill(symbol);
   ss.width(w);
@@ -129,5 +129,12 @@ V gibbs(const V &y_) {
     x /= z;
   return y;
 }
+
+void enforce_positive_and_warn(const std::string &tag,
+                               PoissonFactorization::Matrix &m,
+                               bool warn = true);
+void enforce_positive_and_warn(const std::string &tag,
+                               PoissonFactorization::Vector &v,
+                               bool warn = true);
 
 #endif
