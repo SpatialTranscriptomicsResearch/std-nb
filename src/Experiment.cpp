@@ -158,7 +158,8 @@ Matrix Experiment::log_likelihood() const {
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
-        rs[t] = model->phi_r(g, t) * phi_l(g, t) * theta(s, t) * spot(s);
+        rs[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
+                * spot(s);
       double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
                  << " counts = " << data.counts(g, s) << " l = " << x;
