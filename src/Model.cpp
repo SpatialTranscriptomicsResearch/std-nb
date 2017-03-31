@@ -13,17 +13,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_gene(G, arma::fill::zeros),
-      phi(G, T, parameters),
+      phi_r(G, T, arma::fill::ones),
+      phi_p(G, T, arma::fill::ones),
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
-
-  // TODO move this code into the classes for prior
-  // if (not parameters.targeted(Target::phi_prior_local))
-  // phi.set_unit();
 
   enforce_positive_parameters();
 
@@ -57,7 +54,13 @@ void Model::store(const string &prefix, bool reorder) const {
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    phi.store(prefix, gene_names, factor_names, order);
+    write_matrix(phi_r,
+                 prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    write_matrix(phi_p,
+                 prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -95,7 +98,7 @@ void Model::store(const string &prefix, bool reorder) const {
       Vector weights(T, arma::fill::ones);
       print_field_matrix(prefix + "field" + FILENAME_ENDING, weights);
       // NOTE we ignore local features and local baseline
-      Matrix mean = phi.r / phi.p;
+      Matrix mean = phi_r / phi_p;
       weights = colSums<Vector>(mean) % mix_prior.r / mix_prior.p;
       print_field_matrix(prefix + "expfield" + FILENAME_ENDING, weights);
     }
@@ -113,7 +116,10 @@ void Model::restore(const string &prefix) {
   contributions_gene
       = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING,
                            read_vector<Vector>, "\t");
-  phi.restore(prefix);
+  phi_r = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+                             read_matrix, "\t");
+  phi_p = parse_file<Matrix>(prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
+                             read_matrix, "\t");
   for (size_t e = 0; e < E; ++e) {
     string exp_prefix = prefix + "experiment"
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
@@ -175,7 +181,7 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
     for (size_t e = 0; e < E; ++e) {
       double theta_marginal = experiment_theta_marginals(e, t)
                               * experiments[e].baseline_feature.prior.r(g)
-                              * phi.r(g, t);
+                              * phi_r(g, t);
 
       if (experiment_counts_gt(e, t) == 0) {
         if (noisy)
@@ -186,7 +192,7 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
         experiments[e].features.prior.r(g, t) = gamma_distribution<Float>(
             A,
             1.0 / (B
-                   - theta_marginal * log(1 - neg_odds_to_prob(phi.p(
+                   - theta_marginal * log(1 - neg_odds_to_prob(phi_p(
                                                   g, t)))))(rng);
 
         if (noisy)
@@ -199,11 +205,11 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
           if (noisy)
             LOG(debug) << "g/t/e = " << g << "/" << t << "/" << e << " r=" << r;
 
-          const double no = phi.p(g, t);
+          const double no = phi_p(g, t);
           double fnc = theta_marginal * (log(no) - log(1 + no));
           for (size_t s = 0; s < experiments[e].S; ++s) {
             double prod = experiments[e].baseline_feature.prior.r(g)
-                          * phi.r(g, t) * experiments[e].theta(s, t)
+                          * phi_r(g, t) * experiments[e].theta(s, t)
                           * experiments[e].spot(s);
             fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
           }
@@ -218,7 +224,7 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
           double grad = 0;
           for (size_t s = 0; s < experiments[e].S; ++s) {
             double prod = experiments[e].baseline_feature.prior.r(g)
-                          * phi.r(g, t) * experiments[e].theta(s, t)
+                          * phi_r(g, t) * experiments[e].theta(s, t)
                           * experiments[e].spot(s);
             double prod_sq = prod * prod;
             grad += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
@@ -315,25 +321,25 @@ void Model::sample_contributions(bool do_global_features,
               LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t
                          << "): " << experiments[0].data.row_names[g];
 
-            phi.r(g, t) = gamma_distribution<Float>(
+            phi_r(g, t) = gamma_distribution<Float>(
                 a, 1.0 / (b
                           - theta_marginal
                                 * log(1 - neg_odds_to_prob(
-                                              phi.p(g, t)))))(rng);
+                                              phi_p(g, t)))))(rng);
 
             if (parameters.p_empty_map)
               // when this is used the r/p values lie along a curve, separated
               // from the MAP estimated ones
-              phi.p(g, t) = r2no(phi.r(g, t));
+              phi_p(g, t) = r2no(phi_r(g, t));
             else
               // even when this is used the r/p values are somewhat separated
               // from the other values
-              phi.p(g, t) = prob_to_neg_odds(sample_beta<Float>(
-                  alpha, beta + phi.r(g, t) * theta_marginal, rng));
+              phi_p(g, t) = prob_to_neg_odds(sample_beta<Float>(
+                  alpha, beta + phi_r(g, t) * theta_marginal, rng));
 
             if (noisy)
-              LOG(debug) << "r/p= " << phi.r(g, t) << "/"
-                         << phi.p(g, t);
+              LOG(debug) << "r/p= " << phi_r(g, t) << "/"
+                         << phi_p(g, t);
           } else {
             if (noisy)
               LOG(debug) << "t = " << t << " cs = " << cs;
@@ -379,9 +385,9 @@ void Model::sample_contributions(bool do_global_features,
               return grad;
             };
 
-            optimize_newton_raphson("global feature r", phi.r(g, t),
+            optimize_newton_raphson("global feature r", phi_r(g, t),
                                     fn0, gr0);
-            phi.p(g, t) = r2no(phi.r(g, t));
+            phi_p(g, t) = r2no(phi_r(g, t));
           }
         }
 
@@ -398,7 +404,7 @@ void Model::sample_contributions(bool do_global_features,
             theta_marginal += theta_marginals[t]
                 = experiment_theta_marginals(e, t)
                   * experiments[e].features.prior.r(g, t)
-                  * phi.r(g, t);
+                  * phi_r(g, t);
           }
 
           auto fn0 = [&](double r) {
@@ -407,11 +413,11 @@ void Model::sample_contributions(bool do_global_features,
 
             double fnc = 0;
             for (size_t t = 0; t < T; ++t) {
-              const double no = phi.p(g, t);
+              const double no = phi_p(g, t);
               fnc += theta_marginals[t] * (log(no) - log(1 + no));
               for (size_t s = 0; s < experiments[e].S; ++s) {
                 double prod = experiments[e].features.prior.r(g, t)
-                              * phi.r(g, t)
+                              * phi_r(g, t)
                               * experiments[e].theta(s, t)
                               * experiments[e].spot(s);
                 fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
@@ -429,7 +435,7 @@ void Model::sample_contributions(bool do_global_features,
             for (size_t t = 0; t < T; ++t)
               for (size_t s = 0; s < experiments[e].S; ++s) {
                 double prod = experiments[e].features.prior.r(g, t)
-                              * phi.r(g, t)
+                              * phi_r(g, t)
                               * experiments[e].theta(s, t)
                               * experiments[e].spot(s);
                 double prod_sq = prod * prod;
@@ -476,9 +482,9 @@ void Model::sample_contributions(bool do_global_features,
             double marginal = 0;
             for (size_t g = 0; g < G; ++g)
               marginal += experiment.baseline_feature.prior.r(g)
-                          * phi.r(g, t)
+                          * phi_r(g, t)
                           * experiment.features.prior.r(g, t)
-                          * log(1 - neg_odds_to_prob(phi.p(g, t)));
+                          * log(1 - neg_odds_to_prob(phi_p(g, t)));
             marginal *= experiment.spot(s);
             experiment.theta(s, t) = gamma_distribution<Float>(
                 mix_prior.r(t), 1.0 / (mix_prior.p(t) - marginal))(rng);
@@ -491,17 +497,17 @@ void Model::sample_contributions(bool do_global_features,
                 if (noisy)
                   LOG(debug)
                       << "g/s/t = " << g << "/" << s << "/" << t
-                      << " theta=" << x << " r=" << phi.r(g, t)
+                      << " theta=" << x << " r=" << phi_r(g, t)
                       << " local r=" << experiment.features.prior.r(g, t)
-                      << " p=" << neg_odds_to_prob(phi.p(g, t))
+                      << " p=" << neg_odds_to_prob(phi_p(g, t))
                       << " sigma=" << experiment.spot(s);
 
                 // NOTE we don't multiply spot(s) in now, but once at the end
                 double prod = experiment.baseline_feature.prior.r(g)
-                              * phi.r(g, t)
+                              * phi_r(g, t)
                               * experiment.features.prior.r(g, t);
 
-                fnc += prod * log(1 - neg_odds_to_prob(phi.p(g, t)));
+                fnc += prod * log(1 - neg_odds_to_prob(phi_p(g, t)));
                 fnc += prod * digamma_diff(x * prod * experiment.spot(s),
                                            counts_gst(g, t));
               }
@@ -521,7 +527,7 @@ void Model::sample_contributions(bool do_global_features,
               for (size_t g = 0; g < G; ++g) {
                 // NOTE we don't multiply spot(s) in now, but once at the end
                 double prod = experiment.baseline_feature.prior.r(g)
-                              * phi.r(g, t)
+                              * phi_r(g, t)
                               * experiment.features.prior.r(g, t);
                 double prod_sq = prod * prod;
                 grad += prod_sq * trigamma_diff(x * prod * experiment.spot(s),
@@ -690,7 +696,8 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
 void Model::enforce_positive_parameters() {
   for (auto &coord_sys : coordinate_systems)
     enforce_positive_and_warn("field", coord_sys.field);
-  phi.enforce_positive_parameters("global feature");
+  enforce_positive_and_warn("phi_r", phi_r);
+  enforce_positive_and_warn("phi_p", phi_p);
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
 }
@@ -882,7 +889,8 @@ Model operator*(const Model &a, const Model &b) {
 
   model.contributions_gene_type %= b.contributions_gene_type;
   model.contributions_gene %= b.contributions_gene;
-  // TODO fix remove features model.phi %= b.phi;
+  model.phi_r %= b.phi_r;
+  model.phi_p %= b.phi_p;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] * b.experiments[e];
 
@@ -894,7 +902,8 @@ Model operator+(const Model &a, const Model &b) {
 
   model.contributions_gene_type += b.contributions_gene_type;
   model.contributions_gene += b.contributions_gene;
-  // TODO fix remove features model.features.matrix += b.features.matrix;
+  model.phi_r += b.phi_r;
+  model.phi_p += b.phi_p;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
 
@@ -906,7 +915,8 @@ Model operator-(const Model &a, const Model &b) {
 
   model.contributions_gene_type -= b.contributions_gene_type;
   model.contributions_gene -= b.contributions_gene;
-  // TODO fix remove features model.features.matrix -= b.features.matrix;
+  model.phi_r -= b.phi_r;
+  model.phi_p -= b.phi_p;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] - b.experiments[e];
 
@@ -918,7 +928,8 @@ Model operator*(const Model &a, double x) {
 
   model.contributions_gene_type *= x;
   model.contributions_gene *= x;
-  // TODO fix remove features model.features.matrix *= x;
+  model.phi_r *= x;
+  model.phi_p *= x;
   for (auto &experiment : model.experiments)
     experiment = experiment * x;
 
@@ -930,7 +941,8 @@ Model operator/(const Model &a, double x) {
 
   model.contributions_gene_type /= x;
   model.contributions_gene /= x;
-  // TODO fix remove features model.features.matrix /= x;
+  model.phi_r /= x;
+  model.phi_p /= x;
   for (auto &experiment : model.experiments)
     experiment = experiment / x;
 

@@ -156,14 +156,14 @@ Matrix Experiment::log_likelihood() const {
   const size_t K = min<size_t>(20, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    Vector ps = model->phi.p.row(g).t();
+    Vector ps = model->phi_p.row(g).t();
     for (size_t t = 0; t < T; ++t)
       // NOTE conv neg bin has opposite interpretation of p
       ps[t] = 1 - neg_odds_to_prob(ps[t]);
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
-        rs[t] = model->phi.r(g, t) * features.prior.r(g, t)
+        rs[t] = model->phi_r(g, t) * features.prior.r(g, t)
                 * theta(s, t) * spot(s);
       double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
@@ -234,12 +234,12 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     } else if (parameters.contributions_map) {
       Vector r(T);
       for (size_t t = 0; t < T; ++t)
-        r[t] = model->phi.r(g, t) * features.prior.r(g, t)
+        r[t] = model->phi_r(g, t) * features.prior.r(g, t)
                * baseline_feature.prior.r(g) * theta(s, t) * spot(s);
 
       Vector p(T);
       for (size_t t = 0; t < T; ++t)
-        p[t] = neg_odds_to_prob(model->phi.p(g, t));
+        p[t] = neg_odds_to_prob(model->phi_p(g, t));
 
       if (noisy) {
         for (size_t t = 0; t < T; ++t)
@@ -250,7 +250,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
       if (true) {
         for (size_t t = 0; t < T; ++t)
-          cnts[t] = log(r[t] / model->phi.p(g, t));
+          cnts[t] = log(r[t] / model->phi_p(g, t));
 
         Vector mean;
         // Vector mean = count * gibbs(cnts);
@@ -324,13 +324,13 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                      << " v[i]=" << v[i] << " v[j]=" << v[j];
 
         const double r_i
-            = model->phi.r(g, i) * features.prior.r(g, i);
-        const double no_i = model->phi.p(g, i);
+            = model->phi_r(g, i) * features.prior.r(g, i);
+        const double no_i = model->phi_p(g, i);
         const double prod_i = r_i * theta(s, i) * spot(s);
 
         const double r_j
-            = model->phi.r(g, j) * features.prior.r(g, j);
-        const double no_j = model->phi.p(g, j);
+            = model->phi_r(g, j) * features.prior.r(g, j);
+        const double no_j = model->phi_p(g, j);
         const double prod_j = r_j * theta(s, j) * spot(s);
 
         // TODO determine continous-valued mean by optimizing the posterior
@@ -363,8 +363,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       double z = 0;
       for (size_t t = 0; t < T; ++t)
         z += mean_prob[t] = baseline_feature.prior.r(g) * features.prior.r(g, t)
-                            * model->phi.r(g, t)
-                            / model->phi.p(g, t) * theta(s, t);
+                            * model->phi_r(g, t)
+                            / model->phi_p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
         mean_prob[t] /= z;
       auto icnts = sample_multinomial<size_t, IVector>(
@@ -419,8 +419,8 @@ Vector Experiment::marginalize_genes() const {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
       intensity += baseline_feature.prior.r(g) * features.prior.r(g, t)
-                   * model->phi.r(g, t)
-                   / model->phi.p(g, t);
+                   * model->phi_r(g, t)
+                   / model->phi_p(g, t);
     intensities[t] = intensity;
   }
   return intensities;
@@ -514,9 +514,9 @@ Matrix Experiment::explained_gene_type() const {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t) = model->phi.r(g, t)
+      explained(g, t) = model->phi_r(g, t)
                         * baseline_feature.prior.r(g)
-                        / model->phi.p(g, t) * theta_t(t);
+                        / model->phi_p(g, t) * theta_t(t);
   return explained;
 }
 
@@ -531,9 +531,9 @@ Vector Experiment::explained_gene() const {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += features.prior.r(g, t) * model->phi.r(g, t)
+      explained(g) += features.prior.r(g, t) * model->phi_r(g, t)
                       * baseline_feature.prior.r(g)
-                      / model->phi.p(g, t) * theta_t(t);
+                      / model->phi_p(g, t) * theta_t(t);
   return explained;
 };
 
@@ -542,8 +542,8 @@ Matrix Experiment::explained_spot_type() const {
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += features.prior.r(g, t) * model->phi.r(g, t)
-           * baseline_feature.prior.r(g) / model->phi.p(g, t);
+      x += features.prior.r(g, t) * model->phi_r(g, t)
+           * baseline_feature.prior.r(g) / model->phi_p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
