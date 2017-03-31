@@ -5,10 +5,8 @@
 using namespace std;
 
 namespace STD {
-namespace Partial {
 
-template <>
-void Model<Variable::Mix, Kind::HierGamma>::initialize_factor(size_t t) {
+void Theta::initialize_factor(size_t t) {
   // randomly initialize p of Θ
   LOG(debug) << "Initializing P of Θ";
   if (true)  // TODO make this CLI-switchable
@@ -34,20 +32,7 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize_factor(size_t t) {
         prior.r(t), 1 / prior.p(t))(EntropySource::rng);
 }
 
-template <>
-void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t) {
-  assert(false);
-  throw(std::runtime_error("Not implemented!"));
-  // TODO implement
-  std::vector<double> a(dim1);
-  for (size_t s = 0; s < dim1; ++s)
-    a[s] = prior.alpha[s];
-  auto x = sample_dirichlet<Float>(begin(a), end(a),
-                                   EntropySource::rngs[omp_get_thread_num()]);
-}
-
-template <>
-void Model<Variable::Mix, Kind::HierGamma>::initialize() {
+void Theta::initialize() {
   // initialize Θ
   LOG(debug) << "Initializing Θ from Gamma distribution";
 #pragma omp parallel for if (DO_PARALLEL)
@@ -60,31 +45,16 @@ void Model<Variable::Mix, Kind::HierGamma>::initialize() {
   }
 }
 
-template <>
-void Model<Variable::Mix, Kind::Dirichlet>::initialize() {
-  LOG(debug) << "Initializing Θ from Dirichlet distribution" << std::endl;
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s) {
-    const size_t thread_num = omp_get_thread_num();
-    auto x = sample_dirichlet<Float>(begin(prior.alpha), end(prior.alpha),
-                                     EntropySource::rngs[thread_num]);
-    for (size_t t = 0; t < dim2; ++t)
-      matrix(s, t) = x[t];
-  }
-}
-
-template <>
 // TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::HierGamma>::log_likelihood() const {
+double Theta::log_likelihood() const {
   double l = 0;
   for (size_t t = 0; t < dim2; ++t)
     l += log_likelihood_factor(t);
   return l;
 }
 
-template <>
 // TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
+double Theta::log_likelihood_factor(
     size_t t) const {
   double l = 0;
 
@@ -116,37 +86,5 @@ double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
   */
 
   return l;
-}
-
-template <>
-// TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood() const {
-  double l = 0;
-
-#pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s) {
-    vector<double> p(dim2);
-    for (size_t t = 0; t < dim2; ++t)
-      p[t] = matrix(s, t);
-    vector<double> a(dim2, prior.alpha_prior);
-    l += log_dirichlet(p, a);
-  }
-
-  return l;
-}
-
-template <>
-// TODO ensure no NaNs or infinities are generated
-double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
-    size_t t) const {
-  // TODO
-  assert(false);
-  std::vector<Float> p(dim1);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s)
-    p[s] = matrix(s, t);
-
-  return log_dirichlet(p, prior.alpha);
-}
 }
 }

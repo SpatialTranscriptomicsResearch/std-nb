@@ -11,49 +11,12 @@
 #include "sampling.hpp"
 
 namespace STD {
-namespace Partial {
 
 const Float phi_scaling = 1.0;
 
-enum class Variable { Feature, Mix, Spot, Experiment };
-
-std::string to_string(Variable variable);
-std::ostream &operator<<(std::ostream &os, Variable variable);
-std::istream &operator>>(std::istream &is, Variable &variable);
-
-enum class Kind { Constant, Dirichlet, Gamma, HierGamma };
-
-std::string to_string(Kind kind);
-std::ostream &operator<<(std::ostream &os, Kind kind);
-std::istream &operator>>(std::istream &is, Kind &kind);
-
-template <Variable variable, Kind kind>
-struct Traits {};
-
-template <>
-struct Traits<Variable::Feature, Kind::Gamma> {
-  typedef PRIOR::PHI::Gamma prior_type;
-};
-
-template <>
-struct Traits<Variable::Feature, Kind::Dirichlet> {
-  typedef PRIOR::PHI::Dirichlet prior_type;
-};
-
-template <>
-struct Traits<Variable::Mix, Kind::HierGamma> {
-  typedef PRIOR::THETA::Gamma prior_type;
-};
-
-template <>
-struct Traits<Variable::Mix, Kind::Dirichlet> {
-  typedef PRIOR::THETA::Dirichlet prior_type;
-};
-
-template <Variable variable, Kind kind>
-struct Model {
-  typedef typename Traits<variable, kind>::prior_type prior_type;
-  Model(size_t dim1_, size_t dim2_, const Parameters &params)
+struct Theta {
+  using prior_type = PRIOR::THETA::Gamma;
+  Theta(size_t dim1_, size_t dim2_, const Parameters &params)
       : dim1(dim1_),
         dim2(dim2_),
         matrix(dim1, dim2),
@@ -84,7 +47,7 @@ struct Model {
                     const Args &... args);
 
   std::string gen_path_stem(const std::string &prefix) const {
-    return prefix + to_lower(to_string(variable) + "-" + to_string(kind));
+    return prefix + "mix-hiergamma";
   };
 
   void store(const std::string &prefix,
@@ -92,7 +55,8 @@ struct Model {
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const {
     const auto path = gen_path_stem(prefix);
-    write_matrix(matrix, path + FILENAME_ENDING, parameters.compression_mode, spot_names, factor_names, order);
+    write_matrix(matrix, path + FILENAME_ENDING, parameters.compression_mode,
+                 spot_names, factor_names, order);
     prior.store(path, spot_names, factor_names, order);
   };
 
@@ -152,84 +116,10 @@ void perform_sampling(const Type &observed, const Type &explained, Res &m,
   }
 }
 
-// Feature specializations
-
-template <>
-void Model<Variable::Feature, Kind::Gamma>::initialize_factor(size_t t);
-
-template <>
-void Model<Variable::Feature, Kind::Dirichlet>::initialize_factor(size_t t);
-
-template <>
-void Model<Variable::Feature, Kind::Gamma>::initialize();
-
-template <>
-void Model<Variable::Feature, Kind::Dirichlet>::initialize();
-
-template <>
-double Model<Variable::Feature, Kind::Gamma>::log_likelihood_factor(
-    size_t t) const;
-
-template <>
-double Model<Variable::Feature, Kind::Dirichlet>::log_likelihood_factor(
-    size_t t) const;
-
-/** sample phi */
-template <>
-template <typename Experiment, typename... Args>
-void Model<Variable::Feature, Kind::Gamma>::sample(const Experiment &experiment,
-                                                   const Args &... args) {
-  LOG(verbose) << "Sampling Φ from Gamma distribution";
-
-  Matrix observed = prior.r + experiment.contributions_gene_type;
-  Matrix explained = prior.p + experiment.explained_gene_type();
-
-  perform_sampling(observed, explained, matrix, parameters.over_relax);
-}
-
-template <>
-template <typename Experiment, typename... Args>
-void Model<Variable::Feature, Kind::Dirichlet>::sample(
-    const Experiment &experiment, const Args &... args) {
-  LOG(verbose) << "Sampling Φ from Dirichlet distribution";
-  for (size_t t = 0; t < dim2; ++t) {
-    std::vector<Float> a(dim1, 0);
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < dim1; ++g)
-      a[g] = prior.alpha(g, t) + experiment.contributions_gene_type(g, t);
-    auto phi_k = sample_dirichlet<Float>(begin(a), end(a));
-    for (size_t g = 0; g < dim1; ++g)
-      matrix(g, t) = phi_k[g];
-  }
-}
-
-// Mixing specializations
-
-template <>
-void Model<Variable::Mix, Kind::HierGamma>::initialize_factor(size_t t);
-
-template <>
-void Model<Variable::Mix, Kind::Dirichlet>::initialize_factor(size_t t);
-
-template <>
-void Model<Variable::Mix, Kind::HierGamma>::initialize();
-
-template <>
-void Model<Variable::Mix, Kind::Dirichlet>::initialize();
-
-template <>
-double Model<Variable::Mix, Kind::HierGamma>::log_likelihood_factor(
-    size_t t) const;
-
-template <>
-double Model<Variable::Mix, Kind::Dirichlet>::log_likelihood_factor(
-    size_t t) const;
-
 /** sample theta */
-template <>
 template <typename Experiment, typename... Args>
-void Model<Variable::Mix, Kind::HierGamma>::sample_field(
-    const Experiment &experiment, Matrix &field, const Args &... args) {
+void Theta::sample_field(const Experiment &experiment, Matrix &field,
+                         const Args &... args) {
   LOG(verbose) << "Sampling Θ from Gamma distribution";
 
   const bool convolve = parameters.targeted(Target::field);
@@ -258,25 +148,6 @@ void Model<Variable::Mix, Kind::HierGamma>::sample_field(
     for (size_t t = 0; t < dim2; ++t)
       matrix(s, t) = std::max<Float>(std::numeric_limits<Float>::denorm_min(),
                                      matrix(s, t));
-}
-
-template <>
-template <typename Experiment, typename... Args>
-void Model<Variable::Mix, Kind::Dirichlet>::sample_field(
-    const Experiment &experiment, Matrix &field __attribute__((unused)),
-    const Args &... args __attribute__((unused))) {
-  // TODO needs written-down proof; it's analogous to the case for the features
-  LOG(verbose) << "Sampling Θ from Dirichlet distribution";
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < dim1; ++s) {
-    std::vector<Float> a(dim2, parameters.hyperparameters.mix_alpha);
-    for (size_t t = 0; t < dim2; ++t)
-      a[t] += experiment.contributions_spot_type(s, t);
-    auto theta_sample = sample_dirichlet<Float>(begin(a), end(a));
-    for (size_t t = 0; t < dim2; ++t)
-      matrix(s, t) = theta_sample[t];
-  }
-}
 }
 }
 

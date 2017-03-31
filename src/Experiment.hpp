@@ -2,11 +2,11 @@
 #define EXPERIMENT_HPP
 
 #include <random>
-#include "ModelType.hpp"
 #include "Paths.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
+#include "PartialModel.hpp"
 #include "hamiltonian_monte_carlo.hpp"
 #include "metropolis_hastings.hpp"
 #include "odds.hpp"
@@ -27,10 +27,7 @@ const bool noisy = true;
 struct Model;
 
 struct Experiment {
-  // using features_t
-  //     = Partial::Model<Partial::Variable::Feature, Partial::Kind::Gamma>;
-  using weights_t
-      = Partial::Model<Partial::Variable::Mix, Partial::Kind::HierGamma>;
+  using weights_t = Theta;
 
   Model *model;
 

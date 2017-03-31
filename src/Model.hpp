@@ -31,8 +31,7 @@ const int EXPERIMENT_NUM_DIGITS = 4;
 const bool abort_on_fatal_errors = false;
 
 struct Model {
-  using weights_t
-      = Partial::Model<Partial::Variable::Mix, Partial::Kind::HierGamma>;
+  using weights_t = Theta;
   using experiment_t = Experiment;
 
   // TODO consider const
