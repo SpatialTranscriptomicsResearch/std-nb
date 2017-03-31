@@ -82,7 +82,8 @@ void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
     if (iteration % options.report_interval == 0) {
       const string prefix
           = "iter" + to_string_embedded(iteration, iteration_num_digits) + "/";
-      if (boost::filesystem::create_directory(prefix))
+      if (boost::filesystem::create_directory(pfa.parameters.output_directory
+                                              + prefix))
         pfa.store(prefix);
       else
         throw(std::runtime_error("Couldn't create directory " + prefix));
