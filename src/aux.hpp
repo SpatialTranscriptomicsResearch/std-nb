@@ -130,11 +130,9 @@ V gibbs(const V &y_) {
   return y;
 }
 
-void enforce_positive_and_warn(const std::string &tag,
-                               PoissonFactorization::Matrix &m,
+void enforce_positive_and_warn(const std::string &tag, STD::Matrix &m,
                                bool warn = true);
-void enforce_positive_and_warn(const std::string &tag,
-                               PoissonFactorization::Vector &v,
+void enforce_positive_and_warn(const std::string &tag, STD::Vector &v,
                                bool warn = true);
 
 #endif

@@ -16,7 +16,7 @@
 #include "timer.hpp"
 #include "verbosity.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 #ifdef NDEBUG
 const bool noisy = false;

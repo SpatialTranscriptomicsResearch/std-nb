@@ -5,7 +5,7 @@
 // #define ARMA_NO_DEBUG
 #include <armadillo>
 
-namespace PoissonFactorization {
+namespace STD {
 using Int = uint32_t;
 using Float = double;
 using Vector = arma::Col<Float>;

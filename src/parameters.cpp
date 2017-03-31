@@ -5,7 +5,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 Float digamma(Float x) { return boost::math::digamma(x); }
 
 Float trigamma(Float x) { return boost::math::trigamma(x); }

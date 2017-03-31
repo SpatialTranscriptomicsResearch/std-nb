@@ -11,7 +11,7 @@
 #include "Experiment.hpp"
 #include "Mesh.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 namespace NewtonRaphson {
 const double lower = std::numeric_limits<double>::denorm_min();

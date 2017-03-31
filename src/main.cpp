@@ -12,7 +12,6 @@
 #include "Model.hpp"
 
 using namespace std;
-namespace PF = PoissonFactorization;
 
 struct Options {
   vector<string> tsv_paths;
@@ -55,12 +54,12 @@ struct Moments {
   }
 };
 
-void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
+void perform_gibbs_sampling(STD::Model &pfa, const Options &options) {
   LOG(info) << "Initial model" << endl << pfa;
-  Moments<PF::Model> moments(
+  Moments<STD::Model> moments(
       options.num_warm_up,
-      options.num_warm_up >= 0 ? pfa : PF::Model({}, 0, pfa.parameters,
-                                                 options.share_coord_sys));
+      options.num_warm_up >= 0 ? pfa : STD::Model({}, 0, pfa.parameters,
+                                                  options.share_coord_sys));
 
   const size_t iteration_num_digits
       = 1 + floor(log(options.num_steps) / log(10));
@@ -98,9 +97,9 @@ void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
 }
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
-         const PF::Parameters &parameters) {
-  PF::Model pfa(data_sets, options.num_factors, parameters,
-                options.share_coord_sys);
+         const STD::Parameters &parameters) {
+  STD::Model pfa(data_sets, options.num_factors, parameters,
+                 options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   perform_gibbs_sampling(pfa, options);
@@ -113,7 +112,7 @@ int main(int argc, char **argv) {
 
   Options options;
 
-  PF::Parameters parameters;
+  STD::Parameters parameters;
 
   string config_path;
   string usage_info = "Spatial Transcriptome Deconvolution\n"
@@ -285,7 +284,7 @@ int main(int argc, char **argv) {
   // invert the negative CLI switch value
   options.compute_likelihood = !options.compute_likelihood;
 
-  if (parameters.output_directory == PF::default_output_string) {
+  if (parameters.output_directory == STD::default_output_string) {
     parameters.output_directory
         = generate_random_label(exec_info.program_name, 0) + "/";
   }
@@ -318,11 +317,11 @@ int main(int argc, char **argv) {
     LOG(info)
         << "Less than 2 data sets; deactivating local baseline and features.";
     parameters.targets
-        = parameters.targets & ~(PF::Target::local | PF::Target::baseline);
+        = parameters.targets & ~(STD::Target::local | STD::Target::baseline);
   }
 
   if (options.fields)
-    parameters.targets = parameters.targets | PF::Target::field;
+    parameters.targets = parameters.targets | STD::Target::field;
 
   try {
     run(data_sets, options, parameters);

@@ -5,7 +5,7 @@
 #include "log.hpp"
 #include "types.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 using Profile = Vector;
 using Profiles = std::vector<Profile>;

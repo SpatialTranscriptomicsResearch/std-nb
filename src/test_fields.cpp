@@ -1,6 +1,6 @@
-#include "Mesh.hpp"
 #include <LBFGS.h>
 #include <iostream>
+#include "Mesh.hpp"
 #include "sampling.hpp"
 
 using namespace std;
@@ -18,7 +18,7 @@ int main(int argc, char **argv) {
   const size_t report_interval = 100;
 
   vector<Point> pts;
-  PoissonFactorization::Vector fnc;
+  STD::Vector fnc;
 
   if (argc == 2) {
     vector<double> val;
@@ -77,7 +77,7 @@ int main(int argc, char **argv) {
     }
 
     n = pts.size();
-    fnc = PoissonFactorization::Vector(n);
+    fnc = STD::Vector(n);
     for (size_t i = 0; i < num_fixed; ++i)
       fnc[i] = val[i];
     for (size_t i = num_fixed; i < n; ++i)
@@ -92,7 +92,7 @@ int main(int argc, char **argv) {
       pts.push_back(pt);
     }
 
-    fnc = PoissonFactorization::Vector(n);
+    fnc = STD::Vector(n);
     for (size_t i = 0; i < n; ++i)
       fnc[i] = 1000 * RandomDistribution::Uniform(EntropySource::rng);
   }

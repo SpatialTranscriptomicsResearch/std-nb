@@ -2,7 +2,7 @@
 #include "entropy.hpp"
 #include "parallel.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 using namespace std;
 

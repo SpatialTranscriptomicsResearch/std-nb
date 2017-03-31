@@ -4,7 +4,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 namespace Partial {
 
 template <>

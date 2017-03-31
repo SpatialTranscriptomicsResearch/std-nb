@@ -9,14 +9,14 @@ struct Counts {
   std::string path;
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
-  PoissonFactorization::IMatrix counts;  // TODO rename to matrix
+  STD::IMatrix counts;  // TODO rename to matrix
   /**
    * Function assumes the column names are of the form "AxB" with A and B
    * positive integers. It then computes the matrix of pairwise squared
    * Euclidean distances.
    */
-  PoissonFactorization::Matrix compute_distances() const;
-  PoissonFactorization::Matrix parse_coords() const;
+  STD::Matrix compute_distances() const;
+  STD::Matrix parse_coords() const;
 };
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
@@ -31,11 +31,9 @@ T apply_kernel(T m, double sigma) {
 }
 
 // compute squared Euclidean distances between all pairs of rows of a and b
-PoissonFactorization::Matrix compute_sq_distances(
-    const PoissonFactorization::Matrix &a,
-    const PoissonFactorization::Matrix &b);
+STD::Matrix compute_sq_distances(const STD::Matrix &a, const STD::Matrix &b);
 
-PoissonFactorization::Matrix row_normalize(PoissonFactorization::Matrix m_);
+STD::Matrix row_normalize(STD::Matrix m_);
 
 size_t sum_rows(const std::vector<Counts> &c);
 size_t max_row_number(const std::vector<Counts> &c);

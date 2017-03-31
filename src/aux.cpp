@@ -24,8 +24,7 @@ vector<size_t> random_order(size_t n) {
   return order;
 }
 
-void enforce_positive_and_warn(const string &tag,
-                               PoissonFactorization::Matrix &m, bool warn) {
+void enforce_positive_and_warn(const string &tag, STD::Matrix &m, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
   for (size_t i = 0; i < m.n_rows; ++i)
     for (size_t j = 0; j < m.n_cols; ++j)
@@ -39,8 +38,7 @@ void enforce_positive_and_warn(const string &tag,
       }
 }
 
-void enforce_positive_and_warn(const string &tag,
-                               PoissonFactorization::Vector &v, bool warn) {
+void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
   for (size_t i = 0; i < v.n_rows; ++i)
     if (v(i) < min_val) {

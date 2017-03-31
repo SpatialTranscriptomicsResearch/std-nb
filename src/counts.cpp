@@ -11,7 +11,7 @@
 #include "parallel.hpp"
 
 using namespace std;
-namespace PF = PoissonFactorization;
+namespace PF = STD;
 using Int = PF::Int;
 using IMatrix = PF::IMatrix;
 using Matrix = PF::Matrix;

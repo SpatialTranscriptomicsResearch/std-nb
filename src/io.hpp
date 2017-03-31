@@ -30,8 +30,7 @@ void write_vector(const V &v, const std::string &path, CompressionMode mode,
 }
 
 template <typename M>
-void write_matrix(const M &m, const std::string &path,
-                  CompressionMode mode,
+void write_matrix(const M &m, const std::string &path, CompressionMode mode,
                   const std::vector<std::string> &row_names
                   = std::vector<std::string>(),
                   const std::vector<std::string> &col_names
@@ -86,8 +85,7 @@ void write_matrix(const M &m, const std::string &path,
   });
 }
 
-PoissonFactorization::Matrix read_matrix(std::istream &os,
-                                         const std::string &separator);
+STD::Matrix read_matrix(std::istream &os, const std::string &separator);
 
 template <typename V>
 V read_vector(std::istream &is, const std::string &separator) {
@@ -108,17 +106,15 @@ V read_vector(std::istream &is, const std::string &separator) {
   return v_;
 }
 
-PoissonFactorization::Matrix read_floats(std::istream &ifs,
-                                         const std::string &separator,
-                                         std::vector<std::string> &row_names,
-                                         std::vector<std::string> &col_names);
+STD::Matrix read_floats(std::istream &ifs, const std::string &separator,
+                        std::vector<std::string> &row_names,
+                        std::vector<std::string> &col_names);
 
-PoissonFactorization::IMatrix read_counts(std::istream &ifs,
-                                          const std::string &separator,
-                                          std::vector<std::string> &row_names,
-                                          std::vector<std::string> &col_names);
+STD::IMatrix read_counts(std::istream &ifs, const std::string &separator,
+                         std::vector<std::string> &row_names,
+                         std::vector<std::string> &col_names);
 
-void print_matrix_head(std::ostream &os, const PoissonFactorization::Matrix &m,
+void print_matrix_head(std::ostream &os, const STD::Matrix &m,
                        const std::string &label = "", size_t n = 10);
 
 template <typename V>

@@ -8,7 +8,7 @@
 #include "types.hpp"
 
 // using Point = std::vector<double>;
-using Point = PoissonFactorization::Vector;
+using Point = STD::Vector;
 
 struct Mesh {
   size_t dim;
@@ -21,9 +21,8 @@ struct Mesh {
   Mesh(size_t dim_ = 0, const std::vector<Point> &pts = {},
        const std::string &prefix = "");
 
-  void store(const std::string &path,
-             const PoissonFactorization::Matrix &m) const;
-  void restore(const std::string &path, PoissonFactorization::Matrix &m);
+  void store(const std::string &path, const STD::Matrix &m) const;
+  void restore(const std::string &path, STD::Matrix &m);
 
   template <typename V>
   V dirichlet_energy(const V &fnc) const {

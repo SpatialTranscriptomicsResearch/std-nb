@@ -3,7 +3,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 
 Experiment::Experiment(Model *model_, const Counts &data_, size_t T_,
                        const Parameters &parameters_)

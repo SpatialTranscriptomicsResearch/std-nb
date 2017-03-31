@@ -12,7 +12,7 @@
 #include "sampling.hpp"
 #include "types.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 const std::string FILENAME_ENDING = ".tsv";
 

@@ -10,7 +10,7 @@
 #include "priors.hpp"
 #include "sampling.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 namespace Partial {
 
 const Float phi_scaling = 1.0;

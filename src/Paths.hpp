@@ -3,7 +3,7 @@
 
 #include <string>
 
-namespace PoissonFactorization {
+namespace STD {
 
 struct Paths {
   Paths(const std::string &prefix, const std::string &suffix = "");

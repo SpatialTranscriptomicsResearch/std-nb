@@ -6,7 +6,7 @@
 #include "target.hpp"
 #include "types.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 
 const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 

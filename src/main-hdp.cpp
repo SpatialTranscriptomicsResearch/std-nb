@@ -20,7 +20,6 @@
 #include <fenv.h>
 
 using namespace std;
-namespace PF = PoissonFactorization;
 
 const string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
@@ -49,9 +48,9 @@ struct Options {
   bool perform_splitmerge = false;
   bool posterior_switches = false;
   size_t top = 0;
-  // PF::Target sample_these = PF::DefaultTarget();
-  // PF::Partial::Kind feature_type = PF::Partial::Kind::Gamma;
-  // PF::Partial::Kind mixing_type = PF::Partial::Kind::HierGamma;
+  // STD::Target sample_these = STD::DefaultTarget();
+  // STD::Partial::Kind feature_type = STD::Partial::Kind::Gamma;
+  // STD::Partial::Kind mixing_type = STD::Partial::Kind::HierGamma;
 };
 
 istream &operator>>(istream &is, Options::Labeling &label) {
@@ -90,7 +89,7 @@ ostream &operator<<(ostream &os, const Options::Labeling &label) {
   return os;
 }
 
-ostream &print(ostream &os, const PF::Matrix &m,
+ostream &print(ostream &os, const STD::Matrix &m,
            const vector<string> &row_names = vector<string>(),
            const vector<string> &col_names = vector<string>()) {
   for (auto name : col_names)
@@ -114,7 +113,7 @@ std::pair<size_t, size_t> draw_read(const Counts &data,
   return make_pair(g, s);
 }
 
-void store(const PF::HDP &model, const Counts &data, const string &prefix = "",
+void store(const STD::HDP &model, const Counts &data, const string &prefix = "",
            const string &suffix = "") {
   vector<string> type_names;
   for (size_t t = 0; t < model.T; ++t)
@@ -136,7 +135,7 @@ int main(int argc, char **argv) {
 
   Options options;
 
-  PF::HDP::Parameters parameters;
+  STD::HDP::Parameters parameters;
 
   string config_path;
   string usage_info = "This software implements the nested hierarchical Dirichlet process model of\n"
@@ -283,14 +282,14 @@ int main(int argc, char **argv) {
   if (options.top > 0)
     data.select_top(options.top);
 
-  PF::HDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors,
-                parameters);
+  STD::HDP model(data.counts.n_rows, data.counts.n_cols, options.num_factors,
+                 parameters);
 
   feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
   // feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW | FE_UNDERFLOW);
 
   if (true) {
-    PF::HDP cumul_model = model;
+    STD::HDP cumul_model = model;
     for (size_t i = 0; i < options.num_steps; ++i) {
       LOG(info) << "Iteration " << i;
       if (i >= options.burn_in)

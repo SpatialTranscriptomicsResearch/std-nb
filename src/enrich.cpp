@@ -8,7 +8,7 @@
 #include "types.hpp"
 
 using namespace std;
-using namespace PoissonFactorization;
+using namespace STD;
 
 const string separator = "\t";
 

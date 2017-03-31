@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-namespace PoissonFactorization {
+namespace STD {
 
 enum class Target {
   empty = 0,

@@ -2,7 +2,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 
 Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
              bool same_coord_sys)
@@ -848,10 +848,10 @@ void Model::add_experiment(const Counts &counts, size_t coord_sys) {
 }
 
 ostream &operator<<(ostream &os, const Model &model) {
-  os << "Poisson Factorization "
+  os << "Spatial Transcriptome Deconvoltuion "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
-     << "E = " << model.E;
+     << "E = " << model.E << endl;
 
   /*
   if (verbosity >= Verbosity::debug) {

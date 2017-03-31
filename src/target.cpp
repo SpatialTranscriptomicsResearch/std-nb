@@ -3,7 +3,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 
 ostream &operator<<(ostream &os, const Target &which) {
   if (which == Target::empty) {

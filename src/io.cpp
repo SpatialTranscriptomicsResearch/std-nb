@@ -8,12 +8,11 @@
 #include "compression.hpp"
 
 using namespace std;
-namespace PF = PoissonFactorization;
-using Int = PF::Int;
-using Float = PF::Float;
-using Matrix = PF::Matrix;
-using IMatrix = PF::IMatrix;
-using Vector = PF::Vector;
+using Int = STD::Int;
+using Float = STD::Float;
+using Matrix = STD::Matrix;
+using IMatrix = STD::IMatrix;
+using Vector = STD::Vector;
 
 Matrix read_matrix(istream &is, const string &separator) {
   // TODO improve / factor / simplify implementation

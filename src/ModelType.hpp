@@ -3,7 +3,7 @@
 
 #include "PartialModel.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 template <Partial::Kind feat_kind = Partial::Kind::Gamma,
           Partial::Kind mix_kind = Partial::Kind::HierGamma>
 struct ModelType {

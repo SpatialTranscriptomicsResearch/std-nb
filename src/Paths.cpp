@@ -1,6 +1,6 @@
 #include "Paths.hpp"
 
-namespace PoissonFactorization {
+namespace STD {
 Paths::Paths(const std::string &prefix, const std::string &suffix)
     : phi(prefix + "phi.txt" + suffix),
       theta(prefix + "theta.txt" + suffix),

@@ -11,7 +11,7 @@
 
 using namespace std;
 
-namespace PoissonFactorization {
+namespace STD {
 namespace PRIOR {
 namespace PHI {
 
