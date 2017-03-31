@@ -18,7 +18,8 @@ struct Mesh {
   std::vector<std::vector<double>> alpha;
   std::vector<double> A;
 
-  Mesh(size_t dim_ = 0, const std::vector<Point> &pts = {});
+  Mesh(size_t dim_ = 0, const std::vector<Point> &pts = {},
+       const std::string &prefix = "");
 
   void store(const std::string &path,
              const PoissonFactorization::Matrix &m) const;

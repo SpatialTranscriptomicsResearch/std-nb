@@ -21,9 +21,10 @@ double polytope_area(const vector<P> &pts) {
 
 void build_voronoi_qhull(const vector<Point> &points,
                          vector<vector<size_t>> &adj,
-                         vector<vector<double>> &voronoi_weights) {
-  const string coord_path = "/tmp/coord.txt";
-  const string voronoi_path = "/tmp/voronoi.txt";
+                         vector<vector<double>> &voronoi_weights,
+                         const string &prefix) {
+  const string coord_path = prefix + "-mesh-coords.txt";
+  const string voronoi_path = prefix + "-voronoi.txt";
   const size_t num_points = points.size();
   if (num_points == 0)
     return;
@@ -115,48 +116,50 @@ void build_voronoi_qhull(const vector<Point> &points,
   }
 }
 
-Mesh::Mesh(size_t dim_, const vector<Point> &pts)
+Mesh::Mesh(size_t dim_, const vector<Point> &pts, const string &prefix)
     : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
-  vector<vector<double>> voronoi_weights;
-  build_voronoi_qhull(points, adj, voronoi_weights);
+  if (not points.empty()) {
+    vector<vector<double>> voronoi_weights;
+    build_voronoi_qhull(points, adj, voronoi_weights, prefix);
 
-  LOG(verbose) << "Constructing mesh. N=" << N << " dim=" << dim;
-  if (verbose) {
-    cerr << "adj.size()=" << adj.size() << endl;
-    for (size_t i = 0; i < N; ++i) {
-      cerr << "a\t" << i;
-      for (size_t j = 0; j < adj[i].size(); ++j)
-        cerr << "\t" << adj[i][j];
-      cerr << endl;
+    LOG(verbose) << "Constructing mesh. N=" << N << " dim=" << dim;
+    if (verbose) {
+      cerr << "adj.size()=" << adj.size() << endl;
+      for (size_t i = 0; i < N; ++i) {
+        cerr << "a\t" << i;
+        for (size_t j = 0; j < adj[i].size(); ++j)
+          cerr << "\t" << adj[i][j];
+        cerr << endl;
+      }
+      for (size_t i = 0; i < N; ++i) {
+        cerr << "v\t" << i;
+        for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
+          cerr << "\t" << voronoi_weights[i][j];
+        cerr << endl;
+      }
     }
-    for (size_t i = 0; i < N; ++i) {
-      cerr << "v\t" << i;
-      for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
-        cerr << "\t" << voronoi_weights[i][j];
-      cerr << endl;
-    }
-  }
 
-  for (size_t i = 0; i < N; ++i) {
-    vector<double> a;
-    for (size_t k = 0; k < adj[i].size(); ++k) {
-      size_t j = adj[i][k];
-      double d = arma::norm(pts[i] - pts[j]);
-      double current_a = voronoi_weights[i][k] / d;
-      a.push_back(current_a);
-      A[i] += voronoi_weights[i][k] * d;
-      LOG(debug) << "Constructing mesh. i=" << i << " j=" << j << " k=" << k
-                 << " v=" << voronoi_weights[i][k] << " d=" << d
-                 << " cur_a=" << current_a;
+    for (size_t i = 0; i < N; ++i) {
+      vector<double> a;
+      for (size_t k = 0; k < adj[i].size(); ++k) {
+        size_t j = adj[i][k];
+        double d = arma::norm(pts[i] - pts[j]);
+        double current_a = voronoi_weights[i][k] / d;
+        a.push_back(current_a);
+        A[i] += voronoi_weights[i][k] * d;
+        LOG(debug) << "Constructing mesh. i=" << i << " j=" << j << " k=" << k
+                   << " v=" << voronoi_weights[i][k] << " d=" << d
+                   << " cur_a=" << current_a;
+      }
+      A[i] *= 0.25;
+      alpha.push_back(a);
+      LOG(debug) << "Constructing mesh. i=" << i << " A=" << A[i];
     }
-    A[i] *= 0.25;
-    alpha.push_back(a);
-    LOG(debug) << "Constructing mesh. i=" << i << " A=" << A[i];
   }
 }
 
 void Mesh::store(const string &path,
-                  const PoissonFactorization::Matrix &m) const {}
+                 const PoissonFactorization::Matrix &m) const {}
 
 void Mesh::restore(const string &path, PoissonFactorization::Matrix &m) {}
 

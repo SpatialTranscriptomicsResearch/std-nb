@@ -37,7 +37,8 @@ vector<size_t> get_order(const V &v) {
   return order;
 }
 
-void Model::store(const string &prefix, bool reorder) const {
+void Model::store(const string &prefix_, bool reorder) const {
+  string prefix = parameters.output_directory + prefix_;
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->data.row_names;
 
@@ -783,6 +784,7 @@ void Model::update_contributions() {
 }
 
 void Model::initialize_coordinate_systems(double v) {
+  size_t coord_sys_idx = 0;
   for (auto &coord_sys : coordinate_systems) {
     size_t num_additional = parameters.mesh_additional;
     coord_sys.S = 0;
@@ -846,7 +848,11 @@ void Model::initialize_coordinate_systems(double v) {
         }
       }
     }
-    coord_sys.mesh = Mesh(dim, pts);
+    coord_sys.mesh
+        = Mesh(dim, pts,
+               parameters.output_directory + "coordsys"
+                   + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
+    coord_sys_idx++;
   }
 }
 

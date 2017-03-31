@@ -14,15 +14,12 @@
 using namespace std;
 namespace PF = PoissonFactorization;
 
-const string default_output_string = "THIS PATH SHOULD NOT EXIST";
-
 struct Options {
   vector<string> tsv_paths;
   size_t num_factors = 20;
   long num_warm_up = -1;
   size_t num_steps = 2000;
   size_t report_interval = 200;
-  string output = default_output_string;
   bool intersect = false;
   string load_prefix = "";
   bool compute_likelihood = false;
@@ -68,11 +65,11 @@ void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
   const size_t iteration_num_digits
       = 1 + floor(log(options.num_steps) / log(10));
 
-  const string initial_prefix = options.output + "iter"
-                                + to_string_embedded(0, iteration_num_digits)
-                                + "/";
+  const string initial_prefix
+      = "iter" + to_string_embedded(0, iteration_num_digits) + "/";
 
-  if (boost::filesystem::create_directory(initial_prefix))
+  if (boost::filesystem::create_directory(pfa.parameters.output_directory
+                                          + initial_prefix))
     pfa.store(initial_prefix);
   else
     throw(std::runtime_error("Couldn't create directory " + initial_prefix));
@@ -84,8 +81,7 @@ void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
     LOG(verbose) << "Current model" << endl << pfa;
     if (iteration % options.report_interval == 0) {
       const string prefix
-          = options.output + "iter"
-            + to_string_embedded(iteration, iteration_num_digits) + "/";
+          = "iter" + to_string_embedded(iteration, iteration_num_digits) + "/";
       if (boost::filesystem::create_directory(prefix))
         pfa.store(prefix);
       else
@@ -93,11 +89,11 @@ void perform_gibbs_sampling(PF::Model &pfa, const Options &options) {
     }
     moments.update(iteration, pfa);
   }
-  moments.evaluate(options.output);
-  pfa.store(options.output);
+  moments.evaluate(pfa.parameters.output_directory);
+  pfa.store("");
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
-              << pfa.log_likelihood(options.output);
+              << pfa.log_likelihood(pfa.parameters.output_directory);
 }
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
@@ -161,7 +157,7 @@ int main(int argc, char **argv) {
      "Load previous run results with the given path prefix.")
     ("sharecoords", po::bool_switch(&options.share_coord_sys),
      "Assume that the samples lie in the same coordinate system.")
-    ("output,o", po::value(&options.output),
+    ("output,o", po::value(&parameters.output_directory),
      "Prefix for generated output files.")
     ("fields", po::bool_switch(&options.fields),
      "Activate fields.")
@@ -288,17 +284,17 @@ int main(int argc, char **argv) {
   // invert the negative CLI switch value
   options.compute_likelihood = !options.compute_likelihood;
 
-  if (options.output == default_output_string) {
-    options.output
-        = generate_random_label(exec_info.program_name, 0)
-          + "/";
+  if (parameters.output_directory == PF::default_output_string) {
+    parameters.output_directory
+        = generate_random_label(exec_info.program_name, 0) + "/";
   }
-  string log_file_path = options.output;
-  if (options.output.empty()) {
+  string log_file_path = parameters.output_directory;
+  if (parameters.output_directory.empty()) {
     log_file_path = "log.txt";
-  } else if (*options.output.rbegin() == '/') {
-    if (not boost::filesystem::create_directory(options.output)) {
-      LOG(fatal) << "Error creating output directory " << options.output;
+  } else if (*parameters.output_directory.rbegin() == '/') {
+    if (not boost::filesystem::create_directory(parameters.output_directory)) {
+      LOG(fatal) << "Error creating output directory "
+                 << parameters.output_directory;
       return EXIT_FAILURE;
     } else {
       log_file_path += "log.txt";

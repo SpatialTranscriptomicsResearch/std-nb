@@ -7,6 +7,9 @@
 #include "types.hpp"
 
 namespace PoissonFactorization {
+
+const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
+
 struct Hyperparameters {
   Hyperparameters(Float phi_r_1_ = 1, Float phi_r_2_ = 1, Float phi_p_1_ = 2,
                   Float phi_p_2_ = 2, Float theta_r_1_ = 1,
@@ -90,6 +93,7 @@ struct Parameters {
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
 
+  std::string output_directory = default_output_string;
   double field_lambda_dirichlet = 1;
   double field_lambda_laplace = 1;
   size_t mesh_additional = 10000;
