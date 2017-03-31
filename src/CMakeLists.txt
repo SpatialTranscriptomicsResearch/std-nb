@@ -6,7 +6,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(transcriptomedeconvolution SHARED aux.cpp counts.cpp
   compression_mode.cpp executioninformation.cpp Experiment.cpp Model.cpp PartialModel.cpp entropy.cpp
-  features.cpp mesh.cpp mix.cpp verbosity.cpp hierarchical_kmeans.cpp log.cpp
+  features.cpp Mesh.cpp mix.cpp verbosity.cpp hierarchical_kmeans.cpp log.cpp
   io.cpp metropolis_hastings.cpp parameters.cpp priors.cpp sampling.cpp
   target.cpp terminal.cpp timer.cpp pdist.cpp)
 

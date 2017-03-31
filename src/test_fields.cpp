@@ -1,4 +1,4 @@
-#include "mesh.hpp"
+#include "Mesh.hpp"
 #include <LBFGS.h>
 #include <iostream>
 #include "sampling.hpp"

@@ -9,7 +9,7 @@
 #include <LBFGS.h>
 #include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
-#include "mesh.hpp"
+#include "Mesh.hpp"
 
 namespace PoissonFactorization {
 
