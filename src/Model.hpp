@@ -35,6 +35,8 @@ struct Model {
       = Partial::Model<Partial::Variable::Feature, Partial::Kind::Gamma>;
   using weights_t
       = Partial::Model<Partial::Variable::Mix, Partial::Kind::HierGamma>;
+  using prior_t = Partial::Traits<Partial::Variable::Feature,
+                                  Partial::Kind::Gamma>::prior_type;
   using experiment_t = Experiment;
 
   // TODO consider const
@@ -54,7 +56,8 @@ struct Model {
   Vector contributions_gene;
 
   /** factor loading matrix */
-  features_t features;
+  // features_t features;
+  prior_t phi;
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
     size_t S, N, T;
