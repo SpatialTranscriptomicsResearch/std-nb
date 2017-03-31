@@ -5,10 +5,10 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -march=native)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(transcriptomedeconvolution SHARED aux.cpp counts.cpp
-  compression_mode.cpp executioninformation.cpp Experiment.cpp Model.cpp PartialModel.cpp entropy.cpp
-  features.cpp Mesh.cpp mix.cpp verbosity.cpp hierarchical_kmeans.cpp log.cpp
-  io.cpp metropolis_hastings.cpp parameters.cpp priors.cpp sampling.cpp
-  target.cpp terminal.cpp timer.cpp pdist.cpp)
+  compression_mode.cpp executioninformation.cpp Experiment.cpp Model.cpp
+  PartialModel.cpp entropy.cpp Mesh.cpp mix.cpp verbosity.cpp
+  hierarchical_kmeans.cpp log.cpp io.cpp metropolis_hastings.cpp parameters.cpp
+  priors.cpp sampling.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
 
 # ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
 # ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
