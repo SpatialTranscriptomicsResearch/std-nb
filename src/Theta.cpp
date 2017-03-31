@@ -1,4 +1,4 @@
-#include "PartialModel.hpp"
+#include "Theta.hpp"
 #include "aux.hpp"
 #include "odds.hpp"
 
@@ -54,8 +54,7 @@ double Theta::log_likelihood() const {
 }
 
 // TODO ensure no NaNs or infinities are generated
-double Theta::log_likelihood_factor(
-    size_t t) const {
+double Theta::log_likelihood_factor(size_t t) const {
   double l = 0;
 
 #pragma omp parallel for reduction(+ : l) if (DO_PARALLEL)
