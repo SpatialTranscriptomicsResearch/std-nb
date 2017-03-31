@@ -116,44 +116,79 @@ void build_voronoi_qhull(const vector<Point> &points,
   }
 }
 
+template <typename T>
+vector<size_t> sort_indexes(const vector<T> &v) {
+  // initialize original index locations
+  vector<size_t> idx(v.size());
+  iota(idx.begin(), idx.end(), 0);
+
+  // sort indexes based on comparing values in v
+  sort(idx.begin(), idx.end(),
+       [&v](size_t i1, size_t i2) { return v[i1][0] < v[i2][0]; });
+
+  return idx;
+}
+
 Mesh::Mesh(size_t dim_, const vector<Point> &pts, const string &prefix)
     : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
   if (not points.empty()) {
-    vector<vector<double>> voronoi_weights;
-    build_voronoi_qhull(points, adj, voronoi_weights, prefix);
+    if (dim == 1) {
+      const size_t num_points = points.size();
+      auto order = sort_indexes(pts);
 
-    LOG(verbose) << "Constructing mesh. N=" << N << " dim=" << dim;
-    if (verbose) {
-      cerr << "adj.size()=" << adj.size() << endl;
-      for (size_t i = 0; i < N; ++i) {
-        cerr << "a\t" << i;
-        for (size_t j = 0; j < adj[i].size(); ++j)
-          cerr << "\t" << adj[i][j];
-        cerr << endl;
-      }
-      for (size_t i = 0; i < N; ++i) {
-        cerr << "v\t" << i;
-        for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
-          cerr << "\t" << voronoi_weights[i][j];
-        cerr << endl;
-      }
-    }
+      adj = vector<vector<size_t>>(num_points);
+      alpha = vector<vector<double>>(num_points);
 
-    for (size_t i = 0; i < N; ++i) {
-      vector<double> a;
-      for (size_t k = 0; k < adj[i].size(); ++k) {
-        size_t j = adj[i][k];
-        double d = arma::norm(pts[i] - pts[j]);
-        double current_a = voronoi_weights[i][k] / d;
-        a.push_back(current_a);
-        A[i] += voronoi_weights[i][k] * d;
-        LOG(debug) << "Constructing mesh. i=" << i << " j=" << j << " k=" << k
-                   << " v=" << voronoi_weights[i][k] << " d=" << d
-                   << " cur_a=" << current_a;
+      size_t prev;
+      bool first = true;
+      for (auto x : order) {
+        if (not first) {
+          adj[x].push_back(prev);
+          adj[prev].push_back(x);
+          alpha[x].push_back(1);
+          alpha[prev].push_back(1);
+        }
+        A.push_back(1);
+        prev = x;
+        first = false;
       }
-      A[i] *= 0.25;
-      alpha.push_back(a);
-      LOG(debug) << "Constructing mesh. i=" << i << " A=" << A[i];
+    } else {
+      vector<vector<double>> voronoi_weights;
+      build_voronoi_qhull(points, adj, voronoi_weights, prefix);
+
+      LOG(verbose) << "Constructing mesh. N=" << N << " dim=" << dim;
+      if (verbose) {
+        cerr << "adj.size()=" << adj.size() << endl;
+        for (size_t i = 0; i < N; ++i) {
+          cerr << "a\t" << i;
+          for (size_t j = 0; j < adj[i].size(); ++j)
+            cerr << "\t" << adj[i][j];
+          cerr << endl;
+        }
+        for (size_t i = 0; i < N; ++i) {
+          cerr << "v\t" << i;
+          for (size_t j = 0; j < voronoi_weights[i].size(); ++j)
+            cerr << "\t" << voronoi_weights[i][j];
+          cerr << endl;
+        }
+      }
+
+      for (size_t i = 0; i < N; ++i) {
+        vector<double> a;
+        for (size_t k = 0; k < adj[i].size(); ++k) {
+          size_t j = adj[i][k];
+          double d = arma::norm(pts[i] - pts[j]);
+          double current_a = voronoi_weights[i][k] / d;
+          a.push_back(current_a);
+          A[i] += voronoi_weights[i][k] * d;
+          LOG(debug) << "Constructing mesh. i=" << i << " j=" << j << " k=" << k
+                     << " v=" << voronoi_weights[i][k] << " d=" << d
+                     << " cur_a=" << current_a;
+        }
+        A[i] *= 0.25;
+        alpha.push_back(a);
+        LOG(debug) << "Constructing mesh. i=" << i << " A=" << A[i];
+      }
     }
   }
 }
