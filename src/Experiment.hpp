@@ -27,8 +27,8 @@ const bool noisy = true;
 struct Model;
 
 struct Experiment {
-  using features_t
-      = Partial::Model<Partial::Variable::Feature, Partial::Kind::Gamma>;
+  // using features_t
+  //     = Partial::Model<Partial::Variable::Feature, Partial::Kind::Gamma>;
   using weights_t
       = Partial::Model<Partial::Variable::Mix, Partial::Kind::HierGamma>;
 
@@ -50,9 +50,10 @@ struct Experiment {
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
 
-  /** factor loading matrix */
-  features_t features;
-  features_t baseline_feature;
+  /** local features */
+  Matrix phi_l;
+  /** local feature baseline */
+  Matrix phi_b;
 
   /** factor score matrix */
   weights_t weights;

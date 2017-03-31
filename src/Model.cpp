@@ -55,12 +55,10 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(phi_r,
-                 prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+    write_matrix(phi_r, prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(phi_p,
-                 prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
+    write_matrix(phi_p, prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     write_matrix(contributions_gene_type,
@@ -181,8 +179,7 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
 
     for (size_t e = 0; e < E; ++e) {
       double theta_marginal = experiment_theta_marginals(e, t)
-                              * experiments[e].baseline_feature.prior.r(g)
-                              * phi_r(g, t);
+                              * experiments[e].phi_b(g) * phi_r(g, t);
 
       if (experiment_counts_gt(e, t) == 0) {
         if (noisy)
@@ -190,14 +187,13 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
                      << ") for experiment " << e << ": "
                      << experiments[e].data.row_names[g];
 
-        experiments[e].features.prior.r(g, t) = gamma_distribution<Float>(
-            A,
-            1.0 / (B
-                   - theta_marginal * log(1 - neg_odds_to_prob(phi_p(
-                                                  g, t)))))(rng);
+        experiments[e].phi_l(g, t) = gamma_distribution<Float>(
+            A, 1.0 / (B
+                      - theta_marginal
+                            * log(1 - neg_odds_to_prob(phi_p(g, t)))))(rng);
 
         if (noisy)
-          LOG(debug) << "local r= " << experiments[e].features.prior.r(g, t);
+          LOG(debug) << "local r= " << experiments[e].phi_l(g, t);
       } else {
         if (noisy)
           LOG(debug) << "t = " << t << " experiment_counts_gt(e,t) = "
@@ -209,9 +205,8 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
           const double no = phi_p(g, t);
           double fnc = theta_marginal * (log(no) - log(1 + no));
           for (size_t s = 0; s < experiments[e].S; ++s) {
-            double prod = experiments[e].baseline_feature.prior.r(g)
-                          * phi_r(g, t) * experiments[e].theta(s, t)
-                          * experiments[e].spot(s);
+            double prod = experiments[e].phi_b(g) * phi_r(g, t)
+                          * experiments[e].theta(s, t) * experiments[e].spot(s);
             fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
           }
 
@@ -224,9 +219,8 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
         auto gr0 = [&](double r) {
           double grad = 0;
           for (size_t s = 0; s < experiments[e].S; ++s) {
-            double prod = experiments[e].baseline_feature.prior.r(g)
-                          * phi_r(g, t) * experiments[e].theta(s, t)
-                          * experiments[e].spot(s);
+            double prod = experiments[e].phi_b(g) * phi_r(g, t)
+                          * experiments[e].theta(s, t) * experiments[e].spot(s);
             double prod_sq = prod * prod;
             grad += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
           }
@@ -237,8 +231,8 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
           return grad;
         };
 
-        optimize_newton_raphson(
-            "local r", experiments[e].features.prior.r(g, t), fn0, gr0);
+        optimize_newton_raphson("local r", experiments[e].phi_l(g, t), fn0,
+                                gr0);
       }
     }
   }
@@ -264,10 +258,6 @@ void Model::sample_contributions(bool do_global_features,
           += experiments[e].spot(s) * experiments[e].weights.matrix.row(s);
 
   do_local_features = do_local_features and E > 1;
-
-  if (not do_local_features)
-    for (size_t e = 0; e < E; ++e)
-      experiments[e].features.prior.set_unit();
 
   if (do_global_features or do_local_features or do_baseline)
 #pragma omp parallel if (DO_PARALLEL)
@@ -304,8 +294,8 @@ void Model::sample_contributions(bool do_global_features,
           double theta_marginal = 0;
           for (size_t e = 0; e < E; ++e)
             theta_marginal += experiment_theta_marginals(e, t)
-                              * experiments[e].baseline_feature.prior.r(g)
-                              * experiments[e].features.prior.r(g, t);
+                              * experiments[e].phi_b(g)
+                              * experiments[e].phi_l(g, t);
 
           auto r2p = [&](double r) {
             return (alpha + contributions_gene_type(g, t) - 1)
@@ -325,8 +315,7 @@ void Model::sample_contributions(bool do_global_features,
             phi_r(g, t) = gamma_distribution<Float>(
                 a, 1.0 / (b
                           - theta_marginal
-                                * log(1 - neg_odds_to_prob(
-                                              phi_p(g, t)))))(rng);
+                                * log(1 - neg_odds_to_prob(phi_p(g, t)))))(rng);
 
             if (parameters.p_empty_map)
               // when this is used the r/p values lie along a curve, separated
@@ -339,8 +328,7 @@ void Model::sample_contributions(bool do_global_features,
                   alpha, beta + phi_r(g, t) * theta_marginal, rng));
 
             if (noisy)
-              LOG(debug) << "r/p= " << phi_r(g, t) << "/"
-                         << phi_p(g, t);
+              LOG(debug) << "r/p= " << phi_r(g, t) << "/" << phi_p(g, t);
           } else {
             if (noisy)
               LOG(debug) << "t = " << t << " cs = " << cs;
@@ -354,10 +342,9 @@ void Model::sample_contributions(bool do_global_features,
               double fnc = theta_marginal * (log(no) - log(1 + no));
               for (size_t e = 0; e < E; ++e)
                 for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod = experiments[e].baseline_feature.prior.r(g)
-                                * experiments[e].features.prior.r(g, t)
-                                * experiments[e].theta(s, t)
-                                * experiments[e].spot(s);
+                  double prod
+                      = experiments[e].phi_b(g) * experiments[e].phi_l(g, t)
+                        * experiments[e].theta(s, t) * experiments[e].spot(s);
                   fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
                 }
 
@@ -371,10 +358,9 @@ void Model::sample_contributions(bool do_global_features,
               double grad = 0;
               for (size_t e = 0; e < E; ++e)
                 for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod = experiments[e].baseline_feature.prior.r(g)
-                                * experiments[e].features.prior.r(g, t)
-                                * experiments[e].theta(s, t)
-                                * experiments[e].spot(s);
+                  double prod
+                      = experiments[e].phi_b(g) * experiments[e].phi_l(g, t)
+                        * experiments[e].theta(s, t) * experiments[e].spot(s);
                   double prod_sq = prod * prod;
                   grad
                       += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
@@ -386,8 +372,7 @@ void Model::sample_contributions(bool do_global_features,
               return grad;
             };
 
-            optimize_newton_raphson("global feature r", phi_r(g, t),
-                                    fn0, gr0);
+            optimize_newton_raphson("global feature r", phi_r(g, t), fn0, gr0);
             phi_p(g, t) = r2no(phi_r(g, t));
           }
         }
@@ -403,8 +388,7 @@ void Model::sample_contributions(bool do_global_features,
           double theta_marginal = 0;
           for (size_t t = 0; t < T; ++t) {
             theta_marginal += theta_marginals[t]
-                = experiment_theta_marginals(e, t)
-                  * experiments[e].features.prior.r(g, t)
+                = experiment_theta_marginals(e, t) * experiments[e].phi_l(g, t)
                   * phi_r(g, t);
           }
 
@@ -417,8 +401,7 @@ void Model::sample_contributions(bool do_global_features,
               const double no = phi_p(g, t);
               fnc += theta_marginals[t] * (log(no) - log(1 + no));
               for (size_t s = 0; s < experiments[e].S; ++s) {
-                double prod = experiments[e].features.prior.r(g, t)
-                              * phi_r(g, t)
+                double prod = experiments[e].phi_l(g, t) * phi_r(g, t)
                               * experiments[e].theta(s, t)
                               * experiments[e].spot(s);
                 fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
@@ -435,8 +418,7 @@ void Model::sample_contributions(bool do_global_features,
             double grad = 0;
             for (size_t t = 0; t < T; ++t)
               for (size_t s = 0; s < experiments[e].S; ++s) {
-                double prod = experiments[e].features.prior.r(g, t)
-                              * phi_r(g, t)
+                double prod = experiments[e].phi_l(g, t) * phi_r(g, t)
                               * experiments[e].theta(s, t)
                               * experiments[e].spot(s);
                 double prod_sq = prod * prod;
@@ -450,8 +432,7 @@ void Model::sample_contributions(bool do_global_features,
           };
 
           optimize_newton_raphson("local feature baseline r",
-                                  experiments[e].baseline_feature.prior.r(g),
-                                  fn0, gr0);
+                                  experiments[e].phi_b(g), fn0, gr0);
         }
       }
 
@@ -482,9 +463,8 @@ void Model::sample_contributions(bool do_global_features,
               LOG(debug) << "Gibbs sampling theta(" << s << ", " << t << ").";
             double marginal = 0;
             for (size_t g = 0; g < G; ++g)
-              marginal += experiment.baseline_feature.prior.r(g)
-                          * phi_r(g, t)
-                          * experiment.features.prior.r(g, t)
+              marginal += experiment.phi_b(g) * phi_r(g, t)
+                          * experiment.phi_l(g, t)
                           * log(1 - neg_odds_to_prob(phi_p(g, t)));
             marginal *= experiment.spot(s);
             experiment.theta(s, t) = gamma_distribution<Float>(
@@ -496,17 +476,15 @@ void Model::sample_contributions(bool do_global_features,
               double fnc = 0;
               for (size_t g = 0; g < G; ++g) {
                 if (noisy)
-                  LOG(debug)
-                      << "g/s/t = " << g << "/" << s << "/" << t
-                      << " theta=" << x << " r=" << phi_r(g, t)
-                      << " local r=" << experiment.features.prior.r(g, t)
-                      << " p=" << neg_odds_to_prob(phi_p(g, t))
-                      << " sigma=" << experiment.spot(s);
+                  LOG(debug) << "g/s/t = " << g << "/" << s << "/" << t
+                             << " theta=" << x << " r=" << phi_r(g, t)
+                             << " local r=" << experiment.phi_l(g, t)
+                             << " p=" << neg_odds_to_prob(phi_p(g, t))
+                             << " sigma=" << experiment.spot(s);
 
                 // NOTE we don't multiply spot(s) in now, but once at the end
-                double prod = experiment.baseline_feature.prior.r(g)
-                              * phi_r(g, t)
-                              * experiment.features.prior.r(g, t);
+                double prod = experiment.phi_b(g) * phi_r(g, t)
+                              * experiment.phi_l(g, t);
 
                 fnc += prod * log(1 - neg_odds_to_prob(phi_p(g, t)));
                 fnc += prod * digamma_diff(x * prod * experiment.spot(s),
@@ -527,9 +505,8 @@ void Model::sample_contributions(bool do_global_features,
               double grad = 0;
               for (size_t g = 0; g < G; ++g) {
                 // NOTE we don't multiply spot(s) in now, but once at the end
-                double prod = experiment.baseline_feature.prior.r(g)
-                              * phi_r(g, t)
-                              * experiment.features.prior.r(g, t);
+                double prod = experiment.phi_b(g) * phi_r(g, t)
+                              * experiment.phi_l(g, t);
                 double prod_sq = prod * prod;
                 grad += prod_sq * trigamma_diff(x * prod * experiment.spot(s),
                                                 counts_gst(g, t));
@@ -865,8 +842,6 @@ void Model::add_experiment(const Counts &counts, size_t coord_sys) {
   experiment_parameters.hyperparameters.phi_r_2 *= factor;
   experiments.push_back({this, counts, T, experiment_parameters});
   E++;
-  // TODO check redundancy with Experiment constructor
-  experiments.rbegin()->features.matrix.ones();
   while (coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});
   coordinate_systems[coord_sys].members.push_back(E - 1);

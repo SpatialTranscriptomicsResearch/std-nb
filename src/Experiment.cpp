@@ -18,8 +18,8 @@ Experiment::Experiment(Model *model_, const Counts &data_, size_t T_,
       contributions_spot_type(S, T, arma::fill::zeros),
       contributions_gene(rowSums<Vector>(data.counts)),
       contributions_spot(colSums<Vector>(data.counts)),
-      features(G, T, parameters),
-      baseline_feature(G, 1, parameters),
+      phi_l(G, T, arma::fill::ones),
+      phi_b(G, 1, arma::fill::ones),
       weights(S, T, parameters),
       field(Matrix(S, T, arma::fill::ones)),
       spot(S, arma::fill::ones) {
@@ -46,17 +46,6 @@ Experiment::Experiment(Model *model_, const Counts &data_, size_t T_,
       spot(s) /= z;
   }
 
-  // if (not parameters.targeted(Target::phi_local))
-  features.matrix.ones();
-
-  // if (not parameters.targeted(Target::phi_prior_local))
-  features.prior.set_unit();
-
-  if (not parameters.targeted(Target::baseline)) {
-    baseline_feature.matrix.ones();
-    baseline_feature.prior.set_unit();
-  }
-
   if (not parameters.targeted(Target::theta))
     weights.matrix.ones();
 
@@ -80,10 +69,12 @@ void Experiment::store(const string &prefix,
 #pragma omp parallel sections if (DO_PARALLEL)
   {
 #pragma omp section
-    features.store(prefix, gene_names, factor_names, order);
+    write_matrix(phi_l, prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    baseline_feature.store(prefix + "baseline", gene_names, {1, "Baseline"},
-                           {});
+    write_matrix(phi_b,
+                 prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, {1, "Baseline"}, {});
 #pragma omp section
     weights.store(prefix, spot_names, factor_names, order);
 #pragma omp section
@@ -141,8 +132,12 @@ void Experiment::restore(const string &prefix) {
       = parse_file<Vector>(prefix + "contributions_spot" + FILENAME_ENDING,
                            read_vector<Vector>, "\t");
 
-  features.restore(prefix);
-  baseline_feature.restore(prefix + "baseline");
+  phi_l = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+                             read_matrix, "\t");
+  phi_b = parse_file<Matrix>(
+      prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING, read_matrix,
+      "\t");
+
   weights.restore(prefix);
 
   field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
@@ -163,8 +158,7 @@ Matrix Experiment::log_likelihood() const {
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
-        rs[t] = model->phi_r(g, t) * features.prior.r(g, t)
-                * theta(s, t) * spot(s);
+        rs[t] = model->phi_r(g, t) * phi_l(g, t) * theta(s, t) * spot(s);
       double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
                  << " counts = " << data.counts(g, s) << " l = " << x;
@@ -234,8 +228,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     } else if (parameters.contributions_map) {
       Vector r(T);
       for (size_t t = 0; t < T; ++t)
-        r[t] = model->phi_r(g, t) * features.prior.r(g, t)
-               * baseline_feature.prior.r(g) * theta(s, t) * spot(s);
+        r[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
+               * spot(s);
 
       Vector p(T);
       for (size_t t = 0; t < T; ++t)
@@ -323,13 +317,11 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
           LOG(debug) << "i=" << i << " j=" << j << " n=" << n
                      << " v[i]=" << v[i] << " v[j]=" << v[j];
 
-        const double r_i
-            = model->phi_r(g, i) * features.prior.r(g, i);
+        const double r_i = model->phi_r(g, i) * phi_l(g, i);
         const double no_i = model->phi_p(g, i);
         const double prod_i = r_i * theta(s, i) * spot(s);
 
-        const double r_j
-            = model->phi_r(g, j) * features.prior.r(g, j);
+        const double r_j = model->phi_r(g, j) * phi_l(g, j);
         const double no_j = model->phi_p(g, j);
         const double prod_j = r_j * theta(s, j) * spot(s);
 
@@ -362,8 +354,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       vector<double> mean_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = baseline_feature.prior.r(g) * features.prior.r(g, t)
-                            * model->phi_r(g, t)
+        z += mean_prob[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t)
                             / model->phi_p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
         mean_prob[t] /= z;
@@ -407,8 +398,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 void Experiment::enforce_positive_parameters() {
   enforce_positive_and_warn("local field", field);
   enforce_positive_and_warn("spot", spot);
-  features.enforce_positive_parameters("local feature");
-  baseline_feature.enforce_positive_parameters("local baseline feature");
+  enforce_positive_and_warn("phi_l", phi_l);
+  enforce_positive_and_warn("phi_b", phi_b);
   weights.enforce_positive_parameters("weights");
 }
 
@@ -418,9 +409,8 @@ Vector Experiment::marginalize_genes() const {
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensity += baseline_feature.prior.r(g) * features.prior.r(g, t)
-                   * model->phi_r(g, t)
-                   / model->phi_p(g, t);
+      intensity
+          += phi_b(g) * phi_l(g, t) * model->phi_r(g, t) / model->phi_p(g, t);
     intensities[t] = intensity;
   }
   return intensities;
@@ -514,14 +504,13 @@ Matrix Experiment::explained_gene_type() const {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g, t) = model->phi_r(g, t)
-                        * baseline_feature.prior.r(g)
-                        / model->phi_p(g, t) * theta_t(t);
+      explained(g, t)
+          = model->phi_r(g, t) * phi_b(g) / model->phi_p(g, t) * theta_t(t);
   return explained;
 }
 
 Matrix Experiment::expected_gene_type() const {
-  return features.prior.r % explained_gene_type();
+  return phi_l % explained_gene_type();
 }
 
 // TODO never used - consider to remove
@@ -531,8 +520,7 @@ Vector Experiment::explained_gene() const {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += features.prior.r(g, t) * model->phi_r(g, t)
-                      * baseline_feature.prior.r(g)
+      explained(g) += phi_l(g, t) * model->phi_r(g, t) * phi_b(g)
                       / model->phi_p(g, t) * theta_t(t);
   return explained;
 };
@@ -542,8 +530,7 @@ Matrix Experiment::explained_spot_type() const {
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
-      x += features.prior.r(g, t) * model->phi_r(g, t)
-           * baseline_feature.prior.r(g) / model->phi_p(g, t);
+      x += phi_l(g, t) * model->phi_r(g, t) * phi_b(g) / model->phi_p(g, t);
     for (size_t s = 0; s < S; ++s)
       m(s, t) *= x * spot(s);
   }
@@ -574,8 +561,9 @@ ostream &operator<<(ostream &os, const Experiment &experiment) {
      << "T = " << experiment.T << endl;
 
   if (verbosity >= Verbosity::debug) {
-    print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
-    print_matrix_head(os, experiment.features.matrix, "Φ");
+    // TODO TODO fix features
+    // print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
+    // print_matrix_head(os, experiment.features.matrix, "Φ");
     print_matrix_head(os, experiment.weights.matrix, "Θ");
     /* TODO reactivate
     os << experiment.baseline_feature.prior;
@@ -599,8 +587,8 @@ Experiment operator*(const Experiment &a, const Experiment &b) {
 
   experiment.spot %= b.spot;
 
-  experiment.features.matrix %= b.features.matrix;
-  experiment.baseline_feature.matrix %= b.baseline_feature.matrix;
+  experiment.phi_l %= b.phi_l;
+  experiment.phi_b %= b.phi_b;
   experiment.weights.matrix %= b.weights.matrix;
 
   return experiment;
@@ -616,8 +604,8 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   experiment.spot += b.spot;
 
-  experiment.features.matrix += b.features.matrix;
-  experiment.baseline_feature.matrix += b.baseline_feature.matrix;
+  experiment.phi_l += b.phi_l;
+  experiment.phi_b += b.phi_b;
   experiment.weights.matrix += b.weights.matrix;
 
   return experiment;
@@ -633,8 +621,8 @@ Experiment operator-(const Experiment &a, const Experiment &b) {
 
   experiment.spot -= b.spot;
 
-  experiment.features.matrix -= b.features.matrix;
-  experiment.baseline_feature.matrix -= b.baseline_feature.matrix;
+  experiment.phi_l -= b.phi_l;
+  experiment.phi_b -= b.phi_b;
   experiment.weights.matrix -= b.weights.matrix;
 
   return experiment;
@@ -650,8 +638,8 @@ Experiment operator*(const Experiment &a, double x) {
 
   experiment.spot *= x;
 
-  experiment.features.matrix *= x;
-  experiment.baseline_feature.matrix *= x;
+  experiment.phi_l *= x;
+  experiment.phi_b *= x;
   experiment.weights.matrix *= x;
 
   return experiment;
@@ -667,8 +655,8 @@ Experiment operator/(const Experiment &a, double x) {
 
   experiment.spot /= x;
 
-  experiment.features.matrix /= x;
-  experiment.baseline_feature.matrix /= x;
+  experiment.phi_l /= x;
+  experiment.phi_b /= x;
   experiment.weights.matrix /= x;
 
   return experiment;
@@ -684,8 +672,8 @@ Experiment operator-(const Experiment &a, double x) {
 
   experiment.spot -= x;
 
-  experiment.features.matrix -= x;
-  experiment.baseline_feature.matrix -= x;
+  experiment.phi_l -= x;
+  experiment.phi_b -= x;
   experiment.weights.matrix -= x;
 
   return experiment;
