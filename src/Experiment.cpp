@@ -64,7 +64,8 @@ void Experiment::store(const string &prefix,
   if (extension == ".gz" or extension == ".bz2")
     suffix = extension;
   boost::filesystem::create_symlink(
-      data.path, prefix + "counts" + FILENAME_ENDING + suffix);
+      boost::filesystem::canonical(data.path),
+      prefix + "counts" + FILENAME_ENDING + suffix);
 
 #pragma omp parallel sections if (DO_PARALLEL)
   {
