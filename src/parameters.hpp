@@ -69,7 +69,6 @@ struct Parameters {
   double n_iter = 100;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
-  bool over_relax = false;
   bool expected_contributions = false;
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
