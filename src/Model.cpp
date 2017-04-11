@@ -682,8 +682,6 @@ void Model::enforce_positive_parameters() {
 
 void Model::sample_global_theta_priors() {
   // TODO refactor
-  if (is_same<typename weights_t::prior_type, PRIOR::THETA::Dirichlet>::value)
-    return;
   Matrix observed(0, T);
   for (auto &experiment : experiments)
     observed = arma::join_vert(observed, experiment.weights.matrix);

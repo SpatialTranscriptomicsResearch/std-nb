@@ -225,10 +225,6 @@ int main(int argc, char **argv) {
      "Which sampling steps to perform.");
 
   hyperparameter_options.add_options()
-    ("feature_alpha", po::value(&parameters.hyperparameters.feature_alpha)->default_value(parameters.hyperparameters.feature_alpha),
-     "Dirichlet prior alpha for the features.")
-    ("mix_alpha", po::value(&parameters.hyperparameters.mix_alpha)->default_value(parameters.hyperparameters.mix_alpha),
-     "Dirichlet prior alpha of the mixing weights.")
     ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
     ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
