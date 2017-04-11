@@ -21,9 +21,9 @@ struct Data {
   size_t T, G, F;
   Data(const string &exp_path, const string &func_path)
       : expression(parse_file<Matrix>(exp_path, read_floats, separator,
-                                      gene_names, type_names, "")),
+                                      gene_names, type_names)),
         function(parse_file<Matrix>(func_path, read_floats, separator,
-                                    gene_names, func_names, "")),
+                                    gene_names, func_names)),
         T(expression.n_cols),
         G(expression.n_rows),
         F(function.n_cols) {
