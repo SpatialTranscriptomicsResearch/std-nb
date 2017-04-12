@@ -38,7 +38,7 @@ struct Experiment {
   /** number of factors */
   size_t T;
 
-  Counts data;
+  Counts counts;
   Matrix coords;
 
   Parameters parameters;

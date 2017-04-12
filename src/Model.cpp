@@ -40,7 +40,7 @@ vector<size_t> get_order(const V &v) {
 void Model::store(const string &prefix_, bool reorder) const {
   string prefix = parameters.output_directory + prefix_;
   auto factor_names = form_factor_names(T);
-  auto &gene_names = experiments.begin()->data.row_names;
+  auto &gene_names = experiments.begin()->counts.row_names;
 
   auto exp_gene_type = expected_gene_type();
   vector<size_t> order;
@@ -185,7 +185,7 @@ void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
         if (noisy)
           LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
                      << ") for experiment " << e << ": "
-                     << experiments[e].data.row_names[g];
+                     << experiments[e].counts.row_names[g];
 
         experiments[e].phi_l(g, t) = gamma_distribution<Float>(
             A, 1.0 / (B
@@ -310,7 +310,7 @@ void Model::sample_contributions(bool do_global_features,
           if (cs == 0) {
             if (noisy)
               LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t
-                         << "): " << experiments[0].data.row_names[g];
+                         << "): " << experiments[0].counts.row_names[g];
 
             phi_r(g, t) = gamma_distribution<Float>(
                 a, 1.0 / (b
@@ -707,14 +707,14 @@ double Model::log_likelihood(const string &prefix) const {
   for (size_t e = 0; e < E; ++e) {
     Matrix m = experiments[e].log_likelihood();
 
-    auto &gene_names = experiments[e].data.row_names;
-    auto &spot_names = experiments[e].data.col_names;
+    auto &gene_names = experiments[e].counts.row_names;
+    auto &spot_names = experiments[e].counts.col_names;
 
     string exp_prefix = prefix + "experiment"
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     write_matrix(m, exp_prefix + "loglikelihood" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, spot_names);
-    write_matrix(experiments[e].data.counts,
+    write_matrix(*experiments[e].counts.matrix,
                  exp_prefix + "loglikelihood-counts" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, spot_names);
     for (auto &x : m)

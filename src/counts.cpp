@@ -21,17 +21,24 @@ Counts::Counts(const string &path_, const string &separator)
     : path(path_),
       row_names(),
       col_names(),
-      counts(parse_file<IMatrix>(path, read_counts, separator, row_names,
-                                 col_names)) {}
+      matrix(new IMatrix(parse_file<IMatrix>(path, read_counts, separator,
+                                             row_names, col_names))) {}
+
+size_t Counts::operator()(size_t g, size_t t) const { return (*matrix)(g, t); }
+// size_t &Counts::operator()(size_t g, size_t t) { return (*matrix)(g, t); }
+
+size_t Counts::num_genes() const { return matrix->n_rows; }
+
+size_t Counts::num_samples() const { return matrix->n_cols; }
 
 void select_top(vector<Counts> &counts_v, size_t top) {
   if (top == 0 or counts_v.empty() or counts_v[0].row_names.size() <= top)
     return;
   LOG(verbose) << "Selecting top " << top;
 
-  Vector gene_sums = rowSums<Vector>(counts_v[0].counts);
+  Vector gene_sums = rowSums<Vector>(*counts_v[0].matrix);
   for (size_t i = 1; i < counts_v.size(); ++i)
-    gene_sums += rowSums<Vector>(counts_v[i].counts);
+    gene_sums += rowSums<Vector>(*counts_v[i].matrix);
 
   const size_t G = gene_sums.n_elem;
 
@@ -47,23 +54,23 @@ void select_top(vector<Counts> &counts_v, size_t top) {
     names.push_back(counts_v[0].row_names[o]);
 
   for (auto &counts : counts_v) {
-    const size_t T = counts.counts.n_cols;
+    const size_t T = counts.matrix->n_cols;
     IMatrix m(top, T, arma::fill::zeros);
     for (size_t i = 0; i < top; ++i)
-      m.row(i) = counts.counts.row(order[i]);
-    counts.counts = m;
+      m.row(i) = counts.matrix->row(order[i]);
+    *counts.matrix = m;
     counts.row_names = names;
   }
 }
 
 void discard_empty_spots(Counts &c) {
-  auto cs = colSums<Vector>(c.counts);
+  auto cs = colSums<Vector>(*c.matrix);
   const size_t N = cs.n_elem;
   auto cnt = 0;
   for (size_t n = 0; n < N; ++n)
     if (cs(N - n - 1) == 0) {
       cnt++;
-      c.counts.shed_col(N - n - 1);
+      c.matrix->shed_col(N - n - 1);
       c.col_names.erase(begin(c.col_names) + N - n - 1);
     }
   LOG(verbose) << "Discarded " << cnt << " spots with zero counts.";
@@ -73,26 +80,25 @@ void discard_empty_genes(vector<Counts> &cs) {
   if (cs.empty())
     return;
 
-  const size_t G = cs[0].counts.n_rows;
+  const size_t G = cs[0].matrix->n_rows;
 
   Vector rowsums(G, arma::fill::zeros);
-  for(auto &c: cs)
-    rowsums = rowsums + rowSums<Vector>(c.counts);
+  for (auto &c : cs)
+    rowsums = rowsums + rowSums<Vector>(*c.matrix);
 
   size_t cnt = 0;
-  for (auto &rowsum: rowsums)
+  for (auto &rowsum : rowsums)
     if (rowsum == 0)
       cnt++;
 
-  for(auto &c: cs)
+  for (auto &c : cs)
     for (size_t g = 0; g < G; ++g)
       if (rowsums(G - g - 1) == 0) {
-        c.counts.shed_row(G - g - 1);
+        c.matrix->shed_row(G - g - 1);
         c.row_names.erase(begin(c.row_names) + G - g - 1);
       }
   LOG(verbose) << "Discarded " << cnt << " genes with zero counts.";
 }
-
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
                          size_t top, bool discard_empty) {
@@ -141,15 +147,15 @@ void match_genes(vector<Counts> &counts_v, Fnc fnc) {
     gene_map[selected[g]] = g;
 
   for (auto &counts : counts_v) {
-    const size_t H = counts.counts.n_rows;
-    const size_t S = counts.counts.n_cols;
+    const size_t H = counts.matrix->n_rows;
+    const size_t S = counts.matrix->n_cols;
     IMatrix new_counts(G, S, arma::fill::zeros);
     for (size_t h = 0; h < H; ++h) {
       auto iter = gene_map.find(counts.row_names[h]);
       if (iter != end(gene_map))
-        new_counts.row(iter->second) = counts.counts.row(h);
+        new_counts.row(iter->second) = counts.matrix->row(h);
     }
-    counts.counts = new_counts;
+    *counts.matrix = new_counts;
     counts.row_names = selected;
   }
 }
@@ -193,7 +199,7 @@ double sq_distance(const string &a, const string &b) {
 }
 
 Matrix Counts::compute_distances() const {
-  size_t n = counts.n_cols;
+  size_t n = matrix->n_cols;
   Matrix d(n, n, arma::fill::zeros);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t i = 0; i < n; ++i)
@@ -203,11 +209,11 @@ Matrix Counts::compute_distances() const {
 }
 
 Matrix Counts::parse_coords() const {
-  if (counts.n_rows == 0)
+  if (matrix->n_rows == 0)
     return Matrix(0, 0);
   const size_t n = split_on_x<double>(col_names[0]).size();
-  Matrix coords(counts.n_cols, n);
-  for (size_t i = 0; i < counts.n_cols; ++i) {
+  Matrix coords(matrix->n_cols, n);
+  for (size_t i = 0; i < matrix->n_cols; ++i) {
     auto coord = split_on_x<double>(col_names[i]);
     for (size_t j = 0; j < n; ++j)
       coords(i, j) = coord[j];
@@ -245,13 +251,13 @@ Matrix row_normalize(Matrix m) {
 size_t sum_rows(const vector<Counts> &c) {
   size_t n = 0;
   for (auto &x : c)
-    n += x.counts.n_rows;
+    n += x.matrix->n_rows;
   return n;
 }
 
 size_t max_row_number(const vector<Counts> &c) {
   size_t x = 0;
-  for(auto &m: c)
-    x = max<size_t>(x, m.counts.n_rows);
+  for (auto &m : c)
+    x = max<size_t>(x, m.matrix->n_rows);
   return x;
 }

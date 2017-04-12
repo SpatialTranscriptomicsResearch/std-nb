@@ -5,19 +5,19 @@ using namespace std;
 
 namespace STD {
 
-Experiment::Experiment(Model *model_, const Counts &data_, size_t T_,
+Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
                        const Parameters &parameters_)
     : model(model_),
-      G(data_.counts.n_rows),
-      S(data_.counts.n_cols),
+      G(counts_.num_genes()),
+      S(counts_.num_samples()),
       T(T_),
-      data(data_),
-      coords(data.parse_coords()),
+      counts(counts_),
+      coords(counts.parse_coords()),
       parameters(parameters_),
       contributions_gene_type(G, T, arma::fill::zeros),
       contributions_spot_type(S, T, arma::fill::zeros),
-      contributions_gene(rowSums<Vector>(data.counts)),
-      contributions_spot(colSums<Vector>(data.counts)),
+      contributions_gene(rowSums<Vector>(*counts.matrix)),
+      contributions_spot(colSums<Vector>(*counts.matrix)),
       phi_l(G, T, arma::fill::ones),
       phi_b(G, 1, arma::fill::ones),
       weights(S, T, parameters),
@@ -56,15 +56,15 @@ Experiment::Experiment(Model *model_, const Counts &data_, size_t T_,
 void Experiment::store(const string &prefix,
                        const vector<size_t> &order) const {
   auto factor_names = form_factor_names(T);
-  auto &gene_names = data.row_names;
-  auto &spot_names = data.col_names;
+  auto &gene_names = counts.row_names;
+  auto &spot_names = counts.col_names;
 
   string suffix = "";
-  string extension = boost::filesystem::path(data.path).extension().c_str();
+  string extension = boost::filesystem::path(counts.path).extension().c_str();
   if (extension == ".gz" or extension == ".bz2")
     suffix = extension;
   boost::filesystem::create_symlink(
-      boost::filesystem::canonical(data.path),
+      boost::filesystem::canonical(counts.path),
       prefix + "counts" + FILENAME_ENDING + suffix);
 
 #pragma omp parallel sections if (DO_PARALLEL)
@@ -161,9 +161,9 @@ Matrix Experiment::log_likelihood() const {
       for (size_t t = 0; t < T; ++t)
         rs[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
                 * spot(s);
-      double x = convolved_negative_binomial(data.counts(g, s), K, rs, ps);
+      double x = convolved_negative_binomial(counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
-                 << " counts = " << data.counts(g, s) << " l = " << x;
+                 << " counts = " << counts(g, s) << " l = " << x;
       l(g, s) += x;
     }
   }
@@ -222,7 +222,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                                                   RNG &rng) const {
   Vector cnts(T, arma::fill::zeros);
 
-  const size_t count = data.counts(g, s);
+  const size_t count = counts(g, s);
 
   if (count > 0) {
     if (T == 1) {
@@ -361,7 +361,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       for (size_t t = 0; t < T; ++t)
         mean_prob[t] /= z;
       auto icnts = sample_multinomial<size_t, IVector>(
-          data.counts(g, s), begin(mean_prob), end(mean_prob), rng);
+          counts(g, s), begin(mean_prob), end(mean_prob), rng);
       for (size_t t = 0; t < T; ++t)
         cnts(t) = icnts(t);
 

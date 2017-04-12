@@ -1,5 +1,6 @@
 #ifndef COUNTS_HPP
 #define COUNTS_HPP
+#include <memory>
 #include <string>
 #include <vector>
 #include "types.hpp"
@@ -9,7 +10,7 @@ struct Counts {
   std::string path;
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
-  STD::IMatrix counts;  // TODO rename to matrix
+  std::shared_ptr<STD::IMatrix> matrix;
   /**
    * Function assumes the column names are of the form "AxB" with A and B
    * positive integers. It then computes the matrix of pairwise squared
@@ -17,6 +18,10 @@ struct Counts {
    */
   STD::Matrix compute_distances() const;
   STD::Matrix parse_coords() const;
+  size_t num_genes() const;
+  size_t num_samples() const;
+  size_t operator()(size_t g, size_t t) const;
+  // size_t &operator()(size_t g, size_t t);
 };
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
