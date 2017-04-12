@@ -21,8 +21,8 @@ Counts::Counts(const string &path_, const string &separator)
     : path(path_),
       row_names(),
       col_names(),
-      matrix(new IMatrix(parse_file<IMatrix>(path, read_counts, separator,
-                                             row_names, col_names))) {}
+      matrix(make_shared<IMatrix>(parse_file<IMatrix>(
+          path, read_counts, separator, row_names, col_names))) {}
 
 size_t Counts::operator()(size_t g, size_t t) const { return (*matrix)(g, t); }
 // size_t &Counts::operator()(size_t g, size_t t) { return (*matrix)(g, t); }
