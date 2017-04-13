@@ -31,9 +31,6 @@ const int EXPERIMENT_NUM_DIGITS = 4;
 const bool abort_on_fatal_errors = false;
 
 struct Model {
-  using weights_t = Theta;
-  using experiment_t = Experiment;
-
   // TODO consider const
   /** number of genes */
   size_t G;
@@ -42,7 +39,7 @@ struct Model {
   /** number of experiments */
   size_t E;
 
-  std::vector<experiment_t> experiments;
+  std::vector<Experiment> experiments;
 
   Parameters parameters;
 
@@ -63,7 +60,7 @@ struct Model {
   };
   std::vector<CoordinateSystem> coordinate_systems;
 
-  typename weights_t::prior_type mix_prior;
+  typename Theta::prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
         bool same_coord_sys);

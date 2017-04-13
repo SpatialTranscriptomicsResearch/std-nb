@@ -27,8 +27,6 @@ const bool noisy = true;
 struct Model;
 
 struct Experiment {
-  using weights_t = Theta;
-
   Model *model;
 
   /** number of genes */
@@ -53,7 +51,7 @@ struct Experiment {
   Matrix phi_b;
 
   /** factor score matrix */
-  weights_t weights;
+  Theta weights;
   Matrix field;
 
   /** spot scaling vector */
