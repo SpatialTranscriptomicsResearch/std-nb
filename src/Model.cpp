@@ -803,6 +803,7 @@ void Model::initialize_coordinate_systems(double v) {
           mi = mi - parameters.mesh_hull_distance;
           ma = ma + parameters.mesh_hull_distance;
         }
+#pragma omp parallel for if (DO_PARALLEL)
         for (size_t i = 0; i < num_additional; ++i) {
           // TODO improve this
           // e.g. enlarge area, use convex hull instead of bounding box, etc
