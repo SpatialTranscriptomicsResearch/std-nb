@@ -222,7 +222,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                                                   RNG &rng) const {
   Vector cnts(T, arma::fill::zeros);
 
-  const size_t count = counts(g, s);
+  const auto count = counts(g, s);
 
   if (count > 0) {
     if (T == 1) {

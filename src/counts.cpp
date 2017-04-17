@@ -21,8 +21,8 @@ Counts::Counts(const string &path_, const string &separator)
     : path(path_),
       row_names(),
       col_names(),
-      matrix(make_shared<IMatrix>(parse_file<IMatrix>(
-          path, read_counts, separator, row_names, col_names))) {}
+      matrix(make_shared<Matrix>(parse_file<Matrix>(
+          path, read_floats, separator, row_names, col_names))) {}
 
 size_t Counts::operator()(size_t g, size_t t) const { return (*matrix)(g, t); }
 // size_t &Counts::operator()(size_t g, size_t t) { return (*matrix)(g, t); }
@@ -55,7 +55,7 @@ void select_top(vector<Counts> &counts_v, size_t top) {
 
   for (auto &counts : counts_v) {
     const size_t T = counts.matrix->n_cols;
-    IMatrix m(top, T, arma::fill::zeros);
+    Matrix m(top, T, arma::fill::zeros);
     for (size_t i = 0; i < top; ++i)
       m.row(i) = counts.matrix->row(order[i]);
     *counts.matrix = m;
@@ -149,7 +149,7 @@ void match_genes(vector<Counts> &counts_v, Fnc fnc) {
   for (auto &counts : counts_v) {
     const size_t H = counts.matrix->n_rows;
     const size_t S = counts.matrix->n_cols;
-    IMatrix new_counts(G, S, arma::fill::zeros);
+    Matrix new_counts(G, S, arma::fill::zeros);
     for (size_t h = 0; h < H; ++h) {
       auto iter = gene_map.find(counts.row_names[h]);
       if (iter != end(gene_map))

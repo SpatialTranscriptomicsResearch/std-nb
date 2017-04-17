@@ -10,7 +10,7 @@ struct Counts {
   std::string path;
   std::vector<std::string> row_names;
   std::vector<std::string> col_names;
-  std::shared_ptr<STD::IMatrix> matrix;
+  std::shared_ptr<STD::Matrix> matrix;
   /**
    * Function assumes the column names are of the form "AxB" with A and B
    * positive integers. It then computes the matrix of pairwise squared
