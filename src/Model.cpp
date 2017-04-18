@@ -622,20 +622,20 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
   LOG(debug) << "field dim " << field.rows() << "x" << field.cols();
   double score = 0;
 
-  Matrix fitness(S, T);
+  Matrix fitness(coord_sys.S, T);
   size_t cumul = 0;
   for (auto member : coord_sys.members) {
+    const size_t current_S = experiments[member].S;
     double s = -experiments[member]
-                    .field_fitness_posterior(
-                        field.middleRows(cumul, experiments[member].S))
+                    .field_fitness_posterior(field.middleRows(cumul, current_S))
                     .sum();
     LOG(debug) << "Fitness contribution to score of sample " << member << ": "
                << s;
     score += s;
-    fitness.middleRows(cumul, experiments[member].S)
+    fitness.middleRows(cumul, current_S)
         = experiments[member].field_fitness_posterior_gradient(
-            field.middleRows(cumul, experiments[member].S));
-    cumul += experiments[member].S;
+            field.middleRows(cumul, current_S));
+    cumul += current_S;
   }
 
   LOG(debug) << "Fitness contribution to score: " << score;
