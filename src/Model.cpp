@@ -595,7 +595,7 @@ void Model::update_fields() {
         LOG(debug) << "Field score = " << score;
         LOG(debug) << "field: " << endl << Stats::summary(field);
         LOG(debug) << "grad: " << endl << Stats::summary(grad);
-        Matrix tmp = grad * field;
+        Matrix tmp = grad.array() * field.array();
         LOG(debug) << "grad*field: " << endl << Stats::summary(tmp);
       }
       return score;
