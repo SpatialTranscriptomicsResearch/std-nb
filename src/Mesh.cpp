@@ -1,5 +1,6 @@
 #include "Mesh.hpp"
 #include <iostream>
+#include <fstream>
 #include "sampling.hpp"
 
 using namespace std;
@@ -34,7 +35,7 @@ void build_voronoi_qhull(const vector<Point> &points,
   ofs << dim << " rbox " << num_points << " D" << dim << endl
       << num_points << endl;
   for (auto &pt : points) {
-    for (size_t i = 0; i < pt.size(); ++i)
+    for (STD::Index i = 0; i < pt.size(); ++i)
       ofs << (i == 0 ? "" : " ") << pt[i];
     ofs << endl;
   }
@@ -177,7 +178,7 @@ Mesh::Mesh(size_t dim_, const vector<Point> &pts, const string &prefix)
         vector<double> a;
         for (size_t k = 0; k < adj[i].size(); ++k) {
           size_t j = adj[i][k];
-          double d = arma::norm(pts[i] - pts[j]);
+          double d = (pts[i] - pts[j]).norm();
           double current_a = voronoi_weights[i][k] / d;
           a.push_back(current_a);
           A[i] += voronoi_weights[i][k] * d;
@@ -208,7 +209,7 @@ ostream &operator<<(ostream &os, const Mesh &mesh) {
   }
   for (size_t i = 0; i < mesh.N; ++i)
     for (size_t j = 0; j < mesh.adj[i].size(); ++j)
-      os << "edge" << mesh.points[i].t() << "edge"
-         << mesh.points[mesh.adj[i][j]].t();
+      os << "edge" << mesh.points[i].transpose() << "edge"
+         << mesh.points[mesh.adj[i][j]].transpose();
   return os;
 }

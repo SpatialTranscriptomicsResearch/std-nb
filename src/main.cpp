@@ -170,7 +170,7 @@ int main(int argc, char **argv) {
     ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
-     "Discard spots that have zero counts.")
+     "Do not discard genes or spots with zero counts.")
     ("nolikel", po::bool_switch(&options.compute_likelihood),
      "Do not compute and print the likelihood every iteration.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),

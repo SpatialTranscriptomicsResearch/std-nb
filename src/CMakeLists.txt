@@ -4,16 +4,34 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -march=native)
 # Make it possible to #include generated header files for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
-ADD_LIBRARY(transcriptomedeconvolution SHARED aux.cpp counts.cpp
-  compression_mode.cpp executioninformation.cpp Experiment.cpp Model.cpp
-  entropy.cpp Mesh.cpp Theta.cpp verbosity.cpp hierarchical_kmeans.cpp
-  log.cpp io.cpp metropolis_hastings.cpp parameters.cpp priors.cpp
-  sampling.cpp target.cpp terminal.cpp timer.cpp pdist.cpp)
+ADD_LIBRARY(transcriptomedeconvolution SHARED
+  Experiment.cpp
+  Mesh.cpp
+  Model.cpp
+  Theta.cpp
+  aux.cpp
+  compression_mode.cpp
+  counts.cpp
+  entropy.cpp
+  executioninformation.cpp
+  io.cpp
+  log.cpp
+  metropolis_hastings.cpp
+  parameters.cpp
+  pdist.cpp
+  priors.cpp
+  sampling.cpp
+  target.cpp
+  terminal.cpp
+  timer.cpp
+  types.cpp
+  verbosity.cpp
+  )
 
 # ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
 # ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
 ADD_EXECUTABLE(std main.cpp cli.cpp)
-ADD_EXECUTABLE(test_sampling test_sampling.cpp)
+# ADD_EXECUTABLE(test_sampling test_sampling.cpp)
 ADD_EXECUTABLE(test_field test_fields.cpp)
 
 ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp)
@@ -39,7 +57,7 @@ TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_gamma_cdf transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_negative_binomial_convolution transcriptomedeconvolution)
-TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
+# TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_field transcriptomedeconvolution)
 # TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
 

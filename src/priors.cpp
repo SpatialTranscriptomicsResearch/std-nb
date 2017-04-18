@@ -78,7 +78,7 @@ void Gamma::initialize_r() {
           parameters.hyperparameters.theta_r_1,
           1 / parameters.hyperparameters.theta_r_2)(EntropySource::rng);
   else
-    r.ones();
+    r.setOnes();
 }
 
 void Gamma::initialize_p() {
@@ -91,7 +91,7 @@ void Gamma::initialize_p() {
           sample_beta<Float>(parameters.hyperparameters.theta_p_1,
                              parameters.hyperparameters.theta_p_2));
   else
-    p.ones();
+    p.setOnes();
 }
 
 void Gamma::sample(const Matrix &observed, const Matrix &field) {
@@ -101,7 +101,7 @@ void Gamma::sample(const Matrix &observed, const Matrix &field) {
   {
     const size_t thread_num = omp_get_thread_num();
 #pragma omp for
-    for (size_t t = 0; t < observed.n_cols; ++t) {
+    for (Index t = 0; t < observed.cols(); ++t) {
       auto res = mh.sample(pair<Float, Float>(r[t], p[t]), parameters.n_iter,
                            EntropySource::rngs[thread_num],
                            gen_log_normal_pair<Float>,

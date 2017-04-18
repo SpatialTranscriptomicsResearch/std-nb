@@ -14,8 +14,8 @@ T sample(T current_q, F func, G grad, size_t L, double epsilon, RNG &rng,
   const size_t n = current_q.size();
   T q = current_q;
   T p(n);
-  for (auto &x : p)
-    x = std::normal_distribution<double>()(rng);
+  for (size_t l = 0; l < n; ++l)
+    p[l] = std::normal_distribution<double>()(rng);
   T current_p = p;
 
   // make a half step for momentum at the beginning
@@ -38,9 +38,9 @@ T sample(T current_q, F func, G grad, size_t L, double epsilon, RNG &rng,
 
   // Evaluate potential and kinetic energies at start and end of trajectory
   auto current_U = func(current_q, args...);
-  auto current_K = sum(current_p % current_p) / 2;
+  auto current_K = current_p.squaredNorm() / 2;
   auto proposed_U = func(q, args...);
-  auto proposed_K = sum(p % p) / 2;
+  auto proposed_K = p.squaredNorm() / 2;
 
   double score = current_U - proposed_U + current_K - proposed_K;
 

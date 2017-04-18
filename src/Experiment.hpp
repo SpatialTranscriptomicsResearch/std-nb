@@ -48,7 +48,7 @@ struct Experiment {
   /** local features */
   Matrix phi_l;
   /** local feature baseline */
-  Matrix phi_b;
+  Vector phi_b;
 
   /** factor score matrix */
   Theta weights;

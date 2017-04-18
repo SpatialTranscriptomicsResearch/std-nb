@@ -6,6 +6,7 @@
 #include <unistd.h>
 #include "entropy.hpp"
 #include "log.hpp"
+#include "types.hpp"
 
 struct RandomDistribution {
   static std::uniform_real_distribution<double> Uniform;
@@ -21,19 +22,18 @@ T sample_compound_gamma(T a, T b, T c, std::mt19937 &rng) {
       a, 1/std::gamma_distribution<>(b, 1/c)(rng))(rng);
 }
 
-template <class T, class V, class Iter>
-V sample_multinomial(size_t n, const Iter begin, const Iter end,
+template <class Iter>
+STD::IVector sample_multinomial(size_t n, const Iter begin, const Iter end,
                                   std::mt19937 &rng = EntropySource::rng) {
-  V x(std::distance(begin, end));
-  for (auto &y : x)
-    y = 0;
+  const size_t k = std::distance(begin, end);
+  STD::IVector x = STD::IVector::Zero(k);
   if (n == 0)
     return x;
   Iter p = begin;
   double cum_prob = 0;
-  for (auto &y : x) {
+  for(size_t i = 0; i < k; ++i) {
     const double current_p = std::min(1.0, *p / (1 - cum_prob));
-    n -= y = std::binomial_distribution<T>(n, current_p)(rng);
+    n -= x[i] = std::binomial_distribution<size_t>(n, current_p)(rng);
     if (n == 0)
       break;
     cum_prob += *p;

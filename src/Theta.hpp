@@ -16,14 +16,7 @@ const Float phi_scaling = 1.0;
 
 struct Theta {
   using prior_type = PRIOR::THETA::Gamma;
-  Theta(size_t dim1_, size_t dim2_, const Parameters &params)
-      : dim1(dim1_),
-        dim2(dim2_),
-        matrix(dim1, dim2),
-        parameters(params),
-        prior(dim1, dim2, parameters) {
-    initialize();
-  };
+  Theta(size_t dim1_, size_t dim2_, const Parameters &params);
   size_t dim1, dim2;
   Matrix matrix;
   Parameters parameters;

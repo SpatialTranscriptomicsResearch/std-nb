@@ -14,15 +14,15 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      contributions_gene_type(G, T, arma::fill::zeros),
-      contributions_spot_type(S, T, arma::fill::zeros),
+      contributions_gene_type(Matrix::Zero(G, T)),
+      contributions_spot_type(Matrix::Zero(S, T)),
       contributions_gene(rowSums<Vector>(*counts.matrix)),
       contributions_spot(colSums<Vector>(*counts.matrix)),
-      phi_l(G, T, arma::fill::ones),
-      phi_b(G, 1, arma::fill::ones),
+      phi_l(Matrix::Ones(G, T)),
+      phi_b(Matrix::Ones(G, 1)),
       weights(S, T, parameters),
-      field(Matrix(S, T, arma::fill::ones)),
-      spot(S, arma::fill::ones) {
+      field(Matrix::Ones(S, T)),
+      spot(Vector::Ones(S)) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
   /* TODO consider to reactivate
   if (false) {
@@ -47,10 +47,10 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
   }
 
   if (not parameters.targeted(Target::theta))
-    weights.matrix.ones();
+    weights.matrix.setOnes();
 
   if (not parameters.targeted(Target::spot))
-    spot.ones();
+    spot.setOnes();
 }
 
 void Experiment::store(const string &prefix,
@@ -96,8 +96,10 @@ void Experiment::store(const string &prefix,
     {
       auto phi_marginal = marginalize_genes();
       auto f = field;
-      f.each_row() %= phi_marginal.t();
-      f.each_col() %= spot;
+      for (size_t s = 0; s < S; ++s)
+        f.row(s).array() /= phi_marginal.array();
+      for (size_t t = 0; t < T; ++t)
+        f.col(t).array() /= spot.array();
       write_matrix(f, prefix + "expected-field" + FILENAME_ENDING,
                    parameters.compression_mode, spot_names, factor_names,
                    order);
@@ -152,7 +154,7 @@ Matrix Experiment::log_likelihood() const {
   const size_t K = min<size_t>(20, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    Vector ps = model->phi_p.row(g).t();
+    Vector ps = model->phi_p.row(g);
     for (size_t t = 0; t < T; ++t)
       // NOTE conv neg bin has opposite interpretation of p
       ps[t] = 1 - neg_odds_to_prob(ps[t]);
@@ -196,10 +198,10 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
     LOG(trace) << "x = " << x;
   }
 
-  Vector tmp(T, arma::fill::zeros);
+  Vector tmp(T);
   for (size_t t = 0; t < T; ++t)
     // TODO use digamma_diff
-    tmp(t) = log(p[t]) + digamma(x(t) + r[t]) - digamma(x(t) + 1);
+    tmp(t) = log(p(t)) + digamma(x(t) + r(t)) - digamma(x(t) + 1);
 
   if (noisy)
     LOG(trace) << "tmp = " << tmp;
@@ -208,7 +210,7 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
   for (size_t t = 0; t < T; ++t)
     z += x(t) / count * tmp(t);
 
-  Vector grad(T, arma::fill::zeros);
+  Vector grad(T);
   for (size_t t = 0; t < T; ++t)
     grad(t) = -x(t) * (tmp(t) - z);
 
@@ -220,7 +222,7 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
 /** sample count decomposition */
 Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                                                   RNG &rng) const {
-  Vector cnts(T, arma::fill::zeros);
+  Vector cnts = Vector::Zero(T);
 
   const auto count = counts(g, s);
 
@@ -248,17 +250,16 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         for (size_t t = 0; t < T; ++t)
           cnts[t] = log(r[t] / model->phi_p(g, t));
 
-        Vector mean;
-        // Vector mean = count * gibbs(cnts);
+        Vector mean(T);
         const size_t max_iter = (noisy ? 10 : 1);
         for (size_t iter = 0; iter < max_iter; ++iter) {
           mean = count * gibbs(cnts);
           if (noisy)
-            LOG(verbose) << "cnts 0: " << (count * gibbs(cnts)).t();
+            LOG(verbose) << "cnts 0: " << (count * gibbs(cnts)).transpose();
           for (size_t i = 0; i < parameters.hmc_N; ++i) {
             if (noisy)
               LOG(debug) << "cnts " << i + 1 << ": "
-                         << (count * gibbs(cnts).t());
+                         << (count * gibbs(cnts).transpose());
             cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior,
                                parameters.hmc_L, parameters.hmc_epsilon, rng,
                                count, r, p);
@@ -271,8 +272,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
               z += m;
             LOG(verbose) << "cnts X iter = " << iter << " z = " << z
                          << " cnt=" << count;
-            LOG(verbose) << "cnts X: " << (count * gibbs(cnts)).t();
-            LOG(verbose) << "cnts m: " << mean.t();
+            LOG(verbose) << "cnts X: " << (count * gibbs(cnts)).transpose();
+            LOG(verbose) << "cnts m: " << mean.transpose();
           }
         }
         return mean;
@@ -360,8 +361,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                             / model->phi_p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
         mean_prob[t] /= z;
-      auto icnts = sample_multinomial<size_t, IVector>(
-          counts(g, s), begin(mean_prob), end(mean_prob), rng);
+      auto icnts = sample_multinomial(counts(g, s), begin(mean_prob),
+                                      end(mean_prob), rng);
       for (size_t t = 0; t < T; ++t)
         cnts(t) = icnts(t);
 
@@ -406,7 +407,7 @@ void Experiment::enforce_positive_parameters() {
 }
 
 Vector Experiment::marginalize_genes() const {
-  Vector intensities(T, arma::fill::zeros);
+  Vector intensities = Vector::Zero(T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
@@ -421,9 +422,9 @@ Vector Experiment::marginalize_genes() const {
 /** Calculate log posterior of theta with respect to the field */
 Matrix Experiment::field_fitness_posterior(
     const Matrix &candidate_field) const {
-  assert(candidate_field.n_rows == S);
-  assert(candidate_field.n_cols == T);
-  Matrix fit(S, T, arma::fill::zeros);
+  assert(static_cast<size_t>(candidate_field.rows()) == S);
+  assert(static_cast<size_t>(candidate_field.cols()) == T);
+  Matrix fit = Matrix::Zero(S, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t) {
@@ -438,9 +439,9 @@ Matrix Experiment::field_fitness_posterior(
 /** Calculate gradient of log posterior of theta with respect to the field */
 Matrix Experiment::field_fitness_posterior_gradient(
     const Matrix &candidate_field) const {
-  assert(candidate_field.n_rows == S);
-  assert(candidate_field.n_cols == T);
-  Matrix grad(S, T, arma::fill::zeros);
+  assert(static_cast<size_t>(candidate_field.rows()) == S);
+  assert(static_cast<size_t>(candidate_field.cols()) == T);
+  Matrix grad = Matrix::Zero(S, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
@@ -453,7 +454,7 @@ Matrix Experiment::field_fitness_posterior_gradient(
 /** sample count decomposition */
 Matrix Experiment::sample_contributions_gene(size_t g, RNG &rng) {
   LOG(debug) << "Sampling contributions for gene " << g;
-  Matrix contributions(S, T, arma::fill::zeros);
+  Matrix contributions = Matrix::Zero(S, T);
 
   // reset contributions for those genes that are not dropped
   for (size_t t = 0; t < T; ++t)
@@ -472,7 +473,7 @@ Matrix Experiment::sample_contributions_gene(size_t g, RNG &rng) {
 /** sample count decomposition */
 Matrix Experiment::sample_contributions_spot(size_t s, RNG &rng) {
   LOG(debug) << "Sampling contributions for spot " << s;
-  Matrix contributions(G, T, arma::fill::zeros);
+  Matrix contributions = Matrix::Zero(G, T);
 
   // reset contributions for those genes that are not dropped
   for (size_t t = 0; t < T; ++t)
@@ -489,7 +490,7 @@ Matrix Experiment::sample_contributions_spot(size_t s, RNG &rng) {
 }
 
 Vector Experiment::marginalize_spots() const {
-  Vector intensities(T, arma::fill::zeros);
+  Vector intensities = Vector::Zero(T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
@@ -502,7 +503,7 @@ Vector Experiment::marginalize_spots() const {
 
 Matrix Experiment::explained_gene_type() const {
   Vector theta_t = marginalize_spots();
-  Matrix explained(G, T, arma::fill::zeros);
+  Matrix explained = Matrix::Zero(G, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
@@ -512,13 +513,13 @@ Matrix Experiment::explained_gene_type() const {
 }
 
 Matrix Experiment::expected_gene_type() const {
-  return phi_l % explained_gene_type();
+  return phi_l.array() * explained_gene_type().array();
 }
 
 // TODO never used - consider to remove
 Vector Experiment::explained_gene() const {
   Vector theta_t = marginalize_spots();
-  Vector explained(G, arma::fill::zeros);
+  Vector explained = Vector::Zero(G);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
@@ -528,19 +529,19 @@ Vector Experiment::explained_gene() const {
 };
 
 Matrix Experiment::explained_spot_type() const {
-  Matrix m = Matrix(S, T, arma::fill::ones);
+  Matrix m(S, T);
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
     for (size_t g = 0; g < G; ++g)
       x += phi_l(g, t) * model->phi_r(g, t) * phi_b(g) / model->phi_p(g, t);
     for (size_t s = 0; s < S; ++s)
-      m(s, t) *= x * spot(s);
+      m(s, t) = x * spot(s);
   }
   return m;
 }
 
 Matrix Experiment::expected_spot_type() const {
-  return weights.matrix % explained_spot_type();
+  return weights.matrix.array() * explained_spot_type().array();
 }
 
 vector<vector<size_t>> Experiment::active_factors(double threshold) const {
@@ -582,16 +583,18 @@ ostream &operator<<(ostream &os, const Experiment &experiment) {
 Experiment operator*(const Experiment &a, const Experiment &b) {
   Experiment experiment = a;
 
-  experiment.contributions_gene_type %= b.contributions_gene_type;
-  experiment.contributions_spot_type %= b.contributions_spot_type;
-  experiment.contributions_gene %= b.contributions_gene;
-  experiment.contributions_spot %= b.contributions_spot;
+  experiment.contributions_gene_type.array()
+      *= b.contributions_gene_type.array();
+  experiment.contributions_spot_type.array()
+      *= b.contributions_spot_type.array();
+  experiment.contributions_gene.array() *= b.contributions_gene.array();
+  experiment.contributions_spot.array() *= b.contributions_spot.array();
 
-  experiment.spot %= b.spot;
+  experiment.spot.array() *= b.spot.array();
 
-  experiment.phi_l %= b.phi_l;
-  experiment.phi_b %= b.phi_b;
-  experiment.weights.matrix %= b.weights.matrix;
+  experiment.phi_l.array() *= b.phi_l.array();
+  experiment.phi_b.array() *= b.phi_b.array();
+  experiment.weights.matrix.array() *= b.weights.matrix.array();
 
   return experiment;
 }
@@ -667,16 +670,16 @@ Experiment operator/(const Experiment &a, double x) {
 Experiment operator-(const Experiment &a, double x) {
   Experiment experiment = a;
 
-  experiment.contributions_gene_type -= x;
-  experiment.contributions_spot_type -= x;
-  experiment.contributions_gene -= x;
-  experiment.contributions_spot -= x;
+  experiment.contributions_gene_type.array() -= x;
+  experiment.contributions_spot_type.array() -= x;
+  experiment.contributions_gene.array() -= x;
+  experiment.contributions_spot.array() -= x;
 
-  experiment.spot -= x;
+  experiment.spot.array() -= x;
 
-  experiment.phi_l -= x;
-  experiment.phi_b -= x;
-  experiment.weights.matrix -= x;
+  experiment.phi_l.array() -= x;
+  experiment.phi_b.array() -= x;
+  experiment.weights.matrix.array() -= x;
 
   return experiment;
 }

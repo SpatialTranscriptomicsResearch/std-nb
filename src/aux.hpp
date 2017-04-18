@@ -81,8 +81,8 @@ std::vector<std::string> form_factor_names(size_t n);
 
 template <typename V, typename M>
 V colSums(const M &m) {
-  const size_t X = m.n_rows;
-  const size_t Y = m.n_cols;
+  const size_t X = m.rows();
+  const size_t Y = m.cols();
   V v(Y);
   for (size_t y = 0; y < Y; ++y)
     v[y] = 0;
@@ -94,8 +94,8 @@ V colSums(const M &m) {
 
 template <typename V, typename M>
 V rowSums(const M &m) {
-  const size_t X = m.n_rows;
-  const size_t Y = m.n_cols;
+  const size_t X = m.rows();
+  const size_t Y = m.cols();
   V v(X);
   for (size_t x = 0; x < X; ++x)
     v[x] = 0;
@@ -109,6 +109,8 @@ std::vector<size_t> random_order(size_t n);
 
 template <typename T>
 void min_max(const std::string &label, const T &v) {
+  // TODO Eigen reactivate
+  /*
   arma::running_stat<double> stats;
   for (auto &x : v)
     stats(x);
@@ -116,18 +118,14 @@ void min_max(const std::string &label, const T &v) {
   LOG(debug) << label << " mean = " << stats.mean() << " var  = " << stats.var()
              << " min  = " << stats.min() << " max  = " << stats.max()
              << std::endl;
+  */
 }
 
 template <typename V>
-V gibbs(const V &y_) {
-  V y = y_;
-  double m = *std::max_element(y.begin(), y.end());
-  double z = 0;
-  for (auto &x : y)
-    z += x = exp(x - m);
-  for (auto &x : y)
-    x /= z;
-  return y;
+V gibbs(const V &y) {
+  double m = *std::max_element(begin(y), end(y));
+  V x = exp(y.array() - m);
+  return x / x.sum();
 }
 
 void enforce_positive_and_warn(const std::string &tag, STD::Matrix &m,

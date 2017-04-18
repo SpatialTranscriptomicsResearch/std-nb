@@ -38,6 +38,10 @@ struct Model {
   size_t T;
   /** number of experiments */
   size_t E;
+  /** number of spots */
+  size_t S;
+  /** number of points */
+  size_t N;
 
   std::vector<Experiment> experiments;
 

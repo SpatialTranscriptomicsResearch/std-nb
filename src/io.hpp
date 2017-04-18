@@ -12,7 +12,7 @@ void write_vector(const V &v, const std::string &path, CompressionMode mode,
                   const std::vector<std::string> &names
                   = std::vector<std::string>(),
                   const std::string &separator = "\t") {
-  size_t X = v.n_rows;
+  size_t X = v.rows();
 
   bool names_given = not names.empty();
 
@@ -37,8 +37,8 @@ void write_matrix(const M &m, const std::string &path, CompressionMode mode,
                   = std::vector<std::string>(),
                   std::vector<size_t> col_order = std::vector<size_t>(),
                   const std::string &separator = "\t") {
-  size_t X = m.n_rows;
-  size_t Y = m.n_cols;
+  size_t X = m.rows();
+  size_t Y = m.cols();
 
   if (col_order.empty())
     for (size_t y = 0; y < Y; ++y)
@@ -110,10 +110,6 @@ STD::Matrix read_floats(std::istream &ifs, const std::string &separator,
                         std::vector<std::string> &row_names,
                         std::vector<std::string> &col_names);
 
-STD::IMatrix read_counts(std::istream &ifs, const std::string &separator,
-                         std::vector<std::string> &row_names,
-                         std::vector<std::string> &col_names);
-
 void print_matrix_head(std::ostream &os, const STD::Matrix &m,
                        const std::string &label = "", size_t n = 10);
 
@@ -122,7 +118,7 @@ void print_vector_head(std::ostream &os, const V &v,
                        const std::string &label = "", size_t n = 10) {
   if (label != "")
     os << label << "\n";
-  size_t X = v.n_rows;
+  size_t X = v.rows();
   for (size_t x = 0; x < std::min(n, X); ++x)
     os << (x > 0 ? "\t" : "") << v[x];
   os << "\n";

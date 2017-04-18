@@ -9,12 +9,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
     : G(max_row_number(c)),
       T(T_),
       E(0),
+      S(0),
+      N(0),
       experiments(),
       parameters(parameters_),
-      contributions_gene_type(G, T, arma::fill::zeros),
-      contributions_gene(G, arma::fill::zeros),
-      phi_r(G, T, arma::fill::ones),
-      phi_p(G, T, arma::fill::ones),
+      contributions_gene_type(Matrix::Zero(G, T)),
+      contributions_gene(Vector::Zero(G)),
+      phi_r(Matrix::Ones(G, T)),
+      phi_p(Matrix::Ones(G, T)),
       mix_prior(sum_rows(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   size_t coord_sys = 0;
@@ -94,11 +96,14 @@ void Model::store(const string &prefix_, bool reorder) const {
           coord_sys_idx++;
         }
       };
-      Vector weights(T, arma::fill::ones);
+      Vector weights = Vector::Ones(T);
       print_field_matrix(prefix + "field" + FILENAME_ENDING, weights);
+
       // NOTE we ignore local features and local baseline
-      Matrix mean = phi_r / phi_p;
-      weights = colSums<Vector>(mean) % mix_prior.r / mix_prior.p;
+      weights = mix_prior.r.array() / mix_prior.p.array();
+      Vector meanColSums = colSums<Vector>(phi_r.array() / phi_p.array());
+      for (size_t t = 0; t < T; ++t)
+        weights(t) *= meanColSums(t);
       print_field_matrix(prefix + "expfield" + FILENAME_ENDING, weights);
     }
   }
@@ -244,14 +249,14 @@ void Model::sample_contributions(bool do_global_features,
   // for (auto &experiment : experiments)
   //  experiment.weights.matrix.ones();
   for (auto &experiment : experiments)
-    experiment.spot.ones();
+    experiment.spot.setOnes();
 
   const double a = parameters.hyperparameters.phi_r_1;
   const double b = parameters.hyperparameters.phi_r_2;
   const double alpha = parameters.hyperparameters.phi_p_1;
   const double beta = parameters.hyperparameters.phi_p_2;
 
-  Matrix experiment_theta_marginals(E, T, arma::fill::zeros);
+  Matrix experiment_theta_marginals = Matrix::Zero(E, T);
   for (size_t e = 0; e < E; ++e)
     for (size_t s = 0; s < experiments[e].S; ++s)
       experiment_theta_marginals.row(e)
@@ -268,10 +273,10 @@ void Model::sample_contributions(bool do_global_features,
     for (size_t g = 0; g < G; ++g) {
       vector<Matrix> counts_gst;
 
-      Matrix experiment_counts_gt(E, T, arma::fill::zeros);
+      Matrix experiment_counts_gt = Matrix::Zero(E, T);
       for (size_t e = 0; e < E; ++e) {
         auto exp_counts = experiments[e].sample_contributions_gene(g, rng);
-        experiment_counts_gt.row(e) = colSums<Vector>(exp_counts).t();
+        experiment_counts_gt.row(e) = colSums<Vector>(exp_counts);
         counts_gst.push_back(exp_counts);
       }
 
@@ -542,11 +547,12 @@ void Model::sample_contributions(bool do_global_features,
 }
 
 Matrix Model::field_fitness_posterior_gradient(const Matrix &f) const {
-  Matrix grad(0, T);
+  Matrix grad(S, T);
   size_t cumul = 0;
   for (auto &experiment : experiments) {
-    grad = arma::join_vert(grad, experiment.field_fitness_posterior_gradient(
-                                     f.rows(cumul, cumul + experiment.S - 1)));
+    grad.middleRows(cumul, experiment.S)
+        = experiment.field_fitness_posterior_gradient(
+            f.middleRows(cumul, experiment.S));
     cumul += experiment.S;
   }
   return grad;
@@ -572,24 +578,24 @@ void Model::update_fields() {
 
     for (size_t i = 0; i < NT; ++i)
       // NOTE log for grad w.r.t. exp-transform
-      x[i] = log(coord_sys.field[i]);
+      x(i) = log(coord_sys.field(i));
 
     size_t call_cnt = 0;
 
     auto fnc = [&](const Vec &field_, Vec &grad_) {
       Matrix field(coord_sys.N, T);
       for (size_t i = 0; i < NT; ++i)
-        field[i] = exp(field_[i]);
+        field(i) = exp(field_(i));
       Matrix grad;
       double score = field_gradient(coord_sys, field, grad);
       for (size_t i = 0; i < NT; ++i)
         // NOTE multiply w field to compute gradient of exp-transform
-        grad_[i] = grad[i] * field[i];
+        grad_(i) = grad(i) * field(i);
       if (((call_cnt++) % parameters.lbfgs_report_interval) == 0) {
         LOG(debug) << "Field score = " << score;
         LOG(debug) << "field: " << endl << Stats::summary(field);
         LOG(debug) << "grad: " << endl << Stats::summary(grad);
-        Matrix tmp = grad % field;
+        Matrix tmp = grad * field;
         LOG(debug) << "grad*field: " << endl << Stats::summary(tmp);
       }
       return score;
@@ -599,7 +605,7 @@ void Model::update_fields() {
     int niter = solver.minimize(fnc, x, fx);
 
     for (size_t i = 0; i < NT; ++i)
-      coord_sys.field[i] = exp(x[i]);
+      coord_sys.field(i) = exp(x(i));
 
     LOG(verbose) << "LBFGS performed " << niter << " iterations";
     LOG(verbose) << "LBFGS evaluated function and gradient " << call_cnt
@@ -613,31 +619,33 @@ void Model::update_fields() {
 
 double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
                              Matrix &grad) const {
-  LOG(debug) << "field dim " << field.n_rows << "x" << field.n_cols;
+  LOG(debug) << "field dim " << field.rows() << "x" << field.cols();
   double score = 0;
 
-  Matrix fitness(0, T);
+  Matrix fitness(S, T);
   size_t cumul = 0;
   for (auto member : coord_sys.members) {
-    double s = -arma::accu(experiments[member].field_fitness_posterior(
-        field.rows(cumul, cumul + experiments[member].S - 1)));
+    double s = -experiments[member]
+                    .field_fitness_posterior(
+                        field.middleRows(cumul, experiments[member].S))
+                    .sum();
     LOG(debug) << "Fitness contribution to score of sample " << member << ": "
                << s;
     score += s;
-    fitness = arma::join_vert(
-        fitness, experiments[member].field_fitness_posterior_gradient(
-                     field.rows(cumul, cumul + experiments[member].S - 1)));
+    fitness.middleRows(cumul, experiments[member].S)
+        = experiments[member].field_fitness_posterior_gradient(
+            field.middleRows(cumul, experiments[member].S));
     cumul += experiments[member].S;
   }
 
   LOG(debug) << "Fitness contribution to score: " << score;
 
-  grad = Matrix(coord_sys.N, T, arma::fill::zeros);
+  grad = Matrix::Zero(coord_sys.N, T);
 
-  grad.rows(0, coord_sys.S - 1) = -fitness + grad.rows(0, coord_sys.S - 1);
+  grad.topRows(coord_sys.S) = -fitness;
 
   if (parameters.field_lambda_dirichlet != 0) {
-    Matrix grad_dirichlet = Matrix(coord_sys.N, T, arma::fill::zeros);
+    Matrix grad_dirichlet = Matrix::Zero(coord_sys.N, T);
     for (size_t t = 0; t < T; ++t) {
       grad_dirichlet.col(t)
           = coord_sys.mesh.grad_dirichlet_energy(Vector(field.col(t)));
@@ -652,7 +660,7 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
   }
 
   if (parameters.field_lambda_laplace != 0) {
-    Matrix grad_laplace = Matrix(coord_sys.N, T, arma::fill::zeros);
+    Matrix grad_laplace = Matrix::Zero(coord_sys.N, T);
     for (size_t t = 0; t < T; ++t) {
       grad_laplace.col(t)
           = coord_sys.mesh.grad_sq_laplace_operator(Vector(field.col(t)));
@@ -682,16 +690,25 @@ void Model::enforce_positive_parameters() {
 
 void Model::sample_global_theta_priors() {
   // TODO refactor
-  Matrix observed(0, T);
-  for (auto &experiment : experiments)
-    observed = arma::join_vert(observed, experiment.weights.matrix);
+  Matrix observed(S, T);
+  size_t cumul = 0;
+  for (auto &experiment : experiments) {
+    observed.middleRows(cumul, experiment.S) = experiment.weights.matrix;
+    cumul += experiment.S;
+  }
 
-  if (parameters.normalize_spot_stats)
-    observed.each_col() /= rowSums<Vector>(observed);
+  if (parameters.normalize_spot_stats) {
+    auto rs = rowSums<Vector>(observed);
+    for (size_t t = 0; t < T; ++t)
+      observed.col(t).array() /= rs.array();
+  }
 
-  Matrix field(0, T);
-  for (auto &experiment : experiments)
-    field = arma::join_vert(field, experiment.field);
+  Matrix field(S, T);
+  cumul = 0;
+  for (auto &experiment : experiments) {
+    field.middleRows(cumul, experiment.S) = experiment.field;
+    cumul += experiment.S;
+  }
 
   mix_prior.sample(observed, field);
 
@@ -727,7 +744,7 @@ double Model::log_likelihood(const string &prefix) const {
 // with M(g,t) = phi(g,t) sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s
 // theta(e,s,t) sigma(e,s)
 Matrix Model::expected_gene_type() const {
-  Matrix m(G, T, arma::fill::zeros);
+  Matrix m = Matrix::Zero(G, T);
   for (auto &experiment : experiments)
     m += experiment.expected_gene_type();
   return m;
@@ -739,15 +756,15 @@ void Model::update_experiment_fields() {
     size_t cumul = 0;
     for (auto member : coord_sys.members) {
       experiments[member].field
-          = coord_sys.field.rows(cumul, cumul + experiments[member].S - 1);
+          = coord_sys.field.middleRows(cumul, experiments[member].S);
       cumul += experiments[member].S;
     }
   }
 }
 
 void Model::update_contributions() {
-  contributions_gene_type.zeros();
-  contributions_gene.zeros();
+  contributions_gene_type.setZero();
+  contributions_gene.setZero();
   for (auto &experiment : experiments)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g) {
@@ -773,7 +790,7 @@ void Model::initialize_coordinate_systems(double v) {
     coord_sys.field.fill(v);
 
     using Point = Vector;
-    size_t dim = experiments[coord_sys.members[0]].coords.n_cols;
+    size_t dim = experiments[coord_sys.members[0]].coords.cols();
     vector<Point> pts;
     {
       Point pt(dim);
@@ -800,10 +817,9 @@ void Model::initialize_coordinate_systems(double v) {
           mi = mid - half_diff * parameters.mesh_hull_enlarge;
           ma = mid + half_diff * parameters.mesh_hull_enlarge;
         } else {
-          mi = mi - parameters.mesh_hull_distance;
-          ma = ma + parameters.mesh_hull_distance;
+          mi.array() -= parameters.mesh_hull_distance;
+          ma.array() += parameters.mesh_hull_distance;
         }
-#pragma omp parallel for if (DO_PARALLEL)
         for (size_t i = 0; i < num_additional; ++i) {
           // TODO improve this
           // e.g. enlarge area, use convex hull instead of bounding box, etc
@@ -814,7 +830,7 @@ void Model::initialize_coordinate_systems(double v) {
                       + (ma[d] - mi[d])
                             * RandomDistribution::Uniform(EntropySource::rng);
             for (size_t s = 0; s < coord_sys.S; ++s)
-              if (norm(pt - pts[s]) < parameters.mesh_hull_distance) {
+              if ((pt - pts[s]).norm() < parameters.mesh_hull_distance) {
                 ok = true;
                 break;
               }
@@ -829,6 +845,8 @@ void Model::initialize_coordinate_systems(double v) {
                parameters.output_directory + "coordsys"
                    + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
     coord_sys_idx++;
+    S += coord_sys.S;
+    N += coord_sys.N;
   }
 }
 
@@ -867,10 +885,10 @@ ostream &operator<<(ostream &os, const Model &model) {
 Model operator*(const Model &a, const Model &b) {
   Model model = a;
 
-  model.contributions_gene_type %= b.contributions_gene_type;
-  model.contributions_gene %= b.contributions_gene;
-  model.phi_r %= b.phi_r;
-  model.phi_p %= b.phi_p;
+  model.contributions_gene_type.array() *= b.contributions_gene_type.array();
+  model.contributions_gene.array() *= b.contributions_gene.array();
+  model.phi_r.array() *= b.phi_r.array();
+  model.phi_p.array() *= b.phi_p.array();
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] * b.experiments[e];
 

@@ -175,7 +175,7 @@ template <typename V>
 double convolved_negative_binomial(double x, size_t K, const V &rs,
                                    const V &ps) {
   const size_t N = rs.size();
-  assert(ps.size() == N);
+  assert(static_cast<size_t>(ps.size()) == N);
 
   K = std::min<size_t>(K, N);
 
@@ -183,7 +183,7 @@ double convolved_negative_binomial(double x, size_t K, const V &rs,
   for (size_t n = 0; n < N; ++n)
     neg_odds[n] = (1 - ps[n]) / ps[n];
 
-  const double max_p = *std::max_element(ps.begin(), ps.end());
+  const double max_p = *std::max_element(begin(ps), end(ps));
   const double max_neg_odds = (1 - max_p) / max_p;
   double R = 1;
   for (size_t n = 0; n < N; ++n)

@@ -1,5 +1,6 @@
 #include <LBFGS.h>
 #include <iostream>
+#include <fstream>
 #include "Mesh.hpp"
 #include "sampling.hpp"
 

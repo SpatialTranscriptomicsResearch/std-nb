@@ -15,7 +15,7 @@ double compute_mean(const V &v) {
   return (sum / v.size());
 }
 
-template <typename V, typename T = typename V::value_type>
+template <typename V, typename T = typename V::Scalar>
 std::vector<T> get_percentiles_(const V &v,
                                 const std::vector<double> &percentiles
                                 = {0.0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}) {
@@ -34,13 +34,13 @@ std::vector<T> get_percentiles_(const V &v,
   return percentile_values;
 }
 
-template <typename V, typename T = typename V::value_type>
+template <typename V, typename T = typename V::Scalar>
 std::vector<T> get_percentiles(const V &v,
                                std::vector<double> percentiles
                                = {0.0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0}) {
   auto sorted = v;
   {  // sort the data
-    std::sort(sorted.begin(), sorted.end());
+    std::sort(begin(sorted), end(sorted));
   }
   {  // sort and uniquify the percentiles
     std::sort(begin(percentiles), end(percentiles));
@@ -50,7 +50,7 @@ std::vector<T> get_percentiles(const V &v,
   return get_percentiles_<V, T>(sorted, percentiles);
 }
 
-template <typename V, typename T=typename V::value_type>
+template <typename V, typename T=typename V::Scalar>
 std::string summary(const V &v, std::vector<double> percentiles
                                 = {0.0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0},
                     size_t width = 12) {

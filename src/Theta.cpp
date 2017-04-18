@@ -5,6 +5,14 @@
 using namespace std;
 
 namespace STD {
+Theta::Theta(size_t dim1_, size_t dim2_, const Parameters &params)
+    : dim1(dim1_),
+      dim2(dim2_),
+      matrix(dim1, dim2),
+      parameters(params),
+      prior(dim1, dim2, parameters) {
+  initialize();
+};
 
 void Theta::initialize_factor(size_t t) {
   // randomly initialize p of Θ

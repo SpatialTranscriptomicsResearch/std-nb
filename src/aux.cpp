@@ -26,8 +26,8 @@ vector<size_t> random_order(size_t n) {
 
 void enforce_positive_and_warn(const string &tag, STD::Matrix &m, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
-  for (size_t i = 0; i < m.n_rows; ++i)
-    for (size_t j = 0; j < m.n_cols; ++j)
+  for (STD::Index i = 0; i < m.rows(); ++i)
+    for (STD::Index j = 0; j < m.cols(); ++j)
       if (m(i, j) < min_val) {
         if (warn) {
           LOG(warning) << "Found problematic value " << m(i, j) << " in " << tag
@@ -40,7 +40,7 @@ void enforce_positive_and_warn(const string &tag, STD::Matrix &m, bool warn) {
 
 void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
   const double min_val = std::numeric_limits<double>::denorm_min();
-  for (size_t i = 0; i < v.n_rows; ++i)
+  for (STD::Index i = 0; i < v.rows(); ++i)
     if (v(i) < min_val) {
       if (warn) {
         LOG(warning) << "Found problematic value " << v(i) << " in " << tag
