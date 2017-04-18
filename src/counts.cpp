@@ -16,12 +16,17 @@ using Int = STD::Int;
 using Matrix = STD::Matrix;
 using Vector = STD::Vector;
 
-Counts::Counts(const string &path_, const string &separator)
+Counts::Counts(const string &path_, bool transpose, const string &separator)
     : path(path_),
       row_names(),
       col_names(),
       matrix(make_shared<Matrix>(parse_file<Matrix>(
-          path, read_floats, separator, row_names, col_names))) {}
+          path, read_floats, separator, row_names, col_names))) {
+  if (transpose) {
+    std::swap(row_names, col_names);
+    *matrix = matrix->transpose();
+  }
+}
 
 size_t Counts::operator()(size_t g, size_t t) const { return (*matrix)(g, t); }
 // size_t &Counts::operator()(size_t g, size_t t) { return (*matrix)(g, t); }
@@ -110,11 +115,11 @@ void discard_empty_genes(vector<Counts> &cnts) {
 }
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
-                         size_t top, bool discard_empty) {
+                         size_t top, bool discard_empty, bool transpose) {
   vector<Counts> counts_v;
   for (auto &path : paths) {
     LOG(verbose) << "Loading " << path;
-    counts_v.push_back(Counts(path));
+    counts_v.push_back(Counts(path, transpose));
   }
 
   if (intersect)

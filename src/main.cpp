@@ -26,6 +26,7 @@ struct Options {
   bool fields = false;
   bool perform_dge = false;
   bool keep_empty = false;
+  bool transpose = false;
   size_t top = 0;
 };
 
@@ -162,7 +163,9 @@ int main(int argc, char **argv) {
     ("fields", po::bool_switch(&options.fields),
      "Activate fields.")
     ("top", po::value(&options.top)->default_value(options.top),
-     "Use only those genes with the highest read count across all spots. Zero indicates all genes.");
+     "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
+    ("transpose", po::bool_switch(&options.transpose),
+     "Count matrices have spots in columns and genes in columns. Default is genes in rows and spots in columns.");
 
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
@@ -305,7 +308,7 @@ int main(int argc, char **argv) {
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
   auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
-                             not options.keep_empty);
+                             not options.keep_empty, options.transpose);
 
   if (data_sets.size() < 2) {
     LOG(info)
