@@ -266,9 +266,6 @@ Model Model::compute_gradient(double &score) const {
 
   gradient.update_contributions();
 
-  // TODO calculate gradient & score for theta.prior.r
-  // TODO calculate gradient & score for theta.prior.p
-
   if (parameters.targeted(Target::field))
     for (size_t c = 0; c < coordinate_systems.size(); ++c)
       score
@@ -367,7 +364,7 @@ void Model::finalize_gradient(Model &gradient) const {
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t s = 0; s < experiments[e].S; ++s)
           for (size_t t = 0; t < T; ++t) {
-            const double a = mix_prior.r(t);
+            const double a = experiments[e].field(s, t) * mix_prior.r(t);
             const double b = mix_prior.p(t);
             gradient.experiments[e].theta(s, t)
                 += (a - 1) - experiments[e].theta(s, t) * b;
@@ -391,19 +388,38 @@ void Model::finalize_gradient(Model &gradient) const {
         for (size_t t = 0; t < T; ++t) {
           const double r = mix_prior.r(t);
           const double no = mix_prior.p(t);
+          const double p = neg_odds_to_prob(no);
+          const double log_no = log(no);
+
           double x = 0;
+          double y = 0;
 #pragma omp parallel for if (DO_PARALLEL)
-          for (size_t s = 0; s < experiments[e].S; ++s)
-            x += log(experiments[e].theta(s, t));
-          x += experiments[e].S * (log(no) - digamma(r));
-          x *= r;
+          for (size_t s = 0; s < experiments[e].S; ++s) {
+            const double prod = r * experiments[e].field(s, t);
+            x += (log(experiments[e].theta(s, t)) + log_no - digamma(prod))
+                 * prod;
+            y += (1 - p) * (p * experiments[e].theta(s, t) - prod);
+          }
           gradient.mix_prior.r(t) += x;
+          gradient.mix_prior.p(t) += y;
         }
 
-    const double a = parameters.hyperparameters.theta_r_1;
-    const double b = parameters.hyperparameters.theta_r_2;
-    for (size_t t = 0; t < T; ++t)
-      gradient.mix_prior.r(t) += a - 1 - b * mix_prior.r(t);
+    {
+      const double a = parameters.hyperparameters.theta_r_1;
+      const double b = parameters.hyperparameters.theta_r_2;
+      for (size_t t = 0; t < T; ++t)
+        gradient.mix_prior.r(t) += a - 1 - b * mix_prior.r(t);
+    }
+
+    {
+      const double a = parameters.hyperparameters.theta_p_1;
+      const double b = parameters.hyperparameters.theta_p_2;
+      for (size_t t = 0; t < T; ++t) {
+        const double no = mix_prior.p(t);
+        const double p = neg_odds_to_prob(no);
+        gradient.mix_prior.p(t) += (a + b - 2) * p - a + 1;
+      }
+    }
   }
 }
 
@@ -449,9 +465,8 @@ double Model::param_likel() const {
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t s = 0; s < experiments[e].S; ++s)
           for (size_t t = 0; t < T; ++t) {
-            const double a = mix_prior.r(t);
+            const double a = experiments[e].field(s, t) * mix_prior.r(t);
             const double b = mix_prior.p(t);
-            // TODO figure how to store p! as negative odds?
             // NOTE: gamma distribution takes a shape parameter
             score += log_gamma(experiments[e].theta(s, t), a, 1.0 / b);
           }
@@ -475,6 +490,22 @@ double Model::param_likel() const {
         const double no = phi_p(g, t);
         score += log_beta_neg_odds(no, a, b);
       }
+  }
+
+  if (parameters.targeted(Target::theta_prior)) {
+    {
+      const double a = parameters.hyperparameters.theta_r_1;
+      const double b = parameters.hyperparameters.theta_r_2;
+      for (size_t t = 0; t < T; ++t)
+        // NOTE: gamma distribution takes a shape parameter
+        score += log_gamma(mix_prior.r(t), a, 1.0 / b);
+    }
+    {
+      const double a = parameters.hyperparameters.theta_p_1;
+      const double b = parameters.hyperparameters.theta_p_2;
+      for (size_t t = 0; t < T; ++t)
+        score += log_beta_neg_odds(mix_prior.p(t), a, b);
+    }
   }
 
   return score;
