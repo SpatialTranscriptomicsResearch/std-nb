@@ -31,8 +31,6 @@ struct Hyperparameters {
         theta_p_2(theta_p_2_),
         spot_a(spot_a_),
         spot_b(spot_b_),
-        sigma(sigma_),
-        field_residual_prior(residual),
         baseline_1(bline1),
         baseline_2(bline2){};
 
@@ -61,11 +59,6 @@ struct Hyperparameters {
 
   Float spot_a;
   Float spot_b;
-
-  // characteristic length-scale for field
-  Float sigma;
-  /** Prior for the residual mixing weight terms */
-  Float field_residual_prior;
 
   Float baseline_1;
   Float baseline_2;

@@ -210,10 +210,6 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of the spot scaling parameter.")
     ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
      "Gamma prior 2 of the spot scaling parameter.")
-    ("sigma", po::value(&parameters.hyperparameters.sigma)->default_value(parameters.hyperparameters.sigma),
-     "Sigma parameter for field characteristic length scale.")
-    ("residual", po::value(&parameters.hyperparameters.field_residual_prior)->default_value(parameters.hyperparameters.field_residual_prior),
-     "Prior used for the residual mixing weight terms after the field has been sampled.")
     ("bline1", po::value(&parameters.hyperparameters.baseline_1)->default_value(parameters.hyperparameters.baseline_1),
      "First prior for the baseline features.")
     ("bline2", po::value(&parameters.hyperparameters.baseline_2)->default_value(parameters.hyperparameters.baseline_2),
