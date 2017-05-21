@@ -2,13 +2,10 @@
 #define EXPERIMENT_HPP
 
 #include <random>
-#include "Paths.hpp"
 #include "Theta.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
 #include "entropy.hpp"
-#include "hamiltonian_monte_carlo.hpp"
-#include "metropolis_hastings.hpp"
 #include "odds.hpp"
 #include "parameters.hpp"
 #include "stats.hpp"
