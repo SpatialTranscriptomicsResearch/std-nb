@@ -9,6 +9,7 @@
 #include <LBFGS.h>
 #include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
+#include "priors.hpp"
 #include "Mesh.hpp"
 
 namespace STD {
@@ -40,8 +41,6 @@ struct Model {
   size_t E;
   /** number of spots */
   size_t S;
-  /** number of points */
-  size_t N;
 
   std::vector<Experiment> experiments;
 
@@ -64,24 +63,59 @@ struct Model {
   };
   std::vector<CoordinateSystem> coordinate_systems;
 
-  typename Theta::prior_type mix_prior;
+  using prior_type = PRIOR::THETA::Gamma;
+  prior_type mix_prior;
 
   Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
         bool same_coord_sys);
+
+  void set_zero();
+  Model compute_gradient(double &score) const;
+  void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
+                         Model &gradient) const;
+  void finalize_gradient(Model &gradient) const;
+  double param_likel() const;
+  Vector vectorize() const;
+  template <typename Iter>
+  void from_log_vector(Iter iter) {
+    if (parameters.targeted(Target::global)) {
+      LOG(debug) << "Getting global R from vector";
+      for (auto &x : phi_r)
+        x = exp(*iter++);
+    }
+
+    if (parameters.targeted(Target::variance)) {
+      LOG(debug) << "Getting global P from vector";
+      for (auto &x : phi_p)
+        x = exp(*iter++);
+    }
+
+    if (parameters.targeted(Target::field)) {
+      LOG(debug) << "Getting global field from vector";
+      for (auto &coord_sys : coordinate_systems)
+        for (auto &x : coord_sys.field)
+          x = exp(*iter++);
+    }
+
+    if (parameters.targeted(Target::theta_prior)) {
+      LOG(debug) << "Getting global theta prior r and p from vector";
+      for (auto &x : mix_prior.r)
+        x = exp(*iter++);
+      for (auto &x : mix_prior.p)
+        x = exp(*iter++);
+    }
+
+    for (auto &experiment : experiments)
+      experiment.from_log_vector(iter);
+  };
+
+  void gradient_update();
+  size_t size() const;
 
   void enforce_positive_parameters();
 
   void store(const std::string &prefix, bool reorder = true) const;
   void restore(const std::string &prefix);
-
-  void sample_local_r(size_t g, const std::vector<Matrix> counts_gst,
-                      const Matrix &experiment_counts_gt,
-                      const Matrix &experiment_theta_marginals,
-                      std::mt19937 &rng);
-  void sample_contributions(bool do_global_features, bool do_local_features,
-                            bool do_theta, bool do_baseline);
-
-  void sample_global_theta_priors();
 
   double log_likelihood(const std::string &prefix) const;
 
@@ -94,8 +128,7 @@ struct Model {
   void update_experiment_fields();
   void update_contributions();
   Matrix field_fitness_posterior_gradient(const Matrix &f) const;
-
-  double field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
+  double field_gradient(const CoordinateSystem &coord_sys, const Matrix &field,
                         Matrix &grad) const;
   void initialize_coordinate_systems(double v);
   void add_experiment(const Counts &data, size_t coord_sys);

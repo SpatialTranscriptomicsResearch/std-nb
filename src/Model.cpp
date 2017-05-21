@@ -1,6 +1,12 @@
 #include "Model.hpp"
+#include "rprop.hpp"
 
 using namespace std;
+
+// use this to compute gradient of un-transformed parameters
+// const bool plain_gradient = true;
+// use this to compute gradient of exp-transformed parameters
+const bool plain_gradient = false;
 
 namespace STD {
 
@@ -10,19 +16,21 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
       T(T_),
       E(0),
       S(0),
-      N(0),
       experiments(),
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)),
       phi_r(Matrix::Ones(G, T)),
       phi_p(Matrix::Ones(G, T)),
-      mix_prior(sum_rows(c), T, parameters) {
+      mix_prior(sum_cols(c), T, parameters) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
+
+  for (auto &x : phi_r)
+    x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 
   enforce_positive_parameters();
 
@@ -41,6 +49,8 @@ vector<size_t> get_order(const V &v) {
 
 void Model::store(const string &prefix_, bool reorder) const {
   string prefix = parameters.output_directory + prefix_;
+  if (not boost::filesystem::create_directory(prefix))
+    throw(std::runtime_error("Couldn't create directory " + prefix));
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->counts.row_names;
 
@@ -63,6 +73,8 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(phi_p, prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
+    mix_prior.store(prefix + "mixprior", factor_names, order);
+#pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
@@ -84,9 +96,12 @@ void Model::store(const string &prefix_, bool reorder) const {
         size_t coord_sys_idx = 0;
         for (size_t c = 0; c < coordinate_systems.size(); ++c) {
           for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
+            // print coordinate system index
             ofs << coord_sys_idx << "\t" << n;
+            // print coordinate
             for (size_t d = 0; d < coordinate_systems[c].mesh.dim; ++d)
               ofs << "\t" << coordinate_systems[c].mesh.points[n][d];
+            // print weighted field values of factors in order
             for (size_t t = 0; t < T; ++t)
               ofs << "\t"
                   << coordinate_systems[c].field(n, order[t])
@@ -96,15 +111,17 @@ void Model::store(const string &prefix_, bool reorder) const {
           coord_sys_idx++;
         }
       };
-      Vector weights = Vector::Ones(T);
-      print_field_matrix(prefix + "field" + FILENAME_ENDING, weights);
+      Vector w = Vector::Ones(T);
+      // print un-weighted field
+      print_field_matrix(prefix + "field" + FILENAME_ENDING, w);
 
       // NOTE we ignore local features and local baseline
-      weights = mix_prior.r.array() / mix_prior.p.array();
+      w = mix_prior.r.array() / mix_prior.p.array();
       Vector meanColSums = colSums<Vector>(phi_r.array() / phi_p.array());
       for (size_t t = 0; t < T; ++t)
-        weights(t) *= meanColSums(t);
-      print_field_matrix(prefix + "expfield" + FILENAME_ENDING, weights);
+        w(t) *= meanColSums(t);
+      // print weighted field
+      print_field_matrix(prefix + "expfield" + FILENAME_ENDING, w);
     }
   }
   for (size_t e = 0; e < E; ++e) {
@@ -124,426 +141,13 @@ void Model::restore(const string &prefix) {
                              read_matrix, "\t");
   phi_p = parse_file<Matrix>(prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
                              read_matrix, "\t");
+  // TODO restore mix prior
+  // TODO restore fields
   for (size_t e = 0; e < E; ++e) {
     string exp_prefix = prefix + "experiment"
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].restore(exp_prefix);
   }
-}
-
-template <typename Fnc, typename Grad>
-void optimize_newton_raphson(const string &tag, double &x, Fnc func,
-                             Grad grad) {
-  auto fnc = [&](double r) {
-    double fn = func(r);
-    double gr = grad(r);
-    if (noisy)
-      LOG(debug) << "local fnc/grad = " << fn << "/" << gr;
-    return pair<double, double>(fn, gr);
-  };
-
-  if (noisy)
-    LOG(debug) << "BEFORE: " << tag << "=" << x << " f=" << func(x);
-
-  boost::uintmax_t it = NewtonRaphson::max_iter;
-  double guess = x;
-  x = boost::math::tools::newton_raphson_iterate(
-      fnc, guess, NewtonRaphson::lower, guess * 100, NewtonRaphson::get_digits,
-      it);
-  if (it >= NewtonRaphson::max_iter) {
-    LOG(fatal) << "Unable to locate solution for " << tag << " in "
-               << NewtonRaphson::max_iter << " iterations.";
-    LOG(fatal) << "prev=" << guess << " f(prev)=" << func(guess) << " cur=" << x
-               << " f(cur)=" << func(x);
-
-    if (abort_on_fatal_errors)
-      exit(-1);
-  }
-
-  bool reached_upper = x >= NewtonRaphson::upper;
-
-  if (noisy)
-    LOG(debug) << "AFTER: " << tag << "=" << x << " f=" << func(x);
-
-  if (reached_upper) {
-    LOG(fatal) << "Error: reached upper limit for " << tag << "!";
-    if (abort_on_fatal_errors)
-      exit(-1);
-  }
-}
-
-void Model::sample_local_r(size_t g, const vector<Matrix> counts_gst,
-                           const Matrix &experiment_counts_gt,
-                           const Matrix &experiment_theta_marginals,
-                           mt19937 &rng) {
-  const double a = parameters.hyperparameters.phi_r_1;
-  const double b = parameters.hyperparameters.phi_r_2;
-  for (size_t t = 0; t < T; ++t) {
-    double A = a * 50;
-    double B = b * 50;
-
-    for (size_t e = 0; e < E; ++e) {
-      double theta_marginal = experiment_theta_marginals(e, t)
-                              * experiments[e].phi_b(g) * phi_r(g, t);
-
-      if (experiment_counts_gt(e, t) == 0) {
-        if (noisy)
-          LOG(debug) << "Gibbs sampling local r of (" << g << ", " << t
-                     << ") for experiment " << e << ": "
-                     << experiments[e].counts.row_names[g];
-
-        experiments[e].phi_l(g, t) = gamma_distribution<Float>(
-            A, 1.0 / (B
-                      - theta_marginal
-                            * log(1 - neg_odds_to_prob(phi_p(g, t)))))(rng);
-
-        if (noisy)
-          LOG(debug) << "local r= " << experiments[e].phi_l(g, t);
-      } else {
-        if (noisy)
-          LOG(debug) << "t = " << t << " experiment_counts_gt(e,t) = "
-                     << experiment_counts_gt(e, t);
-        auto fn0 = [&](double r) {
-          if (noisy)
-            LOG(debug) << "g/t/e = " << g << "/" << t << "/" << e << " r=" << r;
-
-          const double no = phi_p(g, t);
-          double fnc = theta_marginal * (log(no) - log(1 + no));
-          for (size_t s = 0; s < experiments[e].S; ++s) {
-            double prod = experiments[e].phi_b(g) * phi_r(g, t)
-                          * experiments[e].theta(s, t) * experiments[e].spot(s);
-            fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
-          }
-
-          if (not parameters.ignore_priors)
-            fnc += (A - 1) / r - B;
-
-          return fnc;
-        };
-
-        auto gr0 = [&](double r) {
-          double grad = 0;
-          for (size_t s = 0; s < experiments[e].S; ++s) {
-            double prod = experiments[e].phi_b(g) * phi_r(g, t)
-                          * experiments[e].theta(s, t) * experiments[e].spot(s);
-            double prod_sq = prod * prod;
-            grad += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
-          }
-
-          if (not parameters.ignore_priors)
-            grad += -(A - 1) / r / r;
-
-          return grad;
-        };
-
-        optimize_newton_raphson("local r", experiments[e].phi_l(g, t), fn0,
-                                gr0);
-      }
-    }
-  }
-}
-
-void Model::sample_contributions(bool do_global_features,
-                                 bool do_local_features, bool do_theta,
-                                 bool do_baseline) {
-  // for (auto &experiment : experiments)
-  //  experiment.weights.matrix.ones();
-  for (auto &experiment : experiments)
-    experiment.spot.setOnes();
-
-  const double a = parameters.hyperparameters.phi_r_1;
-  const double b = parameters.hyperparameters.phi_r_2;
-  const double alpha = parameters.hyperparameters.phi_p_1;
-  const double beta = parameters.hyperparameters.phi_p_2;
-
-  Matrix experiment_theta_marginals = Matrix::Zero(E, T);
-  for (size_t e = 0; e < E; ++e)
-    for (size_t s = 0; s < experiments[e].S; ++s)
-      experiment_theta_marginals.row(e)
-          += experiments[e].spot(s) * experiments[e].weights.matrix.row(s);
-
-  do_local_features = do_local_features and E > 1;
-
-  if (do_global_features or do_local_features or do_baseline)
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    auto rng = EntropySource::rngs[omp_get_thread_num()];
-
-#pragma omp for
-    for (size_t g = 0; g < G; ++g) {
-      vector<Matrix> counts_gst;
-
-      Matrix experiment_counts_gt = Matrix::Zero(E, T);
-      for (size_t e = 0; e < E; ++e) {
-        auto exp_counts = experiments[e].sample_contributions_gene(g, rng);
-        experiment_counts_gt.row(e) = colSums<Vector>(exp_counts);
-        counts_gst.push_back(exp_counts);
-      }
-
-      contributions_gene(g) = 0;
-      for (size_t t = 0; t < T; ++t)
-        contributions_gene_type(g, t) = 0;
-      for (size_t e = 0; e < E; ++e)
-        for (size_t t = 0; t < T; ++t)
-          for (size_t s = 0; s < experiments[e].S; ++s) {
-            contributions_gene(g) += counts_gst[e](s, t);
-            contributions_gene_type(g, t) += counts_gst[e](s, t);
-          }
-
-      if (do_global_features and parameters.targeted(Target::global))
-        for (size_t t = 0; t < T; ++t) {
-          double cs = 0;
-          for (size_t e = 0; e < E; ++e)
-            cs += experiment_counts_gt(e, t);
-
-          double theta_marginal = 0;
-          for (size_t e = 0; e < E; ++e)
-            theta_marginal += experiment_theta_marginals(e, t)
-                              * experiments[e].phi_b(g)
-                              * experiments[e].phi_l(g, t);
-
-          auto r2p = [&](double r) {
-            return (alpha + contributions_gene_type(g, t) - 1)
-                   / (alpha + contributions_gene_type(g, t) + beta
-                      + r * theta_marginal - 2);
-          };
-          auto r2no = [&](double r) {
-            return (beta + r * theta_marginal - 1)
-                   / (alpha + contributions_gene_type(g, t) - 1);
-          };
-
-          if (cs == 0) {
-            if (noisy)
-              LOG(debug) << "Gibbs sampling r and p of (" << g << ", " << t
-                         << "): " << experiments[0].counts.row_names[g];
-
-            phi_r(g, t) = gamma_distribution<Float>(
-                a, 1.0 / (b
-                          - theta_marginal
-                                * log(1 - neg_odds_to_prob(phi_p(g, t)))))(rng);
-
-            if (parameters.p_empty_map)
-              // when this is used the r/p values lie along a curve, separated
-              // from the MAP estimated ones
-              phi_p(g, t) = r2no(phi_r(g, t));
-            else
-              // even when this is used the r/p values are somewhat separated
-              // from the other values
-              phi_p(g, t) = prob_to_neg_odds(sample_beta<Float>(
-                  alpha, beta + phi_r(g, t) * theta_marginal, rng));
-
-            if (noisy)
-              LOG(debug) << "r/p= " << phi_r(g, t) << "/" << phi_p(g, t);
-          } else {
-            if (noisy)
-              LOG(debug) << "t = " << t << " cs = " << cs;
-            auto fn0 = [&](double r) {
-              const double p = r2p(r);
-              if (noisy)
-                LOG(debug) << "g/t = " << g << "/" << t << " r=" << r
-                           << " p=" << p;
-
-              const double no = r2no(r);
-              double fnc = theta_marginal * (log(no) - log(1 + no));
-              for (size_t e = 0; e < E; ++e)
-                for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod
-                      = experiments[e].phi_b(g) * experiments[e].phi_l(g, t)
-                        * experiments[e].theta(s, t) * experiments[e].spot(s);
-                  fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
-                }
-
-              if (not parameters.ignore_priors)
-                fnc += (a - 1) / r - b;
-
-              return fnc;
-            };
-
-            auto gr0 = [&](double r) {
-              double grad = 0;
-              for (size_t e = 0; e < E; ++e)
-                for (size_t s = 0; s < experiments[e].S; ++s) {
-                  double prod
-                      = experiments[e].phi_b(g) * experiments[e].phi_l(g, t)
-                        * experiments[e].theta(s, t) * experiments[e].spot(s);
-                  double prod_sq = prod * prod;
-                  grad
-                      += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
-                }
-
-              if (not parameters.ignore_priors)
-                grad += -(a - 1) / r / r;
-
-              return grad;
-            };
-
-            optimize_newton_raphson("global feature r", phi_r(g, t), fn0, gr0);
-            phi_p(g, t) = r2no(phi_r(g, t));
-          }
-        }
-
-      // baseline feature
-
-      if (do_baseline and parameters.targeted(Target::baseline)) {
-        double A = a * 50;
-        double B = b * 50;
-
-        for (size_t e = 0; e < E; ++e) {
-          vector<double> theta_marginals(T);
-          double theta_marginal = 0;
-          for (size_t t = 0; t < T; ++t) {
-            theta_marginal += theta_marginals[t]
-                = experiment_theta_marginals(e, t) * experiments[e].phi_l(g, t)
-                  * phi_r(g, t);
-          }
-
-          auto fn0 = [&](double r) {
-            if (noisy)
-              LOG(debug) << "g/e = " << g << "/" << e << " r=" << r;
-
-            double fnc = 0;
-            for (size_t t = 0; t < T; ++t) {
-              const double no = phi_p(g, t);
-              fnc += theta_marginals[t] * (log(no) - log(1 + no));
-              for (size_t s = 0; s < experiments[e].S; ++s) {
-                double prod = experiments[e].phi_l(g, t) * phi_r(g, t)
-                              * experiments[e].theta(s, t)
-                              * experiments[e].spot(s);
-                fnc += prod * digamma_diff(r * prod, counts_gst[e](s, t));
-              }
-            }
-
-            if (not parameters.ignore_priors)
-              fnc += (A - 1) / r - B;
-
-            return fnc;
-          };
-
-          auto gr0 = [&](double r) {
-            double grad = 0;
-            for (size_t t = 0; t < T; ++t)
-              for (size_t s = 0; s < experiments[e].S; ++s) {
-                double prod = experiments[e].phi_l(g, t) * phi_r(g, t)
-                              * experiments[e].theta(s, t)
-                              * experiments[e].spot(s);
-                double prod_sq = prod * prod;
-                grad += prod_sq * trigamma_diff(r * prod, counts_gst[e](s, t));
-              }
-
-            if (not parameters.ignore_priors)
-              grad += -(A - 1) / r / r;
-
-            return grad;
-          };
-
-          optimize_newton_raphson("local feature baseline r",
-                                  experiments[e].phi_b(g), fn0, gr0);
-        }
-      }
-
-      // local features
-
-      if (do_local_features and parameters.targeted(Target::local))
-        sample_local_r(g, counts_gst, experiment_counts_gt,
-                       experiment_theta_marginals, rng);
-    }
-  }
-  update_contributions();
-
-  // theta
-  if (do_theta and parameters.targeted(Target::theta))
-#pragma omp parallel if (DO_PARALLEL)
-  {
-    auto rng = EntropySource::rngs[omp_get_thread_num()];
-
-    for (auto &experiment : experiments) {
-#pragma omp for
-      for (size_t s = 0; s < experiment.S; ++s) {
-        auto counts_gst = experiment.sample_contributions_spot(s, rng);
-        auto cs = colSums<Vector>(counts_gst);
-
-        for (size_t t = 0; t < T; ++t)
-          if (cs[t] == 0) {
-            if (noisy)
-              LOG(debug) << "Gibbs sampling theta(" << s << ", " << t << ").";
-            double marginal = 0;
-            for (size_t g = 0; g < G; ++g)
-              marginal += experiment.phi_b(g) * phi_r(g, t)
-                          * experiment.phi_l(g, t)
-                          * log(1 - neg_odds_to_prob(phi_p(g, t)));
-            marginal *= experiment.spot(s);
-            experiment.theta(s, t) = gamma_distribution<Float>(
-                mix_prior.r(t), 1.0 / (mix_prior.p(t) - marginal))(rng);
-            if (noisy)
-              LOG(debug) << "theta = " << experiment.theta(s, t);
-          } else {
-            auto fn0 = [&](double x) {
-              double fnc = 0;
-              for (size_t g = 0; g < G; ++g) {
-                if (noisy)
-                  LOG(debug) << "g/s/t = " << g << "/" << s << "/" << t
-                             << " theta=" << x << " r=" << phi_r(g, t)
-                             << " local r=" << experiment.phi_l(g, t)
-                             << " p=" << neg_odds_to_prob(phi_p(g, t))
-                             << " sigma=" << experiment.spot(s);
-
-                // NOTE we don't multiply spot(s) in now, but once at the end
-                double prod = experiment.phi_b(g) * phi_r(g, t)
-                              * experiment.phi_l(g, t);
-
-                fnc += prod * log(1 - neg_odds_to_prob(phi_p(g, t)));
-                fnc += prod * digamma_diff(x * prod * experiment.spot(s),
-                                           counts_gst(g, t));
-              }
-
-              fnc *= experiment.spot(s);
-
-              if (not parameters.ignore_priors)
-                // TODO ensure mix_prior.p is stored as negative odds
-                fnc += (mix_prior.r(t) * experiment.field(s, t) - 1) / x
-                       - mix_prior.p(t);
-
-              return fnc;
-            };
-
-            auto gr0 = [&](double x) {
-              double grad = 0;
-              for (size_t g = 0; g < G; ++g) {
-                // NOTE we don't multiply spot(s) in now, but once at the end
-                double prod = experiment.phi_b(g) * phi_r(g, t)
-                              * experiment.phi_l(g, t);
-                double prod_sq = prod * prod;
-                grad += prod_sq * trigamma_diff(x * prod * experiment.spot(s),
-                                                counts_gst(g, t));
-              }
-
-              grad *= experiment.spot(s) * experiment.spot(s);
-
-              if (not parameters.ignore_priors)
-                // NOTE TODO this needs testing! the minus sign was missing
-                grad += -(mix_prior.r(t) * experiment.field(s, t) - 1) / x / x;
-
-              return grad;
-            };
-
-            optimize_newton_raphson("theta", experiment.theta(s, t), fn0, gr0);
-          }
-      }
-    }
-  }
-  update_contributions();
-
-  enforce_positive_parameters();
-
-  if (parameters.targeted(Target::theta_prior))
-    sample_global_theta_priors();
-
-  enforce_positive_parameters();
-
-  if (parameters.targeted(Target::field))
-    update_fields();
-
-  enforce_positive_parameters();
 }
 
 Matrix Model::field_fitness_posterior_gradient(const Matrix &f) const {
@@ -558,6 +162,480 @@ Matrix Model::field_fitness_posterior_gradient(const Matrix &f) const {
   return grad;
 }
 
+void Model::set_zero() {
+  phi_r.setZero();
+  phi_p.setZero();
+  for (auto &coord_sys : coordinate_systems)
+    coord_sys.field.setZero();
+  mix_prior.r.setZero();
+  mix_prior.p.setZero();
+  for (auto &experiment : experiments)
+    experiment.set_zero();
+}
+
+size_t Model::size() const {
+  size_t s = 0;
+  if (parameters.targeted(Target::global))
+    s += phi_r.size();
+  if (parameters.targeted(Target::variance))
+    s += phi_p.size();
+  if (parameters.targeted(Target::theta_prior))
+    s += mix_prior.r.size() + mix_prior.p.size();
+  if (parameters.targeted(Target::field))
+    for (auto &coord_sys : coordinate_systems)
+      s += coord_sys.field.size();
+  for (auto &experiment : experiments)
+    s += experiment.size();
+  return s;
+}
+
+Vector Model::vectorize() const {
+  Vector v(size());
+  auto iter = begin(v);
+
+  if (parameters.targeted(Target::global))
+    for (auto &x : phi_r)
+      *iter++ = x;
+
+  if (parameters.targeted(Target::variance))
+    for (auto &x : phi_p)
+      *iter++ = x;
+
+  if (parameters.targeted(Target::field))
+    for (auto &coord_sys : coordinate_systems)
+      for (auto &x : coord_sys.field)
+        *iter++ = x;
+
+  if (parameters.targeted(Target::theta_prior)) {
+    for (auto &x : mix_prior.r)
+      *iter++ = x;
+    for (auto &x : mix_prior.p)
+      *iter++ = x;
+  }
+
+  for (auto &experiment : experiments)
+    for (auto &x : experiment.vectorize())
+      *iter++ = x;
+
+  assert(iter == end(v));
+
+  return v;
+}
+
+Model Model::compute_gradient(double &score) const {
+  LOG(verbose) << "Computing gradient";
+  score = 0;
+  Model gradient = *this;
+  gradient.set_zero();
+  gradient.contributions_gene_type.setZero();
+  for (auto &experiment : gradient.experiments)
+    experiment.contributions_spot_type.setZero();
+  if (parameters.targeted(Target::global)
+      or parameters.targeted(Target::variance)
+      or parameters.targeted(Target::local)
+      or parameters.targeted(Target::baseline)
+      or parameters.targeted(Target::theta)
+      or parameters.targeted(Target::spot))
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    Model grad = *this;
+    grad.set_zero();
+    auto rng = EntropySource::rngs[omp_get_thread_num()];
+    double score_ = 0;
+
+#pragma omp for
+    for (size_t g = 0; g < G; ++g)
+      for (auto &coord_sys : coordinate_systems)
+        for (auto e : coord_sys.members)
+          for (size_t s = 0; s < experiments[e].S; ++s)
+            if (RandomDistribution::Uniform(rng)
+                >= parameters.dropout_gene_spot) {
+              auto cnts
+                  = experiments[e].sample_contributions_gene_spot(g, s, rng);
+              for (size_t t = 0; t < T; ++t)
+                score += log_negative_binomial(
+                    cnts[t],
+                    phi_r(g, t) * experiments[e].phi_b(g)
+                        * experiments[e].phi_l(g, t)
+                        * experiments[e].theta(s, t) * experiments[e].spot(s),
+                    neg_odds_to_prob(phi_p(g, t)));
+              register_gradient(g, e, s, cnts, grad);
+            }
+#pragma omp critical
+    {
+      gradient = gradient + grad;
+      score += score_;
+    }
+  }
+
+  gradient.update_contributions();
+
+  // TODO calculate gradient & score for theta.prior.r
+  // TODO calculate gradient & score for theta.prior.p
+
+  if (parameters.targeted(Target::field))
+    for (size_t c = 0; c < coordinate_systems.size(); ++c)
+      score
+          += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
+                            gradient.coordinate_systems[c].field);
+
+  LOG(verbose) << "Score = " << score;
+
+  LOG(verbose) << "Finalizing gradient";
+  if (not parameters.ignore_priors)
+    finalize_gradient(gradient);
+  score += param_likel();
+  LOG(verbose) << "Final Score = " << score;
+
+  return gradient;
+}
+
+void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
+                              Model &gradient) const {
+  for (size_t t = 0; t < T; ++t)
+    gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
+  for (size_t t = 0; t < T; ++t)
+    gradient.experiments[e].contributions_spot_type(s, t) += cnts[t];
+
+  for (size_t t = 0; t < T; ++t) {
+    const double no = phi_p(g, t);
+    // const double p = neg_odds_to_prob(no);
+    const double log_one_minus_p = odds_to_log_prob(no);
+    // const double log_one_minus_p2 = log(1 - neg_odds_to_prob(no));
+    // assert(log_one_minus_p == log_one_minus_p2);
+    const double r = phi_r(g, t) * experiments[e].phi_l(g, t)
+                     * experiments[e].phi_b(g) * experiments[e].theta(s, t)
+                     * experiments[e].spot(s);
+    const double k = cnts[t];
+    const double term = r * (log_one_minus_p + digamma_diff(r, k));
+    // = r * (log(odds_to_prob(no)) + digamma_diff(r, k));
+    gradient.phi_r(g, t) += term;
+    gradient.experiments[e].phi_l(g, t) += term;
+    gradient.experiments[e].phi_b(g) += term;
+    gradient.experiments[e].theta(s, t) += term;
+    gradient.experiments[e].spot(s) += term;
+
+    if (plain_gradient)
+      gradient.phi_p(g, t) += -(k * no - r) / (no * no + no);
+    else {
+      const double p = neg_odds_to_prob(no);
+      gradient.phi_p(g, t) += p * (r + k) - k;
+      // // gradient.phi_p(g, t) += -(k * p - r) / (p + 1);
+      // gradient.phi_p(g, t) += -(k * no - r) / (no + 1);
+      // // gradient.phi_p(g, t) += k / p + r / (1 - p);
+    }
+  }
+}
+
+void Model::finalize_gradient(Model &gradient) const {
+  if (parameters.targeted(Target::global)) {
+    if (plain_gradient)
+      gradient.phi_r = gradient.phi_r.array() / phi_r.array();
+    const double a = parameters.hyperparameters.phi_r_1;
+    const double b = parameters.hyperparameters.phi_r_2;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        if (plain_gradient)
+          gradient.phi_r(g, t) += (a - 1) / phi_r(g, t) - b;
+        else
+          gradient.phi_r(g, t) += (a - 1) - phi_r(g, t) * b;
+  }
+
+  if (parameters.targeted(Target::variance)) {
+    const double a = parameters.hyperparameters.phi_p_1;
+    const double b = parameters.hyperparameters.phi_p_2;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t) {
+        const double no = phi_p(g, t);
+        if (plain_gradient)
+          gradient.phi_p(g, t) += -((a - 1) * no - (b - 1)) / (no * no + no);
+        // gradient.phi_p(g, t) += -(a * no - b) / (no * no + no);
+        else {
+          const double p = neg_odds_to_prob(no);
+          gradient.phi_p(g, t) += (a + b - 2) * p - a + 1;
+          // gradient.phi_p(g, t) += -((a - 1) * p - (b - 1)) / (p + 1);
+          // // gradient.phi_p(g, t) += -((a - 1) * no - (b - 1)) / (no + 1);
+        }
+      }
+  }
+
+  if (parameters.targeted(Target::local)) {
+    const double a = parameters.hyperparameters.local_phi_r_1;
+    const double b = parameters.hyperparameters.local_phi_r_2;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members) {
+        if (plain_gradient)
+          gradient.experiments[e].phi_l = gradient.experiments[e].phi_l.array()
+                                          / experiments[e].phi_l.array();
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t g = 0; g < G; ++g)
+          for (size_t t = 0; t < T; ++t)
+            if (plain_gradient)
+              gradient.experiments[e].phi_l(g, t)
+                  += (a - 1) / experiments[e].phi_l(g, t) - b;
+            else
+              gradient.experiments[e].phi_l(g, t)
+                  += (a - 1) - experiments[e].phi_l(g, t) * b;
+      }
+  }
+
+  if (parameters.targeted(Target::baseline)) {
+    const double a = parameters.hyperparameters.baseline_1;
+    const double b = parameters.hyperparameters.baseline_2;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members) {
+        if (plain_gradient)
+          gradient.experiments[e].phi_b = gradient.experiments[e].phi_b.array()
+                                          / experiments[e].phi_b.array();
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t g = 0; g < G; ++g)
+          if (plain_gradient)
+            gradient.experiments[e].phi_b(g)
+                += (a - 1) / experiments[e].phi_b(g) - b;
+          else
+            gradient.experiments[e].phi_b(g)
+                += (a - 1) - experiments[e].phi_b(g) * b;
+      }
+  }
+
+  if (parameters.targeted(Target::theta))
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members) {
+        if (plain_gradient)
+          gradient.experiments[e].theta = gradient.experiments[e].theta.array()
+                                          / experiments[e].theta.array();
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          for (size_t t = 0; t < T; ++t) {
+            const double a = mix_prior.r(t);
+            const double b = mix_prior.p(t);
+            if (plain_gradient)
+              gradient.experiments[e].theta(s, t)
+                  += (a - 1) / experiments[e].theta(s, t) - b;
+            else
+              gradient.experiments[e].theta(s, t)
+                  += (a - 1) - experiments[e].theta(s, t) * b;
+          }
+      }
+
+  if (parameters.targeted(Target::spot)) {
+    const double a = parameters.hyperparameters.spot_a;
+    const double b = parameters.hyperparameters.spot_b;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members) {
+        if (plain_gradient)
+          gradient.experiments[e].spot = gradient.experiments[e].spot.array()
+                                         / experiments[e].spot.array();
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          if (plain_gradient)
+            gradient.experiments[e].spot(s)
+                += (a - 1) / experiments[e].spot(s) - b;
+          else
+            gradient.experiments[e].spot(s)
+                += (a - 1) - experiments[e].spot(s) * b;
+      }
+  }
+
+  if (parameters.targeted(Target::theta_prior)) {
+    gradient.mix_prior.r.setZero();
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members)
+        for (size_t t = 0; t < T; ++t) {
+          const double r = mix_prior.r(t);
+          const double no = mix_prior.p(t);
+          double x = 0;
+#pragma omp parallel for if (DO_PARALLEL)
+          // const double p = neg_odds_to_prob(no); // TODO NOW remove
+          for (size_t s = 0; s < experiments[e].S; ++s)
+            x += log(experiments[e].theta(s, t));
+          // x += experiments[e].S * (neg_odds_to_log_prob(no) - digamma(r));
+          x += experiments[e].S * (log(no) - digamma(r));
+          x *= r;
+          gradient.mix_prior.r(t) += x;
+          /*
+             gradient.experiments[e].weights.prior.r
+             = experiments[e].weights.prior.r.array()
+             * (colSums(experiments[e].weights.matrix.array().log()
+             - S * experiments[e].weights.prior.p.array().log()));
+           */
+        }
+
+    const double a = parameters.hyperparameters.theta_r_1;
+    const double b = parameters.hyperparameters.theta_r_2;
+    for (size_t t = 0; t < T; ++t)
+      gradient.mix_prior.r(t) += a - 1 - b * mix_prior.r(t);
+  }
+}
+
+// calculate parameter's likelihood
+double Model::param_likel() const {
+  double score = 0;
+  if (parameters.targeted(Target::global)) {
+    const double a = parameters.hyperparameters.phi_r_1;
+    const double b = parameters.hyperparameters.phi_r_2;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        // NOTE: gamma distribution takes a shape parameter
+        score += log_gamma(phi_r(g, t), a, 1.0 / b);
+  }
+
+  if (parameters.targeted(Target::local)) {
+    const double a = parameters.hyperparameters.local_phi_r_1;
+    const double b = parameters.hyperparameters.local_phi_r_2;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members)
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t g = 0; g < G; ++g)
+          for (size_t t = 0; t < T; ++t)
+            // NOTE: gamma distribution takes a shape parameter
+            score += log_gamma(experiments[e].phi_l(g, t), a, 1.0 / b);
+  }
+
+  if (parameters.targeted(Target::baseline)) {
+    const double a = parameters.hyperparameters.baseline_1;
+    const double b = parameters.hyperparameters.baseline_2;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members)
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t g = 0; g < G; ++g)
+          // NOTE: gamma distribution takes a shape parameter
+          score += log_gamma(experiments[e].phi_b(g), a, 1.0 / b);
+  }
+
+  if (parameters.targeted(Target::theta))
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members)
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          for (size_t t = 0; t < T; ++t) {
+            const double a = mix_prior.r(t);
+            const double b = mix_prior.p(t);
+            // TODO figure how to store p! as negative odds?
+            // NOTE: gamma distribution takes a shape parameter
+            score += log_gamma(experiments[e].theta(s, t), a, 1.0 / b);
+          }
+
+  if (parameters.targeted(Target::spot)) {
+    const double a = parameters.hyperparameters.spot_a;
+    const double b = parameters.hyperparameters.spot_b;
+    for (auto &coord_sys : coordinate_systems)
+      for (auto e : coord_sys.members)
+#pragma omp parallel for if (DO_PARALLEL)
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          score += log_gamma(experiments[e].spot(s), a, 1.0 / b);
+  }
+
+  if (parameters.targeted(Target::variance)) {
+    const double a = parameters.hyperparameters.phi_p_1;
+    const double b = parameters.hyperparameters.phi_p_2;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t) {
+        const double no = phi_p(g, t);
+        score += log_beta_neg_odds(no, a, b);
+      }
+  }
+
+  return score;
+}
+
+void Model::gradient_update() {
+  LOG(verbose) << "Performing gradient update iteration";
+
+  size_t iter_cnt = 0;
+
+  auto fnc = [&](const Vector &x, Vector &grad) {
+    if (((iter_cnt++) % parameters.report_interval) == 0) {
+      const size_t iteration_num_digits
+          = 1 + floor(log(parameters.grad_iterations) / log(10));
+      store("iter" + to_string_embedded(iter_cnt - 1, iteration_num_digits)
+            + "/");
+    }
+
+    from_log_vector(begin(x));
+    double score = 0;
+    Model model_grad = compute_gradient(score);
+    grad = model_grad.vectorize();
+    contributions_gene_type = model_grad.contributions_gene_type;
+    for (size_t e = 0; e < E; ++e)
+      experiments[e].contributions_spot_type
+          = model_grad.experiments[e].contributions_spot_type;
+
+    if (parameters.optim_method == Optimize::Method::lBFGS) {
+      // as for lBFGS we want to minimize, we have to negate
+      score = -score;
+    }
+
+    LOG(verbose) << "score: " << score;
+    LOG(verbose) << "x: " << endl << Stats::summary(x);
+    LOG(verbose) << "grad: " << endl << Stats::summary(grad);
+
+    if (plain_gradient) {
+      // multiply w current parameters to compute gradient of exp-transform
+      grad = grad.array() * x.array().exp();
+
+      LOG(verbose) << "exp grad: " << endl << Stats::summary(grad);
+    }
+
+    return score;
+  };
+
+  Vector x = vectorize().array().log();
+
+  LOG(verbose) << "x.size() = " << x.size();
+  for (size_t i = 0; i < 10; i++)
+    LOG(verbose) << "x[" << i << "] = " << x[i];
+  LOG(verbose) << "initial x: " << endl << Stats::summary(x);
+
+  double fx;
+  switch (parameters.optim_method) {
+    case Optimize::Method::RPROP: {
+      Vector grad;
+      Vector prev_sign(Vector::Zero(x.size()));
+      Vector rates(x.size());
+      rates.fill(parameters.grad_alpha);
+      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+        fx = fnc(x, grad);
+        rprop_update(grad, prev_sign, rates, x);
+      }
+    } break;
+    case Optimize::Method::Gradient: {
+      double alpha = parameters.grad_alpha;
+      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+        Vector grad;
+        fx = fnc(x, grad);
+        x = x + alpha * grad;
+        LOG(verbose) << "iter " << iter << " alpha: " << alpha;
+        LOG(verbose) << "iter " << iter << " fx: " << fx;
+        LOG(verbose) << "iter " << iter << " x: " << endl << Stats::summary(x);
+
+        alpha *= parameters.grad_anneal;
+      }
+    } break;
+    case Optimize::Method::lBFGS: {
+      using namespace LBFGSpp;
+      LBFGSParam<double> param;
+      param.epsilon = parameters.lbfgs_epsilon;
+      param.max_iterations = parameters.lbfgs_iter;
+      // Create solver and function object
+      LBFGSSolver<double> solver(param);
+
+      int niter = solver.minimize(fnc, x, fx);
+
+      LOG(verbose) << "LBFGS performed " << niter << " iterations";
+    } break;
+  }
+  LOG(verbose) << "Final f(x) = " << fx;
+
+  from_log_vector(begin(x));
+  update_experiment_fields();
+}
+
+// TODO remove - kept for now in order to understand how field_gradient() was used
 void Model::update_fields() {
   LOG(verbose) << "Updating fields";
 
@@ -587,11 +665,21 @@ void Model::update_fields() {
       for (size_t i = 0; i < NT; ++i)
         field(i) = exp(field_(i));
       Matrix grad;
+      LOG(debug) << "grad.rows() = " << grad.rows();
+      LOG(debug) << "grad.cols() = " << grad.cols();
+      // TODO XXX WARNING the gradient and function now have the opposite
+      // sign;
+      // this needs fixing!
+      assert(false);
       double score = field_gradient(coord_sys, field, grad);
+      LOG(debug) << "grad.rows() = " << grad.rows();
+      LOG(debug) << "grad.cols() = " << grad.cols();
       for (size_t i = 0; i < NT; ++i)
         // NOTE multiply w field to compute gradient of exp-transform
         grad_(i) = grad(i) * field(i);
-      if (((call_cnt++) % parameters.lbfgs_report_interval) == 0) {
+      LOG(debug) << "grad.rows() = " << grad.rows();
+      LOG(debug) << "grad.cols() = " << grad.cols();
+      if (((call_cnt++) % parameters.report_interval) == 0) {
         LOG(debug) << "Field score = " << score;
         LOG(debug) << "field: " << endl << Stats::summary(field);
         LOG(debug) << "grad: " << endl << Stats::summary(grad);
@@ -613,12 +701,13 @@ void Model::update_fields() {
     LOG(verbose) << "LBFGS achieved f(x) = " << fx;
     LOG(verbose) << "LBFGS field summary: " << endl
                  << Stats::summary(coord_sys.field);
+    LOG(verbose) << "Done updating coordinate system";
   }
   update_experiment_fields();
 }
 
-double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
-                             Matrix &grad) const {
+double Model::field_gradient(const CoordinateSystem &coord_sys,
+                             const Matrix &field, Matrix &grad) const {
   LOG(debug) << "field dim " << field.rows() << "x" << field.cols();
   double score = 0;
 
@@ -626,9 +715,9 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
   size_t cumul = 0;
   for (auto member : coord_sys.members) {
     const size_t current_S = experiments[member].S;
-    double s = -experiments[member]
-                    .field_fitness_posterior(field.middleRows(cumul, current_S))
-                    .sum();
+    double s = experiments[member]
+                   .field_fitness_posterior(field.middleRows(cumul, current_S))
+                   .sum();
     LOG(debug) << "Fitness contribution to score of sample " << member << ": "
                << s;
     score += s;
@@ -642,7 +731,7 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
 
   grad = Matrix::Zero(coord_sys.N, T);
 
-  grad.topRows(coord_sys.S) = -fitness;
+  grad.topRows(coord_sys.S) = fitness;
 
   if (parameters.field_lambda_dirichlet != 0) {
     Matrix grad_dirichlet = Matrix::Zero(coord_sys.N, T);
@@ -650,13 +739,13 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
       grad_dirichlet.col(t)
           = coord_sys.mesh.grad_dirichlet_energy(Vector(field.col(t)));
 
-      double s = parameters.field_lambda_dirichlet
+      double s = -parameters.field_lambda_dirichlet
                  * coord_sys.mesh.sum_dirichlet_energy(Vector(field.col(t)));
       score += s;
       LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
                  << s;
     }
-    grad = grad + grad_dirichlet * parameters.field_lambda_dirichlet;
+    grad = grad - grad_dirichlet * parameters.field_lambda_dirichlet;
   }
 
   if (parameters.field_lambda_laplace != 0) {
@@ -665,13 +754,13 @@ double Model::field_gradient(CoordinateSystem &coord_sys, const Matrix &field,
       grad_laplace.col(t)
           = coord_sys.mesh.grad_sq_laplace_operator(Vector(field.col(t)));
 
-      double s = parameters.field_lambda_laplace
+      double s = -parameters.field_lambda_laplace
                  * coord_sys.mesh.sum_sq_laplace_operator(Vector(field.col(t)));
       score += s;
       LOG(debug) << "Curvature contribution to score of factor " << t << ": "
                  << s;
     }
-    grad = grad + grad_laplace * parameters.field_lambda_laplace;
+    grad = grad - grad_laplace * parameters.field_lambda_laplace;
   }
 
   LOG(debug) << "Fitness and smoothness score: " << score;
@@ -686,37 +775,6 @@ void Model::enforce_positive_parameters() {
   enforce_positive_and_warn("phi_p", phi_p);
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
-}
-
-void Model::sample_global_theta_priors() {
-  // TODO refactor
-  Matrix observed(S, T);
-  size_t cumul = 0;
-  for (auto &experiment : experiments) {
-    observed.middleRows(cumul, experiment.S) = experiment.weights.matrix;
-    cumul += experiment.S;
-  }
-
-  if (parameters.normalize_spot_stats) {
-    auto rs = rowSums<Vector>(observed);
-    for (size_t t = 0; t < T; ++t)
-      observed.col(t).array() /= rs.array();
-  }
-
-  Matrix field(S, T);
-  cumul = 0;
-  for (auto &experiment : experiments) {
-    field.middleRows(cumul, experiment.S) = experiment.field;
-    cumul += experiment.S;
-  }
-
-  mix_prior.sample(observed, field);
-
-  for (auto &experiment : experiments)
-    experiment.weights.prior = mix_prior;
-
-  min_max("weights r", mix_prior.r);
-  min_max("weights p", mix_prior.p);
 }
 
 double Model::log_likelihood(const string &prefix) const {
@@ -846,18 +904,11 @@ void Model::initialize_coordinate_systems(double v) {
                    + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
     coord_sys_idx++;
     S += coord_sys.S;
-    N += coord_sys.N;
   }
 }
 
 void Model::add_experiment(const Counts &counts, size_t coord_sys) {
-  Parameters experiment_parameters = parameters;
-  const double factor = parameters.local_phi_scaling_factor;
-  experiment_parameters.hyperparameters.phi_p_1 *= factor;
-  experiment_parameters.hyperparameters.phi_r_1 *= factor;
-  experiment_parameters.hyperparameters.phi_p_2 *= factor;
-  experiment_parameters.hyperparameters.phi_r_2 *= factor;
-  experiments.push_back({this, counts, T, experiment_parameters});
+  experiments.push_back({this, counts, T, parameters});
   E++;
   while (coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});

@@ -51,7 +51,7 @@ struct Experiment {
   Vector phi_b;
 
   /** factor score matrix */
-  Theta weights;
+  Matrix theta;
   Matrix field;
 
   /** spot scaling vector */
@@ -67,9 +67,6 @@ struct Experiment {
 
   Matrix log_likelihood() const;
 
-  inline Float &theta(size_t s, size_t t) { return weights.matrix(s, t); };
-  inline Float theta(size_t s, size_t t) const { return weights.matrix(s, t); };
-
   Matrix field_fitness_posterior(const Matrix &candidate_field) const;
   Matrix field_fitness_posterior_gradient(const Matrix &candidate_field) const;
 
@@ -82,23 +79,45 @@ struct Experiment {
   Vector marginalize_spots() const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = baseline_phi(g) global_phi(g,t) sum_s theta(s,t) sigma(s)
-  Matrix explained_gene_type() const;
-  // computes a matrix M(g,t)
   // with M(g,t) = baseline_phi(g) global_phi(g,t) phi(g,t) sum_s theta(s,t)
   // sigma(s)
   Matrix expected_gene_type() const;
   // computes a matrix M(s,t)
-  // with M(s,t) = sigma(s) sum_g baseline_phi(g) phi(g,t) global_phi(g,t)
-  Matrix explained_spot_type() const;
-  // computes a matrix M(s,t)
   // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t)
   // global_phi(g,t)
   Matrix expected_spot_type() const;
-  // computes a vector V(g)
-  // with V(g) = sum_t phi(g,t) global_phi(g,t) sum_s theta(s,t) sigma(s)
-  Vector explained_gene() const;
 
+  size_t size() const;
+  void set_zero();
+  Vector vectorize() const;
+  template <typename Iter>
+  void from_log_vector(Iter &iter) {
+    if (parameters.targeted(Target::local)) {
+      LOG(debug) << "Getting local R from vector";
+      for (auto &x : phi_l)
+        x = exp(*iter++);
+    }
+    if (parameters.targeted(Target::baseline)) {
+      LOG(debug) << "Getting baseline R from vector";
+      for (auto &x : phi_b)
+        x = exp(*iter++);
+    }
+    if (parameters.targeted(Target::theta)) {
+      LOG(debug) << "Getting theta from vector";
+      for (auto &x : theta)
+        x = exp(*iter++);
+    }
+    if (parameters.targeted(Target::field)) {
+      LOG(debug) << "Getting global field from vector";
+      for (auto &x : field)
+        x = exp(*iter++);
+    }
+    if (parameters.targeted(Target::spot)) {
+      LOG(debug) << "Getting spots from vector";
+      for (auto &x : spot)
+        x = exp(*iter++);
+    }
+  }
   std::vector<std::vector<size_t>> active_factors(double threshold = 1.0) const;
 };
 

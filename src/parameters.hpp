@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "compression_mode.hpp"
 #include "target.hpp"
+#include "optimization_method.hpp"
 #include "types.hpp"
 
 namespace STD {
@@ -11,14 +12,17 @@ namespace STD {
 const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
-  Hyperparameters(Float phi_r_1_ = 1, Float phi_r_2_ = 1, Float phi_p_1_ = 2,
-                  Float phi_p_2_ = 2, Float theta_r_1_ = 1,
+  Hyperparameters(Float phi_r_1_ = 1, Float phi_r_2_ = 1,
+                  Float local_phi_r_1_ = 50, Float local_phi_r_2_ = 50,
+                  Float phi_p_1_ = 2, Float phi_p_2_ = 2, Float theta_r_1_ = 1,
                   Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
                   Float theta_p_2_ = 0.95, Float spot_a_ = 10,
-                  Float spot_b_ = 10, Float sigma_ = 1,
-                  Float residual = 100, Float bline1 = 50, Float bline2 = 50)
+                  Float spot_b_ = 10, Float sigma_ = 1, Float residual = 100,
+                  Float bline1 = 50, Float bline2 = 50)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
+        local_phi_r_1(local_phi_r_1_),
+        local_phi_r_2(local_phi_r_2_),
         phi_p_1(phi_p_1_),
         phi_p_2(phi_p_2_),
         theta_r_1(theta_r_1_),
@@ -29,14 +33,17 @@ struct Hyperparameters {
         spot_b(spot_b_),
         sigma(sigma_),
         field_residual_prior(residual),
-        baseline1(bline1),
-        baseline2(bline2){};
+        baseline_1(bline1),
+        baseline_2(bline2){};
 
   // priors for the gamma distribution of r[g][t]
   // Float c0;
   // Float r0;
   Float phi_r_1;
   Float phi_r_2;
+
+  Float local_phi_r_1;
+  Float local_phi_r_2;
 
   // priors for the gamma distribution of p[g][t]
   // Float c;
@@ -60,8 +67,8 @@ struct Hyperparameters {
   /** Prior for the residual mixing weight terms */
   Float field_residual_prior;
 
-  Float baseline1;
-  Float baseline2;
+  Float baseline_1;
+  Float baseline_2;
 };
 
 struct Parameters {
@@ -77,10 +84,7 @@ struct Parameters {
   size_t hmc_L = 5;
   size_t hmc_N = 15;
   bool ignore_priors = false;
-  double local_phi_scaling_factor = 50;
-  double dropout_gene = 0;
-  double dropout_spot = 0;
-  double dropout_anneal = 0.999;
+  double dropout_gene_spot = 0;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
@@ -92,7 +96,12 @@ struct Parameters {
   size_t mesh_additional = 10000;
   double lbfgs_epsilon = 1e-5;
   size_t lbfgs_iter = 100;
-  size_t lbfgs_report_interval = 1000;
+  size_t report_interval = 200;
+
+  Optimize::Method optim_method = Optimize::Method::RPROP;
+  size_t grad_iterations = 10000;
+  double grad_alpha = 1e-2;
+  double grad_anneal = 0.999;
 
   double mesh_hull_enlarge = 1.03;
   double mesh_hull_distance = 2;

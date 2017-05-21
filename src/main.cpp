@@ -17,8 +17,6 @@ struct Options {
   vector<string> tsv_paths;
   size_t num_factors = 20;
   long num_warm_up = -1;
-  size_t num_steps = 2000;
-  size_t report_interval = 200;
   bool intersect = false;
   string load_prefix = "";
   bool compute_likelihood = false;
@@ -55,55 +53,19 @@ struct Moments {
   }
 };
 
-void perform_gibbs_sampling(STD::Model &pfa, const Options &options) {
-  LOG(info) << "Initial model" << endl << pfa;
-  Moments<STD::Model> moments(
-      options.num_warm_up,
-      options.num_warm_up >= 0 ? pfa : STD::Model({}, 0, pfa.parameters,
-                                                  options.share_coord_sys));
-
-  const size_t iteration_num_digits
-      = 1 + floor(log(options.num_steps) / log(10));
-
-  const string initial_prefix
-      = "iter" + to_string_embedded(0, iteration_num_digits) + "/";
-
-  if (boost::filesystem::create_directory(pfa.parameters.output_directory
-                                          + initial_prefix))
-    pfa.store(initial_prefix);
-  else
-    throw(std::runtime_error("Couldn't create directory " + initial_prefix));
-
-  for (size_t iteration = 1; iteration <= options.num_steps; ++iteration) {
-    LOG(info) << "Performing iteration " << iteration;
-
-    pfa.sample_contributions(iteration > 1, iteration > 1, true, iteration > 1);
-    LOG(verbose) << "Current model" << endl << pfa;
-    if (iteration % options.report_interval == 0) {
-      const string prefix
-          = "iter" + to_string_embedded(iteration, iteration_num_digits) + "/";
-      if (boost::filesystem::create_directory(pfa.parameters.output_directory
-                                              + prefix))
-        pfa.store(prefix);
-      else
-        throw(std::runtime_error("Couldn't create directory " + prefix));
-    }
-    moments.update(iteration, pfa);
-  }
-  moments.evaluate(pfa.parameters.output_directory);
-  pfa.store("");
-  if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = "
-              << pfa.log_likelihood(pfa.parameters.output_directory);
-}
-
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
   STD::Model pfa(data_sets, options.num_factors, parameters,
                  options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
-  perform_gibbs_sampling(pfa, options);
+  LOG(info) << "Initial model" << endl << pfa;
+  pfa.gradient_update();
+  pfa.store("");
+  if (options.compute_likelihood)
+    LOG(info) << "Final log-likelihood = "
+              << pfa.log_likelihood(pfa.parameters.output_directory);
+
 }
 
 int main(int argc, char **argv) {
@@ -150,9 +112,9 @@ int main(int argc, char **argv) {
   basic_options.add_options()
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
      "Maximal number of cell types to look for.")
-    ("iter,i", po::value(&options.num_steps)->default_value(options.num_steps),
+    ("iter,i", po::value(&parameters.grad_iterations)->default_value(parameters.grad_iterations),
      "Number of iterations to perform.")
-    ("report,r", po::value(&options.report_interval)->default_value(options.report_interval),
+    ("report,r", po::value(&parameters.report_interval)->default_value(parameters.report_interval),
      "Interval for reporting the parameters.")
     ("load,l", po::value(&options.load_prefix),
      "Load previous run results with the given path prefix.")
@@ -178,8 +140,6 @@ int main(int argc, char **argv) {
      "Do not compute and print the likelihood every iteration.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),
      "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
-    ("local_phi_factor", po::value(&parameters.local_phi_scaling_factor)->default_value(parameters.local_phi_scaling_factor),
-     "Factor to scale priors of local features.")
     ("p_map", po::bool_switch(&parameters.p_empty_map),
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
@@ -190,12 +150,8 @@ int main(int argc, char **argv) {
      "Number of micro-steps to take in the leapfrog algorithm.")
     ("hmc_n", po::value(&parameters.hmc_N)->default_value(parameters.hmc_N),
      "Number of leapfrog steps to take per iteration.")
-    ("dropout_gene", po::value(&parameters.dropout_gene)->default_value(parameters.dropout_gene),
-     "Randomly discard a fraction of the genes during contributions sampling.")
-    ("dropout_spot", po::value(&parameters.dropout_spot)->default_value(parameters.dropout_spot),
-     "Randomly discard a fraction of the spots during contributions sampling.")
-    ("dropout_anneal", po::value(&parameters.dropout_anneal)->default_value(parameters.dropout_anneal),
-     "Anneal dropout rate with this factor each iteration when randomly discarding a fraction of the spots during contributions sampling.")
+    ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
+     "Randomly discard a fraction of the gene-spot pairs during sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("mesh_dist", po::value(&parameters.mesh_hull_distance)->default_value(parameters.mesh_hull_distance),
@@ -206,8 +162,6 @@ int main(int argc, char **argv) {
      "Add additional mesh points uniformly distributed in the bounding box.")
     ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
      "Maximal number of iterations to perform per lBFGS optimization of the field.")
-    ("lbfgs_report", po::value(&parameters.lbfgs_report_interval)->default_value(parameters.lbfgs_report_interval),
-     "Report interval to use for reporting on the progress of the lBFGS optimization of the field.")
     ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
      "Epsilon parameter for lBFGS optimization of the field.")
     ("field_lambda_dir", po::value(&parameters.field_lambda_dirichlet)->default_value(parameters.field_lambda_dirichlet),
@@ -223,13 +177,23 @@ int main(int argc, char **argv) {
      "- \tFor all factors, compare each experiment's local profile against the global one.\n"
      "- \tPairwise comparisons between all factors in each experiment.")
     ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
-     "Which sampling steps to perform.");
+     "Which sampling steps to perform.")
+    ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
+     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
+    ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha),
+     "Initial learning rate for gradient learning.")
+    ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
+     "Anneal learning rate by this factor every iteration.");
 
   hyperparameter_options.add_options()
     ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
      "Gamma prior 1 of r[g][t].")
     ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
      "Gamma prior 2 of r[g][t].")
+    ("lphi_r_1", po::value(&parameters.hyperparameters.local_phi_r_1)->default_value(parameters.hyperparameters.local_phi_r_1),
+     "Gamma prior 1 of local r[g][t].")
+    ("lphi_r_2", po::value(&parameters.hyperparameters.local_phi_r_2)->default_value(parameters.hyperparameters.local_phi_r_2),
+     "Gamma prior 2 of local r[g][t].")
     ("phi_p_1", po::value(&parameters.hyperparameters.phi_p_1)->default_value(parameters.hyperparameters.phi_p_1),
      "Beta prior 1 of p[g][t].")
     ("phi_p_2", po::value(&parameters.hyperparameters.phi_p_2)->default_value(parameters.hyperparameters.phi_p_2),
@@ -250,9 +214,9 @@ int main(int argc, char **argv) {
      "Sigma parameter for field characteristic length scale.")
     ("residual", po::value(&parameters.hyperparameters.field_residual_prior)->default_value(parameters.hyperparameters.field_residual_prior),
      "Prior used for the residual mixing weight terms after the field has been sampled.")
-    ("bline1", po::value(&parameters.hyperparameters.baseline1)->default_value(parameters.hyperparameters.baseline1),
+    ("bline1", po::value(&parameters.hyperparameters.baseline_1)->default_value(parameters.hyperparameters.baseline_1),
      "First prior for the baseline features.")
-    ("bline2", po::value(&parameters.hyperparameters.baseline2)->default_value(parameters.hyperparameters.baseline2),
+    ("bline2", po::value(&parameters.hyperparameters.baseline_2)->default_value(parameters.hyperparameters.baseline_2),
      "Second prior for the baseline features.");
 
   inference_options.add_options()
@@ -319,6 +283,8 @@ int main(int argc, char **argv) {
 
   if (options.fields)
     parameters.targets = parameters.targets | STD::Target::field;
+
+  LOG(verbose) << "Inference targets = " << parameters.targets;
 
   try {
     run(data_sets, options, parameters);

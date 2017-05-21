@@ -273,6 +273,13 @@ size_t sum_rows(const vector<Counts> &c) {
   return n;
 }
 
+size_t sum_cols(const vector<Counts> &c) {
+  size_t n = 0;
+  for (auto &x : c)
+    n += x.matrix->cols();
+  return n;
+}
+
 size_t max_row_number(const vector<Counts> &c) {
   size_t x = 0;
   for (auto &m : c)

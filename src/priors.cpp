@@ -55,15 +55,15 @@ double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
   return l;
 }
 
-Gamma::Gamma(size_t dim1_, size_t dim2_, const Parameters &params)
-    : dim1(dim1_), dim2(dim2_), r(dim2), p(dim2), parameters(params) {
+Gamma::Gamma(size_t S_, size_t T_, const Parameters &params)
+    : S(S_), T(T_), r(T), p(T), parameters(params) {
   initialize_r();
   initialize_p();
 }
 
 Gamma::Gamma(const Gamma &other)
-    : dim1(other.dim1),
-      dim2(other.dim2),
+    : S(other.S),
+      T(other.T),
       r(other.r),
       p(other.p),
       parameters(other.parameters) {}
@@ -72,7 +72,7 @@ void Gamma::initialize_r() {
   // initialize r_theta
   LOG(debug) << "Initializing R of Θ.";
   if (parameters.targeted(Target::theta_prior))
-    for (size_t t = 0; t < dim2; ++t)
+    for (size_t t = 0; t < T; ++t)
       // NOTE: gamma_distribution takes a shape and scale parameter
       r[t] = gamma_distribution<Float>(
           parameters.hyperparameters.theta_r_1,
@@ -86,7 +86,7 @@ void Gamma::initialize_p() {
   LOG(debug) << "Initializing P of Θ.";
   // TODO make this CLI-switchable
   if (false and parameters.targeted(Target::theta_prior))
-    for (size_t t = 0; t < dim2; ++t)
+    for (size_t t = 0; t < T; ++t)
       p[t] = prob_to_neg_odds(
           sample_beta<Float>(parameters.hyperparameters.theta_p_1,
                              parameters.hyperparameters.theta_p_2));
@@ -114,16 +114,15 @@ void Gamma::sample(const Matrix &observed, const Matrix &field) {
 }
 
 void Gamma::store(const string &prefix,
-                  const vector<string> &spot_names __attribute__((unused)),
                   const vector<string> &factor_names,
                   const vector<size_t> &order) const {
   Vector r_ = r;
   Vector p_ = p;
   if (not order.empty()) {
-    for (size_t i = 0; i < dim2; ++i)
-      r_[i] = r[order[i]];
-    for (size_t i = 0; i < dim2; ++i)
-      p_[i] = p[order[i]];
+    for (size_t t = 0; t < T; ++t)
+      r_[t] = r[order[t]];
+    for (size_t t = 0; t < T; ++t)
+      p_[t] = p[order[t]];
   }
   write_vector(r_, prefix + "_prior-r" + FILENAME_ENDING,
                parameters.compression_mode, factor_names);

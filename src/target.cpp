@@ -1,3 +1,4 @@
+#include "aux.hpp"
 #include "target.hpp"
 #include <boost/tokenizer.hpp>
 
@@ -11,12 +12,12 @@ ostream &operator<<(ostream &os, const Target &which) {
     return os;
   } else {
     bool first = true;
-    if (flagged(which & Target::contributions)) {
-      os << "contributions";
-      first = false;
-    }
     if (flagged(which & Target::global)) {
       os << (first ? "" : ",") << "global";
+      first = false;
+    }
+    if (flagged(which & Target::variance)) {
+      os << (first ? "" : ",") << "variance";
       first = false;
     }
     if (flagged(which & Target::local)) {
@@ -56,10 +57,11 @@ istream &operator>>(istream &is, Target &which) {
   getline(is, line);
   tokenizer tok(line, sep);
   for (auto token : tok) {
-    if (token == "contributions")
-      which = which | Target::contributions;
-    else if (token == "global")
+    token = to_lower(token);
+    if (token == "global")
       which = which | Target::global;
+    else if (token == "variance")
+      which = which | Target::variance;
     else if (token == "local")
       which = which | Target::local;
     else if (token == "theta")

@@ -21,4 +21,14 @@ T prob_to_neg_odds(T x) {
   return (1 - x) / x;
 }
 
+template <typename T>
+T odds_to_log_prob(T x) {
+  return log(x) - log(x + 1);
+}
+
+template <typename T>
+T neg_odds_to_log_prob(T x) {
+  return -log(x + 1);
+}
+
 #endif

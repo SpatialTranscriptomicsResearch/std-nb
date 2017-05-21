@@ -43,6 +43,7 @@ STD::Matrix compute_sq_distances(const STD::Matrix &a, const STD::Matrix &b);
 STD::Matrix row_normalize(STD::Matrix m_);
 
 size_t sum_rows(const std::vector<Counts> &c);
+size_t sum_cols(const std::vector<Counts> &c);
 size_t max_row_number(const std::vector<Counts> &c);
 
 #endif

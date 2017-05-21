@@ -16,18 +16,14 @@ const Float phi_scaling = 1.0;
 
 struct Theta {
   using prior_type = PRIOR::THETA::Gamma;
-  Theta(size_t dim1_, size_t dim2_, const Parameters &params);
-  size_t dim1, dim2;
+  Theta(size_t S_, size_t T_, const Parameters &params,
+        const prior_type &prior);
+  size_t S, T;
   Matrix matrix;
   Parameters parameters;
-  prior_type prior;
-
-  void initialize_factor(size_t t);
-  void initialize();
 
   void enforce_positive_parameters(const std::string &tag) {
     enforce_positive_and_warn(tag, matrix);
-    prior.enforce_positive_parameters(tag);
   };
 
   std::string gen_path_stem(const std::string &prefix) const {
@@ -41,19 +37,13 @@ struct Theta {
     const auto path = gen_path_stem(prefix);
     write_matrix(matrix, path + FILENAME_ENDING, parameters.compression_mode,
                  spot_names, factor_names, order);
-    prior.store(path, spot_names, factor_names, order);
   };
 
   void restore(const std::string &prefix) {
     const auto path = gen_path_stem(prefix);
     matrix = parse_file<Matrix>(path + FILENAME_ENDING, read_matrix, "\t");
-    prior.restore(path);
   };
-
-  double log_likelihood_factor(size_t t) const;
-  double log_likelihood() const;
 };
-
 }
 
 #endif

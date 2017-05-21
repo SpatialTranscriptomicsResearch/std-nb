@@ -17,6 +17,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   io.cpp
   log.cpp
   metropolis_hastings.cpp
+  optimization_method.cpp
   parameters.cpp
   pdist.cpp
   priors.cpp

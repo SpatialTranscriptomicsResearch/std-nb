@@ -30,7 +30,7 @@ std::pair<T, T> gen_log_normal_pair(const std::pair<T, T> &x,
 namespace THETA {
 
 struct Gamma {
-  size_t dim1, dim2;
+  size_t S, T;
   /** shape parameter for the prior of the mixing matrix */
   Vector r;
   /** scale parameter for the prior of the mixing matrix */
@@ -45,7 +45,6 @@ struct Gamma {
   void sample(const Matrix &observed, const Matrix &field);
 
   void store(const std::string &prefix,
-             const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,
              const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);

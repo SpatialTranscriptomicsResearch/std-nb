@@ -20,9 +20,9 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       contributions_spot(colSums<Vector>(*counts.matrix)),
       phi_l(Matrix::Ones(G, T)),
       phi_b(Matrix::Ones(G, 1)),
-      weights(S, T, parameters),
+      theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
-      spot(Vector::Ones(S)) {
+      spot(contributions_spot) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
   /* TODO consider to reactivate
   if (false) {
@@ -35,19 +35,15 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
   */
   LOG(debug) << "Coords: " << coords;
 
-  // initialize spot scaling factors
-  {
-    LOG(debug) << "Initializing spot scaling.";
-    Float z = 0;
-    for (size_t s = 0; s < S; ++s)
-      z += spot(s) = contributions_spot(s);
-    z /= S;
-    for (size_t s = 0; s < S; ++s)
-      spot(s) /= z;
-  }
+  // initialize spot scaling factors by dividing through mean
+  LOG(debug) << "Initializing spot scaling.";
+  spot *= S / spot.sum();
 
-  if (not parameters.targeted(Target::theta))
-    weights.matrix.setOnes();
+  // TODO initialize theta using parameters, model->mix_prior
+  if (parameters.targeted(Target::theta))
+    for (auto &x : theta)
+      // TODO introduce parameter for constant
+      x = exp(0.5 * std::normal_distribution<double>()(EntropySource::rng));
 
   if (not parameters.targeted(Target::spot))
     spot.setOnes();
@@ -77,7 +73,8 @@ void Experiment::store(const string &prefix,
                  prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, {1, "Baseline"}, {});
 #pragma omp section
-    weights.store(prefix, spot_names, factor_names, order);
+    write_matrix(theta, prefix + "theta" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
 #pragma omp section
     write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names);
@@ -141,8 +138,8 @@ void Experiment::restore(const string &prefix) {
       prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING, read_matrix,
       "\t");
 
-  weights.restore(prefix);
-
+  theta = parse_file<Matrix>(prefix + "theta" + FILENAME_ENDING, read_matrix,
+                             "\t");
   field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
                              read_matrix, "\t");
   spot = parse_file<Vector>(prefix + "spot-scaling" + FILENAME_ENDING,
@@ -354,17 +351,19 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       // TODO use full-conditional expected counts instead of one sample
 
       // sample x_gst for all t
-      vector<double> mean_prob(T, 0);
+      vector<double> expected_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += mean_prob[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t)
-                            / model->phi_p(g, t) * theta(s, t);
+        z += expected_prob[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t)
+                                / model->phi_p(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
-        mean_prob[t] /= z;
-      auto icnts = sample_multinomial(counts(g, s), begin(mean_prob),
-                                      end(mean_prob), rng);
+        expected_prob[t] /= z;
+      auto icnts = sample_multinomial(counts(g, s), begin(expected_prob),
+                                      end(expected_prob), rng);
       for (size_t t = 0; t < T; ++t)
-        cnts(t) = icnts(t);
+        // cnts(t) = icnts(t);
+        // TODO deactivate or change back
+        cnts[t] = counts(g, s) * expected_prob[t];
 
       if (false and T > 1) {
         // perform several Metropolis-Hastings steps
@@ -403,21 +402,8 @@ void Experiment::enforce_positive_parameters() {
   enforce_positive_and_warn("spot", spot);
   enforce_positive_and_warn("phi_l", phi_l);
   enforce_positive_and_warn("phi_b", phi_b);
-  weights.enforce_positive_parameters("weights");
+  enforce_positive_and_warn("theta", theta);
 }
-
-Vector Experiment::marginalize_genes() const {
-  Vector intensities = Vector::Zero(T);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t) {
-    double intensity = 0;
-    for (size_t g = 0; g < G; ++g)
-      intensity
-          += phi_b(g) * phi_l(g, t) * model->phi_r(g, t) / model->phi_p(g, t);
-    intensities[t] = intensity;
-  }
-  return intensities;
-};
 
 /** Calculate log posterior of theta with respect to the field */
 Matrix Experiment::field_fitness_posterior(
@@ -428,10 +414,10 @@ Matrix Experiment::field_fitness_posterior(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t) {
-      double prod = weights.prior.r(t) * candidate_field(s, t);
+      double prod = model->mix_prior.r(t) * candidate_field(s, t);
       fit(s, t) = (prod - 1) * log(theta(s, t))
-                  - weights.prior.p(t) * theta(s, t) - lgamma(prod)
-                  + log(weights.prior.p(t)) * prod;
+                  - model->mix_prior.p(t) * theta(s, t) - lgamma(prod)
+                  + log(model->mix_prior.p(t)) * prod;
     }
   return fit;
 }
@@ -445,9 +431,9 @@ Matrix Experiment::field_fitness_posterior_gradient(
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
-      grad(s, t) = weights.prior.r(t)
-                   * (log(theta(s, t)) + log(weights.prior.p(t))
-                      - digamma(weights.prior.r(t) * candidate_field(s, t)));
+      grad(s, t) = model->mix_prior.r(t)
+                   * (log(theta(s, t)) + log(model->mix_prior.p(t))
+                      - digamma(model->mix_prior.r(t) * candidate_field(s, t)));
   return grad;
 }
 
@@ -489,59 +475,54 @@ Matrix Experiment::sample_contributions_spot(size_t s, RNG &rng) {
   return contributions;
 }
 
-Vector Experiment::marginalize_spots() const {
+Vector Experiment::marginalize_genes() const {
   Vector intensities = Vector::Zero(T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
-    for (size_t s = 0; s < S; ++s)
-      intensity += theta(s, t) * spot[s];
+    for (size_t g = 0; g < G; ++g)
+      intensity
+          += phi_b(g) * phi_l(g, t) * model->phi_r(g, t) / model->phi_p(g, t);
     intensities[t] = intensity;
+  }
+  return intensities;
+};
+
+Vector Experiment::marginalize_spots() const {
+  Vector intensities(T);
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t t = 0; t < T; ++t) {
+    double intensity = 0;
+    for (size_t s = 0; s < S; ++s)
+      intensity += theta(s, t) * spot(s);
+    intensities(t) = intensity;
   }
   return intensities;
 }
 
-Matrix Experiment::explained_gene_type() const {
-  Vector theta_t = marginalize_spots();
-  Matrix explained = Matrix::Zero(G, T);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      explained(g, t)
-          = model->phi_r(g, t) * phi_b(g) / model->phi_p(g, t) * theta_t(t);
-  return explained;
-}
-
 Matrix Experiment::expected_gene_type() const {
-  return phi_l.array() * explained_gene_type().array();
-}
-
-// TODO never used - consider to remove
-Vector Experiment::explained_gene() const {
-  Vector theta_t = marginalize_spots();
-  Vector explained = Vector::Zero(G);
+  Vector marginal = marginalize_spots();
+  Matrix expected = Matrix::Zero(G, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      explained(g) += phi_l(g, t) * model->phi_r(g, t) * phi_b(g)
-                      / model->phi_p(g, t) * theta_t(t);
-  return explained;
-};
-
-Matrix Experiment::explained_spot_type() const {
-  Matrix m(S, T);
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-    for (size_t g = 0; g < G; ++g)
-      x += phi_l(g, t) * model->phi_r(g, t) * phi_b(g) / model->phi_p(g, t);
-    for (size_t s = 0; s < S; ++s)
-      m(s, t) = x * spot(s);
-  }
-  return m;
+      expected(g, t) = model->phi_r(g, t) * phi_l(g, t) * phi_b(g)
+                       / model->phi_p(g, t) * marginal(t);
+  return expected;
 }
 
 Matrix Experiment::expected_spot_type() const {
-  return weights.matrix.array() * explained_spot_type().array();
+  Matrix m(S, T);
+  for (size_t t = 0; t < T; ++t) {
+    Float x = 0;
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t g = 0; g < G; ++g)
+      x += model->phi_r(g, t) * phi_l(g, t) * phi_b(g) / model->phi_p(g, t);
+#pragma omp parallel for if (DO_PARALLEL)
+    for (size_t s = 0; s < S; ++s)
+      m(s, t) = x * theta(s, t) * spot(s);
+  }
+  return m;
 }
 
 vector<vector<size_t>> Experiment::active_factors(double threshold) const {
@@ -557,6 +538,53 @@ vector<vector<size_t>> Experiment::active_factors(double threshold) const {
   return vs;
 }
 
+size_t Experiment::size() const {
+  size_t s = 0;
+  if (parameters.targeted(Target::local))
+    s += phi_l.size();
+  if (parameters.targeted(Target::baseline))
+    s += phi_b.size();
+  if (parameters.targeted(Target::theta))
+    s += theta.size();
+  if (parameters.targeted(Target::field))
+    s += field.size();
+  if (parameters.targeted(Target::spot))
+    s += spot.size();
+  return s;
+}
+
+void Experiment::set_zero() {
+  phi_l.setZero();
+  phi_b.setZero();
+  theta.setZero();
+  field.setZero();
+  spot.setZero();
+}
+
+Vector Experiment::vectorize() const {
+  Vector v(size());
+  auto iter = begin(v);
+  if (parameters.targeted(Target::local))
+    for (auto &x : phi_l)
+      *iter++ = x;
+  if (parameters.targeted(Target::baseline))
+    for (auto &x : phi_b)
+      *iter++ = x;
+  if (parameters.targeted(Target::theta))
+    for (auto &x : theta)
+      *iter++ = x;
+  if (parameters.targeted(Target::field))
+    for (auto &x : field)
+      *iter++ = x;
+  if (parameters.targeted(Target::spot))
+    for (auto &x : spot)
+      *iter++ = x;
+
+  assert(iter == end(v));
+
+  return v;
+}
+
 ostream &operator<<(ostream &os, const Experiment &experiment) {
   os << "Experiment "
      << "G = " << experiment.G << " "
@@ -567,11 +595,10 @@ ostream &operator<<(ostream &os, const Experiment &experiment) {
     // TODO TODO fix features
     // print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
     // print_matrix_head(os, experiment.features.matrix, "Φ");
-    print_matrix_head(os, experiment.weights.matrix, "Θ");
+    print_matrix_head(os, experiment.theta, "Θ");
     /* TODO reactivate
     os << experiment.baseline_feature.prior;
     os << experiment.features.prior;
-    os << experiment.weights.prior;
 
     print_vector_head(os, experiment.spot, "Spot scaling factors");
     */
@@ -594,7 +621,7 @@ Experiment operator*(const Experiment &a, const Experiment &b) {
 
   experiment.phi_l.array() *= b.phi_l.array();
   experiment.phi_b.array() *= b.phi_b.array();
-  experiment.weights.matrix.array() *= b.weights.matrix.array();
+  experiment.theta.array() *= b.theta.array();
 
   return experiment;
 }
@@ -611,7 +638,7 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   experiment.phi_l += b.phi_l;
   experiment.phi_b += b.phi_b;
-  experiment.weights.matrix += b.weights.matrix;
+  experiment.theta += b.theta;
 
   return experiment;
 }
@@ -628,7 +655,7 @@ Experiment operator-(const Experiment &a, const Experiment &b) {
 
   experiment.phi_l -= b.phi_l;
   experiment.phi_b -= b.phi_b;
-  experiment.weights.matrix -= b.weights.matrix;
+  experiment.theta -= b.theta;
 
   return experiment;
 }
@@ -645,7 +672,7 @@ Experiment operator*(const Experiment &a, double x) {
 
   experiment.phi_l *= x;
   experiment.phi_b *= x;
-  experiment.weights.matrix *= x;
+  experiment.theta *= x;
 
   return experiment;
 }
@@ -662,7 +689,7 @@ Experiment operator/(const Experiment &a, double x) {
 
   experiment.phi_l /= x;
   experiment.phi_b /= x;
-  experiment.weights.matrix /= x;
+  experiment.theta /= x;
 
   return experiment;
 }
@@ -679,7 +706,7 @@ Experiment operator-(const Experiment &a, double x) {
 
   experiment.phi_l.array() -= x;
   experiment.phi_b.array() -= x;
-  experiment.weights.matrix.array() -= x;
+  experiment.theta.array() -= x;
 
   return experiment;
 }

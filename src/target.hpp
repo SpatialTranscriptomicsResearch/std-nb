@@ -7,14 +7,14 @@ namespace STD {
 
 enum class Target {
   empty = 0,
-  contributions = 1 << 0,
-  global = 1 << 1,
-  local = 1 << 2,
-  baseline = 1 << 3,
-  theta = 1 << 4,
-  theta_prior = 1 << 5,
-  spot = 1 << 6,
-  field = 1 << 7,
+  global = 1 << 0,
+  local = 1 << 1,
+  baseline = 1 << 2,
+  theta = 1 << 3,
+  theta_prior = 1 << 4,
+  spot = 1 << 5,
+  field = 1 << 6,
+  variance = 1 << 7,
 };
 
 std::ostream &operator<<(std::ostream &os, const Target &which);
@@ -37,9 +37,8 @@ inline constexpr Target operator~(Target a) {
 }
 
 inline constexpr Target DefaultTarget() {
-  return Target::contributions | Target::global
-         | Target::theta | Target::theta_prior | Target::local
-         | Target::baseline;
+  return Target::global | Target::variance | Target::theta | Target::theta_prior
+         | Target::local | Target::baseline | Target::spot;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }
