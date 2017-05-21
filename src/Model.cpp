@@ -292,23 +292,20 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 
   for (size_t t = 0; t < T; ++t) {
     const double no = phi_p(g, t);
-    // const double p = neg_odds_to_prob(no);
+    const double p = neg_odds_to_prob(no);
     const double log_one_minus_p = odds_to_log_prob(no);
-    // const double log_one_minus_p2 = log(1 - neg_odds_to_prob(no));
-    // assert(log_one_minus_p == log_one_minus_p2);
     const double r = phi_r(g, t) * experiments[e].phi_l(g, t)
                      * experiments[e].phi_b(g) * experiments[e].theta(s, t)
                      * experiments[e].spot(s);
     const double k = cnts[t];
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
-    // = r * (log(odds_to_prob(no)) + digamma_diff(r, k));
+
     gradient.phi_r(g, t) += term;
     gradient.experiments[e].phi_l(g, t) += term;
     gradient.experiments[e].phi_b(g) += term;
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 
-    const double p = neg_odds_to_prob(no);
     gradient.phi_p(g, t) += p * (r + k) - k;
   }
 }
