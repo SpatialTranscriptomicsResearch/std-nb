@@ -4,12 +4,6 @@
 #include <cmath>
 #include "log.hpp"
 
-/*
-template <typename T>
-int sgn(T val) {
-  return (T(0) < val) - (val < T(0));
-}
-*/
 template <typename T>
 int sgn(T val) {
   if(val < 0)
@@ -21,8 +15,8 @@ int sgn(T val) {
 
 template <typename T, typename U>
 void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
-  // const double bump_up = 1.2;
-  // const double bump_down = 0.5;
+  // const double eta_plus = 1.2;
+  // const double eta_minus = 0.5;
   const double eta_plus = 1.1;
   const double eta_minus = 1.0 - 1.0 / 3;
 
@@ -42,11 +36,6 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
         caseP++;
       case 0:
         *data_iter += sgn_grad * r;
-        // *data_iter *= exp(sgn_grad * r);
-        // if (*data_iter < 1e-200)
-        //   LOG(fatal) << "Warning: an update to a value < 1e-200" << std::endl
-        //              << "g=" << grad_iter << " prev_sgn=" << *sgn_iter
-        //              << " rate=" << r << " x=" << *data_iter;
         *sgn_iter = sgn_grad;
         case0++;
         break;
