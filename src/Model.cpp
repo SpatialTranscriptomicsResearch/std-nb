@@ -1,4 +1,5 @@
 #include "Model.hpp"
+#include <LBFGS.h>
 #include "rprop.hpp"
 
 using namespace std;
@@ -572,7 +573,8 @@ void Model::gradient_update() {
   update_experiment_fields();
 }
 
-// TODO remove - kept for now in order to understand how field_gradient() was used
+// TODO remove - kept for now in order to understand how field_gradient() was
+// used
 void Model::update_fields() {
   LOG(verbose) << "Updating fields";
 

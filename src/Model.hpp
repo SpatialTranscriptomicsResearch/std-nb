@@ -1,34 +1,13 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
-#include <map>
-#ifndef NDEBUG
-// Uncomment the next line for debug output from Boost's Newton-Raphson code
-// #define BOOST_MATH_INSTRUMENT
-#endif
-#include <LBFGS.h>
-#include <boost/math/tools/roots.hpp>
 #include "Experiment.hpp"
 #include "priors.hpp"
 #include "Mesh.hpp"
 
 namespace STD {
 
-namespace NewtonRaphson {
-const double lower = std::numeric_limits<double>::denorm_min();
-const double upper = 1e5;
-
-// Maximum possible binary digits accuracy for type T.
-const int digits = std::numeric_limits<double>::digits;
-// Accuracy doubles with each step, so stop when we have just over half the
-// digits correct.
-const int get_digits = static_cast<int>(digits * 0.6);
-
-const size_t max_iter = 100;
-};
-
 const int EXPERIMENT_NUM_DIGITS = 4;
-
 const bool abort_on_fatal_errors = false;
 
 struct Model {
