@@ -393,19 +393,11 @@ void Model::finalize_gradient(Model &gradient) const {
           const double no = mix_prior.p(t);
           double x = 0;
 #pragma omp parallel for if (DO_PARALLEL)
-          // const double p = neg_odds_to_prob(no); // TODO NOW remove
           for (size_t s = 0; s < experiments[e].S; ++s)
             x += log(experiments[e].theta(s, t));
-          // x += experiments[e].S * (neg_odds_to_log_prob(no) - digamma(r));
           x += experiments[e].S * (log(no) - digamma(r));
           x *= r;
           gradient.mix_prior.r(t) += x;
-          /*
-             gradient.experiments[e].weights.prior.r
-             = experiments[e].weights.prior.r.array()
-             * (colSums(experiments[e].weights.matrix.array().log()
-             - S * experiments[e].weights.prior.p.array().log()));
-           */
         }
 
     const double a = parameters.hyperparameters.theta_r_1;
