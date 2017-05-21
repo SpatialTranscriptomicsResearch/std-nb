@@ -3,11 +3,6 @@
 
 using namespace std;
 
-// use this to compute gradient of un-transformed parameters
-// const bool plain_gradient = true;
-// use this to compute gradient of exp-transformed parameters
-const bool plain_gradient = false;
-
 namespace STD {
 
 Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
@@ -315,31 +310,19 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 
-    if (plain_gradient)
-      gradient.phi_p(g, t) += -(k * no - r) / (no * no + no);
-    else {
-      const double p = neg_odds_to_prob(no);
-      gradient.phi_p(g, t) += p * (r + k) - k;
-      // // gradient.phi_p(g, t) += -(k * p - r) / (p + 1);
-      // gradient.phi_p(g, t) += -(k * no - r) / (no + 1);
-      // // gradient.phi_p(g, t) += k / p + r / (1 - p);
-    }
+    const double p = neg_odds_to_prob(no);
+    gradient.phi_p(g, t) += p * (r + k) - k;
   }
 }
 
 void Model::finalize_gradient(Model &gradient) const {
   if (parameters.targeted(Target::global)) {
-    if (plain_gradient)
-      gradient.phi_r = gradient.phi_r.array() / phi_r.array();
     const double a = parameters.hyperparameters.phi_r_1;
     const double b = parameters.hyperparameters.phi_r_2;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
-        if (plain_gradient)
-          gradient.phi_r(g, t) += (a - 1) / phi_r(g, t) - b;
-        else
-          gradient.phi_r(g, t) += (a - 1) - phi_r(g, t) * b;
+        gradient.phi_r(g, t) += (a - 1) - phi_r(g, t) * b;
   }
 
   if (parameters.targeted(Target::variance)) {
@@ -349,15 +332,8 @@ void Model::finalize_gradient(Model &gradient) const {
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) {
         const double no = phi_p(g, t);
-        if (plain_gradient)
-          gradient.phi_p(g, t) += -((a - 1) * no - (b - 1)) / (no * no + no);
-        // gradient.phi_p(g, t) += -(a * no - b) / (no * no + no);
-        else {
-          const double p = neg_odds_to_prob(no);
-          gradient.phi_p(g, t) += (a + b - 2) * p - a + 1;
-          // gradient.phi_p(g, t) += -((a - 1) * p - (b - 1)) / (p + 1);
-          // // gradient.phi_p(g, t) += -((a - 1) * no - (b - 1)) / (no + 1);
-        }
+        const double p = neg_odds_to_prob(no);
+        gradient.phi_p(g, t) += (a + b - 2) * p - a + 1;
       }
   }
 
@@ -365,78 +341,46 @@ void Model::finalize_gradient(Model &gradient) const {
     const double a = parameters.hyperparameters.local_phi_r_1;
     const double b = parameters.hyperparameters.local_phi_r_2;
     for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members) {
-        if (plain_gradient)
-          gradient.experiments[e].phi_l = gradient.experiments[e].phi_l.array()
-                                          / experiments[e].phi_l.array();
+      for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t g = 0; g < G; ++g)
           for (size_t t = 0; t < T; ++t)
-            if (plain_gradient)
-              gradient.experiments[e].phi_l(g, t)
-                  += (a - 1) / experiments[e].phi_l(g, t) - b;
-            else
-              gradient.experiments[e].phi_l(g, t)
-                  += (a - 1) - experiments[e].phi_l(g, t) * b;
-      }
+            gradient.experiments[e].phi_l(g, t)
+                += (a - 1) - experiments[e].phi_l(g, t) * b;
   }
 
   if (parameters.targeted(Target::baseline)) {
     const double a = parameters.hyperparameters.baseline_1;
     const double b = parameters.hyperparameters.baseline_2;
     for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members) {
-        if (plain_gradient)
-          gradient.experiments[e].phi_b = gradient.experiments[e].phi_b.array()
-                                          / experiments[e].phi_b.array();
+      for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t g = 0; g < G; ++g)
-          if (plain_gradient)
-            gradient.experiments[e].phi_b(g)
-                += (a - 1) / experiments[e].phi_b(g) - b;
-          else
-            gradient.experiments[e].phi_b(g)
-                += (a - 1) - experiments[e].phi_b(g) * b;
-      }
+          gradient.experiments[e].phi_b(g)
+              += (a - 1) - experiments[e].phi_b(g) * b;
   }
 
   if (parameters.targeted(Target::theta))
     for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members) {
-        if (plain_gradient)
-          gradient.experiments[e].theta = gradient.experiments[e].theta.array()
-                                          / experiments[e].theta.array();
+      for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t s = 0; s < experiments[e].S; ++s)
           for (size_t t = 0; t < T; ++t) {
             const double a = mix_prior.r(t);
             const double b = mix_prior.p(t);
-            if (plain_gradient)
-              gradient.experiments[e].theta(s, t)
-                  += (a - 1) / experiments[e].theta(s, t) - b;
-            else
-              gradient.experiments[e].theta(s, t)
-                  += (a - 1) - experiments[e].theta(s, t) * b;
+            gradient.experiments[e].theta(s, t)
+                += (a - 1) - experiments[e].theta(s, t) * b;
           }
-      }
 
   if (parameters.targeted(Target::spot)) {
     const double a = parameters.hyperparameters.spot_a;
     const double b = parameters.hyperparameters.spot_b;
     for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members) {
-        if (plain_gradient)
-          gradient.experiments[e].spot = gradient.experiments[e].spot.array()
-                                         / experiments[e].spot.array();
+      for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t s = 0; s < experiments[e].S; ++s)
-          if (plain_gradient)
-            gradient.experiments[e].spot(s)
-                += (a - 1) / experiments[e].spot(s) - b;
-          else
-            gradient.experiments[e].spot(s)
-                += (a - 1) - experiments[e].spot(s) * b;
-      }
+          gradient.experiments[e].spot(s)
+              += (a - 1) - experiments[e].spot(s) * b;
   }
 
   if (parameters.targeted(Target::theta_prior)) {
@@ -573,13 +517,6 @@ void Model::gradient_update() {
     LOG(verbose) << "score: " << score;
     LOG(verbose) << "x: " << endl << Stats::summary(x);
     LOG(verbose) << "grad: " << endl << Stats::summary(grad);
-
-    if (plain_gradient) {
-      // multiply w current parameters to compute gradient of exp-transform
-      grad = grad.array() * x.array().exp();
-
-      LOG(verbose) << "exp grad: " << endl << Stats::summary(grad);
-    }
 
     return score;
   };
