@@ -542,11 +542,6 @@ void Model::gradient_update() {
 
   Vector x = vectorize().array().log();
 
-  LOG(debug) << "x.size() = " << x.size();
-  for (size_t i = 0; i < 10; i++)
-    LOG(debug) << "x[" << i << "] = " << x[i];
-  LOG(debug) << "initial x: " << endl << Stats::summary(x);
-
   double fx;
   switch (parameters.optim_method) {
     case Optimize::Method::RPROP: {
