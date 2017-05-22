@@ -86,6 +86,8 @@ struct Model {
 
     for (auto &experiment : experiments)
       experiment.from_log_vector(iter);
+
+    update_experiment_fields();
   };
 
   void gradient_update();

@@ -588,7 +588,6 @@ void Model::gradient_update() {
   LOG(verbose) << "Final f(x) = " << fx;
 
   from_log_vector(begin(x));
-  update_experiment_fields();
 }
 
 double Model::field_gradient(const CoordinateSystem &coord_sys,
