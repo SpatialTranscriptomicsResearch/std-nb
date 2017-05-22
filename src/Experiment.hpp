@@ -64,8 +64,8 @@ struct Experiment {
 
   Matrix log_likelihood() const;
 
-  Matrix field_fitness_posterior(const Matrix &candidate_field) const;
-  Matrix field_fitness_posterior_gradient(const Matrix &candidate_field) const;
+  Matrix field_fitness_posterior() const;
+  Matrix field_fitness_posterior_gradient() const;
 
   /** sample count decomposition */
   Matrix sample_contributions_gene(size_t g, RNG &rng);

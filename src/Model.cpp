@@ -146,13 +146,12 @@ void Model::restore(const string &prefix) {
   }
 }
 
-Matrix Model::field_fitness_posterior_gradient(const Matrix &f) const {
+Matrix Model::field_fitness_posterior_gradient() const {
   Matrix grad(S, T);
   size_t cumul = 0;
   for (auto &experiment : experiments) {
     grad.middleRows(cumul, experiment.S)
-        = experiment.field_fitness_posterior_gradient(
-            f.middleRows(cumul, experiment.S));
+        = experiment.field_fitness_posterior_gradient();
     cumul += experiment.S;
   }
   return grad;
@@ -674,15 +673,10 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
   size_t cumul = 0;
   for (auto member : coord_sys.members) {
     const size_t current_S = experiments[member].S;
-    double s = experiments[member]
-                   .field_fitness_posterior(field.middleRows(cumul, current_S))
-                   .sum();
-    LOG(debug) << "Fitness contribution to score of sample " << member << ": "
-               << s;
-    score += s;
+    // no need to calculate fitness contribution to score
+    // it is calculated in finalize_gradient()
     fitness.middleRows(cumul, current_S)
-        = experiments[member].field_fitness_posterior_gradient(
-            field.middleRows(cumul, current_S));
+        = experiments[member].field_fitness_posterior_gradient();
     cumul += current_S;
   }
 
@@ -698,13 +692,12 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
       grad_dirichlet.col(t)
           = coord_sys.mesh.grad_dirichlet_energy(Vector(field.col(t)));
 
-      double s = -parameters.field_lambda_dirichlet
-                 * coord_sys.mesh.sum_dirichlet_energy(Vector(field.col(t)));
-      score += s;
+      double s = coord_sys.mesh.sum_dirichlet_energy(Vector(field.col(t)));
+      score -= s * parameters.field_lambda_dirichlet;
       LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
-                 << s;
+                   << s;
     }
-    grad = grad - grad_dirichlet * parameters.field_lambda_dirichlet;
+    grad -= grad_dirichlet * parameters.field_lambda_dirichlet;
   }
 
   if (parameters.field_lambda_laplace != 0) {
@@ -713,16 +706,15 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
       grad_laplace.col(t)
           = coord_sys.mesh.grad_sq_laplace_operator(Vector(field.col(t)));
 
-      double s = -parameters.field_lambda_laplace
-                 * coord_sys.mesh.sum_sq_laplace_operator(Vector(field.col(t)));
-      score += s;
+      double s = coord_sys.mesh.sum_sq_laplace_operator(Vector(field.col(t)));
+      score -= s * parameters.field_lambda_laplace;
       LOG(debug) << "Curvature contribution to score of factor " << t << ": "
-                 << s;
+                   << s;
     }
-    grad = grad - grad_laplace * parameters.field_lambda_laplace;
+    grad -= grad_laplace * parameters.field_lambda_laplace;
   }
 
-  LOG(debug) << "Fitness and smoothness score: " << score;
+  LOG(debug) << "Field score: " << score;
 
   return score;
 }

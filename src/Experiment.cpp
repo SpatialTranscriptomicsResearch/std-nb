@@ -407,15 +407,12 @@ void Experiment::enforce_positive_parameters() {
 }
 
 /** Calculate log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior(
-    const Matrix &candidate_field) const {
-  assert(static_cast<size_t>(candidate_field.rows()) == S);
-  assert(static_cast<size_t>(candidate_field.cols()) == T);
+Matrix Experiment::field_fitness_posterior() const {
   Matrix fit = Matrix::Zero(S, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t) {
-      double prod = model->mix_prior.r(t) * candidate_field(s, t);
+      double prod = model->mix_prior.r(t) * field(s, t);
       fit(s, t) = (prod - 1) * log(theta(s, t))
                   - model->mix_prior.p(t) * theta(s, t) - lgamma(prod)
                   + log(model->mix_prior.p(t)) * prod;
@@ -424,17 +421,14 @@ Matrix Experiment::field_fitness_posterior(
 }
 
 /** Calculate gradient of log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior_gradient(
-    const Matrix &candidate_field) const {
-  assert(static_cast<size_t>(candidate_field.rows()) == S);
-  assert(static_cast<size_t>(candidate_field.cols()) == T);
+Matrix Experiment::field_fitness_posterior_gradient() const {
   Matrix grad = Matrix::Zero(S, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
       grad(s, t) = model->mix_prior.r(t)
                    * (log(theta(s, t)) + log(model->mix_prior.p(t))
-                      - digamma(model->mix_prior.r(t) * candidate_field(s, t)));
+                      - digamma(model->mix_prior.r(t) * field(s, t)));
   return grad;
 }
 

@@ -106,7 +106,7 @@ struct Model {
   void update_fields();
   void update_experiment_fields();
   void update_contributions();
-  Matrix field_fitness_posterior_gradient(const Matrix &f) const;
+  Matrix field_fitness_posterior_gradient() const;
   double field_gradient(const CoordinateSystem &coord_sys, const Matrix &field,
                         Matrix &grad) const;
   void initialize_coordinate_systems(double v);
