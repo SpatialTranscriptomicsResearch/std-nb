@@ -15,15 +15,15 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      contributions_gene_type(Matrix::Zero(G, T)),
-      contributions_spot_type(Matrix::Zero(S, T)),
-      contributions_gene(rowSums<Vector>(*counts.matrix)),
-      contributions_spot(colSums<Vector>(*counts.matrix)),
       phi_l(Matrix::Ones(G, T)),
       phi_b(Matrix::Ones(G, 1)),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
-      spot(Vector::Ones(S)) {
+      spot(Vector::Ones(S)),
+      contributions_gene_type(Matrix::Zero(G, T)),
+      contributions_spot_type(Matrix::Zero(S, T)),
+      contributions_gene(rowSums<Vector>(*counts.matrix)),
+      contributions_spot(colSums<Vector>(*counts.matrix)) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
   /* TODO consider to initialize:
    * contributions_gene_type
@@ -117,17 +117,6 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  contributions_gene_type = parse_file<Matrix>(
-      prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
-  contributions_spot_type = parse_file<Matrix>(
-      prefix + "contributions_spot_type" + FILENAME_ENDING, read_matrix, "\t");
-  contributions_gene
-      = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING,
-                           read_vector<Vector>, "\t");
-  contributions_spot
-      = parse_file<Vector>(prefix + "contributions_spot" + FILENAME_ENDING,
-                           read_vector<Vector>, "\t");
-
   phi_l = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
                              read_matrix, "\t");
   phi_b = parse_file<Matrix>(
@@ -140,6 +129,17 @@ void Experiment::restore(const string &prefix) {
                              read_matrix, "\t");
   spot = parse_file<Vector>(prefix + "spot-scaling" + FILENAME_ENDING,
                             read_vector<Vector>, "\t");
+
+  contributions_gene_type = parse_file<Matrix>(
+      prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_spot_type = parse_file<Matrix>(
+      prefix + "contributions_spot_type" + FILENAME_ENDING, read_matrix, "\t");
+  contributions_gene
+      = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING,
+                           read_vector<Vector>, "\t");
+  contributions_spot
+      = parse_file<Vector>(prefix + "contributions_spot" + FILENAME_ENDING,
+                           read_vector<Vector>, "\t");
 }
 
 Matrix Experiment::log_likelihood() const {

@@ -25,10 +25,6 @@ struct Model {
 
   Parameters parameters;
 
-  /** hidden contributions to the count data due to the different factors */
-  Matrix contributions_gene_type;
-  Vector contributions_gene;
-
   /** factor loading matrix */
   Matrix phi_r;
   Matrix phi_p;
@@ -44,6 +40,10 @@ struct Model {
 
   using prior_type = PRIOR::THETA::Gamma;
   prior_type mix_prior;
+
+  /** hidden contributions to the count data due to the different factors */
+  Matrix contributions_gene_type;
+  Vector contributions_gene;
 
   Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
         bool same_coord_sys);

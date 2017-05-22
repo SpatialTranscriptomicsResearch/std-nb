@@ -38,10 +38,6 @@ struct Experiment {
 
   Parameters parameters;
 
-  /** hidden contributions to the count data due to the different factors */
-  Matrix contributions_gene_type, contributions_spot_type;
-  Vector contributions_gene, contributions_spot;
-
   /** local features */
   Matrix phi_l;
   /** local feature baseline */
@@ -53,6 +49,10 @@ struct Experiment {
 
   /** spot scaling vector */
   Vector spot;
+
+  /** hidden contributions to the count data due to the different factors */
+  Matrix contributions_gene_type, contributions_spot_type;
+  Vector contributions_gene, contributions_spot;
 
   Experiment(Model *model, const Counts &counts, size_t T,
              const Parameters &parameters);

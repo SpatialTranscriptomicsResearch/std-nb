@@ -14,11 +14,11 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
       S(0),
       experiments(),
       parameters(parameters_),
-      contributions_gene_type(Matrix::Zero(G, T)),
-      contributions_gene(Vector::Zero(G)),
       phi_r(Matrix::Ones(G, T)),
       phi_p(Matrix::Ones(G, T)),
-      mix_prior(sum_cols(c), T, parameters) {
+      mix_prior(sum_cols(c), T, parameters),
+      contributions_gene_type(Matrix::Zero(G, T)),
+      contributions_gene(Vector::Zero(G)) {
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   size_t coord_sys = 0;
   for (auto &counts : c)
