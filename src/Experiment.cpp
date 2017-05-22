@@ -23,7 +23,7 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       phi_b(Matrix::Ones(G, 1)),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
-      spot(Matrix::Ones(S, T)) {
+      spot(Vector::Ones(S)) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
   /* TODO consider to initialize:
    * contributions_gene_type
