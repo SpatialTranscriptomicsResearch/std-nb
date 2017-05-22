@@ -194,9 +194,13 @@ Mesh::Mesh(size_t dim_, const vector<Point> &pts, const string &prefix)
   }
 }
 
-void Mesh::store(const string &path, const STD::Matrix &m) const {}
+void Mesh::store(const string &path, const STD::Matrix &m) const {
+  // TODO
+}
 
-void Mesh::restore(const string &path, STD::Matrix &m) {}
+void Mesh::restore(const string &path, STD::Matrix &m) {
+  // TODO
+}
 
 ostream &operator<<(ostream &os, const Mesh &mesh) {
   os << "N = " << mesh.N << endl;
