@@ -720,9 +720,12 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters() {
+  enforce_positive_and_warn("phi_r", phi_r);
+  enforce_positive_and_warn("phi_p", phi_p);
+  enforce_positive_and_warn("mix_prior_r", mix_prior.r);
   for (auto &coord_sys : coordinate_systems)
     enforce_positive_and_warn("field", coord_sys.field);
-  enforce_positive_and_warn("phi_r", phi_r);
+  enforce_positive_and_warn("mix_prior_p", mix_prior.p);
   enforce_positive_and_warn("phi_p", phi_p);
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();

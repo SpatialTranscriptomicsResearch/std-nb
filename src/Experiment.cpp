@@ -399,11 +399,11 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 }
 
 void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("local field", field);
-  enforce_positive_and_warn("spot", spot);
   enforce_positive_and_warn("phi_l", phi_l);
   enforce_positive_and_warn("phi_b", phi_b);
   enforce_positive_and_warn("theta", theta);
+  enforce_positive_and_warn("local field", field);
+  enforce_positive_and_warn("spot", spot);
 }
 
 /** Calculate log posterior of theta with respect to the field */
