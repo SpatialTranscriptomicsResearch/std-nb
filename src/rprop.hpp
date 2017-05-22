@@ -6,9 +6,9 @@
 
 template <typename T>
 int sgn(T val) {
-  if(val < 0)
+  if (val < 0)
     return -1;
-  if(val > 0)
+  if (val > 0)
     return 1;
   return 0;
 }
@@ -54,6 +54,7 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
   }
   case0 -= caseP;
   LOG(verbose) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
+  LOG(verbose) << "learning rates:" << std::endl << Stats::summary(rate);
 }
 
 #endif
