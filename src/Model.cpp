@@ -70,6 +70,16 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(phi_p, prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
+    {
+      const size_t C = coordinate_systems.size();
+      const size_t num_digits = 1 + floor(log(C) / log(10));
+      for (size_t c = 0; c < C; ++c)
+        write_matrix(coordinate_systems[c].field,
+                     prefix + "field" + to_string_embedded(c, num_digits)
+                         + FILENAME_ENDING,
+                     parameters.compression_mode, {}, factor_names, order);
+    }
+#pragma omp section
     mix_prior.store(prefix + "mixprior", factor_names, order);
 #pragma omp section
     write_matrix(contributions_gene_type,
@@ -129,17 +139,29 @@ void Model::store(const string &prefix_, bool reorder) const {
 }
 
 void Model::restore(const string &prefix) {
+  phi_r = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+                             read_matrix, "\t");
+  phi_p = parse_file<Matrix>(prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
+                             read_matrix, "\t");
+
+  {
+    const size_t C = coordinate_systems.size();
+    const size_t num_digits = 1 + floor(log(C) / log(10));
+    for (size_t c = 0; c < C; ++c)
+      coordinate_systems[c].field = parse_file<Matrix>(
+          prefix + "field" + to_string_embedded(c, num_digits)
+              + FILENAME_ENDING,
+          read_matrix, "\t");
+  }
+
+  mix_prior.restore(prefix);
+
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
   contributions_gene
       = parse_file<Vector>(prefix + "contributions_gene" + FILENAME_ENDING,
                            read_vector<Vector>, "\t");
-  phi_r = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
-                             read_matrix, "\t");
-  phi_p = parse_file<Matrix>(prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
-                             read_matrix, "\t");
-  // TODO restore mix prior
-  // TODO restore fields
+
   for (size_t e = 0; e < E; ++e) {
     string exp_prefix = prefix + "experiment"
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
