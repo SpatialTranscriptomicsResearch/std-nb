@@ -53,7 +53,7 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
     sgn_iter++;
   }
   case0 -= caseP;
-  LOG(info) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
+  LOG(verbose) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
 }
 
 #endif

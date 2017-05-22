@@ -219,6 +219,7 @@ Vector Model::vectorize() const {
 
 Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
+
   score = 0;
   Model gradient = *this;
   gradient.set_zero();
@@ -271,13 +272,9 @@ Model Model::compute_gradient(double &score) const {
           += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
                             gradient.coordinate_systems[c].field);
 
-  LOG(verbose) << "Score = " << score;
-
-  LOG(verbose) << "Finalizing gradient";
   if (not parameters.ignore_priors)
     finalize_gradient(gradient);
   score += param_likel();
-  LOG(verbose) << "Final Score = " << score;
 
   return gradient;
 }
@@ -310,6 +307,8 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 }
 
 void Model::finalize_gradient(Model &gradient) const {
+  LOG(verbose) << "Finalizing gradient";
+
   if (parameters.targeted(Target::global)) {
     const double a = parameters.hyperparameters.phi_r_1;
     const double b = parameters.hyperparameters.phi_r_2;
@@ -534,7 +533,7 @@ void Model::gradient_update() {
       score = -score;
     }
 
-    LOG(verbose) << "score: " << score;
+    LOG(info) << "Iteration " << iter_cnt << ", score: " << score;
     LOG(verbose) << "x: " << endl << Stats::summary(x);
     LOG(verbose) << "grad: " << endl << Stats::summary(grad);
 
@@ -543,10 +542,10 @@ void Model::gradient_update() {
 
   Vector x = vectorize().array().log();
 
-  LOG(verbose) << "x.size() = " << x.size();
+  LOG(debug) << "x.size() = " << x.size();
   for (size_t i = 0; i < 10; i++)
-    LOG(verbose) << "x[" << i << "] = " << x[i];
-  LOG(verbose) << "initial x: " << endl << Stats::summary(x);
+    LOG(debug) << "x[" << i << "] = " << x[i];
+  LOG(debug) << "initial x: " << endl << Stats::summary(x);
 
   double fx;
   switch (parameters.optim_method) {
