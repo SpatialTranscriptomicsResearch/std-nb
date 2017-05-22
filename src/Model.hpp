@@ -103,7 +103,6 @@ struct Model {
   // theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
-  void update_fields();
   void update_experiment_fields();
   void update_contributions();
   Matrix field_fitness_posterior_gradient() const;
