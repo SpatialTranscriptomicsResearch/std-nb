@@ -225,8 +225,10 @@ Model Model::compute_gradient(double &score) const {
   Model gradient = *this;
   gradient.set_zero();
   gradient.contributions_gene_type.setZero();
-  for (auto &experiment : gradient.experiments)
+  for (auto &experiment : gradient.experiments) {
     experiment.contributions_spot_type.setZero();
+    experiment.contributions_gene_type.setZero();
+  }
   if (parameters.targeted(Target::global)
       or parameters.targeted(Target::variance)
       or parameters.targeted(Target::local)
@@ -235,8 +237,7 @@ Model Model::compute_gradient(double &score) const {
       or parameters.targeted(Target::spot))
 #pragma omp parallel if (DO_PARALLEL)
   {
-    Model grad = *this;
-    grad.set_zero();
+    Model grad = gradient;
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
 
