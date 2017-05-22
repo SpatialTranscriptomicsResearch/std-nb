@@ -526,9 +526,12 @@ void Model::gradient_update() {
     Model model_grad = compute_gradient(score);
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
-    for (size_t e = 0; e < E; ++e)
+    for (size_t e = 0; e < E; ++e) {
       experiments[e].contributions_spot_type
           = model_grad.experiments[e].contributions_spot_type;
+      experiments[e].contributions_gene_type
+          = model_grad.experiments[e].contributions_gene_type;
+    }
 
     if (parameters.optim_method == Optimize::Method::lBFGS) {
       // as for lBFGS we want to minimize, we have to negate
