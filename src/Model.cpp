@@ -25,8 +25,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
-  for (auto &x : phi_r)
-    x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+  if (parameters.targeted(Target::global))
+    for (auto &x : phi_r)
+      x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 
   initialize_coordinate_systems(1);
 
@@ -616,7 +617,7 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
       double s = coord_sys.mesh.sum_dirichlet_energy(Vector(field.col(t)));
       score -= s * parameters.field_lambda_dirichlet;
       LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
-                   << s;
+                 << s;
     }
     grad -= grad_dirichlet * parameters.field_lambda_dirichlet;
   }
@@ -630,7 +631,7 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
       double s = coord_sys.mesh.sum_sq_laplace_operator(Vector(field.col(t)));
       score -= s * parameters.field_lambda_laplace;
       LOG(debug) << "Curvature contribution to score of factor " << t << ": "
-                   << s;
+                 << s;
     }
     grad -= grad_laplace * parameters.field_lambda_laplace;
   }

@@ -23,31 +23,26 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       phi_b(Matrix::Ones(G, 1)),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
-      spot(contributions_spot) {
+      spot(Matrix::Ones(S, T)) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
-  /* TODO consider to reactivate
-  if (false) {
-    // initialize:
-    //  * contributions_gene_type
-    //  * contributions_spot_type
-    LOG(debug) << "Initializing contributions.";
-    sample_contributions(c.counts);
-  }
-  */
+  /* TODO consider to initialize:
+   * contributions_gene_type
+   * contributions_spot_type
+   */
   LOG(debug) << "Coords: " << coords;
 
-  // initialize spot scaling factors by dividing through mean
-  LOG(debug) << "Initializing spot scaling.";
-  spot *= S / spot.sum();
+  if (parameters.targeted(Target::spot)) {
+    LOG(debug) << "Initializing spot scaling.";
+    spot = contributions_spot;
+    // divide by mean
+    spot *= S / spot.sum();
+  }
 
   // TODO initialize theta using parameters, model->mix_prior
   if (parameters.targeted(Target::theta))
     for (auto &x : theta)
       // TODO introduce parameter for constant
       x = exp(0.5 * std::normal_distribution<double>()(EntropySource::rng));
-
-  if (not parameters.targeted(Target::spot))
-    spot.setOnes();
 }
 
 void Experiment::store(const string &prefix,
