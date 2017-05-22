@@ -28,9 +28,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
   for (auto &x : phi_r)
     x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 
-  enforce_positive_parameters();
-
   initialize_coordinate_systems(1);
+
+  enforce_positive_parameters();
 }
 
 template <typename V>
