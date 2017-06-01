@@ -73,11 +73,15 @@ void Model::store(const string &prefix_, bool reorder) const {
     {
       const size_t C = coordinate_systems.size();
       const size_t num_digits = 1 + floor(log(C) / log(10));
-      for (size_t c = 0; c < C; ++c)
+      for (size_t c = 0; c < C; ++c) {
+        vector<string> rn;
+        for(size_t n = 0; n < coordinate_systems[c].N; ++n)
+          rn.push_back(to_string(n));
         write_matrix(coordinate_systems[c].field,
                      prefix + "field" + to_string_embedded(c, num_digits)
                          + FILENAME_ENDING,
-                     parameters.compression_mode, {}, factor_names, order);
+                     parameters.compression_mode, rn, factor_names, order);
+      }
     }
 #pragma omp section
     mix_prior.store(prefix + "mixprior", factor_names, order);
