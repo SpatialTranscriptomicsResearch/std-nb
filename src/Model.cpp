@@ -158,7 +158,7 @@ void Model::restore(const string &prefix) {
           read_matrix, "\t");
   }
 
-  mix_prior.restore(prefix);
+  mix_prior.restore(prefix + "mixprior");
 
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
