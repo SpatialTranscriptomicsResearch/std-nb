@@ -4,6 +4,7 @@
 #include <exception>
 #include <fstream>
 #include <regex>
+#include <string>
 #include <unordered_map>
 #include "compression.hpp"
 
@@ -66,7 +67,10 @@ Matrix read_floats(istream &ifs, const string &separator,
     return matrix;
   } else
     throw std::runtime_error(
-        "Mismatch between number of columns and number of column labels.");
+        string()
+        + "Mismatch between number of columns and number of column labels.\n"
+        + "There are " + std::to_string(ncol) + " columns and "
+        + std::to_string(col_names.size()) + " column names.");
 }
 
 void print_matrix_head(ostream &os, const Matrix &m, const std::string &label,
