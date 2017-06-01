@@ -93,7 +93,7 @@ struct Parameters {
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
   size_t grad_iterations = 10000;
-  double grad_alpha = 1e-2;
+  double grad_alpha = 1e-1;
   double grad_anneal = 0.999;
 
   double mesh_hull_enlarge = 1.03;
