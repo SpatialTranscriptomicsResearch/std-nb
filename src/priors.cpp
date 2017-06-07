@@ -22,12 +22,11 @@ double compute_conditional(const pair<Float, Float> &x, const V &observed,
   const size_t S = observed.size();
   const Float r = x.first;
   const Float p = x.second;
-  double l
-      = log_beta_neg_odds(p, hyperparameters.theta_p_1,
-                          hyperparameters.theta_p_2)
-        // NOTE: gamma_distribution takes a shape and scale parameter
-        + log_gamma(r, hyperparameters.theta_r_1, 1 / hyperparameters.theta_r_2)
-        + S * (r * log(p) - lgamma(r));
+  double l = log_beta_neg_odds(p, hyperparameters.theta_p_1,
+                               hyperparameters.theta_p_2)
+             + log_gamma_rate(r, hyperparameters.theta_r_1,
+                              hyperparameters.theta_r_2)
+             + S * (r * log(p) - lgamma(r));
   for (size_t s = 0; s < S; ++s)
     // The next line is part of the negative binomial distribution.
     // The other factors aren't needed as they don't depend on either of
@@ -46,12 +45,10 @@ double compute_conditional_gamma(const pair<Float, Float> &x, const V &theta,
   const Float p = x.second;
   double l = log_beta_neg_odds(p, hyperparameters.theta_p_1,
                                hyperparameters.theta_p_2)
-             // NOTE: gamma_distribution takes a shape and scale parameter
-             + log_gamma(r, hyperparameters.theta_r_1,
-                         1 / hyperparameters.theta_r_2);
+             + log_gamma_rate(r, hyperparameters.theta_r_1,
+                              hyperparameters.theta_r_2);
   for (size_t s = 0; s < S; ++s)
-    // NOTE: gamma_distribution takes a shape and scale parameter
-    l += log_gamma(theta(s), r * field(s), 1 / p);
+    l += log_gamma_rate(theta(s), r * field(s), p);
   return l;
 }
 
@@ -113,8 +110,7 @@ void Gamma::sample(const Matrix &observed, const Matrix &field) {
   }
 }
 
-void Gamma::store(const string &prefix,
-                  const vector<string> &factor_names,
+void Gamma::store(const string &prefix, const vector<string> &factor_names,
                   const vector<size_t> &order) const {
   Vector r_ = r;
   Vector p_ = p;

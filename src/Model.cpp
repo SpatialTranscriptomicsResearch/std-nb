@@ -455,8 +455,7 @@ double Model::param_likel() const {
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
-        // NOTE: gamma distribution takes a shape parameter
-        score += log_gamma(phi_r(g, t), a, 1.0 / b);
+        score += log_gamma_rate(phi_r(g, t), a, b);
   }
 
   if (parameters.targeted(Target::local)) {
@@ -467,8 +466,7 @@ double Model::param_likel() const {
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t g = 0; g < G; ++g)
           for (size_t t = 0; t < T; ++t)
-            // NOTE: gamma distribution takes a shape parameter
-            score += log_gamma(experiments[e].phi_l(g, t), a, 1.0 / b);
+            score += log_gamma_rate(experiments[e].phi_l(g, t), a, b);
   }
 
   if (parameters.targeted(Target::baseline)) {
@@ -478,8 +476,7 @@ double Model::param_likel() const {
       for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t g = 0; g < G; ++g)
-          // NOTE: gamma distribution takes a shape parameter
-          score += log_gamma(experiments[e].phi_b(g), a, 1.0 / b);
+          score += log_gamma_rate(experiments[e].phi_b(g), a, b);
   }
 
   if (parameters.targeted(Target::theta))
@@ -490,8 +487,7 @@ double Model::param_likel() const {
           for (size_t t = 0; t < T; ++t) {
             const double a = experiments[e].field(s, t) * mix_prior.r(t);
             const double b = mix_prior.p(t);
-            // NOTE: gamma distribution takes a shape parameter
-            score += log_gamma(experiments[e].theta(s, t), a, 1.0 / b);
+            score += log_gamma_rate(experiments[e].theta(s, t), a, b);
           }
 
   if (parameters.targeted(Target::spot)) {
@@ -501,7 +497,7 @@ double Model::param_likel() const {
       for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t s = 0; s < experiments[e].S; ++s)
-          score += log_gamma(experiments[e].spot(s), a, 1.0 / b);
+          score += log_gamma_rate(experiments[e].spot(s), a, b);
   }
 
   if (parameters.targeted(Target::variance)) {
@@ -520,8 +516,7 @@ double Model::param_likel() const {
       const double a = parameters.hyperparameters.theta_r_1;
       const double b = parameters.hyperparameters.theta_r_2;
       for (size_t t = 0; t < T; ++t)
-        // NOTE: gamma distribution takes a shape parameter
-        score += log_gamma(mix_prior.r(t), a, 1.0 / b);
+        score += log_gamma_rate(mix_prior.r(t), a, b);
     }
     {
       const double a = parameters.hyperparameters.theta_p_1;

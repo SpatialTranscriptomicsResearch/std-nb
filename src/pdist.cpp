@@ -27,7 +27,27 @@ double log_dirichlet(const vector<double> &p, const vector<double> &alpha) {
   return l;
 }
 
-double log_gamma(double x, double shape, double scale) {
+double log_gamma_rate(double x, double shape, double rate) {
+  if (x == 0) {
+    if (shape == 1)
+      return log(rate);
+    else if (shape > 1) {
+      LOG(warning) << "Warning: log probability of Gamma distribution wanted "
+                      "for x=0 and shape > 1!";
+      LOG(warning) << "We could return negative infinity. Aborting.";
+      assert(false);
+      return -std::numeric_limits<double>::infinity();
+    } else {
+      LOG(warning) << "Warning: log probability of Gamma distribution wanted "
+                      "for x=0 and shape < 1!";
+      LOG(warning) << "Returning infinity and continuing.";
+      return +std::numeric_limits<double>::infinity();
+    }
+  } else
+    return (shape - 1) * log(x) - x * rate - lgamma(shape) + shape * log(rate);
+}
+
+double log_gamma_scale(double x, double shape, double scale) {
   if (x == 0) {
     if (shape == 1)
       return -log(scale);

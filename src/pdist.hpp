@@ -48,7 +48,9 @@ double log_negative_multinomial(const std::vector<I> &x, F r,
 
 /** Gamma probability density function for x given a shape and a scale parameter
  */
-double log_gamma(double x, double shape, double scale);
+double log_gamma_rate(double x, double shape, double rate);/** Gamma probability density function for x given a shape and a scale parameter
+ */
+double log_gamma_scale(double x, double shape, double scale);
 /** Beta probability density function for probability p given shape parameters
  * alpha and beta */
 double log_beta(double p, double alpha, double beta);
@@ -86,7 +88,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   assert(scales.size() == N);
 
   if (N == 1)
-    return exp(log_gamma(x, shapes[0], scales[0]));
+    return exp(log_gamma_scale(x, shapes[0], scales[0]));
 
   if(x == 0)
     return 0;
@@ -96,7 +98,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
     // TODO this case needs special treatment
     double p = 0;
     for (size_t n = 0; n < N; ++n)
-      p += log_gamma(0, shapes[n], scales[n]);
+      p += log_gamma_scale(0, shapes[n], scales[n]);
     return exp(p);
   }
   */
