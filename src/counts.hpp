@@ -26,8 +26,8 @@ struct Counts {
 };
 
 std::vector<Counts> load_data(const std::vector<std::string> &paths,
-                              bool intersect, size_t top, bool discard_empty,
-                              bool transpose);
+                              bool intersect, size_t top, size_t bottom,
+                              bool discard_empty, bool transpose);
 
 void gene_union(std::vector<Counts> &counts_v);
 void gene_intersection(std::vector<Counts> &counts_v);

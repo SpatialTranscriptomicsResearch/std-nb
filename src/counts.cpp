@@ -35,10 +35,13 @@ size_t Counts::num_genes() const { return matrix->rows(); }
 
 size_t Counts::num_samples() const { return matrix->cols(); }
 
-void select_top(vector<Counts> &counts_v, size_t top) {
-  if (top == 0 or counts_v.empty() or counts_v[0].row_names.size() <= top)
+void select_top(vector<Counts> &counts_v, size_t n, bool select_top) {
+  if (n == 0 or counts_v.empty() or counts_v[0].row_names.size() <= n)
     return;
-  LOG(verbose) << "Selecting top " << top;
+  if (select_top)
+    LOG(verbose) << "Selecting top " << n;
+  else
+    LOG(verbose) << "Selecting bottom " << n;
 
   Vector gene_sums = rowSums<Vector>(*counts_v[0].matrix);
   for (size_t i = 1; i < counts_v.size(); ++i)
@@ -51,7 +54,11 @@ void select_top(vector<Counts> &counts_v, size_t top) {
   sort(begin(order), end(order), [&gene_sums](size_t a, size_t b) {
     return gene_sums(a) > gene_sums(b);
   });
-  order.resize(top);
+
+  if (not select_top)
+    std::reverse(begin(order), end(order));
+
+  order.resize(n);
 
   vector<string> names;
   for (auto &o : order)
@@ -59,8 +66,8 @@ void select_top(vector<Counts> &counts_v, size_t top) {
 
   for (auto &counts : counts_v) {
     const size_t T = counts.matrix->cols();
-    Matrix m = Matrix::Zero(top, T);
-    for (size_t i = 0; i < top; ++i)
+    Matrix m = Matrix::Zero(n, T);
+    for (size_t i = 0; i < n; ++i)
       m.row(i) = counts.matrix->row(order[i]);
     *counts.matrix = m;
     counts.row_names = names;
@@ -115,7 +122,8 @@ void discard_empty_genes(vector<Counts> &cnts) {
 }
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
-                         size_t top, bool discard_empty, bool transpose) {
+                         size_t top, size_t bottom, bool discard_empty,
+                         bool transpose) {
   vector<Counts> counts_v;
   for (auto &path : paths) {
     LOG(verbose) << "Loading " << path;
@@ -127,7 +135,8 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
   else
     gene_union(counts_v);
 
-  select_top(counts_v, top);
+  select_top(counts_v, top, true);
+  select_top(counts_v, bottom, false);
 
   if (discard_empty) {
     for (auto &counts : counts_v)

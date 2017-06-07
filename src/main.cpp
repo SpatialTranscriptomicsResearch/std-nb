@@ -26,6 +26,7 @@ struct Options {
   bool keep_empty = false;
   bool transpose = false;
   size_t top = 0;
+  size_t bottom = 0;
 };
 
 template <typename T>
@@ -126,6 +127,8 @@ int main(int argc, char **argv) {
      "Activate fields.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
+    ("bot", po::value(&options.bottom)->default_value(options.bottom),
+     "Use only those genes with the lowest read count across all spots. Zero indicates all genes.")
     ("transpose", po::bool_switch(&options.transpose),
      "Count matrices have spots in columns and genes in columns. Default is genes in rows and spots in columns.");
 
@@ -267,8 +270,9 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  auto data_sets = load_data(options.tsv_paths, options.intersect, options.top,
-                             not options.keep_empty, options.transpose);
+  auto data_sets
+      = load_data(options.tsv_paths, options.intersect, options.top,
+                  options.bottom, not options.keep_empty, options.transpose);
 
   if (data_sets.size() < 2) {
     LOG(info)
