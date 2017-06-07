@@ -35,7 +35,7 @@ size_t Counts::num_genes() const { return matrix->rows(); }
 
 size_t Counts::num_samples() const { return matrix->cols(); }
 
-void select_top(vector<Counts> &counts_v, size_t n, bool select_top) {
+void select_top_or_bottom(vector<Counts> &counts_v, size_t n, bool select_top) {
   if (n == 0 or counts_v.empty() or counts_v[0].row_names.size() <= n)
     return;
   if (select_top)
@@ -135,8 +135,8 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
   else
     gene_union(counts_v);
 
-  select_top(counts_v, top, true);
-  select_top(counts_v, bottom, false);
+  select_top_or_bottom(counts_v, top, true);
+  select_top_or_bottom(counts_v, bottom, false);
 
   if (discard_empty) {
     for (auto &counts : counts_v)
