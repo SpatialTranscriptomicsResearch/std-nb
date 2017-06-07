@@ -70,7 +70,13 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
 }
 
 int main(int argc, char **argv) {
-  feenableexcept(FE_INVALID | FE_DIVBYZERO | FE_OVERFLOW);
+  // available:
+  // FE_DIVBYZERO is triggered by log(0)
+  // FE_INEXACT
+  // FE_INVALID
+  // FE_OVERFLOW
+  // FE_UNDERFLOW
+  feenableexcept(FE_INVALID | FE_OVERFLOW);
 
   EntropySource::seed();
 
