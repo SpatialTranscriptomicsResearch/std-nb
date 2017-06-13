@@ -34,8 +34,6 @@ struct Hyperparameters {
         baseline_2(bline2){};
 
   // priors for the gamma distribution of r[g][t]
-  // Float c0;
-  // Float r0;
   Float phi_r_1;
   Float phi_r_2;
 
@@ -43,8 +41,6 @@ struct Hyperparameters {
   Float local_phi_r_2;
 
   // priors for the gamma distribution of p[g][t]
-  // Float c;
-  // Float epsilon;
   Float phi_p_1;
   Float phi_p_2;
   //
