@@ -1,5 +1,6 @@
 #include "Experiment.hpp"
 #include "Model.hpp"
+#include "gamma_func.hpp"
 #include "hamiltonian_monte_carlo.hpp"
 
 using namespace std;

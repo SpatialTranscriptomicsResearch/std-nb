@@ -1,5 +1,6 @@
 #include "Model.hpp"
 #include <LBFGS.h>
+#include "gamma_func.hpp"
 #include "rprop.hpp"
 
 using namespace std;

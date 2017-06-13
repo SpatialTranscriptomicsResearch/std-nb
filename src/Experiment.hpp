@@ -118,38 +118,6 @@ struct Experiment {
   std::vector<std::vector<size_t>> active_factors(double threshold = 1.0) const;
 };
 
-inline double lgamma_diff(double a, double b) {
-  double s = a + b;
-  if (s != a)
-    return lgamma(s) - lgamma(a);
-  else
-    return 0;
-}
-
-inline double lgamma_diff_1p(double a, double b) {
-  double s = a + b;
-  if (s != a + 1)
-    return lgamma(s) - lgamma(a + 1);
-  else
-    return 0;
-}
-
-inline double digamma_diff(double a, double b) {
-  double s = a + b;
-  if (s != a)
-    return digamma(s) - digamma(a);
-  else
-    return 0;
-}
-
-inline double trigamma_diff(double a, double b) {
-  double s = a + b;
-  if (s != a)
-    return trigamma(s) - trigamma(a);
-  else
-    return 0;
-}
-
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);
 
 Experiment operator*(const Experiment &a, const Experiment &b);

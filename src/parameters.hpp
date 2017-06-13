@@ -94,8 +94,5 @@ struct Parameters {
   double mesh_hull_enlarge = 1.03;
   double mesh_hull_distance = 2;
 };
-
-Float digamma(Float x);
-Float trigamma(Float x);
 }
 #endif
