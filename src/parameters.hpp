@@ -3,8 +3,8 @@
 
 #include <cstdint>
 #include "compression_mode.hpp"
-#include "target.hpp"
 #include "optimization_method.hpp"
+#include "target.hpp"
 #include "types.hpp"
 
 namespace STD {
@@ -17,8 +17,7 @@ struct Hyperparameters {
                   Float phi_p_1_ = 2, Float phi_p_2_ = 2, Float theta_r_1_ = 1,
                   Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
                   Float theta_p_2_ = 0.95, Float spot_a_ = 10,
-                  Float spot_b_ = 10, Float sigma_ = 1, Float residual = 100,
-                  Float bline1 = 50, Float bline2 = 50)
+                  Float spot_b_ = 10, Float bline1 = 50, Float bline2 = 50)
       : phi_r_1(phi_r_1_),
         phi_r_2(phi_r_2_),
         local_phi_r_1(local_phi_r_1_),
