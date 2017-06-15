@@ -220,10 +220,49 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
   const auto count = counts(g, s);
 
-  if (count > 0) {
-    if (T == 1) {
-      cnts[0] = count;
-    } else if (parameters.contributions_map) {
+  if (count == 0)
+    return cnts;
+
+  if (T == 1) {
+    cnts[0] = count;
+    return cnts;
+  }
+
+  switch (parameters.sample_method) {
+    case Sampling::Method::Mean: {
+      double z = 0;
+      for (size_t t = 0; t < T; ++t)
+        z += cnts[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t) * theta(s, t)
+                       / model->phi_p(g, t);
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] *= counts(g, s) / z;
+      return cnts;
+    } break;
+    case Sampling::Method::Multinomial: {
+      double z = 0;
+      for (size_t t = 0; t < T; ++t)
+        z += cnts[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t) * theta(s, t)
+                       / model->phi_p(g, t);
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] /= z;
+      auto icnts
+          = sample_multinomial(counts(g, s), begin(cnts), end(cnts), rng);
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] = icnts[t];
+      return cnts;
+    } break;
+    case Sampling::Method::MH:
+      throw(runtime_error("Sampling method not implemented: MH."));
+      break;
+    case Sampling::Method::HMC:
+      throw(runtime_error("Sampling method not implemented: HMC."));
+      break;
+    case Sampling::Method::RPROP:
+      throw(runtime_error("Sampling method not implemented: RPROP."));
+      break;
+  }
+  if (false) {
+    if (parameters.contributions_map) {
       Vector r(T);
       for (size_t t = 0; t < T; ++t)
         r[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
@@ -282,8 +321,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
           // TODO reconsider activating this
           // this was mostly de-activated because it doesn't for the two-factor
-          // case
-          // it should work better for more than two factors
+          // case it should work better for more than two factors
           if (false) {
             double l = 0;
             for (auto &x : grad)

@@ -23,6 +23,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   pdist.cpp
   priors.cpp
   sampling.cpp
+  sampling_method.cpp
   target.cpp
   terminal.cpp
   timer.cpp

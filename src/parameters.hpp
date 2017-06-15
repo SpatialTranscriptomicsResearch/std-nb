@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "compression_mode.hpp"
 #include "optimization_method.hpp"
+#include "sampling_method.hpp"
 #include "target.hpp"
 #include "types.hpp"
 
@@ -87,6 +88,7 @@ struct Parameters {
   size_t report_interval = 200;
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
+  Sampling::Method sample_method = Sampling::Method::Mean;
   size_t grad_iterations = 10000;
   double grad_alpha = 1e-1;
   double grad_anneal = 0.999;
