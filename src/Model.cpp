@@ -49,7 +49,7 @@ void Model::store(const string &prefix_, bool reorder) const {
   string prefix = parameters.output_directory + prefix_;
   {
     using namespace boost::filesystem;
-    if (not(exists(prefix) and is_directory(prefix)
+    if (not((exists(prefix) and is_directory(prefix))
             or create_directory(prefix)))
       throw(std::runtime_error("Couldn't create directory " + prefix));
   }
