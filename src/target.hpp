@@ -15,6 +15,7 @@ enum class Target {
   spot = 1 << 5,
   field = 1 << 6,
   variance = 1 << 7,
+  hyperparams = 1 << 8,
 };
 
 std::ostream &operator<<(std::ostream &os, const Target &which);
@@ -33,12 +34,13 @@ inline constexpr Target operator^(Target a, Target b) {
 }
 
 inline constexpr Target operator~(Target a) {
-  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 8) - 1));
+  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 9) - 1));
 }
 
 inline constexpr Target DefaultTarget() {
   return Target::global | Target::variance | Target::theta | Target::theta_prior
-         | Target::local | Target::baseline | Target::spot;
+         | Target::local | Target::baseline | Target::spot
+         | Target::hyperparams;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }

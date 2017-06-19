@@ -50,6 +50,7 @@ struct Model {
 
   void set_zero();
   Model compute_gradient(double &score) const;
+  double compute_hyperparameter_gradient(Model &gradient) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
                          Model &gradient) const;
   void finalize_gradient(Model &gradient) const;
@@ -57,6 +58,11 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
+    if(parameters.targeted(Target::hyperparams)) {
+      LOG(debug) << "Getting global phi hyper-parameters from vector";
+      parameters.hyperparameters.phi_r_1 = exp(*iter++);
+      parameters.hyperparameters.phi_r_2 = exp(*iter++);
+    }
     if (parameters.targeted(Target::global)) {
       LOG(debug) << "Getting global R from vector";
       for (auto &x : phi_r)

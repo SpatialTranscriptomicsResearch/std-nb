@@ -1,6 +1,6 @@
-#include "aux.hpp"
 #include "target.hpp"
 #include <boost/tokenizer.hpp>
+#include "aux.hpp"
 
 using namespace std;
 
@@ -44,6 +44,10 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "field";
       first = false;
     }
+    if (flagged(which & Target::hyperparams)) {
+      os << (first ? "" : ",") << "hyper";
+      first = false;
+    }
   }
   return os;
 }
@@ -74,6 +78,8 @@ istream &operator>>(istream &is, Target &which) {
       which = which | Target::baseline;
     else if (token == "field")
       which = which | Target::field;
+    else if (token == "hyper")
+      which = which | Target::hyperparams;
     else
       throw(runtime_error("Unknown sampling token: " + token));
   }

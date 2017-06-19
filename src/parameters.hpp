@@ -34,6 +34,8 @@ struct Hyperparameters {
         baseline_1(bline1),
         baseline_2(bline2){};
 
+  // TODO add: hyper-hyper-parameters
+
   // priors for the gamma distribution of r[g][t]
   Float phi_r_1;
   Float phi_r_2;
@@ -59,6 +61,8 @@ struct Hyperparameters {
   Float baseline_1;
   Float baseline_2;
 };
+
+std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct Parameters {
   /** Maximal number of propositions for Metropolis-Hastings sampling */

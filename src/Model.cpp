@@ -62,6 +62,12 @@ void Model::store(const string &prefix_, bool reorder) const {
 #pragma omp parallel sections if (DO_PARALLEL)
   {
 #pragma omp section
+    {
+      // TODO use parse-able format
+      ofstream ofs(prefix + "hyperparameters.txt");
+      ofs << parameters.hyperparameters;
+    }
+#pragma omp section
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
@@ -76,7 +82,7 @@ void Model::store(const string &prefix_, bool reorder) const {
       const size_t num_digits = 1 + floor(log(C) / log(10));
       for (size_t c = 0; c < C; ++c) {
         vector<string> rn;
-        for(size_t n = 0; n < coordinate_systems[c].N; ++n)
+        for (size_t n = 0; n < coordinate_systems[c].N; ++n)
           rn.push_back(to_string(n));
         write_matrix(coordinate_systems[c].field,
                      prefix + "field" + to_string_embedded(c, num_digits)
@@ -198,6 +204,8 @@ void Model::set_zero() {
 
 size_t Model::size() const {
   size_t s = 0;
+  if (parameters.targeted(Target::hyperparams))
+    s += 2;
   if (parameters.targeted(Target::global))
     s += phi_r.size();
   if (parameters.targeted(Target::variance))
@@ -215,6 +223,11 @@ size_t Model::size() const {
 Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
+
+  if (parameters.targeted(Target::hyperparams)) {
+    *iter++ = parameters.hyperparameters.phi_r_1;
+    *iter++ = parameters.hyperparameters.phi_r_2;
+  }
 
   if (parameters.targeted(Target::global))
     for (auto &x : phi_r)
@@ -301,11 +314,45 @@ Model Model::compute_gradient(double &score) const {
           += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
                             gradient.coordinate_systems[c].field);
 
+  if (parameters.targeted(Target::hyperparams))
+    score += compute_hyperparameter_gradient(gradient);
+
   if (not parameters.ignore_priors)
     finalize_gradient(gradient);
   score += param_likel();
 
   return gradient;
+}
+
+double Model::compute_hyperparameter_gradient(Model &gradient) const {
+  double score = 0;
+
+  double a = gradient.parameters.hyperparameters.phi_r_1;
+  double b = gradient.parameters.hyperparameters.phi_r_2;
+
+  gradient.parameters.hyperparameters.phi_r_1 = 0;
+  gradient.parameters.hyperparameters.phi_r_2 = 0;
+
+  const double hyper_alpha = 1;
+  const double hyper_beta = 1;
+  const double hyper_gamma = 1;
+  const double hyper_delta = 1;
+
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) {
+      gradient.parameters.hyperparameters.phi_r_1
+          += a * (log(b) - digamma(a) + log(phi_r(g, t)));
+      gradient.parameters.hyperparameters.phi_r_2 += a - b * phi_r(g, t);
+    }
+
+  gradient.parameters.hyperparameters.phi_r_1
+      += hyper_alpha - 1 - a * hyper_beta;
+  gradient.parameters.hyperparameters.phi_r_2
+      += hyper_gamma - 1 - b * hyper_delta;
+
+  // TODO compute score
+
+  return score;
 }
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
