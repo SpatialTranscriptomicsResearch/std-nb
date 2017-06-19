@@ -15,7 +15,7 @@ const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 struct Hyperparameters {
   Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
                   Float lambda_1_ = 50, Float lambda_2_ = 50,
-                  Float negodds_rho_1_ = 2, Float negodds_rho_2_ = 2,
+                  Float rho_1_ = 2, Float rho_2_ = 2,
                   Float theta_r_1_ = 1, Float theta_r_2_ = 1,
                   Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95,
                   Float spot_a_ = 10, Float spot_b_ = 10, Float bline1 = 50,
@@ -24,8 +24,8 @@ struct Hyperparameters {
         gamma_2(gamma_2_),
         lambda_1(lambda_1_),
         lambda_2(lambda_2_),
-        negodds_rho_1(negodds_rho_1_),
-        negodds_rho_2(negodds_rho_2_),
+        rho_1(rho_1_),
+        rho_2(rho_2_),
         theta_r_1(theta_r_1_),
         theta_r_2(theta_r_2_),
         theta_p_1(theta_p_1_),
@@ -45,8 +45,8 @@ struct Hyperparameters {
   Float lambda_2;
 
   // priors for the gamma distribution of p[g][t]
-  Float negodds_rho_1;
-  Float negodds_rho_2;
+  Float rho_1;
+  Float rho_2;
   //
   // priors for the gamma distribution of r[t]
   Float theta_r_1;

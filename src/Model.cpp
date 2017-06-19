@@ -397,8 +397,8 @@ void Model::finalize_gradient(Model &gradient) const {
   }
 
   if (parameters.targeted(Target::rho)) {
-    const double a = parameters.hyperparameters.negodds_rho_1;
-    const double b = parameters.hyperparameters.negodds_rho_2;
+    const double a = parameters.hyperparameters.rho_1;
+    const double b = parameters.hyperparameters.rho_2;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) {
@@ -551,8 +551,8 @@ double Model::param_likel() const {
   }
 
   if (parameters.targeted(Target::rho)) {
-    const double a = parameters.hyperparameters.negodds_rho_1;
-    const double b = parameters.hyperparameters.negodds_rho_2;
+    const double a = parameters.hyperparameters.rho_1;
+    const double b = parameters.hyperparameters.rho_2;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t) {

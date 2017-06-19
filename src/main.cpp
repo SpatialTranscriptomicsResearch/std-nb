@@ -203,9 +203,9 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of local r[g][t].")
     ("lambda_2", po::value(&parameters.hyperparameters.lambda_2)->default_value(parameters.hyperparameters.lambda_2),
      "Gamma prior 2 of local r[g][t].")
-    ("negodds_rho_1", po::value(&parameters.hyperparameters.negodds_rho_1)->default_value(parameters.hyperparameters.negodds_rho_1),
+    ("rho_1", po::value(&parameters.hyperparameters.rho_1)->default_value(parameters.hyperparameters.rho_1),
      "Beta prior 1 of p[g][t].")
-    ("negodds_rho_2", po::value(&parameters.hyperparameters.negodds_rho_2)->default_value(parameters.hyperparameters.negodds_rho_2),
+    ("rho_2", po::value(&parameters.hyperparameters.rho_2)->default_value(parameters.hyperparameters.rho_2),
      "Beta prior 2 of p[g][t].")
     ("theta_r_1", po::value(&parameters.hyperparameters.theta_r_1)->default_value(parameters.hyperparameters.theta_r_1),
      "Gamma prior 1 of r[t].")
