@@ -47,8 +47,12 @@ vector<size_t> get_order(const V &v) {
 
 void Model::store(const string &prefix_, bool reorder) const {
   string prefix = parameters.output_directory + prefix_;
-  if (not boost::filesystem::create_directory(prefix))
-    throw(std::runtime_error("Couldn't create directory " + prefix));
+  {
+    using namespace boost::filesystem;
+    if (not(exists(prefix) and is_directory(prefix)
+            or create_directory(prefix)))
+      throw(std::runtime_error("Couldn't create directory " + prefix));
+  }
   auto factor_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->counts.row_names;
 
@@ -74,8 +78,7 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(gamma, prefix + "feature-gamma" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(negodds_rho,
-                 prefix + "feature-negodds_rho" + FILENAME_ENDING,
+    write_matrix(negodds_rho, prefix + "feature-negodds_rho" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     {
@@ -153,8 +156,8 @@ void Model::store(const string &prefix_, bool reorder) const {
 void Model::restore(const string &prefix) {
   gamma = parse_file<Matrix>(prefix + "feature-gamma" + FILENAME_ENDING,
                              read_matrix, "\t");
-  negodds_rho = parse_file<Matrix>(
-      prefix + "feature-rho" + FILENAME_ENDING, read_matrix, "\t");
+  negodds_rho = parse_file<Matrix>(prefix + "feature-rho" + FILENAME_ENDING,
+                                   read_matrix, "\t");
 
   {
     const size_t C = coordinate_systems.size();
