@@ -16,8 +16,8 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      phi_l(Matrix::Ones(G, T)),
-      phi_b(Matrix::Ones(G, 1)),
+      lambda(Matrix::Ones(G, T)),
+      beta(Matrix::Ones(G, 1)),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
       spot(Vector::Ones(S)),
@@ -63,10 +63,10 @@ void Experiment::store(const string &prefix,
 #pragma omp parallel sections if (DO_PARALLEL)
   {
 #pragma omp section
-    write_matrix(phi_l, prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+    write_matrix(lambda, prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(phi_b,
+    write_matrix(beta,
                  prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, {1, "Baseline"}, {});
 #pragma omp section
@@ -118,9 +118,9 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  phi_l = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
-                             read_matrix, "\t");
-  phi_b = parse_file<Matrix>(
+  lambda = parse_file<Matrix>(
+      prefix + "feature-gamma_prior-r" + FILENAME_ENDING, read_matrix, "\t");
+  beta = parse_file<Matrix>(
       prefix + "baselinefeature-gamma_prior-r" + FILENAME_ENDING, read_matrix,
       "\t");
 
@@ -148,14 +148,14 @@ Matrix Experiment::log_likelihood() const {
   const size_t K = min<size_t>(20, T);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g) {
-    Vector ps = model->phi_p.row(g);
+    Vector ps = model->negodds_rho.row(g);
     for (size_t t = 0; t < T; ++t)
       // NOTE conv neg bin has opposite interpretation of p
       ps[t] = 1 - neg_odds_to_prob(ps[t]);
     Vector rs(T);
     for (size_t s = 0; s < S; ++s) {
       for (size_t t = 0; t < T; ++t)
-        rs[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
+        rs[t] = model->gamma(g, t) * lambda(g, t) * beta(g) * theta(s, t)
                 * spot(s);
       double x = convolved_negative_binomial(counts(g, s), K, rs, ps);
       LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
@@ -232,8 +232,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Mean: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t) * theta(s, t)
-                       / model->phi_p(g, t);
+        z += cnts[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
+                       / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] *= counts(g, s) / z;
       return cnts;
@@ -241,8 +241,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Multinomial: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t) * theta(s, t)
-                       / model->phi_p(g, t);
+        z += cnts[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
+                       / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
       auto icnts
@@ -265,12 +265,12 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     if (parameters.contributions_map) {
       Vector r(T);
       for (size_t t = 0; t < T; ++t)
-        r[t] = model->phi_r(g, t) * phi_l(g, t) * phi_b(g) * theta(s, t)
+        r[t] = model->gamma(g, t) * lambda(g, t) * beta(g) * theta(s, t)
                * spot(s);
 
       Vector p(T);
       for (size_t t = 0; t < T; ++t)
-        p[t] = neg_odds_to_prob(model->phi_p(g, t));
+        p[t] = neg_odds_to_prob(model->negodds_rho(g, t));
 
       if (noisy) {
         for (size_t t = 0; t < T; ++t)
@@ -281,7 +281,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
       if (true) {
         for (size_t t = 0; t < T; ++t)
-          cnts[t] = log(r[t] / model->phi_p(g, t));
+          cnts[t] = log(r[t] / model->negodds_rho(g, t));
 
         Vector mean(T);
         const size_t max_iter = (noisy ? 10 : 1);
@@ -352,12 +352,12 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
           LOG(debug) << "i=" << i << " j=" << j << " n=" << n
                      << " v[i]=" << v[i] << " v[j]=" << v[j];
 
-        const double r_i = model->phi_r(g, i) * phi_l(g, i);
-        const double no_i = model->phi_p(g, i);
+        const double r_i = model->gamma(g, i) * lambda(g, i);
+        const double no_i = model->negodds_rho(g, i);
         const double prod_i = r_i * theta(s, i) * spot(s);
 
-        const double r_j = model->phi_r(g, j) * phi_l(g, j);
-        const double no_j = model->phi_p(g, j);
+        const double r_j = model->gamma(g, j) * lambda(g, j);
+        const double no_j = model->negodds_rho(g, j);
         const double prod_j = r_j * theta(s, j) * spot(s);
 
         // TODO determine continous-valued mean by optimizing the posterior
@@ -389,8 +389,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       vector<double> expected_prob(T, 0);
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += expected_prob[t] = phi_b(g) * phi_l(g, t) * model->phi_r(g, t)
-                                / model->phi_p(g, t) * theta(s, t);
+        z += expected_prob[t] = beta(g) * lambda(g, t) * model->gamma(g, t)
+                                / model->negodds_rho(g, t) * theta(s, t);
       for (size_t t = 0; t < T; ++t)
         expected_prob[t] /= z;
       auto icnts = sample_multinomial(counts(g, s), begin(expected_prob),
@@ -433,8 +433,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 }
 
 void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("phi_l", phi_l);
-  enforce_positive_and_warn("phi_b", phi_b);
+  enforce_positive_and_warn("lambda", lambda);
+  enforce_positive_and_warn("beta", beta);
   enforce_positive_and_warn("theta", theta);
   enforce_positive_and_warn("local field", field);
   enforce_positive_and_warn("spot", spot);
@@ -510,8 +510,8 @@ Vector Experiment::marginalize_genes() const {
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensity
-          += phi_b(g) * phi_l(g, t) * model->phi_r(g, t) / model->phi_p(g, t);
+      intensity += beta(g) * lambda(g, t) * model->gamma(g, t)
+                   / model->negodds_rho(g, t);
     intensities[t] = intensity;
   }
   return intensities;
@@ -535,8 +535,8 @@ Matrix Experiment::expected_gene_type() const {
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      expected(g, t) = model->phi_r(g, t) * phi_l(g, t) * phi_b(g)
-                       / model->phi_p(g, t) * marginal(t);
+      expected(g, t) = model->gamma(g, t) * lambda(g, t) * beta(g)
+                       / model->negodds_rho(g, t) * marginal(t);
   return expected;
 }
 
@@ -546,7 +546,8 @@ Matrix Experiment::expected_spot_type() const {
     Float x = 0;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      x += model->phi_r(g, t) * phi_l(g, t) * phi_b(g) / model->phi_p(g, t);
+      x += model->gamma(g, t) * lambda(g, t) * beta(g)
+           / model->negodds_rho(g, t);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       m(s, t) = x * theta(s, t) * spot(s);
@@ -570,9 +571,9 @@ vector<vector<size_t>> Experiment::active_factors(double threshold) const {
 size_t Experiment::size() const {
   size_t s = 0;
   if (parameters.targeted(Target::local))
-    s += phi_l.size();
+    s += lambda.size();
   if (parameters.targeted(Target::baseline))
-    s += phi_b.size();
+    s += beta.size();
   if (parameters.targeted(Target::theta))
     s += theta.size();
   if (parameters.targeted(Target::field))
@@ -583,8 +584,8 @@ size_t Experiment::size() const {
 }
 
 void Experiment::set_zero() {
-  phi_l.setZero();
-  phi_b.setZero();
+  lambda.setZero();
+  beta.setZero();
   theta.setZero();
   field.setZero();
   spot.setZero();
@@ -594,10 +595,10 @@ Vector Experiment::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
   if (parameters.targeted(Target::local))
-    for (auto &x : phi_l)
+    for (auto &x : lambda)
       *iter++ = x;
   if (parameters.targeted(Target::baseline))
-    for (auto &x : phi_b)
+    for (auto &x : beta)
       *iter++ = x;
   if (parameters.targeted(Target::theta))
     for (auto &x : theta)
@@ -648,8 +649,8 @@ Experiment operator*(const Experiment &a, const Experiment &b) {
 
   experiment.spot.array() *= b.spot.array();
 
-  experiment.phi_l.array() *= b.phi_l.array();
-  experiment.phi_b.array() *= b.phi_b.array();
+  experiment.lambda.array() *= b.lambda.array();
+  experiment.beta.array() *= b.beta.array();
   experiment.theta.array() *= b.theta.array();
 
   return experiment;
@@ -665,8 +666,8 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   experiment.spot += b.spot;
 
-  experiment.phi_l += b.phi_l;
-  experiment.phi_b += b.phi_b;
+  experiment.lambda += b.lambda;
+  experiment.beta += b.beta;
   experiment.theta += b.theta;
 
   return experiment;
@@ -682,8 +683,8 @@ Experiment operator-(const Experiment &a, const Experiment &b) {
 
   experiment.spot -= b.spot;
 
-  experiment.phi_l -= b.phi_l;
-  experiment.phi_b -= b.phi_b;
+  experiment.lambda -= b.lambda;
+  experiment.beta -= b.beta;
   experiment.theta -= b.theta;
 
   return experiment;
@@ -699,8 +700,8 @@ Experiment operator*(const Experiment &a, double x) {
 
   experiment.spot *= x;
 
-  experiment.phi_l *= x;
-  experiment.phi_b *= x;
+  experiment.lambda *= x;
+  experiment.beta *= x;
   experiment.theta *= x;
 
   return experiment;
@@ -716,8 +717,8 @@ Experiment operator/(const Experiment &a, double x) {
 
   experiment.spot /= x;
 
-  experiment.phi_l /= x;
-  experiment.phi_b /= x;
+  experiment.lambda /= x;
+  experiment.beta /= x;
   experiment.theta /= x;
 
   return experiment;
@@ -733,8 +734,8 @@ Experiment operator-(const Experiment &a, double x) {
 
   experiment.spot.array() -= x;
 
-  experiment.phi_l.array() -= x;
-  experiment.phi_b.array() -= x;
+  experiment.lambda.array() -= x;
+  experiment.beta.array() -= x;
   experiment.theta.array() -= x;
 
   return experiment;

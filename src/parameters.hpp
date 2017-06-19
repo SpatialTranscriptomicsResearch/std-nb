@@ -13,39 +13,40 @@ namespace STD {
 const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
-  Hyperparameters(Float phi_r_1_ = 1, Float phi_r_2_ = 1,
-                  Float local_phi_r_1_ = 50, Float local_phi_r_2_ = 50,
-                  Float phi_p_1_ = 2, Float phi_p_2_ = 2, Float theta_r_1_ = 1,
-                  Float theta_r_2_ = 1, Float theta_p_1_ = 0.05,
-                  Float theta_p_2_ = 0.95, Float spot_a_ = 10,
-                  Float spot_b_ = 10, Float bline1 = 50, Float bline2 = 50)
-      : phi_r_1(phi_r_1_),
-        phi_r_2(phi_r_2_),
-        local_phi_r_1(local_phi_r_1_),
-        local_phi_r_2(local_phi_r_2_),
-        phi_p_1(phi_p_1_),
-        phi_p_2(phi_p_2_),
+  Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
+                  Float lambda_1_ = 50, Float lambda_2_ = 50,
+                  Float negodds_rho_1_ = 2, Float negodds_rho_2_ = 2,
+                  Float theta_r_1_ = 1, Float theta_r_2_ = 1,
+                  Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95,
+                  Float spot_a_ = 10, Float spot_b_ = 10, Float bline1 = 50,
+                  Float bline2 = 50)
+      : gamma_1(gamma_1_),
+        gamma_2(gamma_2_),
+        lambda_1(lambda_1_),
+        lambda_2(lambda_2_),
+        negodds_rho_1(negodds_rho_1_),
+        negodds_rho_2(negodds_rho_2_),
         theta_r_1(theta_r_1_),
         theta_r_2(theta_r_2_),
         theta_p_1(theta_p_1_),
         theta_p_2(theta_p_2_),
         spot_a(spot_a_),
         spot_b(spot_b_),
-        baseline_1(bline1),
-        baseline_2(bline2){};
+        beta_1(bline1),
+        beta_2(bline2){};
 
   // TODO add: hyper-hyper-parameters
 
   // priors for the gamma distribution of r[g][t]
-  Float phi_r_1;
-  Float phi_r_2;
+  Float gamma_1;
+  Float gamma_2;
 
-  Float local_phi_r_1;
-  Float local_phi_r_2;
+  Float lambda_1;
+  Float lambda_2;
 
   // priors for the gamma distribution of p[g][t]
-  Float phi_p_1;
-  Float phi_p_2;
+  Float negodds_rho_1;
+  Float negodds_rho_2;
   //
   // priors for the gamma distribution of r[t]
   Float theta_r_1;
@@ -58,8 +59,8 @@ struct Hyperparameters {
   Float spot_a;
   Float spot_b;
 
-  Float baseline_1;
-  Float baseline_2;
+  Float beta_1;
+  Float beta_2;
 };
 
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);

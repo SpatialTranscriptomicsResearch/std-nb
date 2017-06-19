@@ -8,8 +8,8 @@ namespace STD {
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   // TODO print all
 
-  os << "phi_r_1 = " << hyperparams.phi_r_1 << endl;
-  os << "phi_r_2 = " << hyperparams.phi_r_2 << endl;
+  os << "gamma_1 = " << hyperparams.gamma_1 << endl;
+  os << "gamma_2 = " << hyperparams.gamma_2 << endl;
   return os;
 }
 

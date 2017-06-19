@@ -39,9 +39,9 @@ struct Experiment {
   Parameters parameters;
 
   /** local features */
-  Matrix phi_l;
+  Matrix lambda;
   /** local feature baseline */
-  Vector phi_b;
+  Vector beta;
 
   /** factor score matrix */
   Matrix theta;
@@ -90,13 +90,13 @@ struct Experiment {
   template <typename Iter>
   void from_log_vector(Iter &iter) {
     if (parameters.targeted(Target::local)) {
-      LOG(debug) << "Getting local R from vector";
-      for (auto &x : phi_l)
+      LOG(debug) << "Getting lambda from vector";
+      for (auto &x : lambda)
         x = exp(*iter++);
     }
     if (parameters.targeted(Target::baseline)) {
-      LOG(debug) << "Getting baseline R from vector";
-      for (auto &x : phi_b)
+      LOG(debug) << "Getting beta from vector";
+      for (auto &x : beta)
         x = exp(*iter++);
     }
     if (parameters.targeted(Target::theta)) {

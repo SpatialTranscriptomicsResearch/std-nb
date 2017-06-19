@@ -195,17 +195,17 @@ int main(int argc, char **argv) {
      "Anneal learning rate by this factor every iteration.");
 
   hyperparameter_options.add_options()
-    ("phi_r_1", po::value(&parameters.hyperparameters.phi_r_1)->default_value(parameters.hyperparameters.phi_r_1),
+    ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
      "Gamma prior 1 of r[g][t].")
-    ("phi_r_2", po::value(&parameters.hyperparameters.phi_r_2)->default_value(parameters.hyperparameters.phi_r_2),
+    ("gamma_2", po::value(&parameters.hyperparameters.gamma_2)->default_value(parameters.hyperparameters.gamma_2),
      "Gamma prior 2 of r[g][t].")
-    ("lphi_r_1", po::value(&parameters.hyperparameters.local_phi_r_1)->default_value(parameters.hyperparameters.local_phi_r_1),
+    ("lambda_1", po::value(&parameters.hyperparameters.lambda_1)->default_value(parameters.hyperparameters.lambda_1),
      "Gamma prior 1 of local r[g][t].")
-    ("lphi_r_2", po::value(&parameters.hyperparameters.local_phi_r_2)->default_value(parameters.hyperparameters.local_phi_r_2),
+    ("lambda_2", po::value(&parameters.hyperparameters.lambda_2)->default_value(parameters.hyperparameters.lambda_2),
      "Gamma prior 2 of local r[g][t].")
-    ("phi_p_1", po::value(&parameters.hyperparameters.phi_p_1)->default_value(parameters.hyperparameters.phi_p_1),
+    ("negodds_rho_1", po::value(&parameters.hyperparameters.negodds_rho_1)->default_value(parameters.hyperparameters.negodds_rho_1),
      "Beta prior 1 of p[g][t].")
-    ("phi_p_2", po::value(&parameters.hyperparameters.phi_p_2)->default_value(parameters.hyperparameters.phi_p_2),
+    ("negodds_rho_2", po::value(&parameters.hyperparameters.negodds_rho_2)->default_value(parameters.hyperparameters.negodds_rho_2),
      "Beta prior 2 of p[g][t].")
     ("theta_r_1", po::value(&parameters.hyperparameters.theta_r_1)->default_value(parameters.hyperparameters.theta_r_1),
      "Gamma prior 1 of r[t].")
@@ -219,9 +219,9 @@ int main(int argc, char **argv) {
      "Gamma prior 1 of the spot scaling parameter.")
     ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
      "Gamma prior 2 of the spot scaling parameter.")
-    ("bline1", po::value(&parameters.hyperparameters.baseline_1)->default_value(parameters.hyperparameters.baseline_1),
+    ("bline1", po::value(&parameters.hyperparameters.beta_1)->default_value(parameters.hyperparameters.beta_1),
      "First prior for the baseline features.")
-    ("bline2", po::value(&parameters.hyperparameters.baseline_2)->default_value(parameters.hyperparameters.baseline_2),
+    ("bline2", po::value(&parameters.hyperparameters.beta_2)->default_value(parameters.hyperparameters.beta_2),
      "Second prior for the baseline features.");
 
   inference_options.add_options()

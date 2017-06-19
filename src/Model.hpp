@@ -2,8 +2,8 @@
 #define MODEL_HPP
 
 #include "Experiment.hpp"
-#include "priors.hpp"
 #include "Mesh.hpp"
+#include "priors.hpp"
 
 namespace STD {
 
@@ -26,8 +26,8 @@ struct Model {
   Parameters parameters;
 
   /** factor loading matrix */
-  Matrix phi_r;
-  Matrix phi_p;
+  Matrix gamma;
+  Matrix negodds_rho;
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
     size_t S, N, T;
@@ -58,20 +58,20 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-    if(parameters.targeted(Target::hyperparams)) {
+    if (parameters.targeted(Target::hyperparams)) {
       LOG(debug) << "Getting global phi hyper-parameters from vector";
-      parameters.hyperparameters.phi_r_1 = exp(*iter++);
-      parameters.hyperparameters.phi_r_2 = exp(*iter++);
+      parameters.hyperparameters.gamma_1 = exp(*iter++);
+      parameters.hyperparameters.gamma_2 = exp(*iter++);
     }
     if (parameters.targeted(Target::global)) {
-      LOG(debug) << "Getting global R from vector";
-      for (auto &x : phi_r)
+      LOG(debug) << "Getting gamma from vector";
+      for (auto &x : gamma)
         x = exp(*iter++);
     }
 
     if (parameters.targeted(Target::variance)) {
-      LOG(debug) << "Getting global P from vector";
-      for (auto &x : phi_p)
+      LOG(debug) << "Getting negodds_rho from vector";
+      for (auto &x : negodds_rho)
         x = exp(*iter++);
     }
 
@@ -107,8 +107,7 @@ struct Model {
   double log_likelihood(const std::string &prefix) const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = phi(g,t) sum_e local_baseline_phi(e,g) local_phi(e,g,t) sum_s
-  // theta(e,s,t) sigma(e,s)
+  // with M(g,t) = phi(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
   void update_experiment_fields();
