@@ -26,7 +26,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
-  if (parameters.targeted(Target::global))
+  if (parameters.targeted(Target::gamma))
     for (auto &x : gamma)
       x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 
@@ -205,11 +205,11 @@ void Model::set_zero() {
 
 size_t Model::size() const {
   size_t s = 0;
-  if (parameters.targeted(Target::hyperparams))
+  if (parameters.targeted(Target::gamma_prior))
     s += 2;
-  if (parameters.targeted(Target::global))
+  if (parameters.targeted(Target::gamma))
     s += gamma.size();
-  if (parameters.targeted(Target::variance))
+  if (parameters.targeted(Target::rho))
     s += negodds_rho.size();
   if (parameters.targeted(Target::theta_prior))
     s += mix_prior.r.size() + mix_prior.p.size();
@@ -225,16 +225,16 @@ Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
 
-  if (parameters.targeted(Target::hyperparams)) {
+  if (parameters.targeted(Target::gamma_prior)) {
     *iter++ = parameters.hyperparameters.gamma_1;
     *iter++ = parameters.hyperparameters.gamma_2;
   }
 
-  if (parameters.targeted(Target::global))
+  if (parameters.targeted(Target::gamma))
     for (auto &x : gamma)
       *iter++ = x;
 
-  if (parameters.targeted(Target::variance))
+  if (parameters.targeted(Target::rho))
     for (auto &x : negodds_rho)
       *iter++ = x;
 
@@ -270,11 +270,9 @@ Model Model::compute_gradient(double &score) const {
     experiment.contributions_spot_type.setZero();
     experiment.contributions_gene_type.setZero();
   }
-  if (parameters.targeted(Target::global)
-      or parameters.targeted(Target::variance)
-      or parameters.targeted(Target::local)
-      or parameters.targeted(Target::baseline)
-      or parameters.targeted(Target::theta)
+  if (parameters.targeted(Target::gamma) or parameters.targeted(Target::rho)
+      or parameters.targeted(Target::lambda)
+      or parameters.targeted(Target::beta) or parameters.targeted(Target::theta)
       or parameters.targeted(Target::spot))
 #pragma omp parallel if (DO_PARALLEL)
   {
@@ -315,7 +313,7 @@ Model Model::compute_gradient(double &score) const {
           += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
                             gradient.coordinate_systems[c].field);
 
-  if (parameters.targeted(Target::hyperparams))
+  if (parameters.targeted(Target::gamma_prior))
     score += compute_hyperparameter_gradient(gradient);
 
   if (not parameters.ignore_priors)
@@ -386,7 +384,7 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 void Model::finalize_gradient(Model &gradient) const {
   LOG(verbose) << "Finalizing gradient";
 
-  if (parameters.targeted(Target::global)) {
+  if (parameters.targeted(Target::gamma)) {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -395,7 +393,7 @@ void Model::finalize_gradient(Model &gradient) const {
         gradient.gamma(g, t) += (a - 1) - gamma(g, t) * b;
   }
 
-  if (parameters.targeted(Target::variance)) {
+  if (parameters.targeted(Target::rho)) {
     const double a = parameters.hyperparameters.negodds_rho_1;
     const double b = parameters.hyperparameters.negodds_rho_2;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -407,7 +405,7 @@ void Model::finalize_gradient(Model &gradient) const {
       }
   }
 
-  if (parameters.targeted(Target::local)) {
+  if (parameters.targeted(Target::lambda)) {
     const double a = parameters.hyperparameters.lambda_1;
     const double b = parameters.hyperparameters.lambda_2;
     for (auto &coord_sys : coordinate_systems)
@@ -419,7 +417,7 @@ void Model::finalize_gradient(Model &gradient) const {
                 += (a - 1) - experiments[e].lambda(g, t) * b;
   }
 
-  if (parameters.targeted(Target::baseline)) {
+  if (parameters.targeted(Target::beta)) {
     const double a = parameters.hyperparameters.beta_1;
     const double b = parameters.hyperparameters.beta_2;
     for (auto &coord_sys : coordinate_systems)
@@ -498,7 +496,7 @@ void Model::finalize_gradient(Model &gradient) const {
 // calculate parameter's likelihood
 double Model::param_likel() const {
   double score = 0;
-  if (parameters.targeted(Target::global)) {
+  if (parameters.targeted(Target::gamma)) {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -507,7 +505,7 @@ double Model::param_likel() const {
         score += log_gamma_rate(gamma(g, t), a, b);
   }
 
-  if (parameters.targeted(Target::local)) {
+  if (parameters.targeted(Target::lambda)) {
     const double a = parameters.hyperparameters.lambda_1;
     const double b = parameters.hyperparameters.lambda_2;
     for (auto &coord_sys : coordinate_systems)
@@ -518,7 +516,7 @@ double Model::param_likel() const {
             score += log_gamma_rate(experiments[e].lambda(g, t), a, b);
   }
 
-  if (parameters.targeted(Target::baseline)) {
+  if (parameters.targeted(Target::beta)) {
     const double a = parameters.hyperparameters.beta_1;
     const double b = parameters.hyperparameters.beta_2;
     for (auto &coord_sys : coordinate_systems)
@@ -549,7 +547,7 @@ double Model::param_likel() const {
           score += log_gamma_rate(experiments[e].spot(s), a, b);
   }
 
-  if (parameters.targeted(Target::variance)) {
+  if (parameters.targeted(Target::rho)) {
     const double a = parameters.hyperparameters.negodds_rho_1;
     const double b = parameters.hyperparameters.negodds_rho_2;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -747,8 +745,8 @@ double Model::log_likelihood(const string &prefix) const {
   return l;
 }
 
-// computes a matrix M(g,t)
-// with M(g,t) = phi(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+// computes a matrix M(g,t) =
+//   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
 Matrix Model::expected_gene_type() const {
   Matrix m = Matrix::Zero(G, T);
   for (auto &experiment : experiments)

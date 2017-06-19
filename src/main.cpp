@@ -284,7 +284,7 @@ int main(int argc, char **argv) {
     LOG(info)
         << "Less than 2 data sets; deactivating local baseline and features.";
     parameters.targets
-        = parameters.targets & ~(STD::Target::local | STD::Target::baseline);
+        = parameters.targets & ~(STD::Target::lambda | STD::Target::beta);
   }
 
   if (options.fields)

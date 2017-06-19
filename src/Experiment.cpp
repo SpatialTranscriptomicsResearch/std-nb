@@ -570,9 +570,9 @@ vector<vector<size_t>> Experiment::active_factors(double threshold) const {
 
 size_t Experiment::size() const {
   size_t s = 0;
-  if (parameters.targeted(Target::local))
+  if (parameters.targeted(Target::lambda))
     s += lambda.size();
-  if (parameters.targeted(Target::baseline))
+  if (parameters.targeted(Target::beta))
     s += beta.size();
   if (parameters.targeted(Target::theta))
     s += theta.size();
@@ -594,10 +594,10 @@ void Experiment::set_zero() {
 Vector Experiment::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
-  if (parameters.targeted(Target::local))
+  if (parameters.targeted(Target::lambda))
     for (auto &x : lambda)
       *iter++ = x;
-  if (parameters.targeted(Target::baseline))
+  if (parameters.targeted(Target::beta))
     for (auto &x : beta)
       *iter++ = x;
   if (parameters.targeted(Target::theta))

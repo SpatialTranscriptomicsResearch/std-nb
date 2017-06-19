@@ -58,18 +58,19 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-    if (parameters.targeted(Target::hyperparams)) {
-      LOG(debug) << "Getting global phi hyper-parameters from vector";
+    if (parameters.targeted(Target::gamma_prior)) {
+      LOG(debug) << "Getting gamma prior from vector";
       parameters.hyperparameters.gamma_1 = exp(*iter++);
       parameters.hyperparameters.gamma_2 = exp(*iter++);
     }
-    if (parameters.targeted(Target::global)) {
+
+    if (parameters.targeted(Target::gamma)) {
       LOG(debug) << "Getting gamma from vector";
       for (auto &x : gamma)
         x = exp(*iter++);
     }
 
-    if (parameters.targeted(Target::variance)) {
+    if (parameters.targeted(Target::rho)) {
       LOG(debug) << "Getting negodds_rho from vector";
       for (auto &x : negodds_rho)
         x = exp(*iter++);
@@ -83,7 +84,7 @@ struct Model {
     }
 
     if (parameters.targeted(Target::theta_prior)) {
-      LOG(debug) << "Getting global theta prior r and p from vector";
+      LOG(debug) << "Getting theta prior r and p from vector";
       for (auto &x : mix_prior.r)
         x = exp(*iter++);
       for (auto &x : mix_prior.p)
@@ -107,7 +108,7 @@ struct Model {
   double log_likelihood(const std::string &prefix) const;
 
   // computes a matrix M(g,t)
-  // with M(g,t) = phi(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
+  //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
   void update_experiment_fields();

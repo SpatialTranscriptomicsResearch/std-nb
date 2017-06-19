@@ -12,16 +12,16 @@ ostream &operator<<(ostream &os, const Target &which) {
     return os;
   } else {
     bool first = true;
-    if (flagged(which & Target::global)) {
-      os << (first ? "" : ",") << "global";
+    if (flagged(which & Target::gamma)) {
+      os << (first ? "" : ",") << "gamma";
       first = false;
     }
-    if (flagged(which & Target::variance)) {
-      os << (first ? "" : ",") << "variance";
+    if (flagged(which & Target::rho)) {
+      os << (first ? "" : ",") << "rho";
       first = false;
     }
-    if (flagged(which & Target::local)) {
-      os << (first ? "" : ",") << "local";
+    if (flagged(which & Target::lambda)) {
+      os << (first ? "" : ",") << "lambda";
       first = false;
     }
     if (flagged(which & Target::theta)) {
@@ -36,16 +36,16 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "spot";
       first = false;
     }
-    if (flagged(which & Target::baseline)) {
-      os << (first ? "" : ",") << "baseline";
+    if (flagged(which & Target::beta)) {
+      os << (first ? "" : ",") << "beta";
       first = false;
     }
     if (flagged(which & Target::field)) {
       os << (first ? "" : ",") << "field";
       first = false;
     }
-    if (flagged(which & Target::hyperparams)) {
-      os << (first ? "" : ",") << "hyper";
+    if (flagged(which & Target::gamma_prior)) {
+      os << (first ? "" : ",") << "gamma_prior";
       first = false;
     }
   }
@@ -62,24 +62,24 @@ istream &operator>>(istream &is, Target &which) {
   tokenizer tok(line, sep);
   for (auto token : tok) {
     token = to_lower(token);
-    if (token == "global")
-      which = which | Target::global;
-    else if (token == "variance")
-      which = which | Target::variance;
-    else if (token == "local")
-      which = which | Target::local;
+    if (token == "gamma")
+      which = which | Target::gamma;
+    else if (token == "rho")
+      which = which | Target::rho;
+    else if (token == "lambda")
+      which = which | Target::lambda;
     else if (token == "theta")
       which = which | Target::theta;
     else if (token == "theta_prior")
       which = which | Target::theta_prior;
     else if (token == "spot")
       which = which | Target::spot;
-    else if (token == "baseline")
-      which = which | Target::baseline;
+    else if (token == "beta")
+      which = which | Target::beta;
     else if (token == "field")
       which = which | Target::field;
-    else if (token == "hyper")
-      which = which | Target::hyperparams;
+    else if (token == "gamma_prior")
+      which = which | Target::gamma_prior;
     else
       throw(runtime_error("Unknown sampling token: " + token));
   }

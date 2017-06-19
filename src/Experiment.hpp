@@ -75,13 +75,11 @@ struct Experiment {
   Vector marginalize_genes() const;
   Vector marginalize_spots() const;
 
-  // computes a matrix M(g,t)
-  // with M(g,t) = baseline_phi(g) global_phi(g,t) phi(g,t) sum_s theta(s,t)
-  // sigma(s)
+  // computes a matrix M(g,t) =
+  //   beta(g) gamma(g,t) lambda(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type() const;
-  // computes a matrix M(s,t)
-  // with M(s,t) = theta(s,t) sigma(s) sum_g baseline_phi(g) phi(g,t)
-  // global_phi(g,t)
+  // computes a matrix M(s,t) =
+  //   theta(s,t) sigma(s) sum_g beta(g) lambda(g,t) gamma(g,t)
   Matrix expected_spot_type() const;
 
   size_t size() const;
@@ -89,12 +87,12 @@ struct Experiment {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter &iter) {
-    if (parameters.targeted(Target::local)) {
+    if (parameters.targeted(Target::lambda)) {
       LOG(debug) << "Getting lambda from vector";
       for (auto &x : lambda)
         x = exp(*iter++);
     }
-    if (parameters.targeted(Target::baseline)) {
+    if (parameters.targeted(Target::beta)) {
       LOG(debug) << "Getting beta from vector";
       for (auto &x : beta)
         x = exp(*iter++);
@@ -105,7 +103,7 @@ struct Experiment {
         x = exp(*iter++);
     }
     if (parameters.targeted(Target::field)) {
-      LOG(debug) << "Getting global field from vector";
+      LOG(debug) << "Getting local field from vector";
       for (auto &x : field)
         x = exp(*iter++);
     }
