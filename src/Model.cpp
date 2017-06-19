@@ -71,11 +71,11 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(gamma, prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+    write_matrix(gamma, prefix + "feature-gamma" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     write_matrix(negodds_rho,
-                 prefix + "feature-gamma_prior-p" + FILENAME_ENDING,
+                 prefix + "feature-negodds_rho" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     {
@@ -92,7 +92,7 @@ void Model::store(const string &prefix_, bool reorder) const {
       }
     }
 #pragma omp section
-    mix_prior.store(prefix + "mixprior", factor_names, order);
+    mix_prior.store(prefix + "theta_prior", factor_names, order);
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -151,10 +151,10 @@ void Model::store(const string &prefix_, bool reorder) const {
 }
 
 void Model::restore(const string &prefix) {
-  gamma = parse_file<Matrix>(prefix + "feature-gamma_prior-r" + FILENAME_ENDING,
+  gamma = parse_file<Matrix>(prefix + "feature-gamma" + FILENAME_ENDING,
                              read_matrix, "\t");
   negodds_rho = parse_file<Matrix>(
-      prefix + "feature-gamma_prior-p" + FILENAME_ENDING, read_matrix, "\t");
+      prefix + "feature-rho" + FILENAME_ENDING, read_matrix, "\t");
 
   {
     const size_t C = coordinate_systems.size();
@@ -166,7 +166,7 @@ void Model::restore(const string &prefix) {
           read_matrix, "\t");
   }
 
-  mix_prior.restore(prefix + "mixprior");
+  mix_prior.restore(prefix + "theta_prior");
 
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
