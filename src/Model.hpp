@@ -50,7 +50,8 @@ struct Model {
 
   void set_zero();
   Model compute_gradient(double &score) const;
-  double compute_hyperparameter_gradient(Model &gradient) const;
+  double compute_gradient_gamma_prior(Model &gradient) const;
+  double compute_gradient_rho_prior(Model &gradient) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
                          Model &gradient) const;
   void finalize_gradient(Model &gradient) const;
@@ -62,6 +63,12 @@ struct Model {
       LOG(debug) << "Getting gamma prior from vector";
       parameters.hyperparameters.gamma_1 = exp(*iter++);
       parameters.hyperparameters.gamma_2 = exp(*iter++);
+    }
+
+    if (parameters.targeted(Target::rho_prior)) {
+      LOG(debug) << "Getting rho prior from vector";
+      parameters.hyperparameters.rho_1 = exp(*iter++);
+      parameters.hyperparameters.rho_2 = exp(*iter++);
     }
 
     if (parameters.targeted(Target::gamma)) {

@@ -210,6 +210,8 @@ size_t Model::size() const {
   size_t s = 0;
   if (parameters.targeted(Target::gamma_prior))
     s += 2;
+  if (parameters.targeted(Target::rho_prior))
+    s += 2;
   if (parameters.targeted(Target::gamma))
     s += gamma.size();
   if (parameters.targeted(Target::rho))
@@ -231,6 +233,11 @@ Vector Model::vectorize() const {
   if (parameters.targeted(Target::gamma_prior)) {
     *iter++ = parameters.hyperparameters.gamma_1;
     *iter++ = parameters.hyperparameters.gamma_2;
+  }
+
+  if (parameters.targeted(Target::rho_prior)) {
+    *iter++ = parameters.hyperparameters.rho_1;
+    *iter++ = parameters.hyperparameters.rho_2;
   }
 
   if (parameters.targeted(Target::gamma))
@@ -317,7 +324,10 @@ Model Model::compute_gradient(double &score) const {
                             gradient.coordinate_systems[c].field);
 
   if (parameters.targeted(Target::gamma_prior))
-    score += compute_hyperparameter_gradient(gradient);
+    score += compute_gradient_gamma_prior(gradient);
+
+  if (parameters.targeted(Target::rho_prior))
+    score += compute_gradient_rho_prior(gradient);
 
   if (not parameters.ignore_priors)
     finalize_gradient(gradient);
@@ -326,7 +336,7 @@ Model Model::compute_gradient(double &score) const {
   return gradient;
 }
 
-double Model::compute_hyperparameter_gradient(Model &gradient) const {
+double Model::compute_gradient_gamma_prior(Model &gradient) const {
   double score = 0;
 
   double a = gradient.parameters.hyperparameters.gamma_1;
@@ -350,6 +360,38 @@ double Model::compute_hyperparameter_gradient(Model &gradient) const {
   gradient.parameters.hyperparameters.gamma_1
       += hyper_alpha - 1 - a * hyper_beta;
   gradient.parameters.hyperparameters.gamma_2
+      += hyper_gamma - 1 - b * hyper_delta;
+
+  // TODO compute score
+
+  return score;
+}
+
+double Model::compute_gradient_rho_prior(Model &gradient) const {
+  double score = 0;
+
+  double a = gradient.parameters.hyperparameters.rho_1;
+  double b = gradient.parameters.hyperparameters.rho_2;
+
+  gradient.parameters.hyperparameters.rho_1 = 0;
+  gradient.parameters.hyperparameters.rho_2 = 0;
+
+  const double hyper_alpha = 1;
+  const double hyper_beta = 1;
+  const double hyper_gamma = 1;
+  const double hyper_delta = 1;
+
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t) {
+      gradient.parameters.hyperparameters.rho_1 += log(negodds_rho(g, t))
+                                                   - log(1 + negodds_rho(g, t))
+                                                   + digamma_diff(a, b);
+      gradient.parameters.hyperparameters.rho_2
+          += -log(1 + negodds_rho(g, t)) + digamma_diff(b, a);
+    }
+
+  gradient.parameters.hyperparameters.rho_1 += hyper_alpha - 1 - a * hyper_beta;
+  gradient.parameters.hyperparameters.rho_2
       += hyper_gamma - 1 - b * hyper_delta;
 
   // TODO compute score

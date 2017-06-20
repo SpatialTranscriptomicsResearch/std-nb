@@ -16,12 +16,24 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "gamma";
       first = false;
     }
+    if (flagged(which & Target::gamma_prior)) {
+      os << (first ? "" : ",") << "gamma_prior";
+      first = false;
+    }
     if (flagged(which & Target::rho)) {
       os << (first ? "" : ",") << "rho";
       first = false;
     }
+    if (flagged(which & Target::rho_prior)) {
+      os << (first ? "" : ",") << "rho_prior";
+      first = false;
+    }
     if (flagged(which & Target::lambda)) {
       os << (first ? "" : ",") << "lambda";
+      first = false;
+    }
+    if (flagged(which & Target::beta)) {
+      os << (first ? "" : ",") << "beta";
       first = false;
     }
     if (flagged(which & Target::theta)) {
@@ -36,16 +48,8 @@ ostream &operator<<(ostream &os, const Target &which) {
       os << (first ? "" : ",") << "spot";
       first = false;
     }
-    if (flagged(which & Target::beta)) {
-      os << (first ? "" : ",") << "beta";
-      first = false;
-    }
     if (flagged(which & Target::field)) {
       os << (first ? "" : ",") << "field";
-      first = false;
-    }
-    if (flagged(which & Target::gamma_prior)) {
-      os << (first ? "" : ",") << "gamma_prior";
       first = false;
     }
   }
@@ -66,6 +70,8 @@ istream &operator>>(istream &is, Target &which) {
       which = which | Target::gamma;
     else if (token == "rho")
       which = which | Target::rho;
+    else if (token == "rho_prior")
+      which = which | Target::rho_prior;
     else if (token == "lambda")
       which = which | Target::lambda;
     else if (token == "theta")
