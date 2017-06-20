@@ -40,8 +40,7 @@ inline constexpr Target operator~(Target a) {
 
 inline constexpr Target DefaultTarget() {
   return Target::gamma | Target::rho | Target::theta | Target::theta_prior
-         | Target::lambda | Target::beta | Target::spot | Target::gamma_prior
-         | Target::rho_prior;
+         | Target::lambda | Target::beta | Target::spot;
 }
 
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }

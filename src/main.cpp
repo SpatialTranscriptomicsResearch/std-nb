@@ -25,6 +25,7 @@ struct Options {
   bool perform_dge = false;
   bool keep_empty = false;
   bool transpose = false;
+  bool learn_priors = false;
   size_t top = 0;
   size_t bottom = 0;
 };
@@ -141,6 +142,8 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
+    ("learnprior", po::bool_switch(&options.learn_priors),
+     "Learn priors for gamma and rho.")
     ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
@@ -279,6 +282,10 @@ int main(int argc, char **argv) {
   auto data_sets
       = load_data(options.tsv_paths, options.intersect, options.top,
                   options.bottom, not options.keep_empty, options.transpose);
+
+  if (options.learn_priors)
+    parameters.targets = parameters.targets | STD::Target::gamma_prior
+                         | STD::Target::rho_prior;
 
   if (data_sets.size() < 2) {
     LOG(info)
