@@ -192,6 +192,8 @@ int main(int argc, char **argv) {
      "Which sampling steps to perform.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
      "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
+    ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
+     "How to sample the contributions. Available are: Mean, Multinomial, MH, HMC, RPROP.")
     ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha),
      "Initial learning rate for gradient learning.")
     ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
