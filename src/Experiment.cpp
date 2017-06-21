@@ -2,6 +2,7 @@
 #include "Model.hpp"
 #include "gamma_func.hpp"
 #include "hamiltonian_monte_carlo.hpp"
+#include "rprop.hpp"
 
 using namespace std;
 
@@ -255,10 +256,71 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::HMC:
       throw(runtime_error("Sampling method not implemented: HMC."));
       break;
-    case Sampling::Method::RPROP:
-      throw(runtime_error("Sampling method not implemented: RPROP."));
-      break;
+    case Sampling::Method::RPROP: {
+      // throw(runtime_error("Sampling method not quite implemented: RPROP."));
+      /*
+      Vector rho(T);
+      for (size_t t = 0; t < T; ++t)
+        rho[t] = negodds_to_prob(negodds_rho(g,t);
+      */
+      Vector log_rho(T);
+      for (size_t t = 0; t < T; ++t)
+        log_rho[t] = neg_odds_to_log_prob(model->negodds_rho(g, t));
+
+      Vector r(T);
+      double z = 0;
+      for (size_t t = 0; t < T; ++t) {
+        r[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
+               * spot(s);
+        z += cnts[t] = r[t] / model->negodds_rho(g, t);
+      }
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] *= counts(g, s) / z;
+
+      Vector k(T);
+      auto fnc = [&](const Vector &log_k, Vector &grad) {
+//        LOG(debug) << "inter log = " << log_k.transpose();
+        double score = 0;
+        double Z = 0;
+        for (size_t t = 0; t < T; ++t)
+          Z += k[t] = exp(log_k(t));
+        for (size_t t = 0; t < T; ++t)
+          k[t] *= count / Z;
+        double sum = 0;
+        for (size_t t = 0; t < T; ++t)
+          sum += grad[t] = k[t] * (digamma_diff(k[t], r[t]) + log_rho[t]);
+//        LOG(debug) << "inter exp = " << k.transpose();
+        for (size_t t = 0; t < T; ++t)
+          grad[t] -= k[t] / count * sum;
+        // LOG(debug) << "grad = " << grad.transpose();
+        return score;
+      };
+      Vector grad(cnts.size());
+      Vector prev_sign(Vector::Zero(cnts.size()));
+      Vector rates(cnts.size());
+      rates.fill(parameters.grad_alpha);
+      const size_t sample_iterations
+          = 20;  // TODO make into CLI configurable parameter
+      double fx = 0;
+//      LOG(debug) << "total = " << count;
+//      LOG(debug) << "start = " << cnts.transpose();
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] = log(cnts[t]);
+//      LOG(debug) << "start = " << cnts.transpose();
+      for (size_t iter = 0; iter < sample_iterations; ++iter) {
+        fx = fnc(cnts, grad);
+        rprop_update(grad, prev_sign, rates, cnts);
+      }
+      z = 0;
+      for (size_t t = 0; t < T; ++t)
+        z += cnts[t] = exp(cnts[t]);
+      for (size_t t = 0; t < T; ++t)
+        cnts[t] *= count / z;
+
+//      LOG(debug) << "final = " << cnts.transpose();
+    } break;
   }
+
   if (false) {
     if (parameters.contributions_map) {
       Vector r(T);
