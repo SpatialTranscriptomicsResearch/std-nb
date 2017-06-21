@@ -156,7 +156,7 @@ void Model::store(const string &prefix_, bool reorder) const {
 void Model::restore(const string &prefix) {
   gamma = parse_file<Matrix>(prefix + "feature-gamma" + FILENAME_ENDING,
                              read_matrix, "\t");
-  negodds_rho = parse_file<Matrix>(prefix + "feature-rho" + FILENAME_ENDING,
+  negodds_rho = parse_file<Matrix>(prefix + "feature-negodds_rho" + FILENAME_ENDING,
                                    read_matrix, "\t");
 
   {

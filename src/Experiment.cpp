@@ -66,8 +66,7 @@ void Experiment::store(const string &prefix,
     write_matrix(lambda, prefix + "feature-lambda" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
-    write_matrix(beta,
-                 prefix + "feature-beta" + FILENAME_ENDING,
+    write_matrix(beta, prefix + "feature-beta" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, {1, "Baseline"}, {});
 #pragma omp section
     write_matrix(theta, prefix + "theta" + FILENAME_ENDING,
@@ -118,11 +117,10 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  lambda = parse_file<Matrix>(
-      prefix + "feature-lambda" + FILENAME_ENDING, read_matrix, "\t");
-  beta = parse_file<Matrix>(
-      prefix + "feature-beta" + FILENAME_ENDING, read_matrix,
-      "\t");
+  lambda = parse_file<Matrix>(prefix + "feature-lambda" + FILENAME_ENDING,
+                              read_matrix, "\t");
+  beta = parse_file<Matrix>(prefix + "feature-beta" + FILENAME_ENDING,
+                            read_matrix, "\t");
 
   theta = parse_file<Matrix>(prefix + "theta" + FILENAME_ENDING, read_matrix,
                              "\t");
