@@ -234,7 +234,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         z += cnts[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
                        / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
-        cnts[t] *= counts(g, s) / z;
+        cnts[t] *= count / z;
       return cnts;
     } break;
     case Sampling::Method::Multinomial: {
