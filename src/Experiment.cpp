@@ -258,11 +258,6 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       break;
     case Sampling::Method::RPROP: {
       // throw(runtime_error("Sampling method not quite implemented: RPROP."));
-      /*
-      Vector rho(T);
-      for (size_t t = 0; t < T; ++t)
-        rho[t] = negodds_to_prob(negodds_rho(g,t);
-      */
       Vector log_rho(T);
       for (size_t t = 0; t < T; ++t)
         log_rho[t] = neg_odds_to_log_prob(model->negodds_rho(g, t));
