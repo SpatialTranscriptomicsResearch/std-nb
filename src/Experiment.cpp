@@ -304,7 +304,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 //      LOG(debug) << "start = " << cnts.transpose();
       for (size_t iter = 0; iter < sample_iterations; ++iter) {
         fx = fnc(cnts, grad);
-        rprop_update(grad, prev_sign, rates, cnts);
+        rprop_update(grad, prev_sign, rates, cnts, parameters.rprop);
       }
       z = 0;
       for (size_t t = 0; t < T; ++t)

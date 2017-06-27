@@ -2,6 +2,7 @@
 #define STATS_HPP
 
 #include <iostream>
+#include <sstream>
 #include <iomanip>
 #include <vector>
 

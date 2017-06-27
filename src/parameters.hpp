@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "compression_mode.hpp"
 #include "optimization_method.hpp"
+#include "rprop.hpp"
 #include "sampling_method.hpp"
 #include "target.hpp"
 #include "types.hpp"
@@ -83,6 +84,8 @@ struct Parameters {
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
   bool targeted(Target target) const;
+
+  rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
   double field_lambda_dirichlet = 1;

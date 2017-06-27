@@ -669,7 +669,7 @@ void Model::gradient_update() {
       rates.fill(parameters.grad_alpha);
       for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
         fx = fnc(x, grad);
-        rprop_update(grad, prev_sign, rates, x);
+        rprop_update(grad, prev_sign, rates, x, parameters.rprop);
       }
     } break;
     case Optimize::Method::Gradient: {

@@ -3,6 +3,7 @@
 
 #include <cmath>
 #include "log.hpp"
+#include "stats.hpp"
 
 template <typename T>
 int sgn(T val) {
@@ -13,17 +14,22 @@ int sgn(T val) {
   return 0;
 }
 
+struct rprop_parameters {
+  double eta_plus = 1.2;
+  double eta_minus = 0.5;
+  // double eta_plus = 1.1;
+  // double eta_minus = 1.0 - 1.0 / 3;
+
+  // double max_change = log(10);
+  double max_change = 50;
+  // double min_change = 1 / max_change;
+  // double min_change = 0;
+  double min_change = 1e-6;
+};
+
 template <typename T, typename U>
-void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
-  // const double eta_plus = 1.2;
-  // const double eta_minus = 0.5;
-  const double eta_plus = 1.1;
-  const double eta_minus = 1.0 - 1.0 / 3;
-
-  const double max_change = log(10);
-  // const double min_change = 1 / max_change;
-  const double min_change = 0;
-
+void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data,
+                  const rprop_parameters &params) {
   auto grad_iter = begin(grad);
   auto data_iter = begin(data);
   auto sgn_iter = begin(prev_sgn);
@@ -32,7 +38,7 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
     int sgn_grad = sgn(*grad_iter);
     switch (sgn_grad * int(*sgn_iter)) {
       case 1:
-        r = std::min(max_change, r * eta_plus);
+        r = std::min(params.max_change, r * params.eta_plus);
         caseP++;
       case 0:
         *data_iter += sgn_grad * r;
@@ -40,7 +46,7 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data) {
         case0++;
         break;
       case -1:
-        r = std::max(min_change, r * eta_minus);
+        r = std::max(params.min_change, r * params.eta_minus);
         *sgn_iter = 0;
         caseN++;
         break;

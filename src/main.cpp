@@ -108,6 +108,7 @@ int main(int argc, char **argv) {
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
   po::options_description advanced_options("Advanced options", num_cols);
+  po::options_description rprop_options("RPROP options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
   po::options_description inference_options("MCMC inference options", num_cols);
 
@@ -199,6 +200,16 @@ int main(int argc, char **argv) {
     ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
      "Anneal learning rate by this factor every iteration.");
 
+  rprop_options.add_options()
+    ("rprop_etap", po::value(&parameters.rprop.eta_plus)->default_value(parameters.rprop.eta_plus),
+     "Multiplier for parameter-specific learning rates in case of successive gradients with identical sign.")
+    ("rprop_etam", po::value(&parameters.rprop.eta_minus)->default_value(parameters.rprop.eta_minus),
+     "Multiplier for parameter-specific learning rates in case of successive gradients with opposite sign.")
+    ("rprop_min", po::value(&parameters.rprop.min_change)->default_value(parameters.rprop.min_change),
+     "Minimal parameter-specific learning rate.")
+    ("rprop_max", po::value(&parameters.rprop.max_change)->default_value(parameters.rprop.max_change),
+     "Maximal parameter-specific learning rate.");
+
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
      "Gamma prior 1 of r[g][t].")
@@ -239,6 +250,7 @@ int main(int argc, char **argv) {
       .add(required_options)
       .add(basic_options)
       .add(advanced_options)
+      .add(rprop_options)
       .add(hyperparameter_options)
       .add(inference_options);
 
