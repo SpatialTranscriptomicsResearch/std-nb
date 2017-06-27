@@ -212,17 +212,17 @@ int main(int argc, char **argv) {
 
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
-     "Gamma prior 1 of r[g][t].")
+     "Prior 1 of gamma.")
     ("gamma_2", po::value(&parameters.hyperparameters.gamma_2)->default_value(parameters.hyperparameters.gamma_2),
-     "Gamma prior 2 of r[g][t].")
+     "Prior 2 of gamma.")
     ("lambda_1", po::value(&parameters.hyperparameters.lambda_1)->default_value(parameters.hyperparameters.lambda_1),
-     "Gamma prior 1 of local r[g][t].")
+     "Prior 1 of lambda.")
     ("lambda_2", po::value(&parameters.hyperparameters.lambda_2)->default_value(parameters.hyperparameters.lambda_2),
-     "Gamma prior 2 of local r[g][t].")
+     "Prior 2 of lambda.")
     ("rho_1", po::value(&parameters.hyperparameters.rho_1)->default_value(parameters.hyperparameters.rho_1),
-     "Beta prior 1 of p[g][t].")
+     "Prior 1 of rho.")
     ("rho_2", po::value(&parameters.hyperparameters.rho_2)->default_value(parameters.hyperparameters.rho_2),
-     "Beta prior 2 of p[g][t].")
+     "Prior 2 of rho.")
     ("theta_r_1", po::value(&parameters.hyperparameters.theta_r_1)->default_value(parameters.hyperparameters.theta_r_1),
      "Gamma prior 1 of r[t].")
     ("theta_r_2", po::value(&parameters.hyperparameters.theta_r_2)->default_value(parameters.hyperparameters.theta_r_2),
