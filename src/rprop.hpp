@@ -20,8 +20,10 @@ struct rprop_parameters {
   // double eta_plus = 1.1;
   // double eta_minus = 1.0 - 1.0 / 3;
 
+  double max_change = log(50);
   // double max_change = log(10);
-  double max_change = 50;
+  // double max_change = 50;
+  // double max_change = 10;
   // double min_change = 1 / max_change;
   // double min_change = 0;
   double min_change = 1e-6;
