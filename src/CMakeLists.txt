@@ -12,6 +12,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   aux.cpp
   compression_mode.cpp
   counts.cpp
+  covariate.cpp
   entropy.cpp
   executioninformation.cpp
   gamma_func.cpp

@@ -57,6 +57,14 @@ struct Experiment {
   Experiment(Model *model, const Counts &counts, size_t T,
              const Parameters &parameters);
 
+  inline double rate(size_t g, size_t t, size_t s) const {
+    double r = 0;
+    for (auto term : model->formula) {
+
+    }
+    return r;
+  };
+
   void enforce_positive_parameters();
 
   void store(const std::string &prefix, const std::vector<size_t> &order) const;
