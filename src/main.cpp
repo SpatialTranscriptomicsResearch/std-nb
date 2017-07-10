@@ -149,8 +149,8 @@ int main(int argc, char **argv) {
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
      "Do not discard genes or spots with zero counts.")
-    ("nolikel", po::bool_switch(&options.compute_likelihood),
-     "Do not compute and print the likelihood every iteration.")
+    ("likel", po::bool_switch(&options.compute_likelihood),
+     "Compute and print the likelihood after finishing.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),
      "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
     ("p_map", po::bool_switch(&parameters.p_empty_map),
@@ -263,9 +263,6 @@ int main(int argc, char **argv) {
                             usage_info, cli_options, true, positional_options);
   if (ret_val != PROCESSING_SUCCESSFUL)
     return ret_val;
-
-  // invert the negative CLI switch value
-  options.compute_likelihood = !options.compute_likelihood;
 
   if (parameters.output_directory == STD::default_output_string) {
     parameters.output_directory
