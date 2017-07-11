@@ -53,7 +53,8 @@ struct Model {
   double compute_gradient_gamma_prior(Model &gradient) const;
   double compute_gradient_rho_prior(Model &gradient) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                         Model &gradient) const;
+                         Model &gradient, const Matrix &gt,
+                         const Matrix &st) const;
   void finalize_gradient(Model &gradient) const;
   double param_likel() const;
   Vector vectorize() const;

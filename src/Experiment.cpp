@@ -212,8 +212,27 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
   return grad;
 }
 
+Matrix Experiment::compute_gene_type_table() const {
+  Matrix gt = model->gamma;
+  gt.array() *= lambda.array();
+  for (size_t g = 0; g < G; ++g)
+    for (size_t t = 0; t < T; ++t)
+      gt(g, t) *= beta(g);
+  return gt;
+}
+
+Matrix Experiment::compute_spot_type_table() const {
+  Matrix st = theta;
+  for (size_t s = 0; s < S; ++s)
+    for (size_t t = 0; t < T; ++t)
+      st(s, t) *= spot(s);
+  return st;
+}
+
 /** sample count decomposition */
 Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
+                                                  const Matrix &gt,
+                                                  const Matrix &st,
                                                   RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
@@ -231,8 +250,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Mean: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
-                       / model->negodds_rho(g, t);
+        z += cnts[t] = gt(g, t) * st(s, t) / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] *= count / z;
       return cnts;
@@ -240,8 +258,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Multinomial: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
-                       / model->negodds_rho(g, t);
+        z += cnts[t] = gt(g, t) * st(s, t) / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
       auto icnts
@@ -265,8 +282,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       Vector r(T);
       double z = 0;
       for (size_t t = 0; t < T; ++t) {
-        r[t] = beta(g) * lambda(g, t) * model->gamma(g, t) * theta(s, t)
-               * spot(s);
+        r[t] = gt(g, t) * st(s, t);
         z += cnts[t] = r[t] / model->negodds_rho(g, t);
       }
       for (size_t t = 0; t < T; ++t)
@@ -519,44 +535,6 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
                    * (log(theta(s, t)) + log(model->mix_prior.p(t))
                       - digamma(model->mix_prior.r(t) * field(s, t)));
   return grad;
-}
-
-/** sample count decomposition */
-Matrix Experiment::sample_contributions_gene(size_t g, RNG &rng) {
-  LOG(debug) << "Sampling contributions for gene " << g;
-  Matrix contributions = Matrix::Zero(S, T);
-
-  // reset contributions for those genes that are not dropped
-  for (size_t t = 0; t < T; ++t)
-    contributions_gene_type(g, t) = 0;
-
-  for (size_t s = 0; s < S; ++s) {
-    auto cnts = sample_contributions_gene_spot(g, s, rng);
-    for (size_t t = 0; t < T; ++t) {
-      contributions(s, t) = cnts[t];
-      contributions_gene_type(g, t) += cnts[t];
-    }
-  }
-  return contributions;
-}
-
-/** sample count decomposition */
-Matrix Experiment::sample_contributions_spot(size_t s, RNG &rng) {
-  LOG(debug) << "Sampling contributions for spot " << s;
-  Matrix contributions = Matrix::Zero(G, T);
-
-  // reset contributions for those genes that are not dropped
-  for (size_t t = 0; t < T; ++t)
-    contributions_spot_type(s, t) = 0;
-
-  for (size_t g = 0; g < G; ++g) {
-    auto cnts = sample_contributions_gene_spot(g, s, rng);
-    for (size_t t = 0; t < T; ++t) {
-      contributions(g, t) = cnts[t];
-      contributions_spot_type(s, t) += cnts[t];
-    }
-  }
-  return contributions;
 }
 
 Vector Experiment::marginalize_genes() const {

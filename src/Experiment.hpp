@@ -68,9 +68,11 @@ struct Experiment {
   Matrix field_fitness_posterior_gradient() const;
 
   /** sample count decomposition */
-  Matrix sample_contributions_gene(size_t g, RNG &rng);
-  Matrix sample_contributions_spot(size_t s, RNG &rng);
-  Vector sample_contributions_gene_spot(size_t g, size_t s, RNG &rng) const;
+  Vector sample_contributions_gene_spot(size_t g, size_t s, const Matrix &gt,
+                                        const Matrix &st, RNG &rng) const;
+
+  Matrix compute_gene_type_table() const;
+  Matrix compute_spot_type_table() const;
 
   Vector marginalize_genes() const;
   Vector marginalize_spots() const;

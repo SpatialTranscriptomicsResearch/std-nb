@@ -272,6 +272,15 @@ Vector Model::vectorize() const {
 Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
 
+  std::vector<Matrix> gt;
+  std::vector<Matrix> st;
+
+  for (auto &coord_sys : coordinate_systems)
+    for (auto e : coord_sys.members) {
+      gt.push_back(experiments[e].compute_gene_type_table());
+      st.push_back(experiments[e].compute_spot_type_table());
+    }
+
   score = 0;
   Model gradient = *this;
   gradient.set_zero();
@@ -297,16 +306,13 @@ Model Model::compute_gradient(double &score) const {
           for (size_t s = 0; s < experiments[e].S; ++s)
             if (RandomDistribution::Uniform(rng)
                 >= parameters.dropout_gene_spot) {
-              auto cnts
-                  = experiments[e].sample_contributions_gene_spot(g, s, rng);
+              auto cnts = experiments[e].sample_contributions_gene_spot(
+                  g, s, gt[e], st[e], rng);
               for (size_t t = 0; t < T; ++t)
                 score += log_negative_binomial(
-                    cnts[t],
-                    gamma(g, t) * experiments[e].beta(g)
-                        * experiments[e].lambda(g, t)
-                        * experiments[e].theta(s, t) * experiments[e].spot(s),
+                    cnts[t], gt[e](g, t) * st[e](s, t),
                     neg_odds_to_prob(negodds_rho(g, t)));
-              register_gradient(g, e, s, cnts, grad);
+              register_gradient(g, e, s, cnts, grad, gt[e], st[e]);
             }
 #pragma omp critical
     {
@@ -400,7 +406,8 @@ double Model::compute_gradient_rho_prior(Model &gradient) const {
 }
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                              Model &gradient) const {
+                              Model &gradient, const Matrix &gt,
+                              const Matrix &st) const {
   for (size_t t = 0; t < T; ++t)
     gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
   for (size_t t = 0; t < T; ++t)
@@ -410,9 +417,7 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double no = negodds_rho(g, t);
     const double p = neg_odds_to_prob(no);
     const double log_one_minus_p = odds_to_log_prob(no);
-    const double r = gamma(g, t) * experiments[e].lambda(g, t)
-                     * experiments[e].beta(g) * experiments[e].theta(s, t)
-                     * experiments[e].spot(s);
+    const double r = gt(g, t) * st(s, t);
     const double k = cnts[t];
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
