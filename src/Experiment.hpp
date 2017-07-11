@@ -38,10 +38,15 @@ struct Experiment {
 
   Parameters parameters;
 
-  /** local features */
-  Matrix lambda;
-  /** local feature baseline */
-  Vector beta;
+  std::vector<double*> covariates_scalar;
+  std::vector<Vector*> covariates_gene;
+  std::vector<Vector*> covariates_type;
+  std::vector<Matrix*> covariates_gene_type;
+
+  // /** local features */
+  // Matrix lambda;
+  // /** local feature baseline */
+  // Vector beta;
 
   /** factor score matrix */
   Matrix theta;
@@ -57,6 +62,19 @@ struct Experiment {
   Experiment(Model *model, const Counts &counts, size_t T,
              const Parameters &parameters);
 
+  inline double covariates(size_t g, size_t t) const {
+    double x = 0;
+    for(auto &y: covariates_scalar)
+      x *= *y;
+    for(auto &y: covariates_gene)
+      x *= (*y)(g);
+    for(auto &y: covariates_type)
+      x *= (*y)(t);
+    for(auto &y: covariates_gene_type)
+      x *= (*y)(g,t);
+    return x;
+  }
+  /*
   inline double rate(size_t g, size_t t, size_t s) const {
     double r = 0;
     for (auto term : model->formula) {
@@ -64,6 +82,7 @@ struct Experiment {
     }
     return r;
   };
+  */
 
   void enforce_positive_parameters();
 
