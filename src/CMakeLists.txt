@@ -12,6 +12,8 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   aux.cpp
   compression_mode.cpp
   counts.cpp
+  covariate.cpp
+  design.cpp
   entropy.cpp
   executioninformation.cpp
   formula.cpp
