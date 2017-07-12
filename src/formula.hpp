@@ -19,6 +19,7 @@ struct Formula {
 std::ostream &operator<<(std::ostream &os, const Formula &formula);
 std::istream &operator>>(std::istream &is, Formula &formula);
 
+Formula DefaultFormula();
 bool check_formula(const Formula &formula);
 
 #endif
