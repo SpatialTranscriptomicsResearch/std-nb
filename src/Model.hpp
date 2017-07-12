@@ -26,7 +26,12 @@ struct Model {
   Parameters parameters;
 
   /** factor loading matrix */
-  Matrix gamma;
+  std::vector<double> covariates_scalar;
+  std::vector<Vector> covariates_gene;
+  std::vector<Vector> covariates_type;
+  std::vector<Matrix> covariates_gene_type;
+
+
   Matrix negodds_rho;
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
@@ -60,6 +65,19 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
+
+    for (auto &y : covariates_scalar)
+      y = exp(*iter++);
+    for (auto &y : covariates_gene)
+      for (auto &z : y)
+        z = exp(*iter++);
+    for (auto &y : covariates_type)
+      for (auto &z : y)
+        z = exp(*iter++);
+    for (auto &y : covariates_gene_type)
+      for (auto &z : y)
+        z = exp(*iter++);
+
     if (parameters.targeted(Target::gamma_prior)) {
       LOG(debug) << "Getting gamma prior from vector";
       parameters.hyperparameters.gamma_1 = exp(*iter++);
@@ -70,12 +88,6 @@ struct Model {
       LOG(debug) << "Getting rho prior from vector";
       parameters.hyperparameters.rho_1 = exp(*iter++);
       parameters.hyperparameters.rho_2 = exp(*iter++);
-    }
-
-    if (parameters.targeted(Target::gamma)) {
-      LOG(debug) << "Getting gamma from vector";
-      for (auto &x : gamma)
-        x = exp(*iter++);
     }
 
     if (parameters.targeted(Target::rho)) {

@@ -43,11 +43,6 @@ struct Experiment {
   std::vector<Vector*> covariates_type;
   std::vector<Matrix*> covariates_gene_type;
 
-  // /** local features */
-  // Matrix lambda;
-  // /** local feature baseline */
-  // Vector beta;
-
   /** factor score matrix */
   Matrix theta;
   Matrix field;
@@ -61,28 +56,6 @@ struct Experiment {
 
   Experiment(Model *model, const Counts &counts, size_t T,
              const Parameters &parameters);
-
-  inline double covariates(size_t g, size_t t) const {
-    double x = 0;
-    for(auto &y: covariates_scalar)
-      x *= *y;
-    for(auto &y: covariates_gene)
-      x *= (*y)(g);
-    for(auto &y: covariates_type)
-      x *= (*y)(t);
-    for(auto &y: covariates_gene_type)
-      x *= (*y)(g,t);
-    return x;
-  }
-  /*
-  inline double rate(size_t g, size_t t, size_t s) const {
-    double r = 0;
-    for (auto term : model->formula) {
-
-    }
-    return r;
-  };
-  */
 
   void enforce_positive_parameters();
 
@@ -116,16 +89,6 @@ struct Experiment {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter &iter) {
-    if (parameters.targeted(Target::lambda)) {
-      LOG(debug) << "Getting lambda from vector";
-      for (auto &x : lambda)
-        x = exp(*iter++);
-    }
-    if (parameters.targeted(Target::beta)) {
-      LOG(debug) << "Getting beta from vector";
-      for (auto &x : beta)
-        x = exp(*iter++);
-    }
     if (parameters.targeted(Target::theta)) {
       LOG(debug) << "Getting theta from vector";
       for (auto &x : theta)

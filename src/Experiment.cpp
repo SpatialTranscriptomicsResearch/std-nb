@@ -17,8 +17,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      lambda(Matrix::Ones(G, T)),
-      beta(Matrix::Ones(G, 1)),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
       spot(Vector::Ones(S)),
@@ -63,12 +61,6 @@ void Experiment::store(const string &prefix,
 
 #pragma omp parallel sections if (DO_PARALLEL)
   {
-#pragma omp section
-    write_matrix(lambda, prefix + "feature-lambda" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, factor_names, order);
-#pragma omp section
-    write_matrix(beta, prefix + "feature-beta" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, {1, "Baseline"}, {});
 #pragma omp section
     write_matrix(theta, prefix + "theta" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
@@ -118,11 +110,6 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  lambda = parse_file<Matrix>(prefix + "feature-lambda" + FILENAME_ENDING,
-                              read_matrix, "\t");
-  beta = parse_file<Matrix>(prefix + "feature-beta" + FILENAME_ENDING,
-                            read_matrix, "\t");
-
   theta = parse_file<Matrix>(prefix + "theta" + FILENAME_ENDING, read_matrix,
                              "\t");
   field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
@@ -213,11 +200,32 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
 }
 
 Matrix Experiment::compute_gene_type_table() const {
-  Matrix gt = model->gamma;
-  gt.array() *= lambda.array();
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      gt(g, t) *= beta(g);
+  Matrix gt = Matrix::Ones(G, T);
+
+  for (auto &x : covariates_gene_type)
+    gt.array() *= (*x).array();
+
+  for (auto &x : covariates_gene)
+    for (size_t g = 0; g < G; ++g) {
+      double y = (*x)(g);
+      for (size_t t = 0; t < T; ++t)
+        gt(g, t) *= y;
+    }
+
+  for (auto &x : covariates_type)
+    for (size_t t = 0; t < T; ++t) {
+      double y = (*x)(t);
+      for (size_t g = 0; g < G; ++g)
+        gt(g, t) *= y;
+    }
+
+  for (auto &x : covariates_scalar) {
+    double y = *x;
+    for (size_t g = 0; g < G; ++g)
+      for (size_t t = 0; t < T; ++t)
+        gt(g, t) *= y;
+  }
+
   return gt;
 }
 
@@ -433,10 +441,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
         // TODO determine continous-valued mean by optimizing the posterior
         // TODO handle infinities
-        /*
-        if(prod + v[t] == 0)
-          return -numeric_limits<double>::infinity();
-        */
+        // if(prod + v[t] == 0)
+        //   return -numeric_limits<double>::infinity();
 
         if (noisy)
           LOG(debug) << "r_i=" << r_i << " no_i=" << no_i
@@ -504,8 +510,6 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 }
 
 void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("lambda", lambda);
-  enforce_positive_and_warn("beta", beta);
   enforce_positive_and_warn("theta", theta);
   enforce_positive_and_warn("local field", field);
   enforce_positive_and_warn("spot", spot);
@@ -539,12 +543,12 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
 
 Vector Experiment::marginalize_genes() const {
   Vector intensities = Vector::Zero(T);
+  Matrix gt = compute_gene_type_table();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
     for (size_t g = 0; g < G; ++g)
-      intensity += beta(g) * lambda(g, t) * model->gamma(g, t)
-                   / model->negodds_rho(g, t);
+      intensity += gt(g, t) / model->negodds_rho(g, t);
     intensities[t] = intensity;
   }
   return intensities;
@@ -565,22 +569,22 @@ Vector Experiment::marginalize_spots() const {
 Matrix Experiment::expected_gene_type() const {
   Vector marginal = marginalize_spots();
   Matrix expected = Matrix::Zero(G, T);
+  Matrix gt = compute_gene_type_table();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t)
-      expected(g, t) = model->gamma(g, t) * lambda(g, t) * beta(g)
-                       / model->negodds_rho(g, t) * marginal(t);
+      expected(g, t) = gt(g, t) / model->negodds_rho(g, t) * marginal(t);
   return expected;
 }
 
 Matrix Experiment::expected_spot_type() const {
+  Matrix gt = compute_gene_type_table();
   Matrix m(S, T);
   for (size_t t = 0; t < T; ++t) {
     Float x = 0;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      x += model->gamma(g, t) * lambda(g, t) * beta(g)
-           / model->negodds_rho(g, t);
+      x += gt(g, t) / model->negodds_rho(g, t);
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
       m(s, t) = x * theta(s, t) * spot(s);
@@ -603,10 +607,6 @@ vector<vector<size_t>> Experiment::active_factors(double threshold) const {
 
 size_t Experiment::size() const {
   size_t s = 0;
-  if (parameters.targeted(Target::lambda))
-    s += lambda.size();
-  if (parameters.targeted(Target::beta))
-    s += beta.size();
   if (parameters.targeted(Target::theta))
     s += theta.size();
   if (parameters.targeted(Target::field))
@@ -617,8 +617,6 @@ size_t Experiment::size() const {
 }
 
 void Experiment::set_zero() {
-  lambda.setZero();
-  beta.setZero();
   theta.setZero();
   field.setZero();
   spot.setZero();
@@ -627,12 +625,6 @@ void Experiment::set_zero() {
 Vector Experiment::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
-  if (parameters.targeted(Target::lambda))
-    for (auto &x : lambda)
-      *iter++ = x;
-  if (parameters.targeted(Target::beta))
-    for (auto &x : beta)
-      *iter++ = x;
   if (parameters.targeted(Target::theta))
     for (auto &x : theta)
       *iter++ = x;
@@ -682,8 +674,6 @@ Experiment operator*(const Experiment &a, const Experiment &b) {
 
   experiment.spot.array() *= b.spot.array();
 
-  experiment.lambda.array() *= b.lambda.array();
-  experiment.beta.array() *= b.beta.array();
   experiment.theta.array() *= b.theta.array();
 
   return experiment;
@@ -699,8 +689,6 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   experiment.spot += b.spot;
 
-  experiment.lambda += b.lambda;
-  experiment.beta += b.beta;
   experiment.theta += b.theta;
 
   return experiment;
@@ -716,8 +704,6 @@ Experiment operator-(const Experiment &a, const Experiment &b) {
 
   experiment.spot -= b.spot;
 
-  experiment.lambda -= b.lambda;
-  experiment.beta -= b.beta;
   experiment.theta -= b.theta;
 
   return experiment;
@@ -733,8 +719,6 @@ Experiment operator*(const Experiment &a, double x) {
 
   experiment.spot *= x;
 
-  experiment.lambda *= x;
-  experiment.beta *= x;
   experiment.theta *= x;
 
   return experiment;
@@ -750,8 +734,6 @@ Experiment operator/(const Experiment &a, double x) {
 
   experiment.spot /= x;
 
-  experiment.lambda /= x;
-  experiment.beta /= x;
   experiment.theta /= x;
 
   return experiment;
@@ -767,8 +749,6 @@ Experiment operator-(const Experiment &a, double x) {
 
   experiment.spot.array() -= x;
 
-  experiment.lambda.array() -= x;
-  experiment.beta.array() -= x;
   experiment.theta.array() -= x;
 
   return experiment;

@@ -15,7 +15,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
       S(0),
       experiments(),
       parameters(parameters_),
-      gamma(Matrix::Ones(G, T)),
       negodds_rho(Matrix::Ones(G, T)),
       mix_prior(sum_cols(c), T, parameters),
       contributions_gene_type(Matrix::Zero(G, T)),
@@ -26,9 +25,15 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
-  if (parameters.targeted(Target::gamma))
-    for (auto &x : gamma)
-      x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+  {
+    // TODO covariates initialize
+    covariates_gene_type.push_back(Matrix::Ones(G, T));
+    if (parameters.targeted(Target::gamma))
+      for (auto &x : covariates_gene_type[0])
+        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    for (auto &experiment : experiments)
+      experiment.covariates_gene_type.push_back(&covariates_gene_type[0]);
+  }
 
   initialize_coordinate_systems(1);
 
@@ -74,9 +79,32 @@ void Model::store(const string &prefix_, bool reorder) const {
 #pragma omp section
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
+
+    // #pragma omp section
+    // TODO store covariates_scalar
+    // for (auto &y : covariates_scalar)
+    // write_matrix(gamma, prefix + "feature-gamma" + FILENAME_ENDING,
+    //              parameters.compression_mode, gene_names, factor_names,
+    //              order);
 #pragma omp section
-    write_matrix(gamma, prefix + "feature-gamma" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, factor_names, order);
+    for (size_t i = 0; i < covariates_gene.size(); ++i)
+      write_vector(covariates_gene[i],
+                   prefix + "covariate-gene-" + to_string_embedded(i, 2)
+                       + FILENAME_ENDING,
+                   parameters.compression_mode, gene_names);
+#pragma omp section
+    for (size_t i = 0; i < covariates_type.size(); ++i)
+      write_vector(covariates_type[i],
+                   prefix + "covariate-type-" + to_string_embedded(i, 2)
+                       + FILENAME_ENDING,
+                   parameters.compression_mode, factor_names);
+#pragma omp section
+    for (size_t i = 0; i < covariates_gene_type.size(); ++i)
+      write_matrix(covariates_gene_type[i],
+                   prefix + "covariate-gene-type-" + to_string_embedded(i, 2)
+                       + FILENAME_ENDING,
+                   parameters.compression_mode, gene_names, factor_names,
+                   order);
 #pragma omp section
     write_matrix(negodds_rho, prefix + "feature-negodds_rho" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
@@ -154,10 +182,13 @@ void Model::store(const string &prefix_, bool reorder) const {
 }
 
 void Model::restore(const string &prefix) {
+  // TODO covariates restore
+  /*
   gamma = parse_file<Matrix>(prefix + "feature-gamma" + FILENAME_ENDING,
                              read_matrix, "\t");
-  negodds_rho = parse_file<Matrix>(prefix + "feature-negodds_rho" + FILENAME_ENDING,
-                                   read_matrix, "\t");
+  */
+  negodds_rho = parse_file<Matrix>(
+      prefix + "feature-negodds_rho" + FILENAME_ENDING, read_matrix, "\t");
 
   {
     const size_t C = coordinate_systems.size();
@@ -196,7 +227,15 @@ Matrix Model::field_fitness_posterior_gradient() const {
 }
 
 void Model::set_zero() {
-  gamma.setZero();
+  for (auto &y : covariates_scalar)
+    y = 0;
+  for (auto &y : covariates_gene)
+    y.setZero();
+  for (auto &y : covariates_type)
+    y.setZero();
+  for (auto &y : covariates_gene_type)
+    y.setZero();
+
   negodds_rho.setZero();
   for (auto &coord_sys : coordinate_systems)
     coord_sys.field.setZero();
@@ -208,12 +247,20 @@ void Model::set_zero() {
 
 size_t Model::size() const {
   size_t s = 0;
+
+  for (auto &y : covariates_scalar)
+    s++;
+  for (auto &y : covariates_gene)
+    s += y.size();
+  for (auto &y : covariates_type)
+    s += y.size();
+  for (auto &y : covariates_gene_type)
+    s += y.size();
+
   if (parameters.targeted(Target::gamma_prior))
     s += 2;
   if (parameters.targeted(Target::rho_prior))
     s += 2;
-  if (parameters.targeted(Target::gamma))
-    s += gamma.size();
   if (parameters.targeted(Target::rho))
     s += negodds_rho.size();
   if (parameters.targeted(Target::theta_prior))
@@ -230,6 +277,18 @@ Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
 
+  for (auto &y : covariates_scalar)
+    *iter++ = y;
+  for (auto &y : covariates_gene)
+    for (auto &z : y)
+      *iter++ = z;
+  for (auto &y : covariates_type)
+    for (auto &z : y)
+      *iter++ = z;
+  for (auto &y : covariates_gene_type)
+    for (auto &z : y)
+      *iter++ = z;
+
   if (parameters.targeted(Target::gamma_prior)) {
     *iter++ = parameters.hyperparameters.gamma_1;
     *iter++ = parameters.hyperparameters.gamma_2;
@@ -239,10 +298,6 @@ Vector Model::vectorize() const {
     *iter++ = parameters.hyperparameters.rho_1;
     *iter++ = parameters.hyperparameters.rho_2;
   }
-
-  if (parameters.targeted(Target::gamma))
-    for (auto &x : gamma)
-      *iter++ = x;
 
   if (parameters.targeted(Target::rho))
     for (auto &x : negodds_rho)
@@ -421,9 +476,14 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double k = cnts[t];
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
-    gradient.gamma(g, t) += term;
-    gradient.experiments[e].lambda(g, t) += term;
-    gradient.experiments[e].beta(g) += term;
+    for (auto &y : gradient.covariates_scalar)
+      y += term;
+    for (auto &y : gradient.covariates_gene)
+      y(g) += term;
+    for (auto &y : gradient.covariates_type)
+      y(t) += term;
+    for (auto &y : gradient.covariates_gene_type)
+      y(g, t) += term;
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 
@@ -434,13 +494,21 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 void Model::finalize_gradient(Model &gradient) const {
   LOG(verbose) << "Finalizing gradient";
 
-  if (parameters.targeted(Target::gamma)) {
+  {
+    // TODO check covariates prior contribution to gradient
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        gradient.gamma(g, t) += (a - 1) - gamma(g, t) * b;
+    for (size_t i = 0; i < gradient.covariates_scalar.size(); ++i)
+      gradient.covariates_scalar[i] += (a - 1) - covariates_scalar[i] * b;
+    for (size_t i = 0; i < gradient.covariates_gene.size(); ++i)
+      gradient.covariates_gene[i].array()
+          += (a - 1) - covariates_gene[i].array() * b;
+    for (size_t i = 0; i < gradient.covariates_type.size(); ++i)
+      gradient.covariates_type[i].array()
+          += (a - 1) - covariates_type[i].array() * b;
+    for (size_t i = 0; i < gradient.covariates_gene_type.size(); ++i)
+      gradient.covariates_gene_type[i].array()
+          += (a - 1) - covariates_gene_type[i].array() * b;
   }
 
   if (parameters.targeted(Target::rho)) {
@@ -453,29 +521,6 @@ void Model::finalize_gradient(Model &gradient) const {
         const double p = neg_odds_to_prob(no);
         gradient.negodds_rho(g, t) += (a + b - 2) * p - a + 1;
       }
-  }
-
-  if (parameters.targeted(Target::lambda)) {
-    const double a = parameters.hyperparameters.lambda_1;
-    const double b = parameters.hyperparameters.lambda_2;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < G; ++g)
-          for (size_t t = 0; t < T; ++t)
-            gradient.experiments[e].lambda(g, t)
-                += (a - 1) - experiments[e].lambda(g, t) * b;
-  }
-
-  if (parameters.targeted(Target::beta)) {
-    const double a = parameters.hyperparameters.beta_1;
-    const double b = parameters.hyperparameters.beta_2;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < G; ++g)
-          gradient.experiments[e].beta(g)
-              += (a - 1) - experiments[e].beta(g) * b;
   }
 
   if (parameters.targeted(Target::theta))
@@ -764,7 +809,13 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters() {
-  enforce_positive_and_warn("gamma", gamma);
+  // TODO covariates
+  for (auto &y : covariates_gene)
+    enforce_positive_and_warn("covariate_gene", y);
+  for (auto &y : covariates_type)
+    enforce_positive_and_warn("covariate_type", y);
+  for (auto &y : covariates_gene_type)
+    enforce_positive_and_warn("covariate_gene_type", y);
   enforce_positive_and_warn("negodds_rho", negodds_rho);
   enforce_positive_and_warn("mix_prior_r", mix_prior.r);
   enforce_positive_and_warn("mix_prior_p", mix_prior.p);

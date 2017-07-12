@@ -8,7 +8,6 @@
 #include "aux.hpp"
 #include "cli.hpp"
 #include "counts.hpp"
-#include "covariate.hpp"
 #include "io.hpp"
 #include "Model.hpp"
 
