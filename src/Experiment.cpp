@@ -666,23 +666,6 @@ ostream &operator<<(ostream &os, const Experiment &experiment) {
   return os;
 }
 
-Experiment operator*(const Experiment &a, const Experiment &b) {
-  Experiment experiment = a;
-
-  experiment.contributions_gene_type.array()
-      *= b.contributions_gene_type.array();
-  experiment.contributions_spot_type.array()
-      *= b.contributions_spot_type.array();
-  experiment.contributions_gene.array() *= b.contributions_gene.array();
-  experiment.contributions_spot.array() *= b.contributions_spot.array();
-
-  experiment.spot.array() *= b.spot.array();
-
-  experiment.theta.array() *= b.theta.array();
-
-  return experiment;
-}
-
 Experiment operator+(const Experiment &a, const Experiment &b) {
   Experiment experiment = a;
 
@@ -694,66 +677,6 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
   experiment.spot += b.spot;
 
   experiment.theta += b.theta;
-
-  return experiment;
-}
-
-Experiment operator-(const Experiment &a, const Experiment &b) {
-  Experiment experiment = a;
-
-  experiment.contributions_gene_type -= b.contributions_gene_type;
-  experiment.contributions_spot_type -= b.contributions_spot_type;
-  experiment.contributions_gene -= b.contributions_gene;
-  experiment.contributions_spot -= b.contributions_spot;
-
-  experiment.spot -= b.spot;
-
-  experiment.theta -= b.theta;
-
-  return experiment;
-}
-
-Experiment operator*(const Experiment &a, double x) {
-  Experiment experiment = a;
-
-  experiment.contributions_gene_type *= x;
-  experiment.contributions_spot_type *= x;
-  experiment.contributions_gene *= x;
-  experiment.contributions_spot *= x;
-
-  experiment.spot *= x;
-
-  experiment.theta *= x;
-
-  return experiment;
-}
-
-Experiment operator/(const Experiment &a, double x) {
-  Experiment experiment = a;
-
-  experiment.contributions_gene_type /= x;
-  experiment.contributions_spot_type /= x;
-  experiment.contributions_gene /= x;
-  experiment.contributions_spot /= x;
-
-  experiment.spot /= x;
-
-  experiment.theta /= x;
-
-  return experiment;
-}
-
-Experiment operator-(const Experiment &a, double x) {
-  Experiment experiment = a;
-
-  experiment.contributions_gene_type.array() -= x;
-  experiment.contributions_spot_type.array() -= x;
-  experiment.contributions_gene.array() -= x;
-  experiment.contributions_spot.array() -= x;
-
-  experiment.spot.array() -= x;
-
-  experiment.theta.array() -= x;
 
   return experiment;
 }

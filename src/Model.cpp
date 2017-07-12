@@ -991,19 +991,6 @@ ostream &operator<<(ostream &os, const Model &model) {
   return os;
 }
 
-Model operator*(const Model &a, const Model &b) {
-  Model model = a;
-
-  model.contributions_gene_type.array() *= b.contributions_gene_type.array();
-  model.contributions_gene.array() *= b.contributions_gene.array();
-  model.gamma.array() *= b.gamma.array();
-  model.negodds_rho.array() *= b.negodds_rho.array();
-  for (size_t e = 0; e < model.E; ++e)
-    model.experiments[e] = model.experiments[e] * b.experiments[e];
-
-  return model;
-}
-
 Model operator+(const Model &a, const Model &b) {
   Model model = a;
 
@@ -1020,45 +1007,6 @@ Model operator+(const Model &a, const Model &b) {
   model.negodds_rho += b.negodds_rho;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
-
-  return model;
-}
-
-Model operator-(const Model &a, const Model &b) {
-  Model model = a;
-
-  model.contributions_gene_type -= b.contributions_gene_type;
-  model.contributions_gene -= b.contributions_gene;
-  model.gamma -= b.gamma;
-  model.negodds_rho -= b.negodds_rho;
-  for (size_t e = 0; e < model.E; ++e)
-    model.experiments[e] = model.experiments[e] - b.experiments[e];
-
-  return model;
-}
-
-Model operator*(const Model &a, double x) {
-  Model model = a;
-
-  model.contributions_gene_type *= x;
-  model.contributions_gene *= x;
-  model.gamma *= x;
-  model.negodds_rho *= x;
-  for (auto &experiment : model.experiments)
-    experiment = experiment * x;
-
-  return model;
-}
-
-Model operator/(const Model &a, double x) {
-  Model model = a;
-
-  model.contributions_gene_type /= x;
-  model.contributions_gene /= x;
-  model.gamma /= x;
-  model.negodds_rho /= x;
-  for (auto &experiment : model.experiments)
-    experiment = experiment / x;
 
   return model;
 }

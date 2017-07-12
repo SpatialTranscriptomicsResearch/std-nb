@@ -30,31 +30,6 @@ struct Options {
   size_t bottom = 0;
 };
 
-template <typename T>
-struct Moments {
-  long warm_up;
-  size_t n;
-  T sum;
-  T sumsq;
-  Moments(long warm_up_, const T &m)
-      : warm_up(warm_up_), n(0), sum(m * 0), sumsq(m * 0) {}
-  void update(long iteration, const T &m) {
-    if (warm_up >= 0 and iteration >= warm_up) {
-      sum = sum + m;
-      sumsq = sumsq + m * m;
-      n++;
-    }
-  }
-  void evaluate(const std::string &prefix) {
-    if (n > 1) {
-      T var = (sumsq - sum * sum / n) / (n - 1);
-      sum = sum / n;
-      sum.store(prefix + "mean_");
-      var.store(prefix + "variance_");
-    }
-  }
-};
-
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
   STD::Model pfa(data_sets, options.num_factors, parameters,

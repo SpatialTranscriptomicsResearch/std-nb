@@ -110,12 +110,7 @@ struct Experiment {
 
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);
 
-Experiment operator*(const Experiment &a, const Experiment &b);
 Experiment operator+(const Experiment &a, const Experiment &b);
-Experiment operator-(const Experiment &a, const Experiment &b);
-Experiment operator*(const Experiment &a, double x);
-Experiment operator/(const Experiment &a, double x);
-Experiment operator-(const Experiment &a, double x);
 }
 
 #endif

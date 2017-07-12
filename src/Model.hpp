@@ -142,11 +142,7 @@ struct Model {
 
 std::ostream &operator<<(std::ostream &os, const Model &pfa);
 
-Model operator*(const Model &a, const Model &b);
 Model operator+(const Model &a, const Model &b);
-Model operator-(const Model &a, const Model &b);
-Model operator*(const Model &a, double x);
-Model operator/(const Model &a, double x);
 }
 
 #endif
