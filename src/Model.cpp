@@ -27,7 +27,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
 
   covariates_gene_type.push_back(Matrix::Ones(G, T));
   for (auto &experiment : experiments)
-    experiment.covariates_gene_type.push_back(&covariates_gene_type[0]);
+    experiment.covariates_gene_type.push_back(0);
 
   {
     // TODO covariates initialize
@@ -486,13 +486,13 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
     for (auto &y : gradient.experiments[e].covariates_scalar)
-      (*y) += term;
+      gradient.covariates_scalar[y] += term;
     for (auto &y : gradient.experiments[e].covariates_gene)
-      (*y)(g) += term;
+      gradient.covariates_gene[y](g) += term;
     for (auto &y : gradient.experiments[e].covariates_type)
-      (*y)(t) += term;
+      gradient.covariates_type[y](t) += term;
     for (auto &y : gradient.experiments[e].covariates_gene_type)
-      (*y)(g, t) += term;
+      gradient.covariates_gene_type[y](g, t) += term;
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 

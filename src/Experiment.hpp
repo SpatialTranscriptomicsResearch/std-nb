@@ -38,10 +38,10 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<double*> covariates_scalar;
-  std::vector<Vector*> covariates_gene;
-  std::vector<Vector*> covariates_type;
-  std::vector<Matrix*> covariates_gene_type;
+  std::vector<size_t> covariates_scalar;
+  std::vector<size_t> covariates_gene;
+  std::vector<size_t> covariates_type;
+  std::vector<size_t> covariates_gene_type;
 
   /** factor score matrix */
   Matrix theta;
