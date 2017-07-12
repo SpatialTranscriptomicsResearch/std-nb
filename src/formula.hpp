@@ -6,7 +6,7 @@
 #include <vector>
 
 struct Formula {
-  Formula(const std::string &str);
+  Formula(const std::string &str = "");
 
   // TODO : Consider emitting syntactic error on space inside of covariates
   void from_string(const std::string &str);
