@@ -50,3 +50,21 @@ void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
       v(i) = min_val;
     }
 }
+
+vector<string> split_at(char sep, const string &str) {
+  vector<string> ret;
+  istringstream ss(str);
+  string line;
+  while (getline(ss, line, sep))
+    ret.push_back(line);
+  return ret;
+}
+
+string trim(const string& str, char sym) {
+  size_t trim_front = 0, trim_back = 0;
+  while (str[trim_front] == sym)
+    trim_front++;
+  while (str[str.size() - trim_back - 1] == sym)
+    trim_back++;
+  return str.substr(trim_front, str.size() - trim_front - trim_back);
+}

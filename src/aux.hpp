@@ -133,4 +133,8 @@ void enforce_positive_and_warn(const std::string &tag, STD::Matrix &m,
 void enforce_positive_and_warn(const std::string &tag, STD::Vector &v,
                                bool warn = true);
 
+std::vector<std::string> split_at(char sep, const std::string& str);
+
+std::string trim(const std::string& str, char sym = ' ');
+
 #endif

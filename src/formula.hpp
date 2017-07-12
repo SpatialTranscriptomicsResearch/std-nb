@@ -1,18 +1,24 @@
 #ifndef FORMULA_HPP
 #define FORMULA_HPP
 
+#include <iostream>
+#include <string>
 #include <vector>
-#include "covariate.hpp"
-// #include "term.hpp"
 
-// struct Formula {
-// };
+struct Formula {
+  Formula(const std::string &str);
 
-using Term = std::vector<Covariate>;
+  // TODO : Consider emitting syntactic error on space inside of covariates
+  void from_string(const std::string &str);
 
-using Formula = std::vector<Term>;
+  std::string to_string() const;
 
-Formula parse_formula(const std::string &formula_str);
+  std::vector<std::vector<std::string>> formula;
+};
+
+std::ostream &operator<<(std::ostream &os, const Formula &formula);
+std::istream &operator>>(std::istream &is, Formula &formula);
+
 bool check_formula(const Formula &formula);
 
 #endif
