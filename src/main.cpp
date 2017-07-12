@@ -1,15 +1,15 @@
+#include <fenv.h>
+#include <boost/filesystem.hpp>
 #include <cstdlib>
 #include <exception>
-#include <fenv.h>
 #include <iostream>
 #include <string>
 #include <vector>
-#include <boost/filesystem.hpp>
+#include "Model.hpp"
 #include "aux.hpp"
 #include "cli.hpp"
 #include "counts.hpp"
 #include "io.hpp"
-#include "Model.hpp"
 
 using namespace std;
 
@@ -80,8 +80,8 @@ int main(int argc, char **argv) {
   size_t num_cols = 80;
   namespace po = boost::program_options;
   po::options_description cli_options;
-  po::options_description generic_options =
-      gen_generic_options(config_path, num_cols);
+  po::options_description generic_options
+      = gen_generic_options(config_path, num_cols);
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
