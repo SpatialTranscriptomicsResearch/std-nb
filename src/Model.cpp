@@ -7,8 +7,8 @@ using namespace std;
 
 namespace STD {
 
-Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
-             bool same_coord_sys)
+Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
+             const Parameters &parameters_, bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
       E(0),

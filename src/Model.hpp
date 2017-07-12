@@ -3,6 +3,7 @@
 
 #include "Experiment.hpp"
 #include "Mesh.hpp"
+#include "formula.hpp"
 #include "priors.hpp"
 
 namespace STD {
@@ -50,7 +51,7 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts> &data, size_t T, const Parameters &parameters,
+  Model(const std::vector<Counts> &data, size_t T, const Formula &formula, const Parameters &parameters,
         bool same_coord_sys);
 
   void set_zero();

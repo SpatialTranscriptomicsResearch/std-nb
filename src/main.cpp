@@ -15,6 +15,7 @@ using namespace std;
 
 struct Options {
   vector<string> tsv_paths;
+  Formula formula = DefaultFormula();
   size_t num_factors = 20;
   long num_warm_up = -1;
   bool intersect = false;
@@ -33,7 +34,7 @@ struct Options {
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
-  STD::Model pfa(data_sets, options.num_factors, parameters,
+  STD::Model pfa(data_sets, options.num_factors, options.formula, parameters,
                  options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
@@ -110,6 +111,8 @@ int main(int argc, char **argv) {
      "Prefix for generated output files.")
     ("fields", po::bool_switch(&options.fields),
      "Activate fields.")
+    ("formula,f", po::value(&options.formula)->default_value(options.formula),
+     "Regression formula.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("bot", po::value(&options.bottom)->default_value(options.bottom),
