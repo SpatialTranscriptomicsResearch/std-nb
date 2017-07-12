@@ -485,14 +485,14 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double k = cnts[t];
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
-    for (auto &y : gradient.covariates_scalar)
-      y += term;
-    for (auto &y : gradient.covariates_gene)
-      y(g) += term;
-    for (auto &y : gradient.covariates_type)
-      y(t) += term;
-    for (auto &y : gradient.covariates_gene_type)
-      y(g, t) += term;
+    for (auto &y : gradient.experiments[e].covariates_scalar)
+      (*y) += term;
+    for (auto &y : gradient.experiments[e].covariates_gene)
+      (*y)(g) += term;
+    for (auto &y : gradient.experiments[e].covariates_type)
+      (*y)(t) += term;
+    for (auto &y : gradient.experiments[e].covariates_gene_type)
+      (*y)(g, t) += term;
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 
