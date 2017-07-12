@@ -62,6 +62,7 @@ struct Experiment {
   void store(const std::string &prefix, const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
 
+  // TODO covariates reactivate likelihood
   // Matrix log_likelihood() const;
 
   Matrix field_fitness_posterior() const;

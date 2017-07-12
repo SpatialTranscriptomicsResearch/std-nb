@@ -19,7 +19,8 @@ struct Options {
   long num_warm_up = -1;
   bool intersect = false;
   string load_prefix = "";
-  bool compute_likelihood = false;
+  // TODO covariates reactivate likelihood
+  // bool compute_likelihood = false;
   bool share_coord_sys = false;
   bool fields = false;
   bool perform_dge = false;
@@ -39,7 +40,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   LOG(info) << "Initial model" << endl << pfa;
   pfa.gradient_update();
   pfa.store("");
-  /*
+  /* TODO covariates reactivate likelihood
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(pfa.parameters.output_directory);
@@ -125,6 +126,7 @@ int main(int argc, char **argv) {
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
      "Do not discard genes or spots with zero counts.")
+    // TODO covariates reactivate likelihood
     // ("likel", po::bool_switch(&options.compute_likelihood),
     //  "Compute and print the likelihood after finishing.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),

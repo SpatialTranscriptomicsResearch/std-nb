@@ -246,8 +246,7 @@ void Model::set_zero() {
 size_t Model::size() const {
   size_t s = 0;
 
-  for (auto &y : covariates_scalar)
-    s++;
+  s += covariates_scalar.size();
   for (auto &y : covariates_gene)
     s += y.size();
   for (auto &y : covariates_type)
@@ -813,7 +812,7 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters() {
-  // TODO covariates
+  // TODO  covariates enforce positivity for covariates_scalar
   for (auto &y : covariates_gene)
     enforce_positive_and_warn("covariate_gene", y);
   for (auto &y : covariates_type)
@@ -829,7 +828,7 @@ void Model::enforce_positive_parameters() {
     experiment.enforce_positive_parameters();
 }
 
-/*
+/* TODO covariates reactivate likelihood
 double Model::log_likelihood(const string &prefix) const {
   double l = 0;
   for (size_t e = 0; e < E; ++e) {

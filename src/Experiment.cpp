@@ -129,7 +129,7 @@ void Experiment::restore(const string &prefix) {
                            read_vector<Vector>, "\t");
 }
 
-/*
+/* TODO covariates reactivate likelihood
 Matrix Experiment::log_likelihood() const {
   Matrix l(G, S);
   const size_t K = min<size_t>(20, T);

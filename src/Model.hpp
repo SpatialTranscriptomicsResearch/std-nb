@@ -125,6 +125,7 @@ struct Model {
   void store(const std::string &prefix, bool reorder = true) const;
   void restore(const std::string &prefix);
 
+  // TODO covariates reactivate likelihood
   // double log_likelihood(const std::string &prefix) const;
 
   // computes a matrix M(g,t)
