@@ -1009,7 +1009,14 @@ Model operator+(const Model &a, const Model &b) {
 
   model.contributions_gene_type += b.contributions_gene_type;
   model.contributions_gene += b.contributions_gene;
-  model.gamma += b.gamma;
+  for (size_t i = 0; i < a.covariates_scalar.size(); ++i)
+    model.covariates_scalar[i] += b.covariates_scalar[i];
+  for (size_t i = 0; i < a.covariates_gene.size(); ++i)
+    model.covariates_gene[i].array() += b.covariates_gene[i].array();
+  for (size_t i = 0; i < a.covariates_type.size(); ++i)
+    model.covariates_type[i].array() += b.covariates_type[i].array();
+  for (size_t i = 0; i < a.covariates_gene_type.size(); ++i)
+    model.covariates_gene_type[i].array() += b.covariates_gene_type[i].array();
   model.negodds_rho += b.negodds_rho;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
