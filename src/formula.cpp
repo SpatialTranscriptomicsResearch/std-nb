@@ -46,7 +46,7 @@ ostream &operator<<(ostream &os, const Formula &formula) {
 
 istream &operator>>(istream &is, Formula &formula) {
   string token;
-  is >> token;
+  getline(is, token);
   formula.from_string(token);
   return is;
 }
