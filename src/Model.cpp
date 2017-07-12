@@ -80,12 +80,7 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 
-    // #pragma omp section
-    // TODO store covariates_scalar
-    // for (auto &y : covariates_scalar)
-    // write_matrix(gamma, prefix + "feature-gamma" + FILENAME_ENDING,
-    //              parameters.compression_mode, gene_names, factor_names,
-    //              order);
+// TODO store covariates_scalar
 #pragma omp section
     for (size_t i = 0; i < covariates_gene.size(); ++i)
       write_vector(covariates_gene[i],
