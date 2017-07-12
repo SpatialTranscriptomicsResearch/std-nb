@@ -25,14 +25,23 @@ Model::Model(const vector<Counts> &c, size_t T_, const Parameters &parameters_,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
+  covariates_gene_type.push_back(Matrix::Ones(G, T));
+  for (auto &experiment : experiments)
+    experiment.covariates_gene_type.push_back(&covariates_gene_type[0]);
+
   {
     // TODO covariates initialize
-    covariates_gene_type.push_back(Matrix::Ones(G, T));
-    if (parameters.targeted(Target::gamma))
-      for (auto &x : covariates_gene_type[0])
+    for (auto &x : covariates_scalar)
+      x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    for (auto &covariate : covariates_gene)
+      for (auto &x : covariate)
         x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
-    for (auto &experiment : experiments)
-      experiment.covariates_gene_type.push_back(&covariates_gene_type[0]);
+    for (auto &covariate : covariates_type)
+      for (auto &x : covariate)
+        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    for (auto &covariate : covariates_gene_type)
+      for (auto &x : covariate)
+        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
   }
 
   initialize_coordinate_systems(1);
