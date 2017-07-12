@@ -290,6 +290,7 @@ int main(int argc, char **argv) {
     parameters.targets = parameters.targets | STD::Target::field;
 
   LOG(verbose) << "Inference targets = " << parameters.targets;
+  LOG(verbose) << "Regression formula = " << options.formula;
 
   try {
     run(data_sets, options, parameters);
