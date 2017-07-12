@@ -64,10 +64,11 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   LOG(info) << "Initial model" << endl << pfa;
   pfa.gradient_update();
   pfa.store("");
+  /*
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(pfa.parameters.output_directory);
-
+  */
 }
 
 int main(int argc, char **argv) {
@@ -149,8 +150,8 @@ int main(int argc, char **argv) {
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
      "Do not discard genes or spots with zero counts.")
-    ("likel", po::bool_switch(&options.compute_likelihood),
-     "Compute and print the likelihood after finishing.")
+    // ("likel", po::bool_switch(&options.compute_likelihood),
+    //  "Compute and print the likelihood after finishing.")
     ("nopriors", po::bool_switch(&parameters.ignore_priors),
      "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
     ("p_map", po::bool_switch(&parameters.p_empty_map),

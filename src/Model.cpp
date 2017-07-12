@@ -165,6 +165,8 @@ void Model::store(const string &prefix_, bool reorder) const {
       // print un-weighted field
       print_field_matrix(prefix + "field" + FILENAME_ENDING, w);
 
+      // TODO covariates store expected fields
+      /*
       // NOTE we ignore local features and local baseline
       w = mix_prior.r.array() / mix_prior.p.array();
       Vector meanColSums = colSums<Vector>(gamma.array() / negodds_rho.array());
@@ -172,6 +174,7 @@ void Model::store(const string &prefix_, bool reorder) const {
         w(t) *= meanColSums(t);
       // print weighted field
       print_field_matrix(prefix + "expfield" + FILENAME_ENDING, w);
+      */
     }
   }
   for (size_t e = 0; e < E; ++e) {
@@ -411,12 +414,15 @@ double Model::compute_gradient_gamma_prior(Model &gradient) const {
   const double hyper_gamma = 1;
   const double hyper_delta = 1;
 
+  // TODO covariates gamma prior
+  /*
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
       gradient.parameters.hyperparameters.gamma_1
           += a * (log(b) - digamma(a) + log(gamma(g, t)));
       gradient.parameters.hyperparameters.gamma_2 += a - b * gamma(g, t);
     }
+    */
 
   gradient.parameters.hyperparameters.gamma_1
       += hyper_alpha - 1 - a * hyper_beta;
@@ -591,6 +597,8 @@ void Model::finalize_gradient(Model &gradient) const {
 // calculate parameter's likelihood
 double Model::param_likel() const {
   double score = 0;
+  // TODO covariates likelihood
+  /*
   if (parameters.targeted(Target::gamma)) {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
@@ -620,6 +628,7 @@ double Model::param_likel() const {
         for (size_t g = 0; g < G; ++g)
           score += log_gamma_rate(experiments[e].beta(g), a, b);
   }
+  */
 
   if (parameters.targeted(Target::theta))
     for (auto &coord_sys : coordinate_systems)
@@ -825,6 +834,7 @@ void Model::enforce_positive_parameters() {
     experiment.enforce_positive_parameters();
 }
 
+/*
 double Model::log_likelihood(const string &prefix) const {
   double l = 0;
   for (size_t e = 0; e < E; ++e) {
@@ -845,6 +855,7 @@ double Model::log_likelihood(const string &prefix) const {
   }
   return l;
 }
+*/
 
 // computes a matrix M(g,t) =
 //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)

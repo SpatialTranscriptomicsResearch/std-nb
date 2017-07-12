@@ -62,7 +62,7 @@ struct Experiment {
   void store(const std::string &prefix, const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
 
-  Matrix log_likelihood() const;
+  // Matrix log_likelihood() const;
 
   Matrix field_fitness_posterior() const;
   Matrix field_fitness_posterior_gradient() const;

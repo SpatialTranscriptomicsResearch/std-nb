@@ -129,6 +129,7 @@ void Experiment::restore(const string &prefix) {
                            read_vector<Vector>, "\t");
 }
 
+/*
 Matrix Experiment::log_likelihood() const {
   Matrix l(G, S);
   const size_t K = min<size_t>(20, T);
@@ -151,6 +152,7 @@ Matrix Experiment::log_likelihood() const {
   }
   return l;
 }
+*/
 
 double neg_log_posterior(const Vector &y, size_t count, const Vector &r,
                          const Vector &p) {
@@ -340,6 +342,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     } break;
   }
 
+  /*
   if (false) {
     if (parameters.contributions_map) {
       Vector r(T);
@@ -505,6 +508,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       }
     }
   }
+  */
 
   return cnts;
 }
