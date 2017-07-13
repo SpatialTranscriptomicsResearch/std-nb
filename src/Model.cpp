@@ -1,5 +1,6 @@
 #include "Model.hpp"
 #include <LBFGS.h>
+#include <map>
 #include "gamma_func.hpp"
 #include "rprop.hpp"
 
@@ -8,7 +9,8 @@ using namespace std;
 namespace STD {
 
 Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
-             const Parameters &parameters_, bool same_coord_sys)
+             const Design &design, const Parameters &parameters_,
+             bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
       E(0),
@@ -25,9 +27,96 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
 
+  for (auto &term : formula.terms) {
+    LOG(debug) << "Treating next formula term.";
+    bool gene_dependent = false;
+    bool type_dependent = false;
+    vector<size_t> cov_idxs;
+    for (auto &covariate_label : term) {
+      LOG(debug) << "Treating covariate label: " << covariate_label;
+      if (to_lower(covariate_label) == "gene")
+        gene_dependent = true;
+      else if (to_lower(covariate_label) == "type")
+        type_dependent = true;
+      else {
+        auto cov_iter
+            = find_if(begin(design.covariates), end(design.covariates),
+                      [&](const Covariate &covariate) {
+                        return covariate.label == covariate_label;
+                      });
+        if (cov_iter == end(design.covariates)) {
+          throw "Error: a covariate mentioned in the formula '"
+              + covariate_label + "' is not found in the design.";
+        } else {
+          cov_idxs.push_back(distance(begin(design.covariates), cov_iter));
+        }
+      }
+    }
+
+    LOG(debug) << "gene_dependent = " << gene_dependent;
+    LOG(debug) << "type_dependent = " << type_dependent;
+
+    map<vector<size_t>, size_t> covvalues2idx;
+    for (size_t e = 0; e < E; ++e) {
+      vector<size_t> cov_values;
+      for (auto &cov_idx : cov_idxs)
+        cov_values.push_back(
+            design.dataset_specifications[e].covariate_values[cov_idx]);
+      auto iter = covvalues2idx.find(cov_values);
+      size_t idx;
+      if (iter != end(covvalues2idx)) {
+        idx = iter->second;
+        LOG(debug) << "Found previous covariate value combination: " << idx;
+      } else {
+        // this covariate value combination was not previously used
+        if (gene_dependent and type_dependent) {
+          idx = covariates_gene_type.size();
+          LOG(debug) << "Creating new " << G << "x" << T
+                     << " gene-type matrix: " << idx;
+          covariates_gene_type.push_back(Matrix::Ones(G, T));
+        } else if (gene_dependent and not type_dependent) {
+          idx = covariates_gene.size();
+          LOG(debug) << "Creating new " << G << " gene vector: " << idx;
+          covariates_gene.push_back(Vector::Ones(G));
+        } else if (not gene_dependent and type_dependent) {
+          idx = covariates_type.size();
+          LOG(debug) << "Creating new " << T << " type vector: " << idx;
+          covariates_type.push_back(Vector::Ones(T));
+        } else if (not gene_dependent and not type_dependent) {
+          idx = covariates_scalar.size();
+          LOG(debug) << "Creating new scalar: " << idx;
+          covariates_scalar.push_back(1);
+        }
+        covvalues2idx[cov_values] = idx;
+      }
+      if (gene_dependent and type_dependent)
+        experiments[e].covariates_gene_type.push_back(idx);
+      else if (gene_dependent and not type_dependent)
+        experiments[e].covariates_gene.push_back(idx);
+      else if (not gene_dependent and type_dependent)
+        experiments[e].covariates_type.push_back(idx);
+      else if (not gene_dependent and not type_dependent)
+        experiments[e].covariates_scalar.push_back(idx);
+    }
+  }
+
+  /*
+  covariates_scalar.push_back(1);
+  for (auto &experiment : experiments)
+    experiment.covariates_scalar.push_back(0);
+
+  covariates_gene.push_back(Vector::Ones(G));
+  for (auto &experiment : experiments)
+    experiment.covariates_gene.push_back(0);
+
+  covariates_type.push_back(Vector::Ones(T));
+  for (auto &experiment : experiments)
+    experiment.covariates_type.push_back(0);
+
   covariates_gene_type.push_back(Matrix::Ones(G, T));
   for (auto &experiment : experiments)
     experiment.covariates_gene_type.push_back(0);
+  */
 
   {
     // TODO covariates initialize

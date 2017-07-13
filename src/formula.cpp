@@ -8,20 +8,20 @@ Formula::Formula(const string &str) { from_string(str); }
 
 // TODO : Consider emitting syntactic error on space inside of covariates
 void Formula::from_string(const string &str) {
-  vector<string> terms = split_at('+', str);
-  for (string &term : terms) {
+  vector<string> tokens = split_at('+', str);
+  for (string &term : tokens) {
     vector<string> covariates = split_at(':', term);
     for (auto &covariate : covariates) {
       covariate = trim(covariate);
     }
-    formula.push_back(covariates);
+    terms.push_back(covariates);
   }
 }
 
 string Formula::to_string() const {
   string str;
   bool first_term = true;
-  for (auto &term : formula) {
+  for (auto &term : terms) {
     if (not first_term)
       str += "+";
     first_term = false;

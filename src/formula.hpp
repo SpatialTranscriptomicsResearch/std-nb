@@ -6,6 +6,7 @@
 #include <vector>
 
 struct Formula {
+  using Term = std::vector<std::string>;
   Formula(const std::string &str = "");
 
   // TODO : Consider emitting syntactic error on space inside of covariates
@@ -13,7 +14,7 @@ struct Formula {
 
   std::string to_string() const;
 
-  std::vector<std::vector<std::string>> formula;
+  std::vector<Term> terms;
 };
 
 std::ostream &operator<<(std::ostream &os, const Formula &formula);

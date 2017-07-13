@@ -33,8 +33,15 @@ struct Specification {
   std::vector<size_t> covariate_values;
 };
 
-using Design = std::vector<Specification>;
+struct Design {
+  void from_string(const std::string &str);
+  void from_stream(std::istream &is);
+  std::string to_string() const;
+  std::vector<Specification> dataset_specifications;
+  Covariates covariates;
+};
 
-void read_design(std::istream &is, Design &design, Covariates &covariates);
+std::istream &operator>>(std::istream &is, Design &design);
+std::ostream &operator<<(std::ostream &os, const Design &design);
 
 #endif

@@ -16,6 +16,8 @@ using namespace std;
 struct Options {
   vector<string> tsv_paths;
   Formula formula = DefaultFormula();
+  string design_path;
+  Design design;
   size_t num_factors = 20;
   long num_warm_up = -1;
   bool intersect = false;
@@ -34,8 +36,8 @@ struct Options {
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
-  STD::Model pfa(data_sets, options.num_factors, options.formula, parameters,
-                 options.share_coord_sys);
+  STD::Model pfa(data_sets, options.num_factors, options.formula,
+                 options.design, parameters, options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
@@ -91,10 +93,15 @@ int main(int argc, char **argv) {
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
+    ("file", po::value(&options.design_path)->required(),
+     "Path to a design matrix file. "
+     "Format: tab-separated.");
+  /* TODO recreate simple CLI interface
     ("file", po::value(&options.tsv_paths)->required(),
      "Path to a count matrix file, can be given multiple times. "
      "Format: tab-separated, genes in rows, spots in columns; including a "
      "header line, and row names in the first column of each row.");
+  */
 
   basic_options.add_options()
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
@@ -270,6 +277,14 @@ int main(int argc, char **argv) {
   LOG(info) << exec_info.datetime;
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
+
+  ifstream ifs(options.design_path);
+  options.design.from_stream(ifs);
+
+  LOG(verbose) << "Design: " << options.design;
+
+  for (auto &spec : options.design.dataset_specifications)
+    options.tsv_paths.push_back(spec.path);
 
   auto data_sets
       = load_data(options.tsv_paths, options.intersect, options.top,

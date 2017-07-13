@@ -4,6 +4,7 @@
 #include "Experiment.hpp"
 #include "Mesh.hpp"
 #include "formula.hpp"
+#include "design.hpp"
 #include "priors.hpp"
 
 namespace STD {
@@ -32,7 +33,6 @@ struct Model {
   std::vector<Vector> covariates_type;
   std::vector<Matrix> covariates_gene_type;
 
-
   Matrix negodds_rho;
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
@@ -51,7 +51,8 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts> &data, size_t T, const Formula &formula, const Parameters &parameters,
+  Model(const std::vector<Counts> &data, size_t T, const Formula &formula,
+        const Design &design, const Parameters &parameters,
         bool same_coord_sys);
 
   void set_zero();
@@ -66,7 +67,6 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-
     for (auto &y : covariates_scalar)
       y = exp(*iter++);
     for (auto &y : covariates_gene)
