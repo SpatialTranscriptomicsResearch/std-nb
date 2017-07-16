@@ -160,7 +160,10 @@ void Model::store(const string &prefix_, bool reorder) const {
     write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
 
-// TODO store covariates_scalar
+#pragma omp section
+    write_vector(covariates_scalar,
+                 prefix + "covariate-scalar" + FILENAME_ENDING,
+                 parameters.compression_mode);
 #pragma omp section
     for (size_t i = 0; i < covariates_gene.size(); ++i)
       write_vector(covariates_gene[i],
