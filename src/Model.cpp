@@ -100,24 +100,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
     }
   }
 
-  /*
-  covariates_scalar.push_back(1);
-  for (auto &experiment : experiments)
-    experiment.covariates_scalar.push_back(0);
-
-  covariates_gene.push_back(Vector::Ones(G));
-  for (auto &experiment : experiments)
-    experiment.covariates_gene.push_back(0);
-
-  covariates_type.push_back(Vector::Ones(T));
-  for (auto &experiment : experiments)
-    experiment.covariates_type.push_back(0);
-
-  covariates_gene_type.push_back(Matrix::Ones(G, T));
-  for (auto &experiment : experiments)
-    experiment.covariates_gene_type.push_back(0);
-  */
-
   {
     // TODO covariates initialize
     for (auto &x : covariates_scalar)
@@ -910,13 +892,17 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters() {
-  // TODO  covariates enforce positivity for covariates_scalar
-  for (auto &y : covariates_gene)
-    enforce_positive_and_warn("covariate_gene", y);
-  for (auto &y : covariates_type)
-    enforce_positive_and_warn("covariate_type", y);
-  for (auto &y : covariates_gene_type)
-    enforce_positive_and_warn("covariate_gene_type", y);
+  enforce_positive_and_warn("covariates_scalar", covariates_scalar);
+  for (size_t i = 0; i < covariates_gene.size(); ++i)
+    enforce_positive_and_warn("covariates_gene_" + to_string_embedded(i, 3),
+                              covariates_gene[i]);
+  for (size_t i = 0; i < covariates_type.size(); ++i)
+    enforce_positive_and_warn("covariates_type_" + to_string_embedded(i, 3),
+                              covariates_type[i]);
+  for (size_t i = 0; i < covariates_gene_type.size(); ++i)
+    enforce_positive_and_warn(
+        "covariates_gene_type_" + to_string_embedded(i, 3),
+        covariates_gene_type[i]);
   enforce_positive_and_warn("negodds_rho", negodds_rho);
   enforce_positive_and_warn("mix_prior_r", mix_prior.r);
   enforce_positive_and_warn("mix_prior_p", mix_prior.p);

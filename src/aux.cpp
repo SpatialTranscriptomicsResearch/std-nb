@@ -51,6 +51,25 @@ void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
     }
 }
 
+void enforce_positive_and_warn(const string &tag, vector<double> &v,
+                               bool warn) {
+  const double min_val = std::numeric_limits<double>::denorm_min();
+  size_t small_numbers = 0;
+  for (size_t i = 0; i < v.size(); ++i)
+    if (v[i] < min_val) {
+      small_numbers++;
+      if (warn) {
+        LOG(warning) << "Found problematic value " << v[i] << " in " << tag
+                     << " vector at position " << i;
+        LOG(warning) << "Setting to " << min_val << " and continuing.";
+      }
+      v[i] = min_val;
+    }
+  if (small_numbers > 0)
+    LOG(warning) << "Found " << small_numbers << " problematic values in "
+                 << tag << "vector.";
+}
+
 vector<string> split_at(char sep, const string &str) {
   vector<string> ret;
   istringstream ss(str);
@@ -60,7 +79,7 @@ vector<string> split_at(char sep, const string &str) {
   return ret;
 }
 
-string trim(const string& str, char sym) {
+string trim(const string &str, char sym) {
   size_t trim_front = 0, trim_back = 0;
   while (str[trim_front] == sym)
     trim_front++;
