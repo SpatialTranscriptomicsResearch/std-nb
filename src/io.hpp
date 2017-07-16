@@ -12,7 +12,7 @@ void write_vector(const V &v, const std::string &path, CompressionMode mode,
                   const std::vector<std::string> &names
                   = std::vector<std::string>(),
                   const std::string &separator = "\t") {
-  size_t X = v.rows();
+  size_t X = v.size();
 
   bool names_given = not names.empty();
 

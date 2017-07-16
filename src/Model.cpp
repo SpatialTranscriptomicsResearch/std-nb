@@ -263,11 +263,23 @@ void Model::store(const string &prefix_, bool reorder) const {
 }
 
 void Model::restore(const string &prefix) {
-  // TODO covariates restore
-  /*
-  gamma = parse_file<Matrix>(prefix + "feature-gamma" + FILENAME_ENDING,
+  covariates_scalar = parse_file<std::vector<double>>(
+      prefix + "covariate-scalar" + FILENAME_ENDING,
+      read_vector<std::vector<double>>, "\t");
+  for (size_t i = 0; i < covariates_gene.size(); ++i)
+    covariates_gene[i] = parse_file<Vector>(
+        prefix + "covariate-gene-" + to_string_embedded(i, 2) + FILENAME_ENDING,
+        read_vector<Vector>, "\t");
+  for (size_t i = 0; i < covariates_type.size(); ++i)
+    covariates_type[i] = parse_file<Vector>(
+        prefix + "covariate-type-" + to_string_embedded(i, 2) + FILENAME_ENDING,
+        read_vector<Vector>, "\t");
+  for (size_t i = 0; i < covariates_gene_type.size(); ++i)
+    covariates_gene_type[i]
+        = parse_file<Matrix>(prefix + "covariate-gene-type-"
+                                 + to_string_embedded(i, 2) + FILENAME_ENDING,
                              read_matrix, "\t");
-  */
+
   negodds_rho = parse_file<Matrix>(
       prefix + "feature-negodds_rho" + FILENAME_ENDING, read_matrix, "\t");
 
