@@ -32,7 +32,8 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
   LOG(debug) << "Coords: " << coords;
 
   if (parameters.targeted(Target::spot)) {
-    LOG(debug) << "Initializing spot scaling.";
+    LOG(debug) << "Initializing spot scaling: linear in number of counts, "
+                  "scaled so that mean = 1.";
     spot = contributions_spot;
     // divide by mean
     spot *= S / spot.sum();
@@ -271,8 +272,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         z += cnts[t] = gt(g, t) * st(s, t) / model->negodds_rho(g, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
-      auto icnts
-          = sample_multinomial(count, begin(cnts), end(cnts), rng);
+      auto icnts = sample_multinomial(count, begin(cnts), end(cnts), rng);
       for (size_t t = 0; t < T; ++t)
         cnts[t] = icnts[t];
       return cnts;
@@ -300,7 +300,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 
       Vector k(T);
       auto fnc = [&](const Vector &log_k, Vector &grad) {
-//        LOG(debug) << "inter log = " << log_k.transpose();
+        // LOG(debug) << "inter log = " << log_k.transpose();
         double score = 0;
         double Z = 0;
         for (size_t t = 0; t < T; ++t)
@@ -310,7 +310,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         double sum = 0;
         for (size_t t = 0; t < T; ++t)
           sum += grad[t] = k[t] * (digamma_diff(k[t], r[t]) + log_rho[t]);
-//        LOG(debug) << "inter exp = " << k.transpose();
+        // LOG(debug) << "inter exp = " << k.transpose();
         for (size_t t = 0; t < T; ++t)
           grad[t] -= k[t] / count * sum;
         // LOG(debug) << "grad = " << grad.transpose();
@@ -323,11 +323,11 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       const size_t sample_iterations
           = 20;  // TODO make into CLI configurable parameter
       double fx = 0;
-//      LOG(debug) << "total = " << count;
-//      LOG(debug) << "start = " << cnts.transpose();
+      // LOG(debug) << "total = " << count;
+      // LOG(debug) << "start = " << cnts.transpose();
       for (size_t t = 0; t < T; ++t)
         cnts[t] = log(cnts[t]);
-//      LOG(debug) << "start = " << cnts.transpose();
+      // LOG(debug) << "start = " << cnts.transpose();
       for (size_t iter = 0; iter < sample_iterations; ++iter) {
         fx = fnc(cnts, grad);
         rprop_update(grad, prev_sign, rates, cnts, parameters.rprop);
@@ -338,7 +338,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       for (size_t t = 0; t < T; ++t)
         cnts[t] *= count / z;
 
-//      LOG(debug) << "final = " << cnts.transpose();
+      // LOG(debug) << "final = " << cnts.transpose();
     } break;
   }
 
