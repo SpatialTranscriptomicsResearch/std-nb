@@ -121,7 +121,7 @@ struct Model {
   void gradient_update();
   size_t size() const;
 
-  void enforce_positive_parameters();
+  void enforce_positive_parameters(double min_value=1e-200);
 
   void store(const std::string &prefix, bool reorder = true) const;
   void restore(const std::string &prefix);

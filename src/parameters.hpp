@@ -69,6 +69,8 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 struct Parameters {
   /** Maximal number of propositions for Metropolis-Hastings sampling */
   double n_iter = 100;
+  /** Minimal positive value to enforce for parameters */
+  double min_value = 1e-200;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
   bool expected_contributions = false;

@@ -117,7 +117,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
 
   initialize_coordinate_systems(1);
 
-  enforce_positive_parameters();
+  enforce_positive_parameters(parameters.min_value);
 }
 
 template <typename V>
@@ -783,7 +783,7 @@ void Model::gradient_update() {
     }
 
     from_log_vector(begin(x));
-    enforce_positive_parameters();
+    enforce_positive_parameters(parameters.min_value);
     double score = 0;
     Model model_grad = compute_gradient(score);
     grad = model_grad.vectorize();
@@ -907,23 +907,23 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
   return score;
 }
 
-void Model::enforce_positive_parameters() {
-  enforce_positive_and_warn("covariates_scalar", covariates_scalar);
+void Model::enforce_positive_parameters(double min_value) {
+  enforce_positive_and_warn("covariates_scalar", covariates_scalar, min_value);
   for (size_t i = 0; i < covariates_gene.size(); ++i)
     enforce_positive_and_warn("covariates_gene_" + to_string_embedded(i, 3),
-                              covariates_gene[i]);
+                              covariates_gene[i], min_value);
   for (size_t i = 0; i < covariates_type.size(); ++i)
     enforce_positive_and_warn("covariates_type_" + to_string_embedded(i, 3),
-                              covariates_type[i]);
+                              covariates_type[i], min_value);
   for (size_t i = 0; i < covariates_gene_type.size(); ++i)
     enforce_positive_and_warn(
         "covariates_gene_type_" + to_string_embedded(i, 3),
-        covariates_gene_type[i]);
-  enforce_positive_and_warn("negodds_rho", negodds_rho);
-  enforce_positive_and_warn("mix_prior_r", mix_prior.r);
-  enforce_positive_and_warn("mix_prior_p", mix_prior.p);
+        covariates_gene_type[i], min_value);
+  enforce_positive_and_warn("negodds_rho", negodds_rho, min_value);
+  enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value);
+  enforce_positive_and_warn("mix_prior_p", mix_prior.p, min_value);
   for (auto &coord_sys : coordinate_systems)
-    enforce_positive_and_warn("field", coord_sys.field);
+    enforce_positive_and_warn("field", coord_sys.field, min_value);
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
 }
