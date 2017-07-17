@@ -272,7 +272,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
       auto icnts
-          = sample_multinomial(counts(g, s), begin(cnts), end(cnts), rng);
+          = sample_multinomial(count, begin(cnts), end(cnts), rng);
       for (size_t t = 0; t < T; ++t)
         cnts[t] = icnts[t];
       return cnts;
@@ -296,7 +296,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         z += cnts[t] = r[t] / model->negodds_rho(g, t);
       }
       for (size_t t = 0; t < T; ++t)
-        cnts[t] *= counts(g, s) / z;
+        cnts[t] *= count / z;
 
       Vector k(T);
       auto fnc = [&](const Vector &log_k, Vector &grad) {
