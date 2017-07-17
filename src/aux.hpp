@@ -128,11 +128,17 @@ V gibbs(const V &y) {
   return x / x.sum();
 }
 
+const double denorm_min = std::numeric_limits<double>::denorm_min();
+const double small_value = 1e-300;
+
 void enforce_positive_and_warn(const std::string &tag, STD::Matrix &m,
+                               double min_value = small_value,
                                bool warn = true);
 void enforce_positive_and_warn(const std::string &tag, STD::Vector &v,
+                               double min_value = small_value,
                                bool warn = true);
 void enforce_positive_and_warn(const std::string &tag, std::vector<double> &v,
+                               double min_value = small_value,
                                bool warn = true);
 std::vector<std::string> split_at(char sep, const std::string &str);
 

@@ -24,8 +24,8 @@ vector<size_t> random_order(size_t n) {
   return order;
 }
 
-void enforce_positive_and_warn(const string &tag, STD::Matrix &m, bool warn) {
-  const double min_val = std::numeric_limits<double>::denorm_min();
+void enforce_positive_and_warn(const string &tag, STD::Matrix &m,
+                               double min_val, bool warn) {
   for (STD::Index i = 0; i < m.rows(); ++i)
     for (STD::Index j = 0; j < m.cols(); ++j)
       if (m(i, j) < min_val) {
@@ -38,8 +38,8 @@ void enforce_positive_and_warn(const string &tag, STD::Matrix &m, bool warn) {
       }
 }
 
-void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
-  const double min_val = std::numeric_limits<double>::denorm_min();
+void enforce_positive_and_warn(const string &tag, STD::Vector &v,
+                               double min_val, bool warn) {
   for (STD::Index i = 0; i < v.rows(); ++i)
     if (v(i) < min_val) {
       if (warn) {
@@ -52,8 +52,7 @@ void enforce_positive_and_warn(const string &tag, STD::Vector &v, bool warn) {
 }
 
 void enforce_positive_and_warn(const string &tag, vector<double> &v,
-                               bool warn) {
-  const double min_val = std::numeric_limits<double>::denorm_min();
+                               double min_val, bool warn) {
   size_t small_numbers = 0;
   for (size_t i = 0; i < v.size(); ++i)
     if (v[i] < min_val) {
