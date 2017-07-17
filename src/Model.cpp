@@ -783,6 +783,7 @@ void Model::gradient_update() {
     }
 
     from_log_vector(begin(x));
+    enforce_positive_parameters();
     double score = 0;
     Model model_grad = compute_gradient(score);
     grad = model_grad.vectorize();
