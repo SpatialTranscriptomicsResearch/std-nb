@@ -570,6 +570,37 @@ Vector Experiment::marginalize_spots() const {
   return intensities;
 }
 
+Matrix Experiment::expectation() const {
+  Matrix mean(G, S);
+  Matrix gt = compute_gene_type_table();
+  Matrix st = compute_spot_type_table();
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      double x = 0;
+      for (size_t t = 0; t < T; ++t)
+        x += gt(g, t) * st(s, t) / model->negodds_rho(g, t);
+      mean(g, s) = x;
+    }
+  return mean;
+}
+
+Matrix Experiment::variance() const {
+  Matrix var(G, S);
+  Matrix gt = compute_gene_type_table();
+  Matrix st = compute_spot_type_table();
+#pragma omp parallel for if (DO_PARALLEL)
+  for (size_t g = 0; g < G; ++g)
+    for (size_t s = 0; s < S; ++s) {
+      double x = 0;
+      for (size_t t = 0; t < T; ++t)
+        x += gt(g, t) * st(s, t) / model->negodds_rho(g, t)
+             / odds_to_prob(model->negodds_rho(g, t));
+      var(g, s) = x;
+    }
+  return var;
+}
+
 Matrix Experiment::expected_gene_type() const {
   Vector marginal = marginalize_spots();
   Matrix expected = Matrix::Zero(G, T);

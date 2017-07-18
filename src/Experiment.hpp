@@ -78,6 +78,9 @@ struct Experiment {
   Vector marginalize_genes() const;
   Vector marginalize_spots() const;
 
+  Matrix expectation() const;
+  Matrix variance() const;
+
   // computes a matrix M(g,t) =
   //   beta(g) gamma(g,t) lambda(g,t) sum_s theta(s,t) sigma(s)
   Matrix expected_gene_type() const;

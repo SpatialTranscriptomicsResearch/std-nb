@@ -130,7 +130,8 @@ vector<size_t> get_order(const V &v) {
   return order;
 }
 
-void Model::store(const string &prefix_, bool reorder) const {
+void Model::store(const string &prefix_, bool mean_and_var,
+                  bool reorder) const {
   string prefix = parameters.output_directory + prefix_;
   {
     using namespace boost::filesystem;
@@ -260,6 +261,21 @@ void Model::store(const string &prefix_, bool reorder) const {
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].store(exp_prefix, order);
   }
+  if (mean_and_var)
+    for (size_t e = 0; e < E; ++e) {
+      write_matrix(experiments[e].expectation(),
+                   prefix + "experiment"
+                       + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-"
+                       + "expected_counts" + FILENAME_ENDING,
+                   parameters.compression_mode, gene_names,
+                   experiments[e].counts.col_names);
+      write_matrix(experiments[e].variance(),
+                   prefix + "experiment"
+                       + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-"
+                       + "variance_counts" + FILENAME_ENDING,
+                   parameters.compression_mode, gene_names,
+                   experiments[e].counts.col_names);
+    }
 }
 
 void Model::restore(const string &prefix) {

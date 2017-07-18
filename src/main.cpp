@@ -42,7 +42,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
   pfa.gradient_update();
-  pfa.store("");
+  pfa.store("", true);
   /* TODO covariates reactivate likelihood
   if (options.compute_likelihood)
     LOG(info) << "Final log-likelihood = "
