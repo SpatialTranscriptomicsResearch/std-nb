@@ -924,6 +924,14 @@ void Model::gradient_update() {
     enforce_positive_parameters(parameters.min_value);
     double score = 0;
     Model model_grad = compute_gradient(score);
+    for (auto &y : model_grad.covariates_scalar)
+      LOG(debug) << "scalar cov grad = " << y;
+    for (auto &y : model_grad.covariates_gene)
+      LOG(debug) << "gene cov grad " << Stats::summary(y);
+    for (auto &y : model_grad.covariates_type)
+      LOG(debug) << "type cov grad " << Stats::summary(y);
+    for (auto &y : model_grad.covariates_gene_type)
+      LOG(debug) << "gene_type cov grad " << Stats::summary(y);
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
     for (size_t e = 0; e < E; ++e) {
