@@ -571,9 +571,8 @@ Model Model::compute_gradient(double &score) const {
     experiment.contributions_spot_type.setZero();
     experiment.contributions_gene_type.setZero();
   }
-  if (parameters.targeted(Target::gamma) or parameters.targeted(Target::rho)
-      or parameters.targeted(Target::lambda)
-      or parameters.targeted(Target::beta) or parameters.targeted(Target::theta)
+  if (parameters.targeted(Target::covariates)
+      or parameters.targeted(Target::rho) or parameters.targeted(Target::theta)
       or parameters.targeted(Target::spot))
 #pragma omp parallel if (DO_PARALLEL)
   {

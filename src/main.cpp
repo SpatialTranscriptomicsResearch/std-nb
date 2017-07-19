@@ -296,13 +296,6 @@ int main(int argc, char **argv) {
     parameters.targets = parameters.targets | STD::Target::gamma_prior
                          | STD::Target::rho_prior;
 
-  if (data_sets.size() < 2) {
-    LOG(info)
-        << "Less than 2 data sets; deactivating local baseline and features.";
-    parameters.targets
-        = parameters.targets & ~(STD::Target::lambda | STD::Target::beta);
-  }
-
   if (options.fields)
     parameters.targets = parameters.targets | STD::Target::field;
 

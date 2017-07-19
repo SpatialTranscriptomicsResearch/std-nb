@@ -12,8 +12,8 @@ ostream &operator<<(ostream &os, const Target &which) {
     return os;
   } else {
     bool first = true;
-    if (flagged(which & Target::gamma)) {
-      os << (first ? "" : ",") << "gamma";
+    if (flagged(which & Target::covariates)) {
+      os << (first ? "" : ",") << "covariates";
       first = false;
     }
     if (flagged(which & Target::gamma_prior)) {
@@ -26,14 +26,6 @@ ostream &operator<<(ostream &os, const Target &which) {
     }
     if (flagged(which & Target::rho_prior)) {
       os << (first ? "" : ",") << "rho_prior";
-      first = false;
-    }
-    if (flagged(which & Target::lambda)) {
-      os << (first ? "" : ",") << "lambda";
-      first = false;
-    }
-    if (flagged(which & Target::beta)) {
-      os << (first ? "" : ",") << "beta";
       first = false;
     }
     if (flagged(which & Target::theta)) {
@@ -66,22 +58,18 @@ istream &operator>>(istream &is, Target &which) {
   tokenizer tok(line, sep);
   for (auto token : tok) {
     token = to_lower(token);
-    if (token == "gamma")
-      which = which | Target::gamma;
+    if (token == "covariates")
+      which = which | Target::covariates;
     else if (token == "rho")
       which = which | Target::rho;
     else if (token == "rho_prior")
       which = which | Target::rho_prior;
-    else if (token == "lambda")
-      which = which | Target::lambda;
     else if (token == "theta")
       which = which | Target::theta;
     else if (token == "theta_prior")
       which = which | Target::theta_prior;
     else if (token == "spot")
       which = which | Target::spot;
-    else if (token == "beta")
-      which = which | Target::beta;
     else if (token == "field")
       which = which | Target::field;
     else if (token == "gamma_prior")
