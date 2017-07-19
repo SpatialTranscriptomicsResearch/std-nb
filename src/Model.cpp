@@ -953,6 +953,7 @@ void Model::gradient_update() {
       for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
+        enforce_positive_and_warn("RPROP log params", x, log(parameters.min_value));
       }
     } break;
     case Optimize::Method::Gradient: {
@@ -961,6 +962,7 @@ void Model::gradient_update() {
         Vector grad;
         fx = fnc(x, grad);
         x = x + alpha * grad;
+        enforce_positive_and_warn("GradOpt log params", x, log(parameters.min_value));
         LOG(verbose) << "iter " << iter << " alpha: " << alpha;
         LOG(verbose) << "iter " << iter << " fx: " << fx;
         LOG(verbose) << "iter " << iter << " x: " << endl << Stats::summary(x);
