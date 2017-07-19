@@ -8,13 +8,15 @@ using namespace std;
 
 namespace STD {
 
-Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
-             const Design &design, const Parameters &parameters_,
+Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
+             const Design &design_, const Parameters &parameters_,
              bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
-      E(0),
+      E(design_.dataset_specifications.size()),
       S(0),
+      formula(formula_),
+      design(design_),
       experiments(),
       parameters(parameters_),
       negodds_rho(Matrix::Ones(G, T)),
@@ -29,9 +31,12 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula,
 
   for (auto &term : formula.terms) {
     LOG(debug) << "Treating next formula term.";
+    vector<size_t> cov_idxs;  // indices of covariates in this term
+
     bool gene_dependent = false;
     bool type_dependent = false;
-    vector<size_t> cov_idxs;
+
+    // determine cov_idxs, gene_dependent and type_dependent
     for (auto &covariate_label : term) {
       LOG(debug) << "Treating covariate label: " << covariate_label;
       if (to_lower(covariate_label) == "gene")
@@ -1077,7 +1082,6 @@ void Model::initialize_coordinate_systems(double v) {
 
 void Model::add_experiment(const Counts &counts, size_t coord_sys) {
   experiments.push_back({this, counts, T, parameters});
-  E++;
   while (coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});
   coordinate_systems[coord_sys].members.push_back(E - 1);

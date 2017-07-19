@@ -23,6 +23,8 @@ struct Model {
   /** number of spots */
   size_t S;
 
+  Formula formula;
+  Design design;
   std::vector<Experiment> experiments;
 
   Parameters parameters;
