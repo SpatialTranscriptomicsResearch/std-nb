@@ -13,7 +13,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
              bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
-      E(design_.dataset_specifications.size()),
+      E(0),
       S(0),
       formula(formula_),
       design(design_),
@@ -23,11 +23,12 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
       mix_prior(sum_cols(c), T, parameters),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
-  LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
   update_contributions();
+
+  LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
   for (auto &term : formula.terms) {
     LOG(debug) << "Treating next formula term.";
@@ -1197,6 +1198,7 @@ void Model::initialize_coordinate_systems(double v) {
 
 void Model::add_experiment(const Counts &counts, size_t coord_sys) {
   experiments.push_back({this, counts, T, parameters});
+  E++;
   while (coordinate_systems.size() <= coord_sys)
     coordinate_systems.push_back({});
   coordinate_systems[coord_sys].members.push_back(E - 1);
