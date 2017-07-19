@@ -132,8 +132,10 @@ int main(int argc, char **argv) {
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("learnprior", po::bool_switch(&options.learn_priors),
      "Learn priors for gamma and rho.")
-    ("min_value", po::value(&parameters.min_value)->default_value(parameters.min_value),
-     "Minimal positive value to enforce for parameters")
+    ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value),
+     "Minimal value to enforce for parameters")
+    ("warn", po::bool_switch(&parameters.warn_lower_limit),
+     "Warn when parameter values reach the lower limit specified by --minval.")
     ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
      "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),

@@ -958,7 +958,8 @@ void Model::gradient_update() {
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
         enforce_positive_and_warn("RPROP log params", x,
-                                  log(parameters.min_value));
+                                  log(parameters.min_value),
+                                  parameters.warn_lower_limit);
       }
     } break;
     case Optimize::Method::Gradient: {
@@ -968,7 +969,8 @@ void Model::gradient_update() {
         fx = fnc(x, grad);
         x = x + alpha * grad;
         enforce_positive_and_warn("GradOpt log params", x,
-                                  log(parameters.min_value));
+                                  log(parameters.min_value),
+                                  parameters.warn_lower_limit);
         LOG(verbose) << "iter " << iter << " alpha: " << alpha;
         LOG(verbose) << "iter " << iter << " fx: " << fx;
         LOG(verbose) << "iter " << iter << " x: " << endl << Stats::summary(x);
@@ -1050,22 +1052,29 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters(double min_value) {
-  enforce_positive_and_warn("covariates_scalar", covariates_scalar, min_value);
+  enforce_positive_and_warn("covariates_scalar", covariates_scalar, min_value,
+                            parameters.warn_lower_limit);
   for (size_t i = 0; i < covariates_gene.size(); ++i)
     enforce_positive_and_warn("covariates_gene_" + to_string_embedded(i, 3),
-                              covariates_gene[i], min_value);
+                              covariates_gene[i], min_value,
+                              parameters.warn_lower_limit);
   for (size_t i = 0; i < covariates_type.size(); ++i)
     enforce_positive_and_warn("covariates_type_" + to_string_embedded(i, 3),
-                              covariates_type[i], min_value);
+                              covariates_type[i], min_value,
+                              parameters.warn_lower_limit);
   for (size_t i = 0; i < covariates_gene_type.size(); ++i)
     enforce_positive_and_warn(
         "covariates_gene_type_" + to_string_embedded(i, 3),
-        covariates_gene_type[i], min_value);
-  enforce_positive_and_warn("negodds_rho", negodds_rho, min_value);
-  enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value);
-  enforce_positive_and_warn("mix_prior_p", mix_prior.p, min_value);
+        covariates_gene_type[i], min_value, parameters.warn_lower_limit);
+  enforce_positive_and_warn("negodds_rho", negodds_rho, min_value,
+                            parameters.warn_lower_limit);
+  enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value,
+                            parameters.warn_lower_limit);
+  enforce_positive_and_warn("mix_prior_p", mix_prior.p, min_value,
+                            parameters.warn_lower_limit);
   for (auto &coord_sys : coordinate_systems)
-    enforce_positive_and_warn("field", coord_sys.field, min_value);
+    enforce_positive_and_warn("field", coord_sys.field, min_value,
+                              parameters.warn_lower_limit);
   for (auto &experiment : experiments)
     experiment.enforce_positive_parameters();
 }

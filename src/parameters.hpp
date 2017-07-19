@@ -73,6 +73,7 @@ struct Parameters {
   double min_value = 1e-200;
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
+  bool warn_lower_limit = false;
   bool expected_contributions = false;
   bool normalize_spot_stats = false;
   bool p_empty_map = false;
