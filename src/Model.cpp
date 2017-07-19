@@ -105,6 +105,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
     }
   }
 
+  remove_redundant_terms();
+
   {
     // TODO covariates initialize
     for (auto &x : covariates_scalar)
@@ -123,6 +125,118 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
   initialize_coordinate_systems(1);
 
   enforce_positive_parameters(parameters.min_value);
+}
+
+vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
+  using inv_map_t = multimap<vector<size_t>, size_t>;
+  inv_map_t m;
+  vector<size_t> redundant;
+  for (size_t i = 0; i < v.size(); ++i) {
+    auto key = v[i];
+    pair<vector<size_t>, size_t> entry = {v[i], i};
+    m.insert(entry);
+    if (m.count(key) > 1)
+      redundant.push_back(i);
+  }
+  return redundant;
+}
+
+void Model::remove_redundant_terms() {
+  {
+    vector<vector<size_t>> cov2groups(covariates_scalar.size());
+    for (size_t e = 0; e < E; ++e)
+      for (auto x : experiments[e].covariates_scalar)
+        cov2groups[x].push_back(e);
+    auto redundant = find_redundant(cov2groups);
+    sort(begin(redundant), end(redundant));  // needed?
+    size_t removed = 0;
+    for (auto r : redundant) {
+      LOG(verbose) << "Removing scalar covariate " << r;
+      covariates_scalar.erase(begin(covariates_scalar) + r - removed);
+      removed++;
+    }
+    for (size_t e = 0; e < E; ++e) {
+      for (auto r : redundant)
+        remove(begin(experiments[e].covariates_scalar),
+               end(experiments[e].covariates_scalar), r);
+      for (auto &x : experiments[e].covariates_scalar)
+        for (auto r : redundant)
+          if (x > r)
+            x--;
+    }
+  }
+
+  {
+    vector<vector<size_t>> cov2groups(covariates_gene.size());
+    for (size_t e = 0; e < E; ++e)
+      for (auto x : experiments[e].covariates_gene)
+        cov2groups[x].push_back(e);
+    auto redundant = find_redundant(cov2groups);
+    sort(begin(redundant), end(redundant));  // needed?
+    size_t removed = 0;
+    for (auto r : redundant) {
+      LOG(verbose) << "Removing gene dependent covariate " << r;
+      covariates_gene.erase(begin(covariates_gene) + r - removed);
+      removed++;
+    }
+    for (size_t e = 0; e < E; ++e) {
+      for (auto r : redundant)
+        remove(begin(experiments[e].covariates_gene),
+               end(experiments[e].covariates_gene), r);
+      for (auto &x : experiments[e].covariates_gene)
+        for (auto r : redundant)
+          if (x > r)
+            x--;
+    }
+  }
+
+  {
+    vector<vector<size_t>> cov2groups(covariates_type.size());
+    for (size_t e = 0; e < E; ++e)
+      for (auto x : experiments[e].covariates_type)
+        cov2groups[x].push_back(e);
+    auto redundant = find_redundant(cov2groups);
+    sort(begin(redundant), end(redundant));  // needed?
+    size_t removed = 0;
+    for (auto r : redundant) {
+      LOG(verbose) << "Removing type dependent covariate " << r;
+      covariates_type.erase(begin(covariates_type) + r - removed);
+      removed++;
+    }
+    for (size_t e = 0; e < E; ++e) {
+      for (auto r : redundant)
+        remove(begin(experiments[e].covariates_type),
+               end(experiments[e].covariates_type), r);
+      for (auto &x : experiments[e].covariates_type)
+        for (auto r : redundant)
+          if (x > r)
+            x--;
+    }
+  }
+
+  {
+    vector<vector<size_t>> cov2groups(covariates_gene_type.size());
+    for (size_t e = 0; e < E; ++e)
+      for (auto x : experiments[e].covariates_gene_type)
+        cov2groups[x].push_back(e);
+    auto redundant = find_redundant(cov2groups);
+    sort(begin(redundant), end(redundant));  // needed?
+    size_t removed = 0;
+    for (auto r : redundant) {
+      LOG(verbose) << "Removing gene and type dependent covariate " << r;
+      covariates_gene_type.erase(begin(covariates_gene_type) + r - removed);
+      removed++;
+    }
+    for (size_t e = 0; e < E; ++e) {
+      for (auto r : redundant)
+        remove(begin(experiments[e].covariates_gene_type),
+               end(experiments[e].covariates_gene_type), r);
+      for (auto &x : experiments[e].covariates_gene_type)
+        for (auto r : redundant)
+          if (x > r)
+            x--;
+    }
+  }
 }
 
 template <typename V>

@@ -56,6 +56,7 @@ struct Model {
   Model(const std::vector<Counts> &data, size_t T, const Formula &formula,
         const Design &design, const Parameters &parameters,
         bool same_coord_sys);
+  void remove_redundant_terms();
 
   void set_zero();
   Model compute_gradient(double &score) const;
