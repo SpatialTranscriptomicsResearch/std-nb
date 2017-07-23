@@ -1303,7 +1303,11 @@ string Model::CovariateInformation::to_string(
   for (size_t i = 0; i < idxs.size(); ++i) {
     if (i > 0)
       s += ",";
-    s += covariates[idxs[i]].label + "=" + covariates[idxs[i]].values[vals[i]];
+    if (covariates[idxs[i]].label == DesignNS::unit_label)
+      s += "intercept";
+    else
+      s += covariates[idxs[i]].label + "="
+           + covariates[idxs[i]].values[vals[i]];
   }
   if (idxs.size() == 0)
     s = "global";

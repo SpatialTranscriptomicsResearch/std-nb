@@ -40,6 +40,13 @@ struct Specification {
 
 using Specifications = std::vector<Specification>;
 
+namespace DesignNS {
+  const std::string path_label = "path";
+  const std::string name_label = "name";
+  const std::string section_label = "section";
+  const std::string unit_label = "1";
+};
+
 struct Design {
   void from_string(const std::string &str);
   void from_stream(std::istream &is);
@@ -49,10 +56,6 @@ struct Design {
   void add_covariate_section();
   void add_covariate_unit();
   bool is_reserved_name(const std::string &s) const;
-  std::string path_label = "path";
-  std::string name_label = "name";
-  std::string section_label = "section";
-  std::string unit_label = "1";
 };
 
 std::istream &operator>>(std::istream &is, Design &design);
