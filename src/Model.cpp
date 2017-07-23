@@ -77,8 +77,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
                         return covariate.label == covariate_label;
                       });
         if (cov_iter == end(design.covariates)) {
-          throw "Error: a covariate mentioned in the formula '"
-              + covariate_label + "' is not found in the design.";
+          throw(runtime_error("Error: a covariate mentioned in the formula '"
+                              + covariate_label
+                              + "' is not found in the design."));
         } else {
           cov_idxs.push_back(distance(begin(design.covariates), cov_iter));
         }
