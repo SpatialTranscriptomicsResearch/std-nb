@@ -17,6 +17,16 @@ vector<double> unpack_values(
   return v;
 }
 
+vector<string> unpack_labels(
+    const vector<pair<Model::CovariateInformation, double>> &x,
+    const Covariates &covariates) {
+  const size_t n = x.size();
+  vector<string> v(n);
+  for (size_t i = 0; i < n; ++i)
+    v[i] = x[i].first.to_string(covariates);
+  return v;
+}
+
 void pack_values(const vector<double> &v,
                  vector<pair<Model::CovariateInformation, double>> &x) {
   const size_t n = x.size();
@@ -311,7 +321,8 @@ void Model::store(const string &prefix_, bool mean_and_var,
     {
       write_vector(unpack_values(covariates_scalar),
                    prefix + "covariate-scalar" + FILENAME_ENDING,
-                   parameters.compression_mode);
+                   parameters.compression_mode,
+                   unpack_labels(covariates_scalar, design.covariates));
     }
 #pragma omp section
     for (size_t i = 0; i < covariates_gene.size(); ++i)
