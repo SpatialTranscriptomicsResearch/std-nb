@@ -24,6 +24,11 @@ struct RepeatedColumnName : public std::runtime_error {
       : std::runtime_error("Error: repeated column in specification: '" + str
                            + "'."){};
 };
+struct ReservedCovariateName : public std::runtime_error {
+  ReservedCovariateName(const std::string &str)
+      : std::runtime_error("Error: reserved covariate name in specification: '"
+                           + str + "'."){};
+};
 }
 }
 
@@ -41,6 +46,13 @@ struct Design {
   std::string to_string() const;
   Specifications dataset_specifications;
   Covariates covariates;
+  void add_covariate_section();
+  void add_covariate_unit();
+  bool is_reserved_name(const std::string &s) const;
+  std::string path_label = "path";
+  std::string name_label = "name";
+  std::string section_label = "section";
+  std::string unit_label = "1";
 };
 
 std::istream &operator>>(std::istream &is, Design &design);

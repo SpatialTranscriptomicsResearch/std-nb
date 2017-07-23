@@ -9,6 +9,12 @@ void Design::from_string(const string &str) {
   from_stream(is);
 }
 
+bool Design::is_reserved_name(const string &s) const {
+  if (s == "1")
+    return true;
+  return false;
+}
+
 void Design::from_stream(istream &is) {
   string line;
   if (getline(is, line)) {
@@ -28,7 +34,7 @@ void Design::from_stream(istream &is) {
 
     // determine index of path column
     for (size_t i = 0; i < tokens.size(); ++i)
-      if (to_lower(tokens[i]) == "path") {
+      if (to_lower(tokens[i]) == path_label) {
         if (path_column >= 0)
           throw Exception::Design::MultiplePathColumns();
         else
@@ -40,7 +46,7 @@ void Design::from_stream(istream &is) {
 
     // determine index of name column
     for (size_t i = 0; i < tokens.size(); ++i)
-      if (to_lower(tokens[i]) == "name") {
+      if (to_lower(tokens[i]) == name_label) {
         if (name_column >= 0)
           throw Exception::Design::MultipleNameColumns();
         else
@@ -51,6 +57,8 @@ void Design::from_stream(istream &is) {
     for (size_t i = 0; i < tokens.size(); ++i)
       if (i != static_cast<size_t>(path_column)
           and (name_column < 0 or i != static_cast<size_t>(name_column))) {
+        if (is_reserved_name(to_lower(tokens[i])))
+          throw Exception::Design::ReservedCovariateName(tokens[i]);
         Covariate covariate;
         covariate.label = tokens[i];
         col2cov[i] = covariates.size();
@@ -86,10 +94,21 @@ void Design::from_stream(istream &is) {
       dataset_specifications.push_back(spec);
     }
   }
+
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) { return cov.label == section_label; })
+      == end(covariates))
+    add_covariate_section();
+
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) { return cov.label == unit_label; })
+      == end(covariates))
+    add_covariate_unit();
 }
 
 string Design::to_string() const {
-  string str = "path\tname";
+  // TODO do not print unit column
+  string str = path_label + "\t" + name_label;
   for (auto &covariate : covariates)
     str += "\t" + covariate.label;
   str += "\n";
@@ -100,6 +119,24 @@ string Design::to_string() const {
     str += "\n";
   }
   return str;
+}
+
+void Design::add_covariate_section() {
+  Covariate cov = {section_label, {}};
+  for (size_t i = 0; i < dataset_specifications.size(); ++i) {
+    cov.values.push_back(std::to_string(i));
+    dataset_specifications[i].covariate_values.push_back(i);
+  }
+  covariates.push_back(cov);
+}
+
+void Design::add_covariate_unit() {
+  Covariate cov = {unit_label, {}};
+  cov.values.push_back(std::to_string(1));
+  for (size_t i = 0; i < dataset_specifications.size(); ++i) {
+    dataset_specifications[i].covariate_values.push_back(0);
+  }
+  covariates.push_back(cov);
 }
 
 istream &operator>>(istream &is, Design &design) {
