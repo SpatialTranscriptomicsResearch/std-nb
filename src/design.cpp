@@ -73,7 +73,7 @@ void Design::from_stream(istream &is) {
       if (name_column > 0)
         spec.name = tokens[name_column];
       else
-        spec.name = "Dataset " + std::to_string(dataset_idx++);
+        spec.name = "Dataset " + std::to_string(++dataset_idx);
 
       for (size_t i = 0; i < tokens.size(); ++i)
         if (i != static_cast<size_t>(path_column)
@@ -124,7 +124,7 @@ string Design::to_string() const {
 void Design::add_covariate_section() {
   Covariate cov = {section_label, {}};
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
-    cov.values.push_back(std::to_string(i));
+    cov.values.push_back(std::to_string(i+1));
     dataset_specifications[i].covariate_values.push_back(i);
   }
   covariates.push_back(cov);
