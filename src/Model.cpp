@@ -1006,6 +1006,7 @@ void Model::gradient_update() {
 
 double Model::field_gradient(const CoordinateSystem &coord_sys,
                              const Matrix &field, Matrix &grad) const {
+  LOG(verbose) << "Computing field gradient";
   LOG(debug) << "field dim " << field.rows() << "x" << field.cols();
   double score = 0;
 
