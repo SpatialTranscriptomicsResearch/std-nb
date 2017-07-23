@@ -162,6 +162,7 @@ vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
   return redundant;
 }
 
+// TODO covariates: add redundant term labels
 void Model::remove_redundant_terms() {
   {
     vector<vector<size_t>> cov2groups(covariates_scalar.size());
@@ -172,7 +173,8 @@ void Model::remove_redundant_terms() {
     sort(begin(redundant), end(redundant));  // needed?
     size_t removed = 0;
     for (auto r : redundant) {
-      LOG(verbose) << "Removing scalar covariate " << r;
+      LOG(verbose) << "Removing scalar covariate " << r << ": "
+                   << covariates_scalar[r].first.to_string(design.covariates);
       covariates_scalar.erase(begin(covariates_scalar) + r - removed);
       removed++;
     }
@@ -196,7 +198,8 @@ void Model::remove_redundant_terms() {
     sort(begin(redundant), end(redundant));  // needed?
     size_t removed = 0;
     for (auto r : redundant) {
-      LOG(verbose) << "Removing gene dependent covariate " << r;
+      LOG(verbose) << "Removing gene dependent covariate " << r << ": "
+                   << covariates_gene[r].first.to_string(design.covariates);
       covariates_gene.erase(begin(covariates_gene) + r - removed);
       removed++;
     }
@@ -220,7 +223,8 @@ void Model::remove_redundant_terms() {
     sort(begin(redundant), end(redundant));  // needed?
     size_t removed = 0;
     for (auto r : redundant) {
-      LOG(verbose) << "Removing type dependent covariate " << r;
+      LOG(verbose) << "Removing type dependent covariate " << r << ": "
+                   << covariates_type[r].first.to_string(design.covariates);
       covariates_type.erase(begin(covariates_type) + r - removed);
       removed++;
     }
@@ -244,7 +248,9 @@ void Model::remove_redundant_terms() {
     sort(begin(redundant), end(redundant));  // needed?
     size_t removed = 0;
     for (auto r : redundant) {
-      LOG(verbose) << "Removing gene and type dependent covariate " << r;
+      LOG(verbose) << "Removing gene and type dependent covariate " << r << ": "
+                   << covariates_gene_type[r].first.to_string(
+                          design.covariates);
       covariates_gene_type.erase(begin(covariates_gene_type) + r - removed);
       removed++;
     }
