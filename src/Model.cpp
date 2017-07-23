@@ -1281,7 +1281,7 @@ void Model::add_experiment(const Counts &counts, size_t coord_sys) {
 }
 
 ostream &operator<<(ostream &os, const Model &model) {
-  os << "Spatial Transcriptome Deconvoltuion "
+  os << "Spatial Transcriptome Deconvolution "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
      << "E = " << model.E << endl;
