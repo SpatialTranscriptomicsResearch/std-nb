@@ -30,10 +30,16 @@ struct Model {
   Parameters parameters;
 
   /** factor loading matrix */
-  std::vector<double> covariates_scalar;
-  std::vector<Vector> covariates_gene;
-  std::vector<Vector> covariates_type;
-  std::vector<Matrix> covariates_gene_type;
+  struct CovariateInformation {
+    using idxs_t = std::vector<size_t>;
+    idxs_t idxs;
+    idxs_t vals;
+    std::string to_string(const Covariates &covariates) const;
+  };
+  std::vector<std::pair<CovariateInformation, double>> covariates_scalar;
+  std::vector<std::pair<CovariateInformation, Vector>> covariates_gene;
+  std::vector<std::pair<CovariateInformation, Vector>> covariates_type;
+  std::vector<std::pair<CovariateInformation, Matrix>> covariates_gene_type;
 
   Matrix negodds_rho;
   struct CoordinateSystem {
@@ -71,15 +77,15 @@ struct Model {
   template <typename Iter>
   void from_log_vector(Iter iter) {
     for (auto &y : covariates_scalar)
-      y = exp(*iter++);
+      y.second = exp(*iter++);
     for (auto &y : covariates_gene)
-      for (auto &z : y)
+      for (auto &z : y.second)
         z = exp(*iter++);
     for (auto &y : covariates_type)
-      for (auto &z : y)
+      for (auto &z : y.second)
         z = exp(*iter++);
     for (auto &y : covariates_gene_type)
-      for (auto &z : y)
+      for (auto &z : y.second)
         z = exp(*iter++);
 
     if (parameters.targeted(Target::gamma_prior)) {

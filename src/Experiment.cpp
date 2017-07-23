@@ -206,24 +206,24 @@ Matrix Experiment::compute_gene_type_table() const {
   Matrix gt = Matrix::Ones(G, T);
 
   for (auto &x : covariates_gene_type)
-    gt.array() *= model->covariates_gene_type[x].array();
+    gt.array() *= model->covariates_gene_type[x].second.array();
 
   for (auto &x : covariates_gene)
     for (size_t g = 0; g < G; ++g) {
-      double y = model->covariates_gene[x](g);
+      double y = model->covariates_gene[x].second(g);
       for (size_t t = 0; t < T; ++t)
         gt(g, t) *= y;
     }
 
   for (auto &x : covariates_type)
     for (size_t t = 0; t < T; ++t) {
-      double y = model->covariates_type[x](t);
+      double y = model->covariates_type[x].second(t);
       for (size_t g = 0; g < G; ++g)
         gt(g, t) *= y;
     }
 
   for (auto &x : covariates_scalar) {
-    double y = model->covariates_scalar[x];
+    double y = model->covariates_scalar[x].second;
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         gt(g, t) *= y;

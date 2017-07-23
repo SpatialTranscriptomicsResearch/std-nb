@@ -8,6 +8,22 @@ using namespace std;
 
 namespace STD {
 
+vector<double> unpack_values(
+    const vector<pair<Model::CovariateInformation, double>> &x) {
+  const size_t n = x.size();
+  vector<double> v(n);
+  for (size_t i = 0; i < n; ++i)
+    v[i] = x[i].second;
+  return v;
+}
+
+void pack_values(const vector<double> &v,
+                 vector<pair<Model::CovariateInformation, double>> &x) {
+  const size_t n = x.size();
+  for (size_t i = 0; i < n; ++i)
+    x[i].second = v[i];
+}
+
 Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
              const Design &design_, const Parameters &parameters_,
              bool same_coord_sys)
@@ -74,24 +90,25 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
         idx = iter->second;
         LOG(debug) << "Found previous covariate value combination: " << idx;
       } else {
+        CovariateInformation info = {cov_idxs, cov_values};
         // this covariate value combination was not previously used
         if (gene_dependent and type_dependent) {
           idx = covariates_gene_type.size();
           LOG(debug) << "Creating new " << G << "x" << T
                      << " gene-type matrix: " << idx;
-          covariates_gene_type.push_back(Matrix::Ones(G, T));
+          covariates_gene_type.push_back({info, Matrix::Ones(G, T)});
         } else if (gene_dependent and not type_dependent) {
           idx = covariates_gene.size();
           LOG(debug) << "Creating new " << G << " gene vector: " << idx;
-          covariates_gene.push_back(Vector::Ones(G));
+          covariates_gene.push_back({info, Vector::Ones(G)});
         } else if (not gene_dependent and type_dependent) {
           idx = covariates_type.size();
           LOG(debug) << "Creating new " << T << " type vector: " << idx;
-          covariates_type.push_back(Vector::Ones(T));
+          covariates_type.push_back({info, Vector::Ones(T)});
         } else if (not gene_dependent and not type_dependent) {
           idx = covariates_scalar.size();
           LOG(debug) << "Creating new scalar: " << idx;
-          covariates_scalar.push_back(1);
+          covariates_scalar.push_back({info, 1});
         }
         covvalues2idx[cov_values] = idx;
       }
@@ -111,18 +128,18 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
   {
     // TODO covariates initialize
     for (auto &x : covariates_scalar)
-      x = 1;
-      // x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+      x.second = 1;
+    // x.second = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
     for (auto &covariate : covariates_gene)
-      for (auto &x : covariate)
+      for (auto &x : covariate.second)
         x = 1;
-        // x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    // x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
     for (auto &covariate : covariates_type)
-      for (auto &x : covariate)
+      for (auto &x : covariate.second)
         x = 1;
-        // x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    // x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
     for (auto &covariate : covariates_gene_type)
-      for (auto &x : covariate)
+      for (auto &x : covariate.second)
         x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
   }
 
@@ -285,28 +302,33 @@ void Model::store(const string &prefix_, bool mean_and_var,
                  parameters.compression_mode, gene_names, factor_names, order);
 
 #pragma omp section
-    write_vector(covariates_scalar,
-                 prefix + "covariate-scalar" + FILENAME_ENDING,
-                 parameters.compression_mode);
+    {
+      write_vector(unpack_values(covariates_scalar),
+                   prefix + "covariate-scalar" + FILENAME_ENDING,
+                   parameters.compression_mode);
+    }
 #pragma omp section
     for (size_t i = 0; i < covariates_gene.size(); ++i)
-      write_vector(covariates_gene[i],
-                   prefix + "covariate-gene-" + to_string_embedded(i, 2)
+      write_vector(covariates_gene[i].second,
+                   prefix + "covariate-gene-" + to_string_embedded(i, 2) + "_"
+                       + covariates_gene[i].first.to_string(design.covariates)
                        + FILENAME_ENDING,
                    parameters.compression_mode, gene_names);
 #pragma omp section
     for (size_t i = 0; i < covariates_type.size(); ++i)
-      write_vector(covariates_type[i],
-                   prefix + "covariate-type-" + to_string_embedded(i, 2)
+      write_vector(covariates_type[i].second,
+                   prefix + "covariate-type-" + to_string_embedded(i, 2) + "_"
+                       + covariates_gene[i].first.to_string(design.covariates)
                        + FILENAME_ENDING,
                    parameters.compression_mode, factor_names);
 #pragma omp section
     for (size_t i = 0; i < covariates_gene_type.size(); ++i)
-      write_matrix(covariates_gene_type[i],
-                   prefix + "covariate-gene-type-" + to_string_embedded(i, 2)
-                       + FILENAME_ENDING,
-                   parameters.compression_mode, gene_names, factor_names,
-                   order);
+      write_matrix(
+          covariates_gene_type[i].second,
+          prefix + "covariate-gene-type-" + to_string_embedded(i, 2) + "_"
+              + covariates_gene[i].first.to_string(design.covariates)
+              + FILENAME_ENDING,
+          parameters.compression_mode, gene_names, factor_names, order);
 #pragma omp section
     write_matrix(negodds_rho, prefix + "feature-negodds_rho" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
@@ -401,23 +423,30 @@ void Model::store(const string &prefix_, bool mean_and_var,
     }
 }
 
+/* TODO covariates enable loading of subsets of covariates */
 void Model::restore(const string &prefix) {
-  covariates_scalar = parse_file<std::vector<double>>(
+  vector<double> v = parse_file<std::vector<double>>(
       prefix + "covariate-scalar" + FILENAME_ENDING,
       read_vector<std::vector<double>>, "\t");
+  pack_values(v, covariates_scalar);
   for (size_t i = 0; i < covariates_gene.size(); ++i)
-    covariates_gene[i] = parse_file<Vector>(
-        prefix + "covariate-gene-" + to_string_embedded(i, 2) + FILENAME_ENDING,
+    covariates_gene[i].second = parse_file<Vector>(
+        prefix + "covariate-gene-" + to_string_embedded(i, 2) + "_"
+            + covariates_gene[i].first.to_string(design.covariates)
+            + FILENAME_ENDING,
         read_vector<Vector>, "\t");
   for (size_t i = 0; i < covariates_type.size(); ++i)
-    covariates_type[i] = parse_file<Vector>(
-        prefix + "covariate-type-" + to_string_embedded(i, 2) + FILENAME_ENDING,
+    covariates_type[i].second = parse_file<Vector>(
+        prefix + "covariate-type-" + to_string_embedded(i, 2) + "_"
+            + covariates_gene[i].first.to_string(design.covariates)
+            + FILENAME_ENDING,
         read_vector<Vector>, "\t");
   for (size_t i = 0; i < covariates_gene_type.size(); ++i)
-    covariates_gene_type[i]
-        = parse_file<Matrix>(prefix + "covariate-gene-type-"
-                                 + to_string_embedded(i, 2) + FILENAME_ENDING,
-                             read_matrix, "\t");
+    covariates_gene_type[i].second = parse_file<Matrix>(
+        prefix + "covariate-gene-type-" + to_string_embedded(i, 2) + "_"
+            + covariates_gene[i].first.to_string(design.covariates)
+            + FILENAME_ENDING,
+        read_matrix, "\t");
 
   negodds_rho = parse_file<Matrix>(
       prefix + "feature-negodds_rho" + FILENAME_ENDING, read_matrix, "\t");
@@ -460,13 +489,13 @@ Matrix Model::field_fitness_posterior_gradient() const {
 
 void Model::set_zero() {
   for (auto &y : covariates_scalar)
-    y = 0;
+    y.second = 0;
   for (auto &y : covariates_gene)
-    y.setZero();
+    y.second.setZero();
   for (auto &y : covariates_type)
-    y.setZero();
+    y.second.setZero();
   for (auto &y : covariates_gene_type)
-    y.setZero();
+    y.second.setZero();
 
   negodds_rho.setZero();
   for (auto &coord_sys : coordinate_systems)
@@ -482,11 +511,11 @@ size_t Model::size() const {
 
   s += covariates_scalar.size();
   for (auto &y : covariates_gene)
-    s += y.size();
+    s += y.second.size();
   for (auto &y : covariates_type)
-    s += y.size();
+    s += y.second.size();
   for (auto &y : covariates_gene_type)
-    s += y.size();
+    s += y.second.size();
 
   if (parameters.targeted(Target::gamma_prior))
     s += 2;
@@ -509,15 +538,15 @@ Vector Model::vectorize() const {
   auto iter = begin(v);
 
   for (auto &y : covariates_scalar)
-    *iter++ = y;
+    *iter++ = y.second;
   for (auto &y : covariates_gene)
-    for (auto &z : y)
+    for (auto &z : y.second)
       *iter++ = z;
   for (auto &y : covariates_type)
-    for (auto &z : y)
+    for (auto &z : y.second)
       *iter++ = z;
   for (auto &y : covariates_gene_type)
-    for (auto &z : y)
+    for (auto &z : y.second)
       *iter++ = z;
 
   if (parameters.targeted(Target::gamma_prior)) {
@@ -710,13 +739,13 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
     for (auto &y : gradient.experiments[e].covariates_scalar)
-      gradient.covariates_scalar[y] += term;
+      gradient.covariates_scalar[y].second += term;
     for (auto &y : gradient.experiments[e].covariates_gene)
-      gradient.covariates_gene[y](g) += term;
+      gradient.covariates_gene[y].second(g) += term;
     for (auto &y : gradient.experiments[e].covariates_type)
-      gradient.covariates_type[y](t) += term;
+      gradient.covariates_type[y].second(t) += term;
     for (auto &y : gradient.experiments[e].covariates_gene_type)
-      gradient.covariates_gene_type[y](g, t) += term;
+      gradient.covariates_gene_type[y].second(g, t) += term;
     gradient.experiments[e].theta(s, t) += term;
     gradient.experiments[e].spot(s) += term;
 
@@ -732,16 +761,17 @@ void Model::finalize_gradient(Model &gradient) const {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
     for (size_t i = 0; i < gradient.covariates_scalar.size(); ++i)
-      gradient.covariates_scalar[i] += (a - 1) - covariates_scalar[i] * b;
+      gradient.covariates_scalar[i].second
+          += (a - 1) - covariates_scalar[i].second * b;
     for (size_t i = 0; i < gradient.covariates_gene.size(); ++i)
-      gradient.covariates_gene[i].array()
-          += (a - 1) - covariates_gene[i].array() * b;
+      gradient.covariates_gene[i].second.array()
+          += (a - 1) - covariates_gene[i].second.array() * b;
     for (size_t i = 0; i < gradient.covariates_type.size(); ++i)
-      gradient.covariates_type[i].array()
-          += (a - 1) - covariates_type[i].array() * b;
+      gradient.covariates_type[i].second.array()
+          += (a - 1) - covariates_type[i].second.array() * b;
     for (size_t i = 0; i < gradient.covariates_gene_type.size(); ++i)
-      gradient.covariates_gene_type[i].array()
-          += (a - 1) - covariates_gene_type[i].array() * b;
+      gradient.covariates_gene_type[i].second.array()
+          += (a - 1) - covariates_gene_type[i].second.array() * b;
   }
 
   if (parameters.targeted(Target::rho)) {
@@ -925,13 +955,13 @@ void Model::gradient_update() {
     double score = 0;
     Model model_grad = compute_gradient(score);
     for (auto &y : model_grad.covariates_scalar)
-      LOG(debug) << "scalar cov grad = " << y;
+      LOG(debug) << "scalar cov grad = " << y.second;
     for (auto &y : model_grad.covariates_gene)
-      LOG(debug) << "gene cov grad " << Stats::summary(y);
+      LOG(debug) << "gene cov grad " << Stats::summary(y.second);
     for (auto &y : model_grad.covariates_type)
-      LOG(debug) << "type cov grad " << Stats::summary(y);
+      LOG(debug) << "type cov grad " << Stats::summary(y.second);
     for (auto &y : model_grad.covariates_gene_type)
-      LOG(debug) << "gene_type cov grad " << Stats::summary(y);
+      LOG(debug) << "gene_type cov grad " << Stats::summary(y.second);
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
     for (size_t e = 0; e < E; ++e) {
@@ -1061,20 +1091,24 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters(double min_value) {
-  enforce_positive_and_warn("covariates_scalar", covariates_scalar, min_value,
-                            parameters.warn_lower_limit);
+  {
+    auto v = unpack_values(covariates_scalar);
+    enforce_positive_and_warn("covariates_scalar", v, min_value,
+                              parameters.warn_lower_limit);
+    pack_values(v, covariates_scalar);
+  }
   for (size_t i = 0; i < covariates_gene.size(); ++i)
     enforce_positive_and_warn("covariates_gene_" + to_string_embedded(i, 3),
-                              covariates_gene[i], min_value,
+                              covariates_gene[i].second, min_value,
                               parameters.warn_lower_limit);
   for (size_t i = 0; i < covariates_type.size(); ++i)
     enforce_positive_and_warn("covariates_type_" + to_string_embedded(i, 3),
-                              covariates_type[i], min_value,
+                              covariates_type[i].second, min_value,
                               parameters.warn_lower_limit);
   for (size_t i = 0; i < covariates_gene_type.size(); ++i)
     enforce_positive_and_warn(
         "covariates_gene_type_" + to_string_embedded(i, 3),
-        covariates_gene_type[i], min_value, parameters.warn_lower_limit);
+        covariates_gene_type[i].second, min_value, parameters.warn_lower_limit);
   enforce_positive_and_warn("negodds_rho", negodds_rho, min_value,
                             parameters.warn_lower_limit);
   enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value,
@@ -1245,19 +1279,35 @@ ostream &operator<<(ostream &os, const Model &model) {
   return os;
 }
 
+string Model::CovariateInformation::to_string(
+    const Covariates &covariates) const {
+  string s;
+  for (size_t i = 0; i < idxs.size(); ++i) {
+    if (i > 0)
+      s += ",";
+    s += covariates[idxs[i]].label + "=" + covariates[idxs[i]].values[vals[i]];
+  }
+  if (idxs.size() == 0)
+    s = "global";
+  return s;
+}
+
 Model operator+(const Model &a, const Model &b) {
   Model model = a;
 
   model.contributions_gene_type += b.contributions_gene_type;
   model.contributions_gene += b.contributions_gene;
   for (size_t i = 0; i < a.covariates_scalar.size(); ++i)
-    model.covariates_scalar[i] += b.covariates_scalar[i];
+    model.covariates_scalar[i].second += b.covariates_scalar[i].second;
   for (size_t i = 0; i < a.covariates_gene.size(); ++i)
-    model.covariates_gene[i].array() += b.covariates_gene[i].array();
+    model.covariates_gene[i].second.array()
+        += b.covariates_gene[i].second.array();
   for (size_t i = 0; i < a.covariates_type.size(); ++i)
-    model.covariates_type[i].array() += b.covariates_type[i].array();
+    model.covariates_type[i].second.array()
+        += b.covariates_type[i].second.array();
   for (size_t i = 0; i < a.covariates_gene_type.size(); ++i)
-    model.covariates_gene_type[i].array() += b.covariates_gene_type[i].array();
+    model.covariates_gene_type[i].second.array()
+        += b.covariates_gene_type[i].second.array();
   model.negodds_rho += b.negodds_rho;
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
