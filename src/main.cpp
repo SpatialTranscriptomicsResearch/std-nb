@@ -117,7 +117,14 @@ int main(int argc, char **argv) {
     ("fields", po::bool_switch(&options.fields),
      "Activate fields.")
     ("formula,f", po::value(&options.formula)->default_value(options.formula),
-     "Regression formula.")
+     "Regression formula for negative binomial rate covariates. "
+     "Arbitrary covariates annotated to the input files in the design matrix file. "
+     "Additionally, the following covariates are predefined by default:\n"
+     "gene    \tcovariate with values for every gene\n"
+     "type    \tcovariate with values for every type\n"
+     "section \tcovariate with values for every input file. "
+     "Note that in case you have split one section's spots into two different count matrix input files, you can specify your own 'section' column in the design matrix file and give the correct input file to section mapping there.\n"
+     "1       \tcovariate serving as an intercept term to set overall baseline")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("bot", po::value(&options.bottom)->default_value(options.bottom),
