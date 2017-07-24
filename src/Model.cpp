@@ -1033,40 +1033,13 @@ void Model::gradient_update() {
   double fx;
   switch (parameters.optim_method) {
     case Optimize::Method::RPROP: {
-      Vector mask;
-      {
-        Model mask_model = *this;
-        mask_model.set_zero();
-        if (parameters.forget(Target::covariates_scalar))
-          for (auto &y : mask_model.covariates_scalar)
-            y.second = 1;
-        if (parameters.forget(Target::covariates_gene))
-          for (auto &y : mask_model.covariates_gene)
-            y.second.setOnes(G);
-        if (parameters.forget(Target::covariates_type))
-          for (auto &y : mask_model.covariates_type)
-            y.second.setOnes(T);
-        if (parameters.forget(Target::covariates_gene_type))
-          for (auto &y : mask_model.covariates_gene_type)
-            y.second.setOnes(G, T);
-        if (parameters.forget(Target::theta))
-          for (size_t e = 0; e < E; ++e)
-            mask_model.experiments[e].theta.setOnes(experiments[e].S, T);
-        mask = mask_model.vectorize();
-      }
-
       Vector grad;
       Vector prev_sign(Vector::Zero(x.size()));
       Vector rates(x.size());
       rates.fill(parameters.grad_alpha);
       for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
         if (iter < parameters.forget_end and iter >= parameters.forget_start)
-#pragma omp parallel for if (DO_PARALLEL)
-          for (size_t i = 0; i < x.size(); ++i)
-            if (mask[i] == 1
-                and RandomDistribution::Uniform(EntropySource::rng)
-                        < parameters.forget_rate)
-              x[i] *= parameters.forget_factor;
+          apply_mask(x, rates, prev_sign);
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
         enforce_positive_and_warn("RPROP log params", x,
@@ -1106,6 +1079,64 @@ void Model::gradient_update() {
   LOG(verbose) << "Final f(x) = " << fx;
 
   from_log_vector(begin(x));
+}
+
+Vector Model::make_mask() const {
+  Model mask_model = *this;
+  mask_model.set_zero();
+  if (parameters.forget(Target::covariates_scalar))
+    for (size_t i = 0; i < covariates_scalar.size(); ++i)
+      if (RandomDistribution::Uniform(EntropySource::rng)
+          < parameters.forget_rate)
+        mask_model.covariates_scalar[i].second = 1;
+
+  if (parameters.forget(Target::covariates_gene))
+    for (auto &covariate : mask_model.covariates_gene)
+      for (size_t i = 0; i < covariate.second.size(); ++i)
+        if (RandomDistribution::Uniform(EntropySource::rng)
+            < parameters.forget_rate)
+          covariate.second[i] = 1;
+
+  if (parameters.forget(Target::covariates_type))
+    for (auto &covariate : mask_model.covariates_type)
+      for (size_t i = 0; i < covariate.second.size(); ++i)
+        if (RandomDistribution::Uniform(EntropySource::rng)
+            < parameters.forget_rate)
+          covariate.second[i] = 1;
+
+  if (parameters.forget(Target::covariates_gene_type))
+    for (auto &covariate : mask_model.covariates_gene_type)
+      for (size_t g = 0; g < G; ++g)
+        if (RandomDistribution::Uniform(EntropySource::rng)
+            < parameters.forget_rate)
+          for (size_t t = 0; t < T; ++t)
+            covariate.second(g, t) = 1;
+
+  if (parameters.forget(Target::theta))
+    for (size_t e = 0; e < E; ++e)
+      for (size_t s = 0; s < experiments[e].S; ++s)
+        if (RandomDistribution::Uniform(EntropySource::rng)
+            < parameters.forget_rate)
+          for (size_t t = 0; t < T; ++t)
+            mask_model.experiments[e].theta(s, t) = 1;
+
+  if (parameters.forget(Target::spot))
+    for (size_t e = 0; e < E; ++e)
+      for (size_t s = 0; s < experiments[e].S; ++s)
+        if (RandomDistribution::Uniform(EntropySource::rng)
+            < parameters.forget_rate)
+          mask_model.experiments[e].spot(s) = 1;
+  return mask_model.vectorize();
+}
+
+void Model::apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const {
+  Vector mask = make_mask().array();
+  for (size_t i = 0; i < x.size(); ++i)
+    if (mask[i] == 1) {
+      x[i] = 0;
+      rates[i] = parameters.grad_alpha;
+      prev_sign[i] = 0;
+    }
 }
 
 double Model::field_gradient(const CoordinateSystem &coord_sys,

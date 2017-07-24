@@ -163,7 +163,7 @@ int main(int argc, char **argv) {
     ("forget_rate", po::value(&parameters.forget_rate)->default_value(parameters.forget_rate),
      "Rate to forget factor activities during the forgetting phase.")
     ("forget_factor", po::value(&parameters.forget_factor)->default_value(parameters.forget_factor),
-     "Forget with which to multiple factor activities for forgetting.")
+     "Forget with which to multiply factor activities for forgetting.")
     ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
      "Epsilon parameter for the leapfrog algorithm.")
     ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),
