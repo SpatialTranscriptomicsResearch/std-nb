@@ -86,7 +86,9 @@ struct Parameters {
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
   Target targets = DefaultTarget();
+  Target to_forget = DefaultForget();
   bool targeted(Target target) const;
+  bool forget(Target target) const;
 
   rprop_parameters rprop;
 
@@ -106,6 +108,11 @@ struct Parameters {
 
   double mesh_hull_enlarge = 1.03;
   double mesh_hull_distance = 2;
+
+  size_t forget_start = 0;
+  size_t forget_end = 0;
+  double forget_rate = 0.05;
+  size_t forget_factor = 0;
 };
 }
 #endif

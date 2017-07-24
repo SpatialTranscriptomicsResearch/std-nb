@@ -154,6 +154,16 @@ int main(int argc, char **argv) {
      "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
     ("cont_map", po::bool_switch(&parameters.contributions_map),
      "Sample contributions by maximum-a-posteriori.")
+    ("forget", po::value(&parameters.to_forget)->default_value(parameters.to_forget),
+     "Which parameters to forget in the forgetting phase.")
+    ("forget_start", po::value(&parameters.forget_start)->default_value(parameters.forget_start),
+     "Which iteration to start the forgetting phase in.")
+    ("forget_end", po::value(&parameters.forget_end)->default_value(parameters.forget_end),
+     "Which iteration to end the forgetting phase in.")
+    ("forget_rate", po::value(&parameters.forget_rate)->default_value(parameters.forget_rate),
+     "Rate to forget factor activities during the forgetting phase.")
+    ("forget_factor", po::value(&parameters.forget_factor)->default_value(parameters.forget_factor),
+     "Forget with which to multiple factor activities for forgetting.")
     ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
      "Epsilon parameter for the leapfrog algorithm.")
     ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),

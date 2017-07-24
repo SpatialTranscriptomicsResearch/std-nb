@@ -18,4 +18,7 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
 bool Parameters::targeted(Target target) const {
   return flagged(targets & target);
 }
+bool Parameters::forget(Target target) const {
+  return flagged(targets & target);
+}
 }

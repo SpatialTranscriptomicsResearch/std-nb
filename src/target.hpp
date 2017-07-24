@@ -45,6 +45,10 @@ inline constexpr Target DefaultTarget() {
          | Target::spot;
 }
 
+inline constexpr Target DefaultForget() {
+  return Target::theta;
+}
+
 inline bool flagged(Target x) { return (Target::empty | x) != Target::empty; }
 }
 
