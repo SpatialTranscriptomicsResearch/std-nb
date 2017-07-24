@@ -15,6 +15,17 @@ bool Design::is_reserved_name(const string &s) const {
   return false;
 }
 
+void Design::add_dataset_specification(const string &path) {
+  size_t size = dataset_specifications.size();
+  string name = "Dataset " + std::to_string(size + 1);
+
+  size_t num_covariates = covariates.size();
+  vector<size_t> v(num_covariates, 0);
+
+  Specification spec = {path, name, v};
+  dataset_specifications.push_back(spec);
+}
+
 void Design::from_stream(istream &is) {
   string line;
   if (getline(is, line)) {
@@ -95,19 +106,6 @@ void Design::from_stream(istream &is) {
     }
   }
 
-  if (find_if(begin(covariates), end(covariates),
-              [&](const Covariate &cov) {
-                return cov.label == DesignNS::section_label;
-              })
-      == end(covariates))
-    add_covariate_section();
-
-  if (find_if(begin(covariates), end(covariates),
-              [&](const Covariate &cov) {
-                return cov.label == DesignNS::unit_label;
-              })
-      == end(covariates))
-    add_covariate_unit();
 }
 
 string Design::to_string() const {
@@ -126,6 +124,13 @@ string Design::to_string() const {
 }
 
 void Design::add_covariate_section() {
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) {
+                return cov.label == DesignNS::section_label;
+              })
+      != end(covariates))
+    return;
+
   Covariate cov = {DesignNS::section_label, {}};
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
     cov.values.push_back(std::to_string(i + 1));
@@ -135,6 +140,13 @@ void Design::add_covariate_section() {
 }
 
 void Design::add_covariate_unit() {
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) {
+                return cov.label == DesignNS::unit_label;
+              })
+      != end(covariates))
+    return;
+
   Covariate cov = {DesignNS::unit_label, {}};
   cov.values.push_back(std::to_string(1));
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {

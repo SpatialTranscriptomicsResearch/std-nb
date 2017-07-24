@@ -283,20 +283,19 @@ int main(int argc, char **argv) {
   ifstream ifs(options.design_path);
   options.design.from_stream(ifs);
 
-  for (auto &path : options.tsv_paths) {
-    size_t size = options.design.dataset_specifications.size();
-    size_t num_covariates = options.design.covariates.size();
-    vector<size_t> v(num_covariates, 0);
-    string name = "Dataset " + std::to_string(size + 1);
-    Specification spec = {path, name, v};
-    options.design.dataset_specifications.push_back(spec);
-  }
+  for (auto &path : options.tsv_paths)
+    options.design.add_dataset_specification(path);
+
+  options.design.add_covariate_section();
+  options.design.add_covariate_unit();
 
   LOG(verbose) << "Design: " << options.design;
 
   vector<string> paths;
-  for (auto &spec : options.design.dataset_specifications)
+  for (auto &spec : options.design.dataset_specifications) {
+    LOG(debug) << "Adding path " << spec.path;
     paths.push_back(spec.path);
+  }
 
   if (paths.empty()) {
     LOG(fatal) << "Error: No input files specified.\n"

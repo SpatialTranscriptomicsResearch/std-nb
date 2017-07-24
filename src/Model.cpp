@@ -192,8 +192,10 @@ void Model::remove_redundant_terms() {
     }
     for (size_t e = 0; e < E; ++e) {
       for (auto r : redundant)
-        remove(begin(experiments[e].covariates_scalar),
-               end(experiments[e].covariates_scalar), r);
+        experiments[e].covariates_scalar.erase(
+            remove(begin(experiments[e].covariates_scalar),
+                   end(experiments[e].covariates_scalar), r),
+            end(experiments[e].covariates_scalar));
       for (auto &x : experiments[e].covariates_scalar)
         for (auto r : redundant)
           if (x > r)
@@ -211,14 +213,17 @@ void Model::remove_redundant_terms() {
     size_t removed = 0;
     for (auto r : redundant) {
       LOG(verbose) << "Removing gene-dependent covariate " << r << ": "
-                   << covariates_gene[r-removed].first.to_string(design.covariates);
+                   << covariates_gene[r - removed].first.to_string(
+                          design.covariates);
       covariates_gene.erase(begin(covariates_gene) + r - removed);
       removed++;
     }
     for (size_t e = 0; e < E; ++e) {
       for (auto r : redundant)
-        remove(begin(experiments[e].covariates_gene),
-               end(experiments[e].covariates_gene), r);
+        experiments[e].covariates_gene.erase(
+            remove(begin(experiments[e].covariates_gene),
+                   end(experiments[e].covariates_gene), r),
+            end(experiments[e].covariates_gene));
       for (auto &x : experiments[e].covariates_gene)
         for (auto r : redundant)
           if (x > r)
@@ -236,14 +241,17 @@ void Model::remove_redundant_terms() {
     size_t removed = 0;
     for (auto r : redundant) {
       LOG(verbose) << "Removing type-dependent covariate " << r << ": "
-                   << covariates_type[r-removed].first.to_string(design.covariates);
+                   << covariates_type[r - removed].first.to_string(
+                          design.covariates);
       covariates_type.erase(begin(covariates_type) + r - removed);
       removed++;
     }
     for (size_t e = 0; e < E; ++e) {
       for (auto r : redundant)
-        remove(begin(experiments[e].covariates_type),
-               end(experiments[e].covariates_type), r);
+        experiments[e].covariates_type.erase(
+            remove(begin(experiments[e].covariates_type),
+                   end(experiments[e].covariates_type), r),
+            end(experiments[e].covariates_type));
       for (auto &x : experiments[e].covariates_type)
         for (auto r : redundant)
           if (x > r)
@@ -260,16 +268,19 @@ void Model::remove_redundant_terms() {
     sort(begin(redundant), end(redundant));  // needed?
     size_t removed = 0;
     for (auto r : redundant) {
-      LOG(verbose) << "Removing gene- and type-dependent covariate " << r << ": "
-                   << covariates_gene_type[r-removed].first.to_string(
+      LOG(verbose) << "Removing gene- and type-dependent covariate " << r
+                   << ": "
+                   << covariates_gene_type[r - removed].first.to_string(
                           design.covariates);
       covariates_gene_type.erase(begin(covariates_gene_type) + r - removed);
       removed++;
     }
     for (size_t e = 0; e < E; ++e) {
       for (auto r : redundant)
-        remove(begin(experiments[e].covariates_gene_type),
-               end(experiments[e].covariates_gene_type), r);
+        experiments[e].covariates_gene_type.erase(
+            remove(begin(experiments[e].covariates_gene_type),
+                   end(experiments[e].covariates_gene_type), r),
+            end(experiments[e].covariates_gene_type));
       for (auto &x : experiments[e].covariates_gene_type)
         for (auto r : redundant)
           if (x > r)
