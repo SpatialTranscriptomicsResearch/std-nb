@@ -93,15 +93,13 @@ int main(int argc, char **argv) {
   po::options_description inference_options("MCMC inference options", num_cols);
 
   required_options.add_options()
-    ("file", po::value(&options.design_path)->required(),
-     "Path to a design matrix file. "
-     "Format: tab-separated.");
-  /* TODO recreate simple CLI interface
-    ("file", po::value(&options.tsv_paths)->required(),
+    ("file", po::value(&options.tsv_paths),
      "Path to a count matrix file, can be given multiple times. "
      "Format: tab-separated, genes in rows, spots in columns; including a "
-     "header line, and row names in the first column of each row.");
-  */
+     "header line, and row names in the first column of each row.")
+    ("design,d", po::value(&options.design_path),
+     "Path to a design matrix file. "
+     "Format: tab-separated.");
 
   basic_options.add_options()
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
@@ -285,14 +283,31 @@ int main(int argc, char **argv) {
   ifstream ifs(options.design_path);
   options.design.from_stream(ifs);
 
+  for (auto &path : options.tsv_paths) {
+    size_t size = options.design.dataset_specifications.size();
+    size_t num_covariates = options.design.covariates.size();
+    vector<size_t> v(num_covariates, 0);
+    string name = "Dataset " + std::to_string(size + 1);
+    Specification spec = {path, name, v};
+    options.design.dataset_specifications.push_back(spec);
+  }
+
   LOG(verbose) << "Design: " << options.design;
 
+  vector<string> paths;
   for (auto &spec : options.design.dataset_specifications)
-    options.tsv_paths.push_back(spec.path);
+    paths.push_back(spec.path);
+
+  if (paths.empty()) {
+    LOG(fatal) << "Error: No input files specified.\n"
+                  "You must either give paths to one or more count matrix "
+                  "files or use the --design switch.";
+    return EXIT_FAILURE;
+  }
 
   auto data_sets
-      = load_data(options.tsv_paths, options.intersect, options.top,
-                  options.bottom, not options.keep_empty, options.transpose);
+      = load_data(paths, options.intersect, options.top, options.bottom,
+                  not options.keep_empty, options.transpose);
 
   if (options.learn_priors)
     parameters.targets = parameters.targets | STD::Target::gamma_prior
