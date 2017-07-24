@@ -37,7 +37,7 @@ string Formula::to_string() const {
   return str;
 }
 
-Formula DefaultFormula() { return Formula("gene+type+gene:type+section+section:gene"); }
+Formula DefaultFormula() { return Formula("gene+type+gene:type+section+section:gene+1"); }
 
 ostream &operator<<(ostream &os, const Formula &formula) {
   os << formula.to_string();
