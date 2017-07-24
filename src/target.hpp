@@ -7,14 +7,18 @@ namespace STD {
 
 enum class Target {
   empty = 0,
-  covariates = 1 << 0,
-  gamma_prior = 1 << 1,
-  theta = 1 << 2,
-  theta_prior = 1 << 3,
-  spot = 1 << 4,
-  field = 1 << 5,
-  rho = 1 << 6,
-  rho_prior = 1 << 7,
+  covariates_scalar =    1 << 0,
+  covariates_gene =      1 << 1,
+  covariates_type =      1 << 2,
+  covariates_gene_type = 1 << 3,
+  covariates =          (1 << 4) - 1,
+  gamma_prior =          1 << 4,
+  theta =                1 << 5,
+  theta_prior =          1 << 6,
+  spot =                 1 << 7,
+  field =                1 << 8,
+  rho =                  1 << 9,
+  rho_prior =            1 << 10,
 };
 
 std::ostream &operator<<(std::ostream &os, const Target &which);
@@ -33,7 +37,7 @@ inline constexpr Target operator^(Target a, Target b) {
 }
 
 inline constexpr Target operator~(Target a) {
-  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 8) - 1));
+  return static_cast<Target>((~static_cast<int>(a)) & ((1 << 11) - 1));
 }
 
 inline constexpr Target DefaultTarget() {

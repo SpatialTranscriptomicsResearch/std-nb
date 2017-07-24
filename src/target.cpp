@@ -15,6 +15,23 @@ ostream &operator<<(ostream &os, const Target &which) {
     if (flagged(which & Target::covariates)) {
       os << (first ? "" : ",") << "covariates";
       first = false;
+    } else {
+      if (flagged(which & Target::covariates_scalar)) {
+        os << (first ? "" : ",") << "covariates_scalar";
+        first = false;
+      }
+      if (flagged(which & Target::covariates_gene)) {
+        os << (first ? "" : ",") << "covariates_gene";
+        first = false;
+      }
+      if (flagged(which & Target::covariates_type)) {
+        os << (first ? "" : ",") << "covariates_type";
+        first = false;
+      }
+      if (flagged(which & Target::covariates_gene_type)) {
+        os << (first ? "" : ",") << "covariates_gene_type";
+        first = false;
+      }
     }
     if (flagged(which & Target::gamma_prior)) {
       os << (first ? "" : ",") << "gamma_prior";
@@ -60,6 +77,14 @@ istream &operator>>(istream &is, Target &which) {
     token = to_lower(token);
     if (token == "covariates")
       which = which | Target::covariates;
+    else if (token == "covariates_scalar")
+      which = which | Target::covariates_scalar;
+    else if (token == "covariates_gene")
+      which = which | Target::covariates_gene;
+    else if (token == "covariates_type")
+      which = which | Target::covariates_type;
+    else if (token == "covariates_gene_type")
+      which = which | Target::covariates_gene_type;
     else if (token == "rho")
       which = which | Target::rho;
     else if (token == "rho_prior")

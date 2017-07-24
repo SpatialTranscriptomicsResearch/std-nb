@@ -539,13 +539,17 @@ void Model::set_zero() {
 size_t Model::size() const {
   size_t s = 0;
 
-  s += covariates_scalar.size();
-  for (auto &y : covariates_gene)
-    s += y.second.size();
-  for (auto &y : covariates_type)
-    s += y.second.size();
-  for (auto &y : covariates_gene_type)
-    s += y.second.size();
+  if (parameters.targeted(Target::covariates_scalar))
+    s += covariates_scalar.size();
+  if (parameters.targeted(Target::covariates_gene))
+    for (auto &y : covariates_gene)
+      s += y.second.size();
+  if (parameters.targeted(Target::covariates_type))
+    for (auto &y : covariates_type)
+      s += y.second.size();
+  if (parameters.targeted(Target::covariates_gene_type))
+    for (auto &y : covariates_gene_type)
+      s += y.second.size();
 
   if (parameters.targeted(Target::gamma_prior))
     s += 2;
@@ -567,17 +571,21 @@ Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
 
-  for (auto &y : covariates_scalar)
-    *iter++ = y.second;
-  for (auto &y : covariates_gene)
-    for (auto &z : y.second)
-      *iter++ = z;
-  for (auto &y : covariates_type)
-    for (auto &z : y.second)
-      *iter++ = z;
-  for (auto &y : covariates_gene_type)
-    for (auto &z : y.second)
-      *iter++ = z;
+  if (parameters.targeted(Target::covariates_scalar))
+    for (auto &y : covariates_scalar)
+      *iter++ = y.second;
+  if (parameters.targeted(Target::covariates_gene))
+    for (auto &y : covariates_gene)
+      for (auto &z : y.second)
+        *iter++ = z;
+  if (parameters.targeted(Target::covariates_type))
+    for (auto &y : covariates_type)
+      for (auto &z : y.second)
+        *iter++ = z;
+  if (parameters.targeted(Target::covariates_gene_type))
+    for (auto &y : covariates_gene_type)
+      for (auto &z : y.second)
+        *iter++ = z;
 
   if (parameters.targeted(Target::gamma_prior)) {
     *iter++ = parameters.hyperparameters.gamma_1;
@@ -634,7 +642,10 @@ Model Model::compute_gradient(double &score) const {
     experiment.contributions_spot_type.setZero();
     experiment.contributions_gene_type.setZero();
   }
-  if (parameters.targeted(Target::covariates)
+  if (parameters.targeted(Target::covariates_scalar)
+      or parameters.targeted(Target::covariates_gene)
+      or parameters.targeted(Target::covariates_type)
+      or parameters.targeted(Target::covariates_gene_type)
       or parameters.targeted(Target::rho) or parameters.targeted(Target::theta)
       or parameters.targeted(Target::spot))
 #pragma omp parallel if (DO_PARALLEL)
@@ -790,18 +801,22 @@ void Model::finalize_gradient(Model &gradient) const {
     // TODO check covariates prior contribution to gradient
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
-    for (size_t i = 0; i < gradient.covariates_scalar.size(); ++i)
-      gradient.covariates_scalar[i].second
-          += (a - 1) - covariates_scalar[i].second * b;
-    for (size_t i = 0; i < gradient.covariates_gene.size(); ++i)
-      gradient.covariates_gene[i].second.array()
-          += (a - 1) - covariates_gene[i].second.array() * b;
-    for (size_t i = 0; i < gradient.covariates_type.size(); ++i)
-      gradient.covariates_type[i].second.array()
-          += (a - 1) - covariates_type[i].second.array() * b;
-    for (size_t i = 0; i < gradient.covariates_gene_type.size(); ++i)
-      gradient.covariates_gene_type[i].second.array()
-          += (a - 1) - covariates_gene_type[i].second.array() * b;
+    if (parameters.targeted(Target::covariates_scalar))
+      for (size_t i = 0; i < gradient.covariates_scalar.size(); ++i)
+        gradient.covariates_scalar[i].second
+            += (a - 1) - covariates_scalar[i].second * b;
+    if (parameters.targeted(Target::covariates_gene))
+      for (size_t i = 0; i < gradient.covariates_gene.size(); ++i)
+        gradient.covariates_gene[i].second.array()
+            += (a - 1) - covariates_gene[i].second.array() * b;
+    if (parameters.targeted(Target::covariates_type))
+      for (size_t i = 0; i < gradient.covariates_type.size(); ++i)
+        gradient.covariates_type[i].second.array()
+            += (a - 1) - covariates_type[i].second.array() * b;
+    if (parameters.targeted(Target::covariates_gene_type))
+      for (size_t i = 0; i < gradient.covariates_gene_type.size(); ++i)
+        gradient.covariates_gene_type[i].second.array()
+            += (a - 1) - covariates_gene_type[i].second.array() * b;
   }
 
   if (parameters.targeted(Target::rho)) {
