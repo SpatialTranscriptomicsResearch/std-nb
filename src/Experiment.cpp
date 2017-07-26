@@ -202,41 +202,34 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
   return grad;
 }
 
+// NOTE: scalar covariates are multiplied into this table
 Matrix Experiment::compute_gene_type_table() const {
   Matrix gt = Matrix::Ones(G, T);
 
-  for (auto &x : covariates_gene_type)
-    gt.array() *= model->covariates_gene_type[x].second.array();
-
-  for (auto &x : covariates_gene)
-    for (size_t g = 0; g < G; ++g) {
-      double y = model->covariates_gene[x].second(g);
-      for (size_t t = 0; t < T; ++t)
-        gt(g, t) *= y;
-    }
-
-  for (auto &x : covariates_type)
-    for (size_t t = 0; t < T; ++t) {
-      double y = model->covariates_type[x].second(t);
+  // TODO cov make more efficient
+  for (auto &idx : covariate_idxs)
+    if (not model->covariates[idx].spot_dependent())
       for (size_t g = 0; g < G; ++g)
-        gt(g, t) *= y;
-    }
-
-  for (auto &x : covariates_scalar) {
-    double y = model->covariates_scalar[x].second;
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        gt(g, t) *= y;
-  }
+        for (size_t t = 0; t < T; ++t)
+          gt(g, t) *= model->covariates[idx].get(g, t, 0);
 
   return gt;
 }
 
+// NOTE: scalar covariates are NOT multiplied into this table
 Matrix Experiment::compute_spot_type_table() const {
   Matrix st = theta;
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
       st(s, t) *= spot(s);
+
+  // TODO cov make more efficient
+  for (auto &idx : covariate_idxs)
+    if (model->covariates[idx].spot_dependent())
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          st(s, t) *= model->covariates[idx].get(0, t, s);
+
   return st;
 }
 

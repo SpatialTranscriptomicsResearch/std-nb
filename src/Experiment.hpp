@@ -38,10 +38,7 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<size_t> covariates_scalar;
-  std::vector<size_t> covariates_gene;
-  std::vector<size_t> covariates_type;
-  std::vector<size_t> covariates_gene_type;
+  std::vector<size_t> covariate_idxs;
 
   /** factor score matrix */
   Matrix theta;

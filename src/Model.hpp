@@ -29,17 +29,7 @@ struct Model {
 
   Parameters parameters;
 
-  /** factor loading matrix */
-  struct CovariateInformation {
-    using idxs_t = std::vector<size_t>;
-    idxs_t idxs;
-    idxs_t vals;
-    std::string to_string(const Covariates &covariates) const;
-  };
-  std::vector<std::pair<CovariateInformation, double>> covariates_scalar;
-  std::vector<std::pair<CovariateInformation, Vector>> covariates_gene;
-  std::vector<std::pair<CovariateInformation, Vector>> covariates_type;
-  std::vector<std::pair<CovariateInformation, Matrix>> covariates_gene_type;
+  std::vector<CovariateTerm> covariates;
 
   Matrix negodds_rho;
   struct CoordinateSystem {
@@ -63,6 +53,7 @@ struct Model {
         const Design &design, const Parameters &parameters,
         bool same_coord_sys);
   void remove_redundant_terms();
+  void remove_redundant_terms(CovariateTerm::Kind kind);
 
   void set_zero();
   Model compute_gradient(double &score) const;
@@ -76,17 +67,9 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-    for (auto &y : covariates_scalar)
-      y.second = exp(*iter++);
-    for (auto &y : covariates_gene)
-      for (auto &z : y.second)
-        z = exp(*iter++);
-    for (auto &y : covariates_type)
-      for (auto &z : y.second)
-        z = exp(*iter++);
-    for (auto &y : covariates_gene_type)
-      for (auto &z : y.second)
-        z = exp(*iter++);
+    for (auto &covariate : covariates)
+      for (auto &x : covariate.values)
+        x = exp(*iter++);
 
     if (parameters.targeted(Target::gamma_prior)) {
       LOG(debug) << "Getting gamma prior from vector";

@@ -36,9 +36,14 @@ void write_matrix(const M &m, const std::string &path, CompressionMode mode,
                   const std::vector<std::string> &col_names
                   = std::vector<std::string>(),
                   std::vector<size_t> col_order = std::vector<size_t>(),
+                  std::vector<size_t> row_order = std::vector<size_t>(),
                   const std::string &separator = "\t") {
   size_t X = m.rows();
   size_t Y = m.cols();
+
+  if (row_order.empty())
+    for (size_t x = 0; x < X; ++x)
+      row_order.push_back(x);
 
   if (col_order.empty())
     for (size_t y = 0; y < Y; ++y)
@@ -77,9 +82,9 @@ void write_matrix(const M &m, const std::string &path, CompressionMode mode,
     }
     for (size_t x = 0; x < X; ++x) {
       if (row_names_given)
-        ofs << row_names[x] + separator;
+        ofs << row_names[row_order[x]] + separator;
       for (size_t y = 0; y < Y; ++y)
-        ofs << (y != 0 ? separator : "") << m(x, col_order[y]);
+        ofs << (y != 0 ? separator : "") << m(row_order[x], col_order[y]);
       ofs << '\n';
     }
   });
