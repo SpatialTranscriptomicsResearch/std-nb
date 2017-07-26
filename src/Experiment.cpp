@@ -644,7 +644,7 @@ size_t Experiment::size() const {
   return s;
 }
 
-void Experiment::set_zero() {
+void Experiment::setZero() {
   theta.setZero();
   field.setZero();
   spot.setZero();

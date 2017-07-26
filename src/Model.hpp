@@ -55,7 +55,7 @@ struct Model {
   void remove_redundant_terms();
   void remove_redundant_terms(CovariateTerm::Kind kind);
 
-  void set_zero();
+  void setZero();
   Model compute_gradient(double &score) const;
   double compute_gradient_gamma_prior(Model &gradient) const;
   double compute_gradient_rho_prior(Model &gradient) const;

@@ -86,7 +86,7 @@ struct Experiment {
   Matrix expected_spot_type() const;
 
   size_t size() const;
-  void set_zero();
+  void setZero();
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter &iter) {

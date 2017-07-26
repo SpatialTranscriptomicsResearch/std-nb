@@ -399,7 +399,7 @@ Matrix Model::field_fitness_posterior_gradient() const {
   return grad;
 }
 
-void Model::set_zero() {
+void Model::setZero() {
   for (auto &covariate : covariates)
     covariate.values.setZero();
   negodds_rho.setZero();
@@ -408,7 +408,7 @@ void Model::set_zero() {
   mix_prior.r.setZero();
   mix_prior.p.setZero();
   for (auto &experiment : experiments)
-    experiment.set_zero();
+    experiment.setZero();
 }
 
 size_t Model::size() const {
@@ -488,7 +488,7 @@ Model Model::compute_gradient(double &score) const {
 
   score = 0;
   Model gradient = *this;
-  gradient.set_zero();
+  gradient.setZero();
   gradient.contributions_gene_type.setZero();
   for (auto &experiment : gradient.experiments) {
     experiment.contributions_spot_type.setZero();
@@ -912,7 +912,7 @@ void Model::gradient_update() {
 
 Vector Model::make_mask() const {
   Model mask_model = *this;
-  mask_model.set_zero();
+  mask_model.setZero();
   // TODO cov forgetting targets
   if (parameters.forget(Target::theta))
     for (size_t e = 0; e < E; ++e)
