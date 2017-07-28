@@ -160,6 +160,8 @@ static vvs simplify(const vvs& xss)
 
 static vvs parse(const string& s)
 {
+  if (s.empty())
+    return vvs();
   for (auto& op : operators) {
     auto res = apply_operator(op.first, op.second, s);
     if (not res.empty()) {
