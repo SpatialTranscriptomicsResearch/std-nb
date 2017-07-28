@@ -149,7 +149,7 @@ std::string trim(const std::string &str, char sym = ' ');
  * Intersperses vector by a given symbol and concatenates the result.
  */
 template <typename T>
-T intercalate(const std::vector<T>& xs, T x)
+T intercalate(const std::vector<T>& xs, const T& x)
 {
   std::vector<T> ret;
   ret.push_back(xs[0]);
