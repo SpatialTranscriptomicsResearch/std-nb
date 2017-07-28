@@ -79,6 +79,7 @@ void Experiment::store(const string &prefix,
     write_matrix(expected_gene_type(),
                  prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
+    /* TODO cov var
 #pragma omp section
     {
       auto phi_marginal = marginalize_genes();
@@ -91,6 +92,7 @@ void Experiment::store(const string &prefix,
                    parameters.compression_mode, spot_names, factor_names,
                    order);
     }
+    */
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -203,41 +205,68 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
 }
 
 // NOTE: scalar covariates are multiplied into this table
-Matrix Experiment::compute_gene_type_table() const {
+Matrix Experiment::compute_gene_type_table_rate() const {
   Matrix gt = Matrix::Ones(G, T);
 
   // TODO cov make more efficient
-  for (auto &idx : covariate_idxs)
-    if (not model->covariates[idx].spot_dependent())
+  for (auto &idx : rate_covariate_idxs)
+    if (not model->rate_covariates[idx].spot_dependent())
       for (size_t g = 0; g < G; ++g)
         for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= model->covariates[idx].get(g, t, 0);
+          gt(g, t) *= model->rate_covariates[idx].get(g, t, 0);
+
+  return gt;
+}
+
+// NOTE: scalar covariates are multiplied into this table
+Matrix Experiment::compute_gene_type_table_variance() const {
+  Matrix gt = Matrix::Ones(G, T);
+
+  // TODO cov make more efficient
+  for (auto &idx : variance_covariate_idxs)
+    if (not model->variance_covariates[idx].spot_dependent())
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          gt(g, t) *= model->variance_covariates[idx].get(g, t, 0);
 
   return gt;
 }
 
 // NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table() const {
+Matrix Experiment::compute_spot_type_table_rate() const {
   Matrix st = theta;
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
       st(s, t) *= spot(s);
 
   // TODO cov make more efficient
-  for (auto &idx : covariate_idxs)
-    if (model->covariates[idx].spot_dependent())
+  for (auto &idx : rate_covariate_idxs)
+    if (model->rate_covariates[idx].spot_dependent())
       for (size_t s = 0; s < S; ++s)
         for (size_t t = 0; t < T; ++t)
-          st(s, t) *= model->covariates[idx].get(0, t, s);
+          st(s, t) *= model->rate_covariates[idx].get(0, t, s);
+
+  return st;
+}
+
+// NOTE: scalar covariates are NOT multiplied into this table
+Matrix Experiment::compute_spot_type_table_variance() const {
+  Matrix st = Matrix::Ones(S, T);
+
+  // TODO cov make more efficient
+  for (auto &idx : variance_covariate_idxs)
+    if (model->variance_covariates[idx].spot_dependent())
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          st(s, t) *= model->variance_covariates[idx].get(0, t, s);
 
   return st;
 }
 
 /** sample count decomposition */
-Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
-                                                  const Matrix &gt,
-                                                  const Matrix &st,
-                                                  RNG &rng) const {
+Vector Experiment::sample_contributions_gene_spot(
+    size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
+    const Matrix &variance_gt, const Matrix &variance_st, RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
   const auto count = counts(g, s);
@@ -254,7 +283,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Mean: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = gt(g, t) * st(s, t) / model->negodds_rho(g, t);
+        z += cnts[t] = rate_gt(g, t) * rate_st(s, t)
+                       / (variance_gt(g, t) * variance_st(s, t));
       for (size_t t = 0; t < T; ++t)
         cnts[t] *= count / z;
       return cnts;
@@ -262,7 +292,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
     case Sampling::Method::Multinomial: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = gt(g, t) * st(s, t) / model->negodds_rho(g, t);
+        z += cnts[t] = rate_gt(g, t) * rate_st(s, t)
+                       / (variance_gt(g, t) * variance_st(s, t));
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
       auto icnts = sample_multinomial(count, begin(cnts), end(cnts), rng);
@@ -277,7 +308,8 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       throw(runtime_error("Sampling method not implemented: HMC."));
       break;
     case Sampling::Method::RPROP: {
-      // throw(runtime_error("Sampling method not quite implemented: RPROP."));
+      throw(runtime_error("Sampling method not quite implemented: RPROP."));
+      /*
       Vector log_rho(T);
       for (size_t t = 0; t < T; ++t)
         log_rho[t] = neg_odds_to_log_prob(model->negodds_rho(g, t));
@@ -285,7 +317,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
       Vector r(T);
       double z = 0;
       for (size_t t = 0; t < T; ++t) {
-        r[t] = gt(g, t) * st(s, t);
+        r[t] = rate_gt(g, t) * st(s, t);
         z += cnts[t] = r[t] / model->negodds_rho(g, t);
       }
       for (size_t t = 0; t < T; ++t)
@@ -332,6 +364,7 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         cnts[t] *= count / z;
 
       // LOG(debug) << "final = " << cnts.transpose();
+      */
     } break;
   }
 
@@ -538,41 +571,45 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
   return grad;
 }
 
+/* TODO cov var
 Vector Experiment::marginalize_genes() const {
+
+  Matrix gt = compute_gene_type_table_rate().array()
+              / compute_gene_type_table_variance().array();
+  Vector gt_cs = colSums<Vector>(gt);
+
   Vector intensities = Vector::Zero(T);
-  Matrix gt = compute_gene_type_table();
-#pragma omp parallel for if (DO_PARALLEL)
+  Matrix gt = compute_gene_type_table_rate().array()
+              / compute_gene_type_table_variance().array();
+  // Matrix st = compute_spot_type_table_rate().array()
+  //             / compute_spot_type_table_variance().array();
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
+#pragma omp parallel for reduction(+ : intensity) if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
-      intensity += gt(g, t) / model->negodds_rho(g, t);
+        intensity += gt(g, t);
+    // TODO cov var; the following seemed originally like the correct thing to do
+    //   for (size_t s = 0; s < S; ++s)
+    //     intensity += gt(g, t) * st(s, t);
     intensities[t] = intensity;
   }
   return intensities;
 };
-
-Vector Experiment::marginalize_spots() const {
-  Vector intensities(T);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t t = 0; t < T; ++t) {
-    double intensity = 0;
-    for (size_t s = 0; s < S; ++s)
-      intensity += theta(s, t) * spot(s);
-    intensities(t) = intensity;
-  }
-  return intensities;
-}
+*/
 
 Matrix Experiment::expectation() const {
   Matrix mean(G, S);
-  Matrix gt = compute_gene_type_table();
-  Matrix st = compute_spot_type_table();
+  Matrix rate_gt = compute_gene_type_table_rate();
+  Matrix variance_gt = compute_gene_type_table_variance();
+  Matrix rate_st = compute_spot_type_table_rate();
+  Matrix variance_st = compute_spot_type_table_variance();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       double x = 0;
       for (size_t t = 0; t < T; ++t)
-        x += gt(g, t) * st(s, t) / model->negodds_rho(g, t);
+        x += rate_gt(g, t) * rate_st(s, t)
+             / (variance_gt(g, t) * variance_st(s, t));
       mean(g, s) = x;
     }
   return mean;
@@ -580,44 +617,51 @@ Matrix Experiment::expectation() const {
 
 Matrix Experiment::variance() const {
   Matrix var(G, S);
-  Matrix gt = compute_gene_type_table();
-  Matrix st = compute_spot_type_table();
+  Matrix rate_gt = compute_gene_type_table_rate();
+  Matrix rate_st = compute_spot_type_table_rate();
+  Matrix variance_gt = compute_gene_type_table_variance();
+  Matrix variance_st = compute_spot_type_table_variance();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       double x = 0;
-      for (size_t t = 0; t < T; ++t)
-        x += gt(g, t) * st(s, t) / model->negodds_rho(g, t)
-             / odds_to_prob(model->negodds_rho(g, t));
+      for (size_t t = 0; t < T; ++t) {
+        double no = variance_gt(g, t) * variance_st(s, t);
+        x += rate_gt(g, t) * rate_st(s, t) / no / odds_to_prob(no);
+      }
       var(g, s) = x;
     }
   return var;
 }
 
 Matrix Experiment::expected_gene_type() const {
-  Vector marginal = marginalize_spots();
-  Matrix expected = Matrix::Zero(G, T);
-  Matrix gt = compute_gene_type_table();
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t)
-      expected(g, t) = gt(g, t) / model->negodds_rho(g, t) * marginal(t);
+  Matrix st = compute_spot_type_table_rate().array()
+              / compute_spot_type_table_variance().array();
+  Vector st_cs = colSums<Vector>(st);
+
+  Matrix expected = compute_gene_type_table_rate().array()
+              / compute_gene_type_table_variance().array();
+
+  for (size_t t = 0; t < T; ++t)
+    expected.col(t) *= st_cs[t];
   return expected;
 }
 
 Matrix Experiment::expected_spot_type() const {
-  Matrix gt = compute_gene_type_table();
-  Matrix m(S, T);
-  for (size_t t = 0; t < T; ++t) {
-    Float x = 0;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      x += gt(g, t) / model->negodds_rho(g, t);
+  Matrix gt = compute_gene_type_table_rate().array()
+              / compute_gene_type_table_variance().array();
+  Vector gt_cs = colSums<Vector>(gt);
+
+  Matrix expected = theta.array() * compute_spot_type_table_rate().array()
+              / compute_spot_type_table_variance().array();
+
+  for (size_t t = 0; t < T; ++t)
+    expected.col(t) *= gt_cs[t];
+  for (size_t t = 0; t < T; ++t)
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t s = 0; s < S; ++s)
-      m(s, t) = x * theta(s, t) * spot(s);
-  }
-  return m;
+      expected(s, t) *= spot(s);
+  return expected;
 }
 
 vector<vector<size_t>> Experiment::active_factors(double threshold) const {

@@ -23,15 +23,14 @@ struct Model {
   /** number of spots */
   size_t S;
 
-  Formula formula;
+  Formula rate_formula, variance_formula;
   Design design;
   std::vector<Experiment> experiments;
 
   Parameters parameters;
 
-  std::vector<CovariateTerm> covariates;
+  std::vector<CovariateTerm> rate_covariates, variance_covariates;
 
-  Matrix negodds_rho;
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
     size_t S, N, T;
@@ -49,25 +48,32 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts> &data, size_t T, const Formula &formula,
-        const Design &design, const Parameters &parameters,
-        bool same_coord_sys);
+  Model(const std::vector<Counts> &data, size_t T, const Design &design,
+        const Parameters &parameters, bool same_coord_sys);
   void remove_redundant_terms();
-  void remove_redundant_terms(CovariateTerm::Kind kind);
+  void remove_redundant_terms(CovariateTerm::Kind kind,
+                              std::vector<CovariateTerm> &covariates,
+                              bool is_rate);
 
+  void add_covariate_terms(const Formula::Term &term, bool is_rate);
   void setZero();
   Model compute_gradient(double &score) const;
   double compute_gradient_gamma_prior(Model &gradient) const;
   double compute_gradient_rho_prior(Model &gradient) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                         Model &gradient, const Matrix &gt,
-                         const Matrix &st) const;
+                         Model &gradient, const Matrix &rate_gt,
+                         const Matrix &rate_st, const Matrix &variance_gt,
+                         const Matrix &variance_st) const;
   void finalize_gradient(Model &gradient) const;
   double param_likel() const;
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-    for (auto &covariate : covariates)
+    for (auto &covariate : rate_covariates)
+      for (auto &x : covariate.values)
+        x = exp(*iter++);
+
+    for (auto &covariate : variance_covariates)
       for (auto &x : covariate.values)
         x = exp(*iter++);
 
@@ -81,12 +87,6 @@ struct Model {
       LOG(debug) << "Getting rho prior from vector";
       parameters.hyperparameters.rho_1 = exp(*iter++);
       parameters.hyperparameters.rho_2 = exp(*iter++);
-    }
-
-    if (parameters.targeted(Target::rho)) {
-      LOG(debug) << "Getting negodds_rho from vector";
-      for (auto &x : negodds_rho)
-        x = exp(*iter++);
     }
 
     if (parameters.targeted(Target::field)) {

@@ -4,6 +4,7 @@
 #include <cstdint>
 #include "compression_mode.hpp"
 #include "optimization_method.hpp"
+#include "formula.hpp"
 #include "rprop.hpp"
 #include "sampling_method.hpp"
 #include "target.hpp"
@@ -113,6 +114,9 @@ struct Parameters {
   size_t forget_end = 0;
   double forget_rate = 0.05;
   size_t forget_factor = 0;
+
+  Formula rate_formula = DefaultRateFormula();
+  Formula variance_formula = DefaultVarianceFormula();
 };
 }
 #endif

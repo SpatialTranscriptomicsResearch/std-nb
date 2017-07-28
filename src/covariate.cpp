@@ -108,7 +108,7 @@ string to_token(const CovariateTerm::Kind &kind) {
   }
 }
 
-CovariateTerm::CovariateTerm(size_t G, size_t S, size_t T, Kind kind_,
+CovariateTerm::CovariateTerm(size_t G, size_t T, size_t S, Kind kind_,
                              CovariateInformation info_)
     : kind(kind_), info(info_) {
   switch (kind) {

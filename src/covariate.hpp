@@ -33,7 +33,7 @@ struct CovariateTerm {
     gene_type = 5,
     spot_type = 6
   };
-  CovariateTerm(size_t G, size_t S, size_t T, Kind kind,
+  CovariateTerm(size_t G, size_t T, size_t S, Kind kind,
                 CovariateInformation info);
   Kind kind;
   bool gene_dependent() const;

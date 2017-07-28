@@ -34,18 +34,80 @@ void pack_values(const vector<double> &v,
     x[i].second = v[i];
 }
 
-Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
-             const Design &design_, const Parameters &parameters_,
-             bool same_coord_sys)
+void Model::add_covariate_terms(const Formula::Term &term, bool is_rate) {
+  LOG(debug) << "Treating next " << (is_rate ? "rate" : "variance")
+             << " formula term.";
+  CovariateTerm::Kind kind = CovariateTerm::Kind::scalar;
+  vector<size_t> cov_idxs;  // indices of covariates in this term
+
+  // determine kind and cov_idxs
+  for (auto &covariate_label : term) {
+    LOG(debug) << "Treating covariate label: " << covariate_label;
+    if (to_lower(covariate_label) == "gene")
+      kind = kind | CovariateTerm::Kind::gene;
+    else if (to_lower(covariate_label) == "spot")
+      kind = kind | CovariateTerm::Kind::spot;
+    else if (to_lower(covariate_label) == "type")
+      kind = kind | CovariateTerm::Kind::type;
+    else {
+      auto cov_iter = find_if(begin(design.covariates), end(design.covariates),
+                              [&](const Covariate &covariate) {
+                                return covariate.label == covariate_label;
+                              });
+      if (cov_iter == end(design.covariates)) {
+        throw(runtime_error("Error: a covariate mentioned in the formula '"
+                            + covariate_label
+                            + "' is not found in the design."));
+      } else {
+        cov_idxs.push_back(distance(begin(design.covariates), cov_iter));
+      }
+    }
+  }
+  LOG(debug) << "CovariateTerm::Kind = " << to_string(kind);
+
+  map<vector<size_t>, size_t> covvalues2idx;
+  for (size_t e = 0; e < E; ++e) {
+    vector<size_t> cov_values;
+    for (auto &cov_idx : cov_idxs)
+      cov_values.push_back(
+          design.dataset_specifications[e].covariate_values[cov_idx]);
+    auto iter = covvalues2idx.find(cov_values);
+    size_t idx;
+    if (iter != end(covvalues2idx)) {
+      idx = iter->second;
+      LOG(debug) << "Found previous covariate value combination: " << idx;
+    } else {
+      // this covariate value combination was not previously used
+      CovariateInformation info = {cov_idxs, cov_values};
+      CovariateTerm covterm(G, T, experiments[e].S, kind, info);
+
+      if (is_rate) {
+        idx = rate_covariates.size();
+        rate_covariates.push_back(covterm);
+      } else {
+        idx = variance_covariates.size();
+        variance_covariates.push_back(covterm);
+      }
+
+      LOG(debug) << "Creating new " << to_string(kind) << " covariate: " << idx;
+      covvalues2idx[cov_values] = idx;
+    }
+    if (is_rate)
+      experiments[e].rate_covariate_idxs.push_back(idx);
+    else
+      experiments[e].variance_covariate_idxs.push_back(idx);
+  }
+}
+
+Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
+             const Parameters &parameters_, bool same_coord_sys)
     : G(max_row_number(c)),
       T(T_),
       E(0),
       S(0),
-      formula(formula_),
       design(design_),
       experiments(),
       parameters(parameters_),
-      negodds_rho(Matrix::Ones(G, T)),
       mix_prior(sum_cols(c), T, parameters),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
@@ -56,77 +118,70 @@ Model::Model(const vector<Counts> &c, size_t T_, const Formula &formula_,
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
-  for (auto &term : formula.terms) {
-    LOG(debug) << "Treating next formula term.";
-    vector<size_t> cov_idxs;  // indices of covariates in this term
+  for (auto &term : parameters.rate_formula.terms)
+    add_covariate_terms(term, true);
+  for (auto &term : parameters.variance_formula.terms)
+    add_covariate_terms(term, false);
 
-    CovariateTerm::Kind kind = CovariateTerm::Kind::scalar;
-
-    // determine kind and cov_idxs
-    for (auto &covariate_label : term) {
-      LOG(debug) << "Treating covariate label: " << covariate_label;
-      if (to_lower(covariate_label) == "gene")
-        kind = kind | CovariateTerm::Kind::gene;
-      else if (to_lower(covariate_label) == "spot")
-        kind = kind | CovariateTerm::Kind::spot;
-      else if (to_lower(covariate_label) == "type")
-        kind = kind | CovariateTerm::Kind::type;
-      else {
-        auto cov_iter
-            = find_if(begin(design.covariates), end(design.covariates),
-                      [&](const Covariate &covariate) {
-                        return covariate.label == covariate_label;
-                      });
-        if (cov_iter == end(design.covariates)) {
-          throw(runtime_error("Error: a covariate mentioned in the formula '"
-                              + covariate_label
-                              + "' is not found in the design."));
-        } else {
-          cov_idxs.push_back(distance(begin(design.covariates), cov_iter));
-        }
-      }
-    }
-
-    LOG(debug) << "CovariateTerm::Kind = " << to_string(kind);
-
-    map<vector<size_t>, size_t> covvalues2idx;
-    for (size_t e = 0; e < E; ++e) {
-      vector<size_t> cov_values;
-      for (auto &cov_idx : cov_idxs)
-        cov_values.push_back(
-            design.dataset_specifications[e].covariate_values[cov_idx]);
-      auto iter = covvalues2idx.find(cov_values);
-      size_t idx;
-      if (iter != end(covvalues2idx)) {
-        idx = iter->second;
-        LOG(debug) << "Found previous covariate value combination: " << idx;
-      } else {
-        // this covariate value combination was not previously used
-        CovariateInformation info = {cov_idxs, cov_values};
-        CovariateTerm covterm(G, experiments[e].S, T, kind, info);
-        idx = covariates.size();
-        covariates.push_back(covterm);
-
-        LOG(debug) << "Creating new " << to_string(kind)
-                   << " covariate: " << idx;
-        covvalues2idx[cov_values] = idx;
-      }
-      experiments[e].covariate_idxs.push_back(idx);
-    }
-  }
-
+  for (auto covariate : rate_covariates)
+    LOG(debug) << "BEFORE rate " << to_string(covariate.kind) << " covariate"
+               << ": " << covariate.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].rate_covariate_idxs)
+      LOG(debug) << "BEFORE rate experiment " << e << " "
+                 << to_string(rate_covariates[idx].kind) << " covariate idx "
+                 << idx << ": "
+                 << rate_covariates[idx].info.to_string(design.covariates);
+  for (auto covariate : variance_covariates)
+    LOG(debug) << "BEFORE variance " << to_string(covariate.kind)
+               << " covariate"
+               << ": " << covariate.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].variance_covariate_idxs)
+      LOG(debug) << "BEFORE variance experiment " << e << " "
+                 << to_string(variance_covariates[idx].kind)
+                 << " covariate idx " << idx << ": "
+                 << variance_covariates[idx].info.to_string(design.covariates);
   remove_redundant_terms();
+  for (auto covariate : rate_covariates)
+    LOG(debug) << "AFTER rate " << to_string(covariate.kind) << " covariate"
+               << ": " << covariate.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].rate_covariate_idxs)
+      LOG(debug) << "AFTER rate experiment " << e << " "
+                 << to_string(rate_covariates[idx].kind) << " covariate idx "
+                 << idx << ": "
+                 << rate_covariates[idx].info.to_string(design.covariates);
+  for (auto covariate : variance_covariates)
+    LOG(debug) << "AFTER variance " << to_string(covariate.kind)
+               << " covariate"
+               << ": " << covariate.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].variance_covariate_idxs)
+      LOG(debug) << "AFTER variance experiment " << e << " "
+                 << to_string(variance_covariates[idx].kind)
+                 << " covariate idx " << idx << ": "
+                 << variance_covariates[idx].info.to_string(design.covariates);
 
-  {
-    for (auto &covariate : covariates)
-      if (covariate.kind == CovariateTerm::Kind::gene_type
-          or covariate.kind == CovariateTerm::Kind::spot_type)
-        for (auto &x : covariate.values)
-          x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
-      else
-        for (auto &x : covariate.values)
-          x = 1;
-  }
+  for (auto &covariate : rate_covariates)
+    if (covariate.kind == CovariateTerm::Kind::gene_type
+        or covariate.kind == CovariateTerm::Kind::spot_type)
+      for (auto &x : covariate.values)
+        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    else
+      for (auto &x : covariate.values)
+        x = 1;
+
+  for (auto &covariate : variance_covariates)
+    /*
+    if (covariate.kind == CovariateTerm::Kind::gene_type
+        or covariate.kind == CovariateTerm::Kind::spot_type)
+      for (auto &x : covariate.values)
+        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+    else
+    */
+    for (auto &x : covariate.values)
+      x = 1;
 
   initialize_coordinate_systems(1);
 
@@ -150,41 +205,71 @@ vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
 }
 
 void Model::remove_redundant_terms() {
-  remove_redundant_terms(CovariateTerm::Kind::scalar);
-  remove_redundant_terms(CovariateTerm::Kind::gene);
-  remove_redundant_terms(CovariateTerm::Kind::spot);
-  remove_redundant_terms(CovariateTerm::Kind::type);
-  remove_redundant_terms(CovariateTerm::Kind::gene_type);
-  remove_redundant_terms(CovariateTerm::Kind::spot_type);
+  remove_redundant_terms(CovariateTerm::Kind::scalar, rate_covariates, true);
+  remove_redundant_terms(CovariateTerm::Kind::gene, rate_covariates, true);
+  remove_redundant_terms(CovariateTerm::Kind::spot, rate_covariates, true);
+  remove_redundant_terms(CovariateTerm::Kind::type, rate_covariates, true);
+  remove_redundant_terms(CovariateTerm::Kind::gene_type, rate_covariates, true);
+  remove_redundant_terms(CovariateTerm::Kind::spot_type, rate_covariates, true);
+
+  remove_redundant_terms(CovariateTerm::Kind::scalar, variance_covariates,
+                         false);
+  remove_redundant_terms(CovariateTerm::Kind::gene, variance_covariates, false);
+  remove_redundant_terms(CovariateTerm::Kind::spot, variance_covariates, false);
+  remove_redundant_terms(CovariateTerm::Kind::type, variance_covariates, false);
+  remove_redundant_terms(CovariateTerm::Kind::gene_type, variance_covariates,
+                         false);
+  remove_redundant_terms(CovariateTerm::Kind::spot_type, variance_covariates,
+                         false);
 }
 
 // TODO covariates: add redundant term labels
-void Model::remove_redundant_terms(CovariateTerm::Kind kind) {
+void Model::remove_redundant_terms(CovariateTerm::Kind kind,
+                                   vector<CovariateTerm> &covariates,
+                                   bool is_rate) {
   vector<vector<size_t>> cov2groups(covariates.size());
   for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].covariate_idxs)
-      if (covariates[idx].kind == kind)
-        cov2groups[idx].push_back(e);
+    if (is_rate) {
+      for (auto idx : experiments[e].rate_covariate_idxs)
+        if (covariates[idx].kind == kind)
+          cov2groups[idx].push_back(e);
+    } else {
+      for (auto idx : experiments[e].variance_covariate_idxs)
+        if (covariates[idx].kind == kind)
+          cov2groups[idx].push_back(e);
+    }
   auto redundant = find_redundant(cov2groups);
   sort(begin(redundant), end(redundant));  // needed?
   size_t removed = 0;
   for (auto r : redundant) {
-    LOG(verbose) << "Removing " << to_string(covariates[r].kind)
-                 << " covariate " << r << ": "
+    LOG(verbose) << "Removing " << (is_rate ? "rate" : "variance") << " "
+                 << to_string(covariates[r].kind) << " covariate " << r << ": "
                  << covariates[r - removed].info.to_string(design.covariates);
     covariates.erase(begin(covariates) + r - removed);
     removed++;
   }
   for (size_t e = 0; e < E; ++e) {
-    for (auto r : redundant)
-      experiments[e].covariate_idxs.erase(
-          remove(begin(experiments[e].covariate_idxs),
-                 end(experiments[e].covariate_idxs), r),
-          end(experiments[e].covariate_idxs));
-    for (auto &idx : experiments[e].covariate_idxs)
+    if (is_rate) {
       for (auto r : redundant)
-        if (idx > r)
-          idx--;
+        experiments[e].rate_covariate_idxs.erase(
+            remove(begin(experiments[e].rate_covariate_idxs),
+                   end(experiments[e].rate_covariate_idxs), r),
+            end(experiments[e].rate_covariate_idxs));
+      for (auto &idx : experiments[e].rate_covariate_idxs)
+        for (auto r : redundant)
+          if (idx > r)
+            idx--;
+    } else {
+      for (auto r : redundant)
+        experiments[e].variance_covariate_idxs.erase(
+            remove(begin(experiments[e].variance_covariate_idxs),
+                   end(experiments[e].variance_covariate_idxs), r),
+            end(experiments[e].variance_covariate_idxs));
+      for (auto &idx : experiments[e].variance_covariate_idxs)
+        for (auto r : redundant)
+          if (idx > r)
+            idx--;
+    }
   }
 }
 
@@ -233,7 +318,7 @@ void Model::store(const string &prefix_, bool mean_and_var,
 #pragma omp section
     {
       map<CovariateTerm::Kind, size_t> kind_counts;
-      for (auto &covariate : covariates) {
+      for (auto &covariate : rate_covariates) {
         auto iter = kind_counts.insert(
             pair<CovariateTerm::Kind, size_t>(covariate.kind, 0));
         vector<string> spot_names;  // TODO cov
@@ -254,9 +339,23 @@ void Model::store(const string &prefix_, bool mean_and_var,
                unpack_labels(covariates_scalar, design.covariates));
 }
 */
+// TODO cov perhaps write out a single file for the scalar covariates
 #pragma omp section
-    write_matrix(negodds_rho, prefix + "feature-negodds_rho" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, type_names, order);
+    {
+      map<CovariateTerm::Kind, size_t> kind_counts;
+      for (auto &covariate : variance_covariates) {
+        auto iter = kind_counts.insert(
+            pair<CovariateTerm::Kind, size_t>(covariate.kind, 0));
+        vector<string> spot_names;  // TODO cov
+        covariate.store(prefix + "varcovariate-" + to_token(covariate.kind)
+                            + "-" + to_string_embedded(iter.first->second++, 2)
+                            + "_" + covariate.info.to_string(design.covariates)
+                            + FILENAME_ENDING,
+                        parameters.compression_mode, gene_names, spot_names,
+                        type_names, order);
+      }
+    }
+
 #pragma omp section
     {
       const size_t C = coordinate_systems.size();
@@ -350,18 +449,29 @@ void Model::store(const string &prefix_, bool mean_and_var,
 
 /* TODO covariates enable loading of subsets of covariates */
 void Model::restore(const string &prefix) {
-  map<CovariateTerm::Kind, size_t> kind_counts;
-  for (auto &covariate : covariates) {
-    auto iter = kind_counts.insert(
-        pair<CovariateTerm::Kind, size_t>(covariate.kind, 0));
-    covariate.restore(prefix + "covariate-" + to_token(covariate.kind) + "-"
-                      + to_string_embedded(iter.first->second++, 2) + "_"
-                      + covariate.info.to_string(design.covariates)
-                      + FILENAME_ENDING);
+  {
+    map<CovariateTerm::Kind, size_t> kind_counts;
+    for (auto &covariate : rate_covariates) {
+      auto iter = kind_counts.insert(
+          pair<CovariateTerm::Kind, size_t>(covariate.kind, 0));
+      covariate.restore(prefix + "covariate-" + to_token(covariate.kind) + "-"
+                        + to_string_embedded(iter.first->second++, 2) + "_"
+                        + covariate.info.to_string(design.covariates)
+                        + FILENAME_ENDING);
+    }
   }
 
-  negodds_rho = parse_file<Matrix>(
-      prefix + "feature-negodds_rho" + FILENAME_ENDING, read_matrix, "\t");
+  {
+    map<CovariateTerm::Kind, size_t> kind_counts;
+    for (auto &covariate : variance_covariates) {
+      auto iter = kind_counts.insert(
+          pair<CovariateTerm::Kind, size_t>(covariate.kind, 0));
+      covariate.restore(prefix + "varcovariate-" + to_token(covariate.kind)
+                        + "-" + to_string_embedded(iter.first->second++, 2)
+                        + "_" + covariate.info.to_string(design.covariates)
+                        + FILENAME_ENDING);
+    }
+  }
 
   {
     const size_t C = coordinate_systems.size();
@@ -400,9 +510,10 @@ Matrix Model::field_fitness_posterior_gradient() const {
 }
 
 void Model::setZero() {
-  for (auto &covariate : covariates)
+  for (auto &covariate : rate_covariates)
     covariate.values.setZero();
-  negodds_rho.setZero();
+  for (auto &covariate : variance_covariates)
+    covariate.values.setZero();
   for (auto &coord_sys : coordinate_systems)
     coord_sys.field.setZero();
   mix_prior.r.setZero();
@@ -413,14 +524,14 @@ void Model::setZero() {
 
 size_t Model::size() const {
   size_t s = 0;
-  for (auto &covariate : covariates)
+  for (auto &covariate : rate_covariates)
+    s += covariate.values.size();
+  for (auto &covariate : variance_covariates)
     s += covariate.values.size();
   if (parameters.targeted(Target::gamma_prior))
     s += 2;
   if (parameters.targeted(Target::rho_prior))
     s += 2;
-  if (parameters.targeted(Target::rho))
-    s += negodds_rho.size();
   if (parameters.targeted(Target::theta_prior))
     s += mix_prior.r.size() + mix_prior.p.size();
   if (parameters.targeted(Target::field))
@@ -435,7 +546,11 @@ Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
 
-  for (auto &covariate : covariates)
+  for (auto &covariate : rate_covariates)
+    for (auto &x : covariate.values)
+      *iter++ = x;
+
+  for (auto &covariate : variance_covariates)
     for (auto &x : covariate.values)
       *iter++ = x;
 
@@ -448,10 +563,6 @@ Vector Model::vectorize() const {
     *iter++ = parameters.hyperparameters.rho_1;
     *iter++ = parameters.hyperparameters.rho_2;
   }
-
-  if (parameters.targeted(Target::rho))
-    for (auto &x : negodds_rho)
-      *iter++ = x;
 
   if (parameters.targeted(Target::field))
     for (auto &coord_sys : coordinate_systems)
@@ -477,13 +588,15 @@ Vector Model::vectorize() const {
 Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
 
-  vector<Matrix> gt;
-  vector<Matrix> st;
+  vector<Matrix> rate_gt, rate_st;
+  vector<Matrix> variance_gt, variance_st;
 
   for (auto &coord_sys : coordinate_systems)
     for (auto e : coord_sys.members) {
-      gt.push_back(experiments[e].compute_gene_type_table());
-      st.push_back(experiments[e].compute_spot_type_table());
+      rate_gt.push_back(experiments[e].compute_gene_type_table_rate());
+      rate_st.push_back(experiments[e].compute_spot_type_table_rate());
+      variance_gt.push_back(experiments[e].compute_gene_type_table_variance());
+      variance_st.push_back(experiments[e].compute_spot_type_table_variance());
     }
 
   score = 0;
@@ -514,12 +627,16 @@ Model Model::compute_gradient(double &score) const {
             if (RandomDistribution::Uniform(rng)
                 >= parameters.dropout_gene_spot) {
               auto cnts = experiments[e].sample_contributions_gene_spot(
-                  g, s, gt[e], st[e], rng);
-              for (size_t t = 0; t < T; ++t)
-                score += log_negative_binomial(
-                    cnts[t], gt[e](g, t) * st[e](s, t),
-                    neg_odds_to_prob(negodds_rho(g, t)));
-              register_gradient(g, e, s, cnts, grad, gt[e], st[e]);
+                  g, s, rate_gt[e], rate_st[e], variance_gt[e], variance_st[e],
+                  rng);
+              for (size_t t = 0; t < T; ++t) {
+                double r = rate_gt[e](g, t) * rate_st[e](s, t);
+                double no = variance_gt[e](g, t) * variance_st[e](s, t);
+                double p = neg_odds_to_prob(no);
+                score += log_negative_binomial(cnts[t], r, p);
+              }
+              register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
+                                variance_gt[e], variance_st[e]);
             }
 #pragma omp critical
     {
@@ -597,6 +714,8 @@ double Model::compute_gradient_rho_prior(Model &gradient) const {
   const double hyper_gamma = 1;
   const double hyper_delta = 1;
 
+  // TODO cov var
+  /*
   for (size_t g = 0; g < G; ++g)
     for (size_t t = 0; t < T; ++t) {
       gradient.parameters.hyperparameters.rho_1 += log(negodds_rho(g, t))
@@ -605,6 +724,7 @@ double Model::compute_gradient_rho_prior(Model &gradient) const {
       gradient.parameters.hyperparameters.rho_2
           += -log(1 + negodds_rho(g, t)) + digamma_diff(b, a);
     }
+  */
 
   gradient.parameters.hyperparameters.rho_1 += hyper_alpha - 1 - a * hyper_beta;
   gradient.parameters.hyperparameters.rho_2
@@ -616,27 +736,32 @@ double Model::compute_gradient_rho_prior(Model &gradient) const {
 }
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                              Model &gradient, const Matrix &gt,
-                              const Matrix &st) const {
+                              Model &gradient, const Matrix &rate_gt,
+                              const Matrix &rate_st, const Matrix &variance_gt,
+                              const Matrix &variance_st) const {
   for (size_t t = 0; t < T; ++t)
     gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
   for (size_t t = 0; t < T; ++t)
     gradient.experiments[e].contributions_spot_type(s, t) += cnts[t];
 
   for (size_t t = 0; t < T; ++t) {
-    const double no = negodds_rho(g, t);
+    const double k = cnts[t];
+    const double r = rate_gt(g, t) * rate_st(s, t);
+    const double no = variance_gt(g, t) * variance_st(s, t);
     const double p = neg_odds_to_prob(no);
     const double log_one_minus_p = odds_to_log_prob(no);
-    const double r = gt(g, t) * st(s, t);
-    const double k = cnts[t];
-    const double term = r * (log_one_minus_p + digamma_diff(r, k));
 
-    for (auto &idx : gradient.experiments[e].covariate_idxs)
-      gradient.covariates[idx].get(g, t, s) += term;
-    gradient.experiments[e].theta(s, t) += term;
-    gradient.experiments[e].spot(s) += term;
+    const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
+    const double variance_term = p * (r + k) - k;
 
-    gradient.negodds_rho(g, t) += p * (r + k) - k;
+    for (auto &idx : gradient.experiments[e].rate_covariate_idxs)
+      gradient.rate_covariates[idx].get(g, t, s) += rate_term;
+
+    gradient.experiments[e].theta(s, t) += rate_term;
+    gradient.experiments[e].spot(s) += rate_term;
+
+    for (auto &idx : gradient.experiments[e].variance_covariate_idxs)
+      gradient.variance_covariates[idx].get(g, t, s) += variance_term;
   }
 }
 
@@ -648,21 +773,24 @@ void Model::finalize_gradient(Model &gradient) const {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
 
-    for (size_t i = 0; i < gradient.covariates.size(); ++i)
-      gradient.covariates[i].values.array()
-          += (a - 1) - covariates[i].values.array() * b;
+    for (size_t i = 0; i < gradient.rate_covariates.size(); ++i)
+      gradient.rate_covariates[i].values.array()
+          += (a - 1) - rate_covariates[i].values.array() * b;
   }
 
-  if (parameters.targeted(Target::rho)) {
+  {
+    // TODO check covariates prior contribution to gradient
     const double a = parameters.hyperparameters.rho_1;
     const double b = parameters.hyperparameters.rho_2;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) {
-        const double no = negodds_rho(g, t);
-        const double p = neg_odds_to_prob(no);
-        gradient.negodds_rho(g, t) += (a + b - 2) * p - a + 1;
+
+    for (size_t i = 0; i < gradient.variance_covariates.size(); ++i) {
+      for (size_t j = 0; j < gradient.variance_covariates[i].values.size();
+           ++j) {
+        double p = neg_odds_to_prob(variance_covariates[i].values.array()(j));
+        gradient.variance_covariates[i].values.array()(j)
+            += (a + b - 2) * p - a + 1;
       }
+    }
   }
 
   if (parameters.targeted(Target::theta))
@@ -787,6 +915,7 @@ double Model::param_likel() const {
           score += log_gamma_rate(experiments[e].spot(s), a, b);
   }
 
+  /* TODO cov cor likelihood
   if (parameters.targeted(Target::rho)) {
     const double a = parameters.hyperparameters.rho_1;
     const double b = parameters.hyperparameters.rho_2;
@@ -797,6 +926,7 @@ double Model::param_likel() const {
         score += log_beta_neg_odds(no, a, b);
       }
   }
+  */
 
   if (parameters.targeted(Target::theta_prior)) {
     {
@@ -833,7 +963,7 @@ void Model::gradient_update() {
     enforce_positive_parameters(parameters.min_value);
     double score = 0;
     Model model_grad = compute_gradient(score);
-    for (auto &covariate : model_grad.covariates)
+    for (auto &covariate : model_grad.rate_covariates)
       LOG(debug) << "Covariate, " << to_string(covariate.kind)
                  << " grad = " << Stats::summary(covariate.values);
     grad = model_grad.vectorize();
@@ -998,13 +1128,18 @@ double Model::field_gradient(const CoordinateSystem &coord_sys,
 }
 
 void Model::enforce_positive_parameters(double min_value) {
-  for (size_t i = 0; i < covariates.size(); ++i)
-    enforce_positive_and_warn(to_string(covariates[i].kind) + " covariate "
-                                  + to_string_embedded(i, 3),
-                              covariates[i].values, min_value,
-                              parameters.warn_lower_limit);
-  enforce_positive_and_warn("negodds_rho", negodds_rho, min_value,
-                            parameters.warn_lower_limit);
+  for (size_t i = 0; i < rate_covariates.size(); ++i)
+    enforce_positive_and_warn(
+        to_string(rate_covariates[i].kind) + " rate covariate "
+            + to_string_embedded(i, 3),
+        rate_covariates[i].values, min_value, parameters.warn_lower_limit);
+
+  for (size_t i = 0; i < variance_covariates.size(); ++i)
+    enforce_positive_and_warn(
+        to_string(variance_covariates[i].kind) + " variance covariate "
+            + to_string_embedded(i, 3),
+        variance_covariates[i].values, min_value, parameters.warn_lower_limit);
+
   enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value,
                             parameters.warn_lower_limit);
   enforce_positive_and_warn("mix_prior_p", mix_prior.p, min_value,
@@ -1179,9 +1314,12 @@ Model operator+(const Model &a, const Model &b) {
   model.contributions_gene_type += b.contributions_gene_type;
   model.contributions_gene += b.contributions_gene;
 
-  for (size_t i = 0; i < a.covariates.size(); ++i)
-    model.covariates[i].values.array() += b.covariates[i].values.array();
-  model.negodds_rho += b.negodds_rho;
+  for (size_t i = 0; i < a.rate_covariates.size(); ++i)
+    model.rate_covariates[i].values.array()
+        += b.rate_covariates[i].values.array();
+  for (size_t i = 0; i < a.variance_covariates.size(); ++i)
+    model.variance_covariates[i].values.array()
+        += b.variance_covariates[i].values.array();
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
 

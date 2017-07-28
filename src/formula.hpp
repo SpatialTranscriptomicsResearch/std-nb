@@ -20,7 +20,8 @@ struct Formula {
 std::ostream &operator<<(std::ostream &os, const Formula &formula);
 std::istream &operator>>(std::istream &is, Formula &formula);
 
-Formula DefaultFormula();
+Formula DefaultRateFormula();
+Formula DefaultVarianceFormula();
 bool check_formula(const Formula &formula);
 
 #endif

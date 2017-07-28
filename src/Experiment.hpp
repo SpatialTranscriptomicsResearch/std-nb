@@ -38,7 +38,7 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<size_t> covariate_idxs;
+  std::vector<size_t> rate_covariate_idxs, variance_covariate_idxs;
 
   /** factor score matrix */
   Matrix theta;
@@ -66,14 +66,16 @@ struct Experiment {
   Matrix field_fitness_posterior_gradient() const;
 
   /** sample count decomposition */
-  Vector sample_contributions_gene_spot(size_t g, size_t s, const Matrix &gt,
-                                        const Matrix &st, RNG &rng) const;
+  Vector sample_contributions_gene_spot(
+      size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
+      const Matrix &variance_gt, const Matrix &variance_st, RNG &rng) const;
 
-  Matrix compute_gene_type_table() const;
-  Matrix compute_spot_type_table() const;
+  Matrix compute_gene_type_table_rate() const;
+  Matrix compute_gene_type_table_variance() const;
+  Matrix compute_spot_type_table_rate() const;
+  Matrix compute_spot_type_table_variance() const;
 
   Vector marginalize_genes() const;
-  Vector marginalize_spots() const;
 
   Matrix expectation() const;
   Matrix variance() const;

@@ -82,7 +82,7 @@ void write_matrix(const M &m, const std::string &path, CompressionMode mode,
     }
     for (size_t x = 0; x < X; ++x) {
       if (row_names_given)
-        ofs << row_names[row_order[x]] + separator;
+        ofs << row_names[x] + separator;
       for (size_t y = 0; y < Y; ++y)
         ofs << (y != 0 ? separator : "") << m(row_order[x], col_order[y]);
       ofs << '\n';

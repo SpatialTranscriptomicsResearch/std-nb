@@ -15,7 +15,6 @@ using namespace std;
 
 struct Options {
   vector<string> tsv_paths;
-  Formula formula = DefaultFormula();
   string design_path;
   Design design;
   size_t num_factors = 20;
@@ -36,7 +35,7 @@ struct Options {
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
-  STD::Model pfa(data_sets, options.num_factors, options.formula,
+  STD::Model pfa(data_sets, options.num_factors,
                  options.design, parameters, options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
@@ -116,8 +115,8 @@ int main(int argc, char **argv) {
      "Prefix for generated output files.")
     ("fields", po::bool_switch(&options.fields),
      "Activate fields.")
-    ("formula,f", po::value(&options.formula)->default_value(options.formula),
-     "Regression formula for negative binomial rate covariates. "
+    ("formula,f", po::value(&parameters.rate_formula)->default_value(parameters.rate_formula),
+     "Regression formula for the rate parameter of negative binomial rate. "
      "Arbitrary covariates annotated to the input files in the design matrix file. "
      "Additionally, the following covariates are predefined by default:\n"
      "gene    \tcovariate with values for every gene\n"
@@ -125,6 +124,9 @@ int main(int argc, char **argv) {
      "section \tcovariate with values for every input file. "
      "Note that in case you have split one section's spots into two different count matrix input files, you can specify your own 'section' column in the design matrix file and give the correct input file to section mapping there.\n"
      "1       \tcovariate serving as an intercept term to set overall baseline")
+    ("varformula", po::value(&parameters.variance_formula)->default_value(parameters.variance_formula),
+     "Regression formula for the variance parameter of negative binomial rate. "
+     "See information on --formula for syntax.")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("bot", po::value(&options.bottom)->default_value(options.bottom),
@@ -333,7 +335,8 @@ int main(int argc, char **argv) {
     parameters.targets = parameters.targets | STD::Target::field;
 
   LOG(verbose) << "Inference targets = " << parameters.targets;
-  LOG(verbose) << "Regression formula = " << options.formula;
+  LOG(verbose) << "Rate regression formula = " << parameters.rate_formula;
+  LOG(verbose) << "Variance regression formula = " << parameters.variance_formula;
 
   try {
     run(data_sets, options, parameters);
