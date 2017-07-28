@@ -18,9 +18,9 @@ using vs = vector<string>;
 using vvs = vector<vs>;
 using combinator = function<vvs(const vvs&, const vvs&)>;
 
-template <typename T> struct std::hash<vector<T>> {
-  size_t operator()(const vector<T>& xs) const
-  {
+template <typename T>
+struct std::hash<vector<T>> {
+  size_t operator()(const vector<T>& xs) const {
     size_t h = 0;
     for (auto& x : xs) {
       h ^= hash<T>()(x);
@@ -29,7 +29,8 @@ template <typename T> struct std::hash<vector<T>> {
   }
 };
 
-static vvs apply_operator(const char& sym, const combinator& c, const string& s);
+static vvs apply_operator(const char& sym, const combinator& c,
+                          const string& s);
 static vvs parse(const string& s);
 static vvs simplify(const vvs& xss);
 static vs split_outside_parens(const char& sep, const string& str);
@@ -46,15 +47,13 @@ static vector<pair<char, combinator>> operators{
   make_pair('^', exponentiate),
 };
 
-static vvs concatenate(const vvs& a, const vvs& b)
-{
+static vvs concatenate(const vvs& a, const vvs& b) {
   vvs ret(a);
   ret.insert(ret.end(), b.begin(), b.end());
   return simplify(ret);
 }
 
-static vvs interact(const vvs& a, const vvs& b)
-{
+static vvs interact(const vvs& a, const vvs& b) {
   vvs ret;
   for (auto& x : a) {
     for (auto& y : b) {
@@ -66,13 +65,11 @@ static vvs interact(const vvs& a, const vvs& b)
   return simplify(ret);
 }
 
-static vvs multiply(const vvs& a, const vvs& b)
-{
+static vvs multiply(const vvs& a, const vvs& b) {
   return concatenate(concatenate(a, b), interact(a, b));
 }
 
-static vvs exponentiate(const vvs& a, const vvs& b)
-{
+static vvs exponentiate(const vvs& a, const vvs& b) {
   if (b.size() != 1 or b[0].size() != 1) {
     throw std::invalid_argument("Exponent cannot be an expression.");
   }
@@ -88,32 +85,31 @@ static vvs exponentiate(const vvs& a, const vvs& b)
   if (exp == 1) {
     return a;
   }
-  return multiply(a, exponentiate(a, vvs{ { std::to_string(exp - 1) } }));
+  return multiply(a, exponentiate(a, vvs{{std::to_string(exp - 1)}}));
 }
 
-static vs split_outside_parens(const char& sep, const string& str)
-{
+static vs split_outside_parens(const char& sep, const string& str) {
   string trimmed = trim(str);
   int pstack = 0, pcount = 0;
   vector<string> ret;
   string cur;
   for (auto& c : trimmed) {
     switch (c) {
-    case '(':
-      ++pstack;
-      break;
-    case ')':
-      if (--pstack < 0) {
-        throw std::invalid_argument("Too many closing brackets.");
-      }
-      pcount += pstack == 0;
-      break;
-    default:
-      if (c == sep and pstack == 0) {
-        ret.push_back(trim(cur));
-        cur.clear();
-        continue;
-      }
+      case '(':
+        ++pstack;
+        break;
+      case ')':
+        if (--pstack < 0) {
+          throw std::invalid_argument("Too many closing brackets.");
+        }
+        pcount += pstack == 0;
+        break;
+      default:
+        if (c == sep and pstack == 0) {
+          ret.push_back(trim(cur));
+          cur.clear();
+          continue;
+        }
     }
     cur.push_back(c);
   }
@@ -127,17 +123,17 @@ static vs split_outside_parens(const char& sep, const string& str)
   return ret;
 }
 
-static vvs apply_operator(const char& sym, const combinator& c, const string& s)
-{
+static vvs apply_operator(const char& sym, const combinator& c,
+                          const string& s) {
   vs split = split_outside_parens(sym, s);
   if (any_of(split.begin(), split.end(),
-          [](const string& s_) { return s_ == ""; })) {
+             [](const string& s_) { return s_ == ""; })) {
     throw std::invalid_argument("Found empty operand.");
   }
   if (split.size() == 1) {
     return vvs();
   }
-  vvs ret{ parse(split[0]) };
+  vvs ret{parse(split[0])};
   for (size_t i = 1; i < split.size(); ++i) {
     vvs sub_res = parse(split[i]);
     ret = c(ret, sub_res);
@@ -145,8 +141,7 @@ static vvs apply_operator(const char& sym, const combinator& c, const string& s)
   return ret;
 }
 
-static vvs simplify(const vvs& xss)
-{
+static vvs simplify(const vvs& xss) {
   unordered_set<vs> seen_covariates;
   for (auto& xs : xss) {
     set<string> seen_terms;
@@ -158,8 +153,7 @@ static vvs simplify(const vvs& xss)
   return vvs(seen_covariates.begin(), seen_covariates.end());
 }
 
-static vvs parse(const string& s)
-{
+static vvs parse(const string& s) {
   if (s.empty())
     return vvs();
   for (auto& op : operators) {
@@ -168,7 +162,7 @@ static vvs parse(const string& s)
       return res;
     }
   }
-  return vvs{ { s } };
+  return vvs{{s}};
 }
 
 Formula::Formula(const string& str) { from_string(str); }
@@ -178,8 +172,7 @@ void Formula::from_string(const string& str) {
   sort(terms.begin(), terms.end());
 }
 
-string Formula::to_string() const
-{
+string Formula::to_string() const {
   vs covariates;
   for (const Term& x : terms) {
     covariates.push_back(intercalate(x, string(":")));
@@ -187,19 +180,14 @@ string Formula::to_string() const
   return intercalate(covariates, string("+"));
 }
 
-Formula DefaultFormula()
-{
-  return Formula("1+gene*(type+section)");
-}
+Formula DefaultFormula() { return Formula("1+gene*(type+section)"); }
 
-std::ostream& operator<<(std::ostream& os, const Formula& formula)
-{
+std::ostream& operator<<(std::ostream& os, const Formula& formula) {
   os << formula.to_string();
   return os;
 }
 
-std::istream& operator>>(std::istream& is, Formula& formula)
-{
+std::istream& operator>>(std::istream& is, Formula& formula) {
   string token;
   getline(is, token);
   formula.from_string(token);
