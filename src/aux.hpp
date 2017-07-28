@@ -4,6 +4,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iterator>
+#include <numeric>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -143,5 +144,20 @@ void enforce_positive_and_warn(const std::string &tag, std::vector<double> &v,
 std::vector<std::string> split_at(char sep, const std::string &str);
 
 std::string trim(const std::string &str, char sym = ' ');
+
+/**
+ * Intersperses vector by a given symbol and concatenates the result.
+ */
+template <typename T>
+T intercalate(const std::vector<T>& xs, const T& x)
+{
+  std::vector<T> ret;
+  ret.push_back(xs[0]);
+  for (size_t i = 1; i < xs.size(); ++i) {
+    ret.push_back(x);
+    ret.push_back(xs[i]);
+  }
+  return std::accumulate(ret.begin(), ret.end(), T());
+}
 
 #endif
