@@ -18,8 +18,9 @@ using vs = vector<string>;
 using vvs = vector<vs>;
 using combinator = function<vvs(const vvs&, const vvs&)>;
 
+namespace std {
 template <typename T>
-struct std::hash<vector<T>> {
+struct hash<vector<T>> {
   size_t operator()(const vector<T>& xs) const {
     size_t h = 0;
     for (auto& x : xs) {
@@ -28,6 +29,7 @@ struct std::hash<vector<T>> {
     return h;
   }
 };
+}
 
 static vvs apply_operator(const char& sym, const combinator& c,
                           const string& s);
