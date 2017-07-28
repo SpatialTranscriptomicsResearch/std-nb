@@ -153,8 +153,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
                  << idx << ": "
                  << rate_covariates[idx].info.to_string(design.covariates);
   for (auto covariate : variance_covariates)
-    LOG(debug) << "AFTER variance " << to_string(covariate.kind)
-               << " covariate"
+    LOG(debug) << "AFTER variance " << to_string(covariate.kind) << " covariate"
                << ": " << covariate.info.to_string(design.covariates);
   for (size_t e = 0; e < E; ++e)
     for (auto idx : experiments[e].variance_covariate_idxs)
@@ -784,7 +783,8 @@ void Model::finalize_gradient(Model &gradient) const {
     const double b = parameters.hyperparameters.rho_2;
 
     for (size_t i = 0; i < gradient.variance_covariates.size(); ++i) {
-      for (size_t j = 0; j < gradient.variance_covariates[i].values.size();
+      for (size_t j = 0; j < static_cast<size_t>(
+                                 gradient.variance_covariates[i].values.size());
            ++j) {
         double p = neg_odds_to_prob(variance_covariates[i].values.array()(j));
         gradient.variance_covariates[i].values.array()(j)
