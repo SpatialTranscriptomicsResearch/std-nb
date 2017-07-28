@@ -74,16 +74,16 @@ static vvs multiply(const vvs& a, const vvs& b)
 static vvs exponentiate(const vvs& a, const vvs& b)
 {
   if (b.size() != 1 or b[0].size() != 1) {
-    throw new std::invalid_argument("Exponent cannot be an expression.");
+    throw std::invalid_argument("Exponent cannot be an expression.");
   }
   int exp;
   try {
     exp = stoi(b[0][0]);
   } catch (const std::invalid_argument&) {
-    throw new std::invalid_argument("Exponent must be numeric.");
+    throw std::invalid_argument("Exponent must be numeric.");
   }
   if (not(exp > 0)) {
-    throw new std::invalid_argument("Exponent must be positive.");
+    throw std::invalid_argument("Exponent must be positive.");
   }
   if (exp == 1) {
     return a;
@@ -104,7 +104,7 @@ static vs split_outside_parens(const char& sep, const string& str)
       break;
     case ')':
       if (--pstack < 0) {
-        throw new std::invalid_argument("Too many closing brackets.");
+        throw std::invalid_argument("Too many closing brackets.");
       }
       pcount += pstack == 0;
       break;
@@ -118,7 +118,7 @@ static vs split_outside_parens(const char& sep, const string& str)
     cur.push_back(c);
   }
   if (pstack > 0) {
-    throw new std::invalid_argument("Too many opening brackets.");
+    throw std::invalid_argument("Too many opening brackets.");
   }
   if (pcount == 1 and trimmed.front() == '(' and trimmed.back() == ')') {
     return split_outside_parens(sep, trimmed.substr(1, trimmed.size() - 2));
@@ -132,7 +132,7 @@ static vvs apply_operator(const char& sym, const combinator& c, const string& s)
   vs split = split_outside_parens(sym, s);
   if (any_of(split.begin(), split.end(),
           [](const string& s_) { return s_ == ""; })) {
-    throw new std::invalid_argument("Found empty operand.");
+    throw std::invalid_argument("Found empty operand.");
   }
   if (split.size() == 1) {
     return vvs();
