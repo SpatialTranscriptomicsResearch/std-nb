@@ -329,15 +329,7 @@ void Model::store(const string &prefix_, bool mean_and_var,
                         type_names, order);
       }
     }
-/* TODO cov
-#pragma omp section
-{
-  write_vector(unpack_values(covariates_scalar),
-               prefix + "covariate-scalar" + FILENAME_ENDING,
-               parameters.compression_mode,
-               unpack_labels(covariates_scalar, design.covariates));
-}
-*/
+
 // TODO cov perhaps write out a single file for the scalar covariates
 #pragma omp section
     {
