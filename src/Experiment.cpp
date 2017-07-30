@@ -601,15 +601,17 @@ Matrix Experiment::expectation() const {
   Matrix mean(G, S);
   Matrix rate_gt = compute_gene_type_table_rate();
   Matrix variance_gt = compute_gene_type_table_variance();
+  Matrix mean_gt = rate_gt.array() / variance_gt.array();
+
   Matrix rate_st = compute_spot_type_table_rate();
   Matrix variance_st = compute_spot_type_table_variance();
+  Matrix mean_st = rate_st.array() / variance_st.array();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       double x = 0;
       for (size_t t = 0; t < T; ++t)
-        x += rate_gt(g, t) * rate_st(s, t)
-             / (variance_gt(g, t) * variance_st(s, t));
+        x += mean_gt(g, t) * mean_st(s, t);
       mean(g, s) = x;
     }
   return mean;
