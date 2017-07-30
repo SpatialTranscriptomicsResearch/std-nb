@@ -654,15 +654,11 @@ Matrix Experiment::expected_spot_type() const {
               / compute_gene_type_table_variance().array();
   Vector gt_cs = colSums<Vector>(gt);
 
-  Matrix expected = theta.array() * compute_spot_type_table_rate().array()
+  Matrix expected = compute_spot_type_table_rate().array()
               / compute_spot_type_table_variance().array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];
-  for (size_t t = 0; t < T; ++t)
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t s = 0; s < S; ++s)
-      expected(s, t) *= spot(s);
   return expected;
 }
 
