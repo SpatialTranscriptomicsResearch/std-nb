@@ -764,6 +764,7 @@ void Model::finalize_gradient(Model &gradient) const {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
 
+#pragma omp parallel for if (DO_PARALLEL)
     for (size_t i = 0; i < gradient.rate_covariates.size(); ++i)
       gradient.rate_covariates[i].values.array()
           += (a - 1) - rate_covariates[i].values.array() * b;
@@ -774,7 +775,8 @@ void Model::finalize_gradient(Model &gradient) const {
     const double a = parameters.hyperparameters.rho_1;
     const double b = parameters.hyperparameters.rho_2;
 
-    for (size_t i = 0; i < gradient.variance_covariates.size(); ++i) {
+    for (size_t i = 0; i < gradient.variance_covariates.size(); ++i)
+#pragma omp parallel for if (DO_PARALLEL)
       for (size_t j = 0; j < static_cast<size_t>(
                                  gradient.variance_covariates[i].values.size());
            ++j) {
@@ -782,7 +784,6 @@ void Model::finalize_gradient(Model &gradient) const {
         gradient.variance_covariates[i].values.array()(j)
             += (a + b - 2) * p - a + 1;
       }
-    }
   }
 
   if (parameters.targeted(Target::theta))
