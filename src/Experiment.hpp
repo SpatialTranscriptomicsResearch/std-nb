@@ -108,7 +108,6 @@ struct Experiment {
         x = exp(*iter++);
     }
   }
-  std::vector<std::vector<size_t>> active_factors(double threshold = 1.0) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);

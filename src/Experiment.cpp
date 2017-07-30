@@ -662,19 +662,6 @@ Matrix Experiment::expected_spot_type() const {
   return expected;
 }
 
-vector<vector<size_t>> Experiment::active_factors(double threshold) const {
-  auto w = expected_spot_type();
-  vector<vector<size_t>> vs;
-  for (size_t s = 0; s < S; ++s) {
-    vector<size_t> v;
-    for (size_t t = 0; t < T; ++t)
-      if (w(s, t) > threshold)
-        v.push_back(t);
-    vs.push_back(v);
-  }
-  return vs;
-}
-
 size_t Experiment::size() const {
   size_t s = 0;
   if (parameters.targeted(Target::theta))
