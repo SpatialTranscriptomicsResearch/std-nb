@@ -29,7 +29,8 @@ struct Model {
 
   Parameters parameters;
 
-  std::vector<CovariateTerm> rate_covariates, variance_covariates;
+  using Coefficients = std::vector<Coefficient>;
+  Coefficients coeffs;
 
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
@@ -51,11 +52,11 @@ struct Model {
   Model(const std::vector<Counts> &data, size_t T, const Design &design,
         const Parameters &parameters, bool same_coord_sys);
   void remove_redundant_terms();
-  void remove_redundant_terms(CovariateTerm::Kind kind,
-                              std::vector<CovariateTerm> &covariates,
-                              bool is_rate);
+  void remove_redundant_terms(Coefficient::Variable variable,
+                              Coefficient::Kind kind);
 
-  void add_covariate_terms(const Formula::Term &term, bool is_rate);
+  void add_covariate_terms(const Formula::Term &term,
+                           Coefficient::Variable variable);
   void setZero();
   Model compute_gradient(double &score) const;
   double compute_gradient_gamma_prior(Model &gradient) const;
@@ -69,13 +70,8 @@ struct Model {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter iter) {
-    for (auto &covariate : rate_covariates)
-      for (auto &x : covariate.values)
-        x = exp(*iter++);
-
-    for (auto &covariate : variance_covariates)
-      for (auto &x : covariate.values)
-        x = exp(*iter++);
+    for (auto &coeff : coeffs)
+      coeff.from_log_vector(iter);
 
     if (parameters.targeted(Target::gamma_prior)) {
       LOG(debug) << "Getting gamma prior from vector";

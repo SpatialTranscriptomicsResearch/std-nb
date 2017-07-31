@@ -5,6 +5,7 @@
 #include "Theta.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
+#include "covariate.hpp"
 #include "entropy.hpp"
 #include "odds.hpp"
 #include "parameters.hpp"
@@ -38,7 +39,7 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<size_t> rate_covariate_idxs, variance_covariate_idxs;
+  std::vector<size_t> coeff_idxs;
 
   /** factor score matrix */
   Matrix theta;
@@ -70,10 +71,8 @@ struct Experiment {
       size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
       const Matrix &variance_gt, const Matrix &variance_st, RNG &rng) const;
 
-  Matrix compute_gene_type_table_rate() const;
-  Matrix compute_gene_type_table_variance() const;
-  Matrix compute_spot_type_table_rate() const;
-  Matrix compute_spot_type_table_variance() const;
+  Matrix compute_gene_type_table(Coefficient::Variable variable) const;
+  Matrix compute_spot_type_table(Coefficient::Variable variable) const;
 
   Vector marginalize_genes() const;
 

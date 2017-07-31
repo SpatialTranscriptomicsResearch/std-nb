@@ -205,60 +205,41 @@ Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
 }
 
 // NOTE: scalar covariates are multiplied into this table
-Matrix Experiment::compute_gene_type_table_rate() const {
+Matrix Experiment::compute_gene_type_table(
+    Coefficient::Variable variable) const {
   Matrix gt = Matrix::Ones(G, T);
 
   // TODO cov make more efficient
-  for (auto &idx : rate_covariate_idxs)
-    if (not model->rate_covariates[idx].spot_dependent())
+  for (auto &idx : coeff_idxs)
+    if (model->coeffs[idx].variable == variable
+        and not model->coeffs[idx].spot_dependent())
       for (size_t g = 0; g < G; ++g)
         for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= model->rate_covariates[idx].get(g, t, 0);
-
-  return gt;
-}
-
-// NOTE: scalar covariates are multiplied into this table
-Matrix Experiment::compute_gene_type_table_variance() const {
-  Matrix gt = Matrix::Ones(G, T);
-
-  // TODO cov make more efficient
-  for (auto &idx : variance_covariate_idxs)
-    if (not model->variance_covariates[idx].spot_dependent())
-      for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= model->variance_covariates[idx].get(g, t, 0);
+          gt(g, t) *= model->coeffs[idx].get(g, t, 0);
 
   return gt;
 }
 
 // NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table_rate() const {
-  Matrix st = theta;
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t)
-      st(s, t) *= spot(s);
+Matrix Experiment::compute_spot_type_table(
+    Coefficient::Variable variable) const {
+  Matrix st;
+  if (variable == Coefficient::Variable::rate) {
+    st = theta;
+    for (size_t s = 0; s < S; ++s)
+      for (size_t t = 0; t < T; ++t)
+        st(s, t) *= spot(s);
+  } else {
+    st = Matrix::Ones(S, T);
+  }
 
   // TODO cov make more efficient
-  for (auto &idx : rate_covariate_idxs)
-    if (model->rate_covariates[idx].spot_dependent())
+  for (auto &idx : coeff_idxs)
+    if (model->coeffs[idx].variable == variable
+        and model->coeffs[idx].spot_dependent())
       for (size_t s = 0; s < S; ++s)
         for (size_t t = 0; t < T; ++t)
-          st(s, t) *= model->rate_covariates[idx].get(0, t, s);
-
-  return st;
-}
-
-// NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table_variance() const {
-  Matrix st = Matrix::Ones(S, T);
-
-  // TODO cov make more efficient
-  for (auto &idx : variance_covariate_idxs)
-    if (model->variance_covariates[idx].spot_dependent())
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          st(s, t) *= model->variance_covariates[idx].get(0, t, s);
+          st(s, t) *= model->coeffs[idx].get(0, t, s);
 
   return st;
 }
@@ -574,15 +555,15 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
 /* TODO cov var
 Vector Experiment::marginalize_genes() const {
 
-  Matrix gt = compute_gene_type_table_rate().array()
-              / compute_gene_type_table_variance().array();
+  Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
+              / compute_gene_type_table(Coefficient::Variable::variance).array();
   Vector gt_cs = colSums<Vector>(gt);
 
   Vector intensities = Vector::Zero(T);
-  Matrix gt = compute_gene_type_table_rate().array()
-              / compute_gene_type_table_variance().array();
-  // Matrix st = compute_spot_type_table_rate().array()
-  //             / compute_spot_type_table_variance().array();
+  Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
+              / compute_gene_type_table(Coefficient::Variable::variance).array();
+  // Matrix st = compute_spot_type_table(Coefficient::Variable::rate).array()
+  //             / compute_spot_type_table(Coefficient::Variable::variance).array();
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
 #pragma omp parallel for reduction(+ : intensity) if (DO_PARALLEL)
@@ -599,12 +580,12 @@ Vector Experiment::marginalize_genes() const {
 
 Matrix Experiment::expectation() const {
   Matrix mean(G, S);
-  Matrix rate_gt = compute_gene_type_table_rate();
-  Matrix variance_gt = compute_gene_type_table_variance();
+  Matrix rate_gt = compute_gene_type_table(Coefficient::Variable::rate);
+  Matrix variance_gt = compute_gene_type_table(Coefficient::Variable::variance);
   Matrix mean_gt = rate_gt.array() / variance_gt.array();
 
-  Matrix rate_st = compute_spot_type_table_rate();
-  Matrix variance_st = compute_spot_type_table_variance();
+  Matrix rate_st = compute_spot_type_table(Coefficient::Variable::rate);
+  Matrix variance_st = compute_spot_type_table(Coefficient::Variable::variance);
   Matrix mean_st = rate_st.array() / variance_st.array();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -619,10 +600,10 @@ Matrix Experiment::expectation() const {
 
 Matrix Experiment::variance() const {
   Matrix var(G, S);
-  Matrix rate_gt = compute_gene_type_table_rate();
-  Matrix rate_st = compute_spot_type_table_rate();
-  Matrix variance_gt = compute_gene_type_table_variance();
-  Matrix variance_st = compute_spot_type_table_variance();
+  Matrix rate_gt = compute_gene_type_table(Coefficient::Variable::rate);
+  Matrix rate_st = compute_spot_type_table(Coefficient::Variable::rate);
+  Matrix variance_gt = compute_gene_type_table(Coefficient::Variable::variance);
+  Matrix variance_st = compute_spot_type_table(Coefficient::Variable::variance);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
@@ -637,12 +618,14 @@ Matrix Experiment::variance() const {
 }
 
 Matrix Experiment::expected_gene_type() const {
-  Matrix st = compute_spot_type_table_rate().array()
-              / compute_spot_type_table_variance().array();
+  Matrix st
+      = compute_spot_type_table(Coefficient::Variable::rate).array()
+        / compute_spot_type_table(Coefficient::Variable::variance).array();
   Vector st_cs = colSums<Vector>(st);
 
-  Matrix expected = compute_gene_type_table_rate().array()
-              / compute_gene_type_table_variance().array();
+  Matrix expected
+      = compute_gene_type_table(Coefficient::Variable::rate).array()
+        / compute_gene_type_table(Coefficient::Variable::variance).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= st_cs[t];
@@ -650,12 +633,14 @@ Matrix Experiment::expected_gene_type() const {
 }
 
 Matrix Experiment::expected_spot_type() const {
-  Matrix gt = compute_gene_type_table_rate().array()
-              / compute_gene_type_table_variance().array();
+  Matrix gt
+      = compute_gene_type_table(Coefficient::Variable::rate).array()
+        / compute_gene_type_table(Coefficient::Variable::variance).array();
   Vector gt_cs = colSums<Vector>(gt);
 
-  Matrix expected = compute_spot_type_table_rate().array()
-              / compute_spot_type_table_variance().array();
+  Matrix expected
+      = compute_spot_type_table(Coefficient::Variable::rate).array()
+        / compute_spot_type_table(Coefficient::Variable::variance).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];
