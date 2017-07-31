@@ -19,7 +19,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       parameters(parameters_),
       theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
-      spot(Vector::Ones(S)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
       contributions_gene(rowSums<Vector>(*counts.matrix)),
@@ -30,14 +29,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
    * contributions_spot_type
    */
   LOG(debug) << "Coords: " << coords;
-
-  if (parameters.targeted(Target::spot)) {
-    LOG(debug) << "Initializing spot scaling: linear in number of counts, "
-                  "scaled so that mean = 1.";
-    spot = contributions_spot;
-    // divide by mean
-    spot *= S / spot.sum();
-  }
 
   // TODO initialize theta using parameters, model->mix_prior
   if (parameters.targeted(Target::theta))
@@ -65,9 +56,6 @@ void Experiment::store(const string &prefix,
 #pragma omp section
     write_matrix(theta, prefix + "theta" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
-#pragma omp section
-    write_vector(spot, prefix + "spot-scaling" + FILENAME_ENDING,
-                 parameters.compression_mode, spot_names);
 #pragma omp section
     write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
@@ -117,8 +105,6 @@ void Experiment::restore(const string &prefix) {
                              "\t");
   field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
                              read_matrix, "\t");
-  spot = parse_file<Vector>(prefix + "spot-scaling" + FILENAME_ENDING,
-                            read_vector<Vector>, "\t");
 
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
@@ -224,14 +210,10 @@ Matrix Experiment::compute_gene_type_table(
 Matrix Experiment::compute_spot_type_table(
     Coefficient::Variable variable) const {
   Matrix st;
-  if (variable == Coefficient::Variable::rate) {
+  if (variable == Coefficient::Variable::rate)
     st = theta;
-    for (size_t s = 0; s < S; ++s)
-      for (size_t t = 0; t < T; ++t)
-        st(s, t) *= spot(s);
-  } else {
+  else
     st = Matrix::Ones(S, T);
-  }
 
   // TODO cov make more efficient
   for (auto &idx : coeff_idxs)
@@ -523,7 +505,6 @@ Vector Experiment::sample_contributions_gene_spot(
 void Experiment::enforce_positive_parameters() {
   enforce_positive_and_warn("theta", theta);
   enforce_positive_and_warn("local field", field);
-  enforce_positive_and_warn("spot", spot);
 }
 
 /** Calculate log posterior of theta with respect to the field */
@@ -653,15 +634,12 @@ size_t Experiment::size() const {
     s += theta.size();
   if (parameters.targeted(Target::field))
     s += field.size();
-  if (parameters.targeted(Target::spot))
-    s += spot.size();
   return s;
 }
 
 void Experiment::setZero() {
   theta.setZero();
   field.setZero();
-  spot.setZero();
 }
 
 Vector Experiment::vectorize() const {
@@ -672,9 +650,6 @@ Vector Experiment::vectorize() const {
       *iter++ = x;
   if (parameters.targeted(Target::field))
     for (auto &x : field)
-      *iter++ = x;
-  if (parameters.targeted(Target::spot))
-    for (auto &x : spot)
       *iter++ = x;
 
   assert(iter == end(v));
@@ -711,8 +686,6 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
   experiment.contributions_spot_type += b.contributions_spot_type;
   experiment.contributions_gene += b.contributions_gene;
   experiment.contributions_spot += b.contributions_spot;
-
-  experiment.spot += b.spot;
 
   experiment.theta += b.theta;
 

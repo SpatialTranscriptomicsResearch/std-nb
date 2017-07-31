@@ -146,6 +146,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     else
       for (auto &x : coeff.values)
         x = 1;
+  // TODO cov spot initialize spot scaling:
+  // linear in number of counts, scaled so that mean = 1
 
   initialize_coordinate_systems(1);
 
@@ -505,9 +507,10 @@ Model Model::compute_gradient(double &score) const {
   if (parameters.targeted(Target::covariates_scalar)
       or parameters.targeted(Target::covariates_gene)
       or parameters.targeted(Target::covariates_type)
+      // TODO cov spot or parameters.targeted(Target::covariates_spot)
       or parameters.targeted(Target::covariates_gene_type)
-      or parameters.targeted(Target::rho) or parameters.targeted(Target::theta)
-      or parameters.targeted(Target::spot))
+      // TODO cov spot or parameters.targeted(Target::covariates_spot_type)
+      or parameters.targeted(Target::theta))
 #pragma omp parallel if (DO_PARALLEL)
   {
     Model grad = gradient;
@@ -662,7 +665,6 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
       }
 
     gradient.experiments[e].theta(s, t) += rate_term;
-    gradient.experiments[e].spot(s) += rate_term;
   }
 }
 
@@ -683,17 +685,6 @@ void Model::finalize_gradient(Model &gradient) const {
             gradient.experiments[e].theta(s, t)
                 += (a - 1) - experiments[e].theta(s, t) * b;
           }
-
-  if (parameters.targeted(Target::spot)) {
-    const double a = parameters.hyperparameters.spot_a;
-    const double b = parameters.hyperparameters.spot_b;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t s = 0; s < experiments[e].S; ++s)
-          gradient.experiments[e].spot(s)
-              += (a - 1) - experiments[e].spot(s) * b;
-  }
 
   if (parameters.targeted(Target::theta_prior)) {
     gradient.mix_prior.r.setZero();
@@ -783,16 +774,6 @@ double Model::param_likel() const {
             const double b = mix_prior.p(t);
             score += log_gamma_rate(experiments[e].theta(s, t), a, b);
           }
-
-  if (parameters.targeted(Target::spot)) {
-    const double a = parameters.hyperparameters.spot_a;
-    const double b = parameters.hyperparameters.spot_b;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t s = 0; s < experiments[e].S; ++s)
-          score += log_gamma_rate(experiments[e].spot(s), a, b);
-  }
 
   /* TODO cov cor likelihood
   if (parameters.targeted(Target::rho)) {
@@ -932,12 +913,6 @@ Vector Model::make_mask() const {
           for (size_t t = 0; t < T; ++t)
             mask_model.experiments[e].theta(s, t) = 1;
 
-  if (parameters.forget(Target::spot))
-    for (size_t e = 0; e < E; ++e)
-      for (size_t s = 0; s < experiments[e].S; ++s)
-        if (RandomDistribution::Uniform(EntropySource::rng)
-            < parameters.forget_rate)
-          mask_model.experiments[e].spot(s) = 1;
   return mask_model.vectorize();
 }
 

@@ -45,9 +45,6 @@ struct Experiment {
   Matrix theta;
   Matrix field;
 
-  /** spot scaling vector */
-  Vector spot;
-
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;
@@ -99,11 +96,6 @@ struct Experiment {
     if (parameters.targeted(Target::field)) {
       LOG(debug) << "Getting local field from vector";
       for (auto &x : field)
-        x = exp(*iter++);
-    }
-    if (parameters.targeted(Target::spot)) {
-      LOG(debug) << "Getting spots from vector";
-      for (auto &x : spot)
         x = exp(*iter++);
     }
   }
