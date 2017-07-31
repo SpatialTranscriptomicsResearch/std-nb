@@ -172,6 +172,7 @@ Formula::Formula(const string& str) { from_string(str); }
 void Formula::from_string(const string& str) {
   terms = parse(str);
   sort(terms.begin(), terms.end());
+  add_section_to_spots();
 }
 
 string Formula::to_string() const {
@@ -185,6 +186,13 @@ string Formula::to_string() const {
 Formula DefaultRateFormula() { return Formula("1+gene*(type+section)"); }
 // Formula DefaultVarianceFormula() { return Formula("gene+section+1"); }
 Formula DefaultVarianceFormula() { return Formula("gene*type+section+1"); }
+
+void Formula::add_section_to_spots() {
+  for (auto& term : terms)
+    if (find(begin(term), end(term), "spot") != end(term)
+        and find(begin(term), end(term), "section") == end(term))
+      term.push_back("section");
+}
 
 std::ostream& operator<<(std::ostream& os, const Formula& formula) {
   os << formula.to_string();

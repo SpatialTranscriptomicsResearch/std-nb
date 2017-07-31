@@ -14,6 +14,7 @@ struct Formula {
   void from_string(const std::string &str);
 
   std::string to_string() const;
+  void add_section_to_spots();
 
   Terms terms;
 };
