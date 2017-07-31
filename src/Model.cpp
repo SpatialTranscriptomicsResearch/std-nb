@@ -111,11 +111,13 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     CovariateInformation info = term.info;  // {cov_idxs, cov_values};
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar, info);
-    if (term.distribution == Coefficient::Distribution::beta_prime)
-      // TODO cov prior use hyper parameters
-      // TODO cov prior set for other disitributions
-      covterm.get(0, 0, 0) = 2;
+
+    covterm.get(0, 0, 0)
+        = parameters.hyperparameters.get_param(term.distribution, 0);
     coeffs.push_back(covterm);
+
+    covterm.get(0, 0, 0)
+        = parameters.hyperparameters.get_param(term.distribution, 1);
     coeffs.push_back(covterm);
   }
 

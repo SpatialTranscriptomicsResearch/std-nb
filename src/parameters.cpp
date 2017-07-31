@@ -5,6 +5,26 @@ using namespace std;
 
 namespace STD {
 
+double Hyperparameters::get_param(Coefficient::Distribution distribution,
+                                  size_t idx) const {
+  switch (distribution) {
+    case Coefficient::Distribution::gamma:
+      if (idx == 0)
+        return gamma_1;
+      else
+        return gamma_2;
+    case Coefficient::Distribution::beta_prime:
+      if (idx == 0)
+        return rho_1;
+      else
+        return rho_2;
+    default:
+      // TODO cov prior set for other disitributions
+      throw std::runtime_error("Error: not implemented.");
+      break;
+  }
+}
+
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   // TODO print all
 

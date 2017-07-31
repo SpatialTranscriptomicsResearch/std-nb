@@ -3,8 +3,9 @@
 
 #include <cstdint>
 #include "compression_mode.hpp"
-#include "optimization_method.hpp"
+#include "covariate.hpp"
 #include "formula.hpp"
+#include "optimization_method.hpp"
 #include "rprop.hpp"
 #include "sampling_method.hpp"
 #include "target.hpp"
@@ -15,9 +16,8 @@ namespace STD {
 const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
-  Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
-                  Float lambda_1_ = 50, Float lambda_2_ = 50,
-                  Float rho_1_ = 2, Float rho_2_ = 2,
+  Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1, Float lambda_1_ = 50,
+                  Float lambda_2_ = 50, Float rho_1_ = 2, Float rho_2_ = 2,
                   Float theta_r_1_ = 1, Float theta_r_2_ = 1,
                   Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95,
                   Float spot_a_ = 10, Float spot_b_ = 10, Float bline1 = 50,
@@ -63,6 +63,8 @@ struct Hyperparameters {
 
   Float beta_1;
   Float beta_2;
+
+  double get_param(Coefficient::Distribution distribution, size_t idx) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
