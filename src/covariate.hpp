@@ -61,6 +61,7 @@ struct Coefficient {
   CovariateInformation info;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;
+  std::vector<size_t> experiment_idxs;
 
   template <typename Fnc>
   void visit(Fnc fnc) const {

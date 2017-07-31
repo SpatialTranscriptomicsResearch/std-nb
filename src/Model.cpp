@@ -61,6 +61,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
 
       LOG(debug) << "Creating new " << to_string(kind) << " covariate: " << idx;
     }
+    coeffs[idx].experiment_idxs.push_back(e);
     experiments[e].coeff_idxs.push_back(idx);
   }
 }
@@ -111,6 +112,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     CovariateInformation info = term.info;  // {cov_idxs, cov_values};
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar, info);
+    covterm.experiment_idxs = term.experiment_idxs;
 
     covterm.get(0, 0, 0)
         = parameters.hyperparameters.get_param(term.distribution, 0);
@@ -243,7 +245,12 @@ void Model::store(const string &prefix_, bool mean_and_var,
       map<pair<Coefficient::Variable, Coefficient::Kind>, size_t> kind_counts;
       for (auto &coeff : coeffs) {
         auto iter = kind_counts.insert({{coeff.variable, coeff.kind}, 0});
-        vector<string> spot_names;  // TODO cov
+        vector<string> spot_names;
+        if (coeff.spot_dependent())
+          for (auto idx : coeff.experiment_idxs)
+            spot_names.insert(begin(spot_names),
+                              begin(experiments[idx].counts.col_names),
+                              end(experiments[idx].counts.col_names));
         coeff.store(prefix + "covariate-" + to_string(coeff.variable) + "-"
                         + to_token(coeff.kind) + "-"
                         + to_string_embedded(iter.first->second++, 2) + "_"
