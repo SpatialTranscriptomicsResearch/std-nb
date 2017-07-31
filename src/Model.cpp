@@ -112,7 +112,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   for (auto &term : parameters.rate_formula.terms)
     add_covariate_terms(term, Coefficient::Variable::rate);
   for (auto &term : parameters.variance_formula.terms)
-    add_covariate_terms(term, Coefficient::Variable::variance);
+    add_covariate_terms(term, Coefficient::Variable::odds);
 
   for (auto coeff : coeffs)
     LOG(debug) << "BEFORE " << to_string(coeff.variable) << " "
@@ -156,6 +156,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar, info);
     if (term.distribution == Coefficient::Distribution::beta_prime)
+      // TODO cov prior use hyper parameters
+      // TODO cov prior set for other disitributions
       covterm.get(0, 0, 0) = 2;
     coeffs.push_back(covterm);
     coeffs.push_back(covterm);
@@ -196,7 +198,7 @@ vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
 void Model::remove_redundant_terms() {
   using Variable = Coefficient::Variable;
   using Kind = Coefficient::Kind;
-  for (auto variable : {Variable::rate, Variable::variance})
+  for (auto variable : {Variable::rate, Variable::odds})
     for (auto kind : {Kind::scalar, Kind::gene, Kind::type, Kind::spot,
                       Kind::gene_type, Kind::spot_type})
       remove_redundant_terms(variable, kind);
@@ -475,18 +477,15 @@ Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
 
   vector<Matrix> rate_gt, rate_st;
-  vector<Matrix> variance_gt, variance_st;
+  vector<Matrix> odds_gt, odds_st;
 
   for (auto &coord_sys : coordinate_systems)
     for (auto e : coord_sys.members) {
-      rate_gt.push_back(
-          experiments[e].compute_gene_type_table(Coefficient::Variable::rate));
-      rate_st.push_back(
-          experiments[e].compute_spot_type_table(Coefficient::Variable::rate));
-      variance_gt.push_back(experiments[e].compute_gene_type_table(
-          Coefficient::Variable::variance));
-      variance_st.push_back(experiments[e].compute_spot_type_table(
-          Coefficient::Variable::variance));
+      using Variable = Coefficient::Variable;
+      rate_gt.push_back(experiments[e].compute_gene_type_table(Variable::rate));
+      rate_st.push_back(experiments[e].compute_spot_type_table(Variable::rate));
+      odds_gt.push_back(experiments[e].compute_gene_type_table(Variable::odds));
+      odds_st.push_back(experiments[e].compute_spot_type_table(Variable::odds));
     }
 
   score = 0;
@@ -518,16 +517,15 @@ Model Model::compute_gradient(double &score) const {
             if (RandomDistribution::Uniform(rng)
                 >= parameters.dropout_gene_spot) {
               auto cnts = experiments[e].sample_contributions_gene_spot(
-                  g, s, rate_gt[e], rate_st[e], variance_gt[e], variance_st[e],
-                  rng);
+                  g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
               for (size_t t = 0; t < T; ++t) {
                 double r = rate_gt[e](g, t) * rate_st[e](s, t);
-                double no = variance_gt[e](g, t) * variance_st[e](s, t);
-                double p = neg_odds_to_prob(no);
+                double odds = odds_gt[e](g, t) * odds_st[e](s, t);
+                double p = odds_to_prob(odds);
                 score += log_negative_binomial(cnts[t], r, p);
               }
               register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
-                                variance_gt[e], variance_st[e]);
+                                odds_gt[e], odds_st[e]);
             }
 #pragma omp critical
     {
@@ -555,8 +553,8 @@ Model Model::compute_gradient(double &score) const {
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
                               Model &gradient, const Matrix &rate_gt,
-                              const Matrix &rate_st, const Matrix &variance_gt,
-                              const Matrix &variance_st) const {
+                              const Matrix &rate_st, const Matrix &odds_gt,
+                              const Matrix &odds_st) const {
   for (size_t t = 0; t < T; ++t)
     gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
   for (size_t t = 0; t < T; ++t)
@@ -565,19 +563,19 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
   for (size_t t = 0; t < T; ++t) {
     const double k = cnts[t];
     const double r = rate_gt(g, t) * rate_st(s, t);
-    const double no = variance_gt(g, t) * variance_st(s, t);
-    const double p = neg_odds_to_prob(no);
-    const double log_one_minus_p = odds_to_log_prob(no);
+    const double odds = odds_gt(g, t) * odds_st(s, t);
+    const double p = odds_to_prob(odds);
+    const double log_one_minus_p = neg_odds_to_log_prob(odds);
 
     const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
-    const double variance_term = p * (r + k) - k;
+    const double variance_term = k - p * (r + k);
 
     for (auto &idx : gradient.experiments[e].coeff_idxs)
       switch (coeffs[idx].variable) {
         case Coefficient::Variable::rate:
           gradient.coeffs[idx].get(g, t, s) += rate_term;
           break;
-        case Coefficient::Variable::variance:
+        case Coefficient::Variable::odds:
           gradient.coeffs[idx].get(g, t, s) += variance_term;
           break;
         default:
@@ -974,12 +972,6 @@ ostream &operator<<(ostream &os, const Model &model) {
      << "T = " << model.T << " "
      << "E = " << model.E << endl;
 
-  /*
-  if (verbosity >= Verbosity::debug) {
-    print_matrix_head(os, model.features.matrix, "Φ");
-    os << model.phi;
-  }
-  */
   for (auto &experiment : model.experiments)
     os << experiment;
 

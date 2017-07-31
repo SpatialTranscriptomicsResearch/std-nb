@@ -58,8 +58,8 @@ struct Model {
   Model compute_gradient(double &score) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
                          Model &gradient, const Matrix &rate_gt,
-                         const Matrix &rate_st, const Matrix &variance_gt,
-                         const Matrix &variance_st) const;
+                         const Matrix &rate_st, const Matrix &odds_gt,
+                         const Matrix &odds_st) const;
   double param_likel() const;
   Vector vectorize() const;
   template <typename Iter>

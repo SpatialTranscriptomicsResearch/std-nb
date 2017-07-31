@@ -93,8 +93,8 @@ string to_string(const Coefficient::Variable &variable) {
   switch (variable) {
     case Coefficient::Variable::rate:
       return "rate";
-    case Coefficient::Variable::variance:
-      return "variance";
+    case Coefficient::Variable::odds:
+      return "odds";
     case Coefficient::Variable::prior:
       return "prior";
     default:
@@ -129,7 +129,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
     case Variable::rate:
       distribution = Distribution::gamma;
       break;
-    case Variable::variance:
+    case Variable::odds:
       distribution = Distribution::beta_prime;
       break;
     case Variable::prior:

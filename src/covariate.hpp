@@ -29,7 +29,7 @@ struct CovariateInformation {
 
 struct Coefficient {
   // TODO rename variance to odds
-  enum class Variable { rate, variance, prior };
+  enum class Variable { rate, odds, prior };
   enum class Kind {
     scalar = 0,
     gene = 1,

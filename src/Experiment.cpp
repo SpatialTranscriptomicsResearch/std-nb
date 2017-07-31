@@ -213,7 +213,7 @@ Matrix Experiment::compute_spot_type_table(
 /** sample count decomposition */
 Vector Experiment::sample_contributions_gene_spot(
     size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
-    const Matrix &variance_gt, const Matrix &variance_st, RNG &rng) const {
+    const Matrix &odds_gt, const Matrix &odds_st, RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
   const auto count = counts(g, s);
@@ -230,8 +230,8 @@ Vector Experiment::sample_contributions_gene_spot(
     case Sampling::Method::Mean: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = rate_gt(g, t) * rate_st(s, t)
-                       / (variance_gt(g, t) * variance_st(s, t));
+        z += cnts[t]
+            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] *= count / z;
       return cnts;
@@ -239,8 +239,8 @@ Vector Experiment::sample_contributions_gene_spot(
     case Sampling::Method::Multinomial: {
       double z = 0;
       for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = rate_gt(g, t) * rate_st(s, t)
-                       / (variance_gt(g, t) * variance_st(s, t));
+        z += cnts[t]
+            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
       auto icnts = sample_multinomial(count, begin(cnts), end(cnts), rng);
@@ -524,14 +524,14 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
 Vector Experiment::marginalize_genes() const {
 
   Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
-              / compute_gene_type_table(Coefficient::Variable::variance).array();
+              / compute_gene_type_table(Coefficient::Variable::odds).array();
   Vector gt_cs = colSums<Vector>(gt);
 
   Vector intensities = Vector::Zero(T);
   Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
-              / compute_gene_type_table(Coefficient::Variable::variance).array();
+              / compute_gene_type_table(Coefficient::Variable::odds).array();
   // Matrix st = compute_spot_type_table(Coefficient::Variable::rate).array()
-  //             / compute_spot_type_table(Coefficient::Variable::variance).array();
+  //             / compute_spot_type_table(Coefficient::Variable::odds).array();
   for (size_t t = 0; t < T; ++t) {
     double intensity = 0;
 #pragma omp parallel for reduction(+ : intensity) if (DO_PARALLEL)
@@ -549,12 +549,12 @@ Vector Experiment::marginalize_genes() const {
 Matrix Experiment::expectation() const {
   Matrix mean(G, S);
   Matrix rate_gt = compute_gene_type_table(Coefficient::Variable::rate);
-  Matrix variance_gt = compute_gene_type_table(Coefficient::Variable::variance);
-  Matrix mean_gt = rate_gt.array() / variance_gt.array();
+  Matrix odds_gt = compute_gene_type_table(Coefficient::Variable::odds);
+  Matrix mean_gt = rate_gt.array() * odds_gt.array();
 
   Matrix rate_st = compute_spot_type_table(Coefficient::Variable::rate);
-  Matrix variance_st = compute_spot_type_table(Coefficient::Variable::variance);
-  Matrix mean_st = rate_st.array() / variance_st.array();
+  Matrix odds_st = compute_spot_type_table(Coefficient::Variable::odds);
+  Matrix mean_st = rate_st.array() * odds_st.array();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
@@ -570,15 +570,15 @@ Matrix Experiment::variance() const {
   Matrix var(G, S);
   Matrix rate_gt = compute_gene_type_table(Coefficient::Variable::rate);
   Matrix rate_st = compute_spot_type_table(Coefficient::Variable::rate);
-  Matrix variance_gt = compute_gene_type_table(Coefficient::Variable::variance);
-  Matrix variance_st = compute_spot_type_table(Coefficient::Variable::variance);
+  Matrix odds_gt = compute_gene_type_table(Coefficient::Variable::odds);
+  Matrix odds_st = compute_spot_type_table(Coefficient::Variable::odds);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
       double x = 0;
       for (size_t t = 0; t < T; ++t) {
-        double no = variance_gt(g, t) * variance_st(s, t);
-        x += rate_gt(g, t) * rate_st(s, t) / no / odds_to_prob(no);
+        double odds = odds_gt(g, t) * odds_st(s, t);
+        x += rate_gt(g, t) * rate_st(s, t) * odds / neg_odds_to_prob(odds);
       }
       var(g, s) = x;
     }
@@ -588,12 +588,12 @@ Matrix Experiment::variance() const {
 Matrix Experiment::expected_gene_type() const {
   Matrix st
       = compute_spot_type_table(Coefficient::Variable::rate).array()
-        / compute_spot_type_table(Coefficient::Variable::variance).array();
+        * compute_spot_type_table(Coefficient::Variable::odds).array();
   Vector st_cs = colSums<Vector>(st);
 
   Matrix expected
       = compute_gene_type_table(Coefficient::Variable::rate).array()
-        / compute_gene_type_table(Coefficient::Variable::variance).array();
+        * compute_gene_type_table(Coefficient::Variable::odds).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= st_cs[t];
@@ -603,12 +603,12 @@ Matrix Experiment::expected_gene_type() const {
 Matrix Experiment::expected_spot_type() const {
   Matrix gt
       = compute_gene_type_table(Coefficient::Variable::rate).array()
-        / compute_gene_type_table(Coefficient::Variable::variance).array();
+        * compute_gene_type_table(Coefficient::Variable::odds).array();
   Vector gt_cs = colSums<Vector>(gt);
 
   Matrix expected
       = compute_spot_type_table(Coefficient::Variable::rate).array()
-        / compute_spot_type_table(Coefficient::Variable::variance).array();
+        * compute_spot_type_table(Coefficient::Variable::odds).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];
@@ -622,9 +622,7 @@ size_t Experiment::size() const {
   return s;
 }
 
-void Experiment::setZero() {
-  field.setZero();
-}
+void Experiment::setZero() { field.setZero(); }
 
 Vector Experiment::vectorize() const {
   Vector v(size());
