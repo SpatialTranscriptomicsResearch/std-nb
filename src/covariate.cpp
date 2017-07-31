@@ -124,12 +124,17 @@ string to_token(const Coefficient::Kind &kind) {
 Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
                          Kind kind_, CovariateInformation info_)
     : variable(variable_), kind(kind_), info(info_) {
+  // TODO cov prior fill prior_idx
   switch (variable) {
     case Variable::rate:
       distribution = Distribution::gamma;
       break;
     case Variable::variance:
       distribution = Distribution::beta_prime;
+      break;
+    case Variable::prior:
+      // TODO cov prior make variable
+      distribution = Distribution::gamma;
       break;
     default:
       throw std::runtime_error(
@@ -199,6 +204,10 @@ double Coefficient::get(size_t g, size_t t, size_t s) const {
 void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
                                    vector<Coefficient> &grad_coeffs,
                                    size_t idx) const {
+  LOG(debug) << "Coefficient::compute_gradient " << to_string(kind) << " "
+             << to_string(variable) << " " << idx;
+  if (prior_idxs.size() < 2)
+    return;
   size_t parent_a = prior_idxs[0];
   size_t parent_b = prior_idxs[1];
   bool parent_a_flexible

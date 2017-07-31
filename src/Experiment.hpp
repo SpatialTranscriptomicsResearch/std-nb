@@ -41,8 +41,6 @@ struct Experiment {
 
   std::vector<size_t> coeff_idxs;
 
-  /** factor score matrix */
-  Matrix theta;
   Matrix field;
 
   /** hidden contributions to the count data due to the different factors */
@@ -88,11 +86,6 @@ struct Experiment {
   Vector vectorize() const;
   template <typename Iter>
   void from_log_vector(Iter &iter) {
-    if (parameters.targeted(Target::theta)) {
-      LOG(debug) << "Getting theta from vector";
-      for (auto &x : theta)
-        x = exp(*iter++);
-    }
     if (parameters.targeted(Target::field)) {
       LOG(debug) << "Getting local field from vector";
       for (auto &x : field)

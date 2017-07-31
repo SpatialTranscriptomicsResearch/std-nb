@@ -17,7 +17,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      theta(Matrix::Ones(S, T)),
       field(Matrix::Ones(S, T)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
@@ -29,12 +28,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
    * contributions_spot_type
    */
   LOG(debug) << "Coords: " << coords;
-
-  // TODO initialize theta using parameters, model->mix_prior
-  if (parameters.targeted(Target::theta))
-    for (auto &x : theta)
-      // TODO introduce parameter for constant
-      x = exp(0.5 * std::normal_distribution<double>()(EntropySource::rng));
 }
 
 void Experiment::store(const string &prefix,
@@ -53,9 +46,6 @@ void Experiment::store(const string &prefix,
 
 #pragma omp parallel sections if (DO_PARALLEL)
   {
-#pragma omp section
-    write_matrix(theta, prefix + "theta" + FILENAME_ENDING,
-                 parameters.compression_mode, spot_names, factor_names, order);
 #pragma omp section
     write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
@@ -101,8 +91,6 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  theta = parse_file<Matrix>(prefix + "theta" + FILENAME_ENDING, read_matrix,
-                             "\t");
   field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
                              read_matrix, "\t");
 
@@ -209,11 +197,7 @@ Matrix Experiment::compute_gene_type_table(
 // NOTE: scalar covariates are NOT multiplied into this table
 Matrix Experiment::compute_spot_type_table(
     Coefficient::Variable variable) const {
-  Matrix st;
-  if (variable == Coefficient::Variable::rate)
-    st = theta;
-  else
-    st = Matrix::Ones(S, T);
+  Matrix st = Matrix::Ones(S, T);
 
   // TODO cov make more efficient
   for (auto &idx : coeff_idxs)
@@ -503,13 +487,13 @@ Vector Experiment::sample_contributions_gene_spot(
 }
 
 void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("theta", theta);
   enforce_positive_and_warn("local field", field);
 }
 
 /** Calculate log posterior of theta with respect to the field */
 Matrix Experiment::field_fitness_posterior() const {
   Matrix fit = Matrix::Zero(S, T);
+  /* TODO cov theta
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t) {
@@ -518,18 +502,21 @@ Matrix Experiment::field_fitness_posterior() const {
                   - model->mix_prior.p(t) * theta(s, t) - lgamma(prod)
                   + log(model->mix_prior.p(t)) * prod;
     }
+  */
   return fit;
 }
 
 /** Calculate gradient of log posterior of theta with respect to the field */
 Matrix Experiment::field_fitness_posterior_gradient() const {
   Matrix grad = Matrix::Zero(S, T);
+  /* TODO cov theta
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t s = 0; s < S; ++s)
     for (size_t t = 0; t < T; ++t)
       grad(s, t) = model->mix_prior.r(t)
                    * (log(theta(s, t)) + log(model->mix_prior.p(t))
                       - digamma(model->mix_prior.r(t) * field(s, t)));
+  */
   return grad;
 }
 
@@ -630,24 +617,18 @@ Matrix Experiment::expected_spot_type() const {
 
 size_t Experiment::size() const {
   size_t s = 0;
-  if (parameters.targeted(Target::theta))
-    s += theta.size();
   if (parameters.targeted(Target::field))
     s += field.size();
   return s;
 }
 
 void Experiment::setZero() {
-  theta.setZero();
   field.setZero();
 }
 
 Vector Experiment::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
-  if (parameters.targeted(Target::theta))
-    for (auto &x : theta)
-      *iter++ = x;
   if (parameters.targeted(Target::field))
     for (auto &x : field)
       *iter++ = x;
@@ -662,20 +643,6 @@ ostream &operator<<(ostream &os, const Experiment &experiment) {
      << "G = " << experiment.G << " "
      << "S = " << experiment.S << " "
      << "T = " << experiment.T << endl;
-
-  if (verbosity >= Verbosity::debug) {
-    // TODO TODO fix features
-    // print_matrix_head(os, experiment.baseline_feature.matrix, "Baseline Φ");
-    // print_matrix_head(os, experiment.features.matrix, "Φ");
-    print_matrix_head(os, experiment.theta, "Θ");
-    /* TODO reactivate
-    os << experiment.baseline_feature.prior;
-    os << experiment.features.prior;
-
-    print_vector_head(os, experiment.spot, "Spot scaling factors");
-    */
-  }
-
   return os;
 }
 
@@ -686,8 +653,6 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
   experiment.contributions_spot_type += b.contributions_spot_type;
   experiment.contributions_gene += b.contributions_gene;
   experiment.contributions_spot += b.contributions_spot;
-
-  experiment.theta += b.theta;
 
   return experiment;
 }

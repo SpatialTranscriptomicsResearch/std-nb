@@ -42,9 +42,6 @@ struct Model {
   };
   std::vector<CoordinateSystem> coordinate_systems;
 
-  using prior_type = PRIOR::THETA::Gamma;
-  prior_type mix_prior;
-
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
   Vector contributions_gene;
@@ -59,13 +56,10 @@ struct Model {
                            Coefficient::Variable variable);
   void setZero();
   Model compute_gradient(double &score) const;
-  double compute_gradient_gamma_prior(Model &gradient) const;
-  double compute_gradient_rho_prior(Model &gradient) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
                          Model &gradient, const Matrix &rate_gt,
                          const Matrix &rate_st, const Matrix &variance_gt,
                          const Matrix &variance_st) const;
-  void finalize_gradient(Model &gradient) const;
   double param_likel() const;
   Vector vectorize() const;
   template <typename Iter>
@@ -73,31 +67,11 @@ struct Model {
     for (auto &coeff : coeffs)
       coeff.from_log_vector(iter);
 
-    if (parameters.targeted(Target::gamma_prior)) {
-      LOG(debug) << "Getting gamma prior from vector";
-      parameters.hyperparameters.gamma_1 = exp(*iter++);
-      parameters.hyperparameters.gamma_2 = exp(*iter++);
-    }
-
-    if (parameters.targeted(Target::rho_prior)) {
-      LOG(debug) << "Getting rho prior from vector";
-      parameters.hyperparameters.rho_1 = exp(*iter++);
-      parameters.hyperparameters.rho_2 = exp(*iter++);
-    }
-
     if (parameters.targeted(Target::field)) {
       LOG(debug) << "Getting global field from vector";
       for (auto &coord_sys : coordinate_systems)
         for (auto &x : coord_sys.field)
           x = exp(*iter++);
-    }
-
-    if (parameters.targeted(Target::theta_prior)) {
-      LOG(debug) << "Getting theta prior r and p from vector";
-      for (auto &x : mix_prior.r)
-        x = exp(*iter++);
-      for (auto &x : mix_prior.p)
-        x = exp(*iter++);
     }
 
     for (auto &experiment : experiments)

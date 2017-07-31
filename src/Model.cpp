@@ -100,7 +100,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
       design(design_),
       experiments(),
       parameters(parameters_),
-      mix_prior(sum_cols(c), T, parameters),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
   size_t coord_sys = 0;
@@ -148,6 +147,30 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
         x = 1;
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
+
+  for (auto &term : coeffs) {
+    size_t n = coeffs.size();
+    term.prior_idxs.push_back(n);
+    term.prior_idxs.push_back(n + 1);
+    CovariateInformation info = term.info;  // {cov_idxs, cov_values};
+    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
+                        Coefficient::Kind::scalar, info);
+    if (term.distribution == Coefficient::Distribution::beta_prime)
+      covterm.get(0, 0, 0) = 2;
+    coeffs.push_back(covterm);
+    coeffs.push_back(covterm);
+  }
+
+  for (auto coeff : coeffs)
+    LOG(debug) << "FINAL " << to_string(coeff.variable) << " "
+               << to_string(coeff.kind) << " coeff"
+               << ": " << coeff.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].coeff_idxs)
+      LOG(debug) << "FINAL rate experiment " << e << " "
+                 << to_string(coeffs[idx].variable) << " "
+                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
+                 << coeffs[idx].info.to_string(design.covariates);
 
   initialize_coordinate_systems(1);
 
@@ -253,10 +276,9 @@ void Model::store(const string &prefix_, bool mean_and_var,
 // TODO cov perhaps write out a single file for the scalar covariates
 #pragma omp section
     {
-      map<Coefficient::Kind, size_t> kind_counts;
+      map<pair<Coefficient::Variable, Coefficient::Kind>, size_t> kind_counts;
       for (auto &coeff : coeffs) {
-        auto iter = kind_counts.insert(
-            pair<Coefficient::Kind, size_t>(coeff.kind, 0));
+        auto iter = kind_counts.insert({{coeff.variable, coeff.kind}, 0});
         vector<string> spot_names;  // TODO cov
         coeff.store(prefix + "covariate-" + to_string(coeff.variable) + "-"
                         + to_token(coeff.kind) + "-"
@@ -282,8 +304,6 @@ void Model::store(const string &prefix_, bool mean_and_var,
                      parameters.compression_mode, rn, type_names, order);
       }
     }
-#pragma omp section
-    mix_prior.store(prefix + "theta_prior", type_names, order);
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -384,8 +404,6 @@ void Model::restore(const string &prefix) {
           read_matrix, "\t");
   }
 
-  mix_prior.restore(prefix + "theta_prior");
-
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
   contributions_gene
@@ -415,8 +433,6 @@ void Model::setZero() {
     coeff.values.setZero();
   for (auto &coord_sys : coordinate_systems)
     coord_sys.field.setZero();
-  mix_prior.r.setZero();
-  mix_prior.p.setZero();
   for (auto &experiment : experiments)
     experiment.setZero();
 }
@@ -425,12 +441,6 @@ size_t Model::size() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
     s += coeff.size();
-  if (parameters.targeted(Target::gamma_prior))
-    s += 2;
-  if (parameters.targeted(Target::rho_prior))
-    s += 2;
-  if (parameters.targeted(Target::theta_prior))
-    s += mix_prior.r.size() + mix_prior.p.size();
   if (parameters.targeted(Target::field))
     for (auto &coord_sys : coordinate_systems)
       s += coord_sys.field.size();
@@ -447,27 +457,10 @@ Vector Model::vectorize() const {
     for (auto &x : coeff.vectorize())
       *iter++ = x;
 
-  if (parameters.targeted(Target::gamma_prior)) {
-    *iter++ = parameters.hyperparameters.gamma_1;
-    *iter++ = parameters.hyperparameters.gamma_2;
-  }
-
-  if (parameters.targeted(Target::rho_prior)) {
-    *iter++ = parameters.hyperparameters.rho_1;
-    *iter++ = parameters.hyperparameters.rho_2;
-  }
-
   if (parameters.targeted(Target::field))
     for (auto &coord_sys : coordinate_systems)
       for (auto &x : coord_sys.field)
         *iter++ = x;
-
-  if (parameters.targeted(Target::theta_prior)) {
-    for (auto &x : mix_prior.r)
-      *iter++ = x;
-    for (auto &x : mix_prior.p)
-      *iter++ = x;
-  }
 
   for (auto &experiment : experiments)
     for (auto &x : experiment.vectorize())
@@ -510,7 +503,7 @@ Model Model::compute_gradient(double &score) const {
       // TODO cov spot or parameters.targeted(Target::covariates_spot)
       or parameters.targeted(Target::covariates_gene_type)
       // TODO cov spot or parameters.targeted(Target::covariates_spot_type)
-      or parameters.targeted(Target::theta))
+      )
 #pragma omp parallel if (DO_PARALLEL)
   {
     Model grad = gradient;
@@ -551,86 +544,13 @@ Model Model::compute_gradient(double &score) const {
           += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
                             gradient.coordinate_systems[c].field);
 
-  if (parameters.targeted(Target::gamma_prior))
-    score += compute_gradient_gamma_prior(gradient);
-
-  if (parameters.targeted(Target::rho_prior))
-    score += compute_gradient_rho_prior(gradient);
-
   if (not parameters.ignore_priors)
-    finalize_gradient(gradient);
+    for (size_t i = 0; i < coeffs.size(); ++i)
+      coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
+
   score += param_likel();
 
   return gradient;
-}
-
-double Model::compute_gradient_gamma_prior(Model &gradient) const {
-  double score = 0;
-
-  double a = gradient.parameters.hyperparameters.gamma_1;
-  double b = gradient.parameters.hyperparameters.gamma_2;
-
-  gradient.parameters.hyperparameters.gamma_1 = 0;
-  gradient.parameters.hyperparameters.gamma_2 = 0;
-
-  const double hyper_alpha = 1;
-  const double hyper_beta = 1;
-  const double hyper_gamma = 1;
-  const double hyper_delta = 1;
-
-  // TODO covariates gamma prior
-  /*
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      gradient.parameters.hyperparameters.gamma_1
-          += a * (log(b) - digamma(a) + log(gamma(g, t)));
-      gradient.parameters.hyperparameters.gamma_2 += a - b * gamma(g, t);
-    }
-    */
-
-  gradient.parameters.hyperparameters.gamma_1
-      += hyper_alpha - 1 - a * hyper_beta;
-  gradient.parameters.hyperparameters.gamma_2
-      += hyper_gamma - 1 - b * hyper_delta;
-
-  // TODO compute score
-
-  return score;
-}
-
-double Model::compute_gradient_rho_prior(Model &gradient) const {
-  double score = 0;
-
-  double a = gradient.parameters.hyperparameters.rho_1;
-  double b = gradient.parameters.hyperparameters.rho_2;
-
-  gradient.parameters.hyperparameters.rho_1 = 0;
-  gradient.parameters.hyperparameters.rho_2 = 0;
-
-  const double hyper_alpha = 1;
-  const double hyper_beta = 1;
-  const double hyper_gamma = 1;
-  const double hyper_delta = 1;
-
-  // TODO cov var
-  /*
-  for (size_t g = 0; g < G; ++g)
-    for (size_t t = 0; t < T; ++t) {
-      gradient.parameters.hyperparameters.rho_1 += log(negodds_rho(g, t))
-                                                   - log(1 + negodds_rho(g, t))
-                                                   + digamma_diff(a, b);
-      gradient.parameters.hyperparameters.rho_2
-          += -log(1 + negodds_rho(g, t)) + digamma_diff(b, a);
-    }
-  */
-
-  gradient.parameters.hyperparameters.rho_1 += hyper_alpha - 1 - a * hyper_beta;
-  gradient.parameters.hyperparameters.rho_2
-      += hyper_gamma - 1 - b * hyper_delta;
-
-  // TODO compute score
-
-  return score;
 }
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
@@ -663,68 +583,6 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
         default:
           break;
       }
-
-    gradient.experiments[e].theta(s, t) += rate_term;
-  }
-}
-
-void Model::finalize_gradient(Model &gradient) const {
-  LOG(verbose) << "Finalizing gradient";
-
-  for (size_t i = 0; i < coeffs.size(); ++i)
-    coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
-
-  if (parameters.targeted(Target::theta))
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t s = 0; s < experiments[e].S; ++s)
-          for (size_t t = 0; t < T; ++t) {
-            const double a = experiments[e].field(s, t) * mix_prior.r(t);
-            const double b = mix_prior.p(t);
-            gradient.experiments[e].theta(s, t)
-                += (a - 1) - experiments[e].theta(s, t) * b;
-          }
-
-  if (parameters.targeted(Target::theta_prior)) {
-    gradient.mix_prior.r.setZero();
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-        for (size_t t = 0; t < T; ++t) {
-          const double r = mix_prior.r(t);
-          const double no = mix_prior.p(t);
-          const double p = neg_odds_to_prob(no);
-          const double log_no = log(no);
-
-          double x = 0;
-          double y = 0;
-#pragma omp parallel for if (DO_PARALLEL)
-          for (size_t s = 0; s < experiments[e].S; ++s) {
-            const double prod = r * experiments[e].field(s, t);
-            x += (log(experiments[e].theta(s, t)) + log_no - digamma(prod))
-                 * prod;
-            y += (1 - p) * (p * experiments[e].theta(s, t) - prod);
-          }
-          gradient.mix_prior.r(t) += x;
-          gradient.mix_prior.p(t) += y;
-        }
-
-    {
-      const double a = parameters.hyperparameters.theta_r_1;
-      const double b = parameters.hyperparameters.theta_r_2;
-      for (size_t t = 0; t < T; ++t)
-        gradient.mix_prior.r(t) += a - 1 - b * mix_prior.r(t);
-    }
-
-    {
-      const double a = parameters.hyperparameters.theta_p_1;
-      const double b = parameters.hyperparameters.theta_p_2;
-      for (size_t t = 0; t < T; ++t) {
-        const double no = mix_prior.p(t);
-        const double p = neg_odds_to_prob(no);
-        gradient.mix_prior.p(t) += (a + b - 2) * p - a + 1;
-      }
-    }
   }
 }
 
@@ -762,7 +620,6 @@ double Model::param_likel() const {
         for (size_t g = 0; g < G; ++g)
           score += log_gamma_rate(experiments[e].beta(g), a, b);
   }
-  */
 
   if (parameters.targeted(Target::theta))
     for (auto &coord_sys : coordinate_systems)
@@ -775,7 +632,6 @@ double Model::param_likel() const {
             score += log_gamma_rate(experiments[e].theta(s, t), a, b);
           }
 
-  /* TODO cov cor likelihood
   if (parameters.targeted(Target::rho)) {
     const double a = parameters.hyperparameters.rho_1;
     const double b = parameters.hyperparameters.rho_2;
@@ -787,21 +643,6 @@ double Model::param_likel() const {
       }
   }
   */
-
-  if (parameters.targeted(Target::theta_prior)) {
-    {
-      const double a = parameters.hyperparameters.theta_r_1;
-      const double b = parameters.hyperparameters.theta_r_2;
-      for (size_t t = 0; t < T; ++t)
-        score += log_gamma_rate(mix_prior.r(t), a, b);
-    }
-    {
-      const double a = parameters.hyperparameters.theta_p_1;
-      const double b = parameters.hyperparameters.theta_p_2;
-      for (size_t t = 0; t < T; ++t)
-        score += log_beta_neg_odds(mix_prior.p(t), a, b);
-    }
-  }
 
   return score;
 }
@@ -905,14 +746,6 @@ Vector Model::make_mask() const {
   Model mask_model = *this;
   mask_model.setZero();
   // TODO cov forgetting targets
-  if (parameters.forget(Target::theta))
-    for (size_t e = 0; e < E; ++e)
-      for (size_t s = 0; s < experiments[e].S; ++s)
-        if (RandomDistribution::Uniform(EntropySource::rng)
-            < parameters.forget_rate)
-          for (size_t t = 0; t < T; ++t)
-            mask_model.experiments[e].theta(s, t) = 1;
-
   return mask_model.vectorize();
 }
 
@@ -989,10 +822,6 @@ void Model::enforce_positive_parameters(double min_value) {
             + " covariate " + to_string_embedded(i, 3),
         coeffs[i].values, min_value, parameters.warn_lower_limit);
 
-  enforce_positive_and_warn("mix_prior_r", mix_prior.r, min_value,
-                            parameters.warn_lower_limit);
-  enforce_positive_and_warn("mix_prior_p", mix_prior.p, min_value,
-                            parameters.warn_lower_limit);
   for (auto &coord_sys : coordinate_systems)
     enforce_positive_and_warn("field", coord_sys.field, min_value,
                               parameters.warn_lower_limit);
