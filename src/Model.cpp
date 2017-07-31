@@ -88,27 +88,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   for (auto &term : parameters.variance_formula.terms)
     add_covariate_terms(term, Coefficient::Variable::odds);
 
-  for (auto coeff : coeffs)
-    LOG(debug) << "BEFORE " << to_string(coeff.variable) << " "
-               << to_string(coeff.kind) << " coeff"
-               << ": " << coeff.info.to_string(design.covariates);
-  for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs)
-      LOG(debug) << "BEFORE rate experiment " << e << " "
-                 << to_string(coeffs[idx].variable) << " "
-                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
-                 << coeffs[idx].info.to_string(design.covariates);
+  coeff_debug_dump("BEFORE");
   remove_redundant_terms();
-  for (auto coeff : coeffs)
-    LOG(debug) << "AFTER " << to_string(coeff.variable) << " "
-               << to_string(coeff.kind) << " coeff"
-               << ": " << coeff.info.to_string(design.covariates);
-  for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs)
-      LOG(debug) << "AFTER rate experiment " << e << " "
-                 << to_string(coeffs[idx].variable) << " "
-                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
-                 << coeffs[idx].info.to_string(design.covariates);
+  coeff_debug_dump("AFTER");
 
   for (auto &coeff : coeffs)
     if (coeff.variable == Coefficient::Variable::rate
@@ -137,20 +119,24 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     coeffs.push_back(covterm);
   }
 
-  for (auto coeff : coeffs)
-    LOG(debug) << "FINAL " << to_string(coeff.variable) << " "
-               << to_string(coeff.kind) << " coeff"
-               << ": " << coeff.info.to_string(design.covariates);
-  for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs)
-      LOG(debug) << "FINAL rate experiment " << e << " "
-                 << to_string(coeffs[idx].variable) << " "
-                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
-                 << coeffs[idx].info.to_string(design.covariates);
+  coeff_debug_dump("FINAL");
 
   initialize_coordinate_systems(1);
 
   enforce_positive_parameters(parameters.min_value);
+}
+
+void Model::coeff_debug_dump(const string &tag) const {
+  for (auto coeff : coeffs)
+    LOG(debug) << tag << to_string(coeff.variable) << " "
+               << to_string(coeff.kind) << " coeff"
+               << ": " << coeff.info.to_string(design.covariates);
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].coeff_idxs)
+      LOG(debug) << tag << " rate experiment " << e << " "
+                 << to_string(coeffs[idx].variable) << " "
+                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
+                 << coeffs[idx].info.to_string(design.covariates);
 }
 
 vector<size_t> find_redundant(const vector<vector<size_t>> &v) {

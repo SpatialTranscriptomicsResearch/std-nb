@@ -60,6 +60,7 @@ struct Model {
                          Model &gradient, const Matrix &rate_gt,
                          const Matrix &rate_st, const Matrix &odds_gt,
                          const Matrix &odds_st) const;
+  void coeff_debug_dump(const std::string &tag) const;
   double param_likel() const;
   Vector vectorize() const;
   template <typename Iter>
