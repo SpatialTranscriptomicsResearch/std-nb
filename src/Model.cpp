@@ -8,32 +8,6 @@ using namespace std;
 
 namespace STD {
 
-vector<double> unpack_values(
-    const vector<pair<CovariateInformation, double>> &x) {
-  const size_t n = x.size();
-  vector<double> v(n);
-  for (size_t i = 0; i < n; ++i)
-    v[i] = x[i].second;
-  return v;
-}
-
-vector<string> unpack_labels(
-    const vector<pair<CovariateInformation, double>> &x,
-    const Covariates &covariates) {
-  const size_t n = x.size();
-  vector<string> v(n);
-  for (size_t i = 0; i < n; ++i)
-    v[i] = x[i].first.to_string(covariates);
-  return v;
-}
-
-void pack_values(const vector<double> &v,
-                 vector<pair<CovariateInformation, double>> &x) {
-  const size_t n = x.size();
-  for (size_t i = 0; i < n; ++i)
-    x[i].second = v[i];
-}
-
 void Model::add_covariate_terms(const Formula::Term &term,
                                 Coefficient::Variable variable) {
   LOG(debug) << "Treating next " << to_string(variable) << " formula term.";
