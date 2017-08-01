@@ -113,22 +113,24 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
                          Kind kind_, CovariateInformation info_)
     : variable(variable_), kind(kind_), info(info_) {
   // TODO cov prior fill prior_idx
-  switch (variable) {
-    case Variable::rate:
-      distribution = Distribution::gamma;
-      break;
-    case Variable::odds:
-      distribution = Distribution::beta_prime;
-      break;
-    case Variable::prior:
-      // TODO cov prior make variable
-      distribution = Distribution::gamma;
-      break;
-    default:
-      throw std::runtime_error(
-          "Error: no distribution assigned for Variable type.");
-      break;
-  }
+  distribution = Distribution::log_normal;
+  if (false)
+    switch (variable) {
+      case Variable::rate:
+        distribution = Distribution::gamma;
+        break;
+      case Variable::odds:
+        distribution = Distribution::beta_prime;
+        break;
+      case Variable::prior:
+        // TODO cov prior make variable
+        distribution = Distribution::gamma;
+        break;
+      default:
+        throw std::runtime_error(
+            "Error: no distribution assigned for Variable type.");
+        break;
+    }
   switch (kind) {
     case Kind::scalar:
       values = Matrix::Ones(1, 1);
