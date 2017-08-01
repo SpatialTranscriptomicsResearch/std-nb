@@ -18,14 +18,14 @@ int main(int argc, char **argv) {
   const size_t n_iter = 1000000;
   const size_t report_interval = 100;
 
-  vector<Point> pts;
+  vector<Mesh::Point> pts;
   STD::Vector fnc;
 
   if (argc == 2) {
     vector<double> val;
     ifstream ifs(argv[1]);
     ifs >> dim;
-    Point pt(dim);
+    Mesh::Point pt(dim);
     double val_;
     while (ifs >> pt[0] >> pt[1]) {
       if (dim == 3)
@@ -63,7 +63,7 @@ int main(int argc, char **argv) {
     }
 
     for (size_t i = 0; i < oversampling_factor * n; ++i) {
-      Point p(dim);
+      Mesh::Point p(dim);
       p[0]
           = min_x
             + (max_x - min_x) * RandomDistribution::Uniform(EntropySource::rng);
@@ -85,7 +85,7 @@ int main(int argc, char **argv) {
       fnc[i] = 1000 * RandomDistribution::Uniform(EntropySource::rng);
   } else {
     for (size_t i = 0; i < n; ++i) {
-      Point pt(dim);
+      Mesh::Point pt(dim);
       pt[0] = grid_scale * RandomDistribution::Uniform(EntropySource::rng);
       pt[1] = grid_scale * RandomDistribution::Uniform(EntropySource::rng);
       if (dim == 3)
