@@ -235,16 +235,15 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         double a = coeffs[parent_a].get(g, t, s);
         double b = coeffs[parent_b].get(g, t, s);
         double x = get(g, t, s);
-        double p = neg_odds_to_prob(x);
+        double p = odds_to_prob(x);
 
-        grad_coeffs[idx].get(g, t, s) += (a + b - 2) * p - a + 1;
+        grad_coeffs[idx].get(g, t, s) += a - 1 - (a + b - 2) * p;
 
         if (parent_a_flexible)
           grad_coeffs[parent_a].get(g, t, s)
-              += log(x) - log(1 + x) + digamma_diff(a, b);
+              += log(1 + x) - log(x) - digamma_diff(a, b);
         if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s)
-              += -log(1 + x) + digamma_diff(b, a);
+          grad_coeffs[parent_b].get(g, t, s) += log(1 + x) - digamma_diff(b, a);
       });
     case Distribution::fixed:
       return;
