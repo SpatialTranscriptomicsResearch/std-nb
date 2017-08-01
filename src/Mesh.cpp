@@ -1,6 +1,6 @@
 #include "Mesh.hpp"
-#include <iostream>
 #include <fstream>
+#include <iostream>
 #include "sampling.hpp"
 
 using namespace std;
@@ -20,7 +20,7 @@ double polytope_area(const vector<P> &pts) {
   return 0.5 * fabs(area);
 }
 
-void build_voronoi_qhull(const vector<Point> &points,
+void build_voronoi_qhull(const vector<Mesh::Point> &points,
                          vector<vector<size_t>> &adj,
                          vector<vector<double>> &voronoi_weights,
                          const string &prefix) {
@@ -130,7 +130,7 @@ vector<size_t> sort_indexes(const vector<T> &v) {
   return idx;
 }
 
-Mesh::Mesh(size_t dim_, const vector<Point> &pts, const string &prefix)
+Mesh::Mesh(size_t dim_, const vector<Mesh::Point> &pts, const string &prefix)
     : dim(dim_), N(pts.size()), points(pts), A(N, 0) {
   if (not points.empty()) {
     if (dim == 1) {

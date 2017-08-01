@@ -8,9 +8,10 @@
 #include "types.hpp"
 
 // using Point = std::vector<double>;
-using Point = STD::Vector;
-
 struct Mesh {
+using Point = STD::Vector;
+using Matrix = STD::Matrix;
+
   size_t dim;
   size_t N;
   std::vector<Point> points;
