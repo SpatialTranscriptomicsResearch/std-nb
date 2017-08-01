@@ -234,6 +234,23 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
           grad_coeffs[parent_b].get(g, t, s)
               += -log(1 + x) + digamma_diff(b, a);
       });
+    case Distribution::log_normal:
+      visit([&](size_t g, size_t t, size_t s) {
+        double exp_mu = coeffs[parent_a].get(g, t, s);
+        double sigma = coeffs[parent_b].get(g, t, s);
+        double exp_x = get(g, t, s);
+        double x = log(exp_x);
+        double mu = log(exp_mu);
+
+        grad_coeffs[idx].get(g, t, s) += (mu - x) / (sigma * sigma);
+
+        if (parent_a_flexible)
+          grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
+        if (parent_b_flexible)
+          grad_coeffs[parent_b].get(g, t, s)
+              += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
+      });
+      break;
     case Distribution::fixed:
       return;
     default:
