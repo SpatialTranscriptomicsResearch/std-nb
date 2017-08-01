@@ -10,6 +10,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   Model.cpp
   Theta.cpp
   aux.cpp
+  coefficient.cpp
   compression_mode.cpp
   counts.cpp
   covariate.cpp

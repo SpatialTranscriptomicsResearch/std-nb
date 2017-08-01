@@ -2,6 +2,7 @@
 #define PARAMETERS_HPP
 
 #include <cstdint>
+#include "coefficient.hpp"
 #include "compression_mode.hpp"
 #include "covariate.hpp"
 #include "formula.hpp"
