@@ -24,7 +24,6 @@ struct Options {
   // TODO covariates reactivate likelihood
   // bool compute_likelihood = false;
   bool share_coord_sys = false;
-  bool fields = false;
   bool perform_dge = false;
   bool keep_empty = false;
   bool transpose = false;
@@ -113,7 +112,7 @@ int main(int argc, char **argv) {
      "Assume that the samples lie in the same coordinate system.")
     ("output,o", po::value(&parameters.output_directory),
      "Prefix for generated output files.")
-    ("fields", po::bool_switch(&options.fields),
+    ("fields", po::bool_switch(&parameters.use_fields),
      "Activate fields.")
     ("formula,f", po::value(&parameters.rate_formula)->default_value(parameters.rate_formula),
      "Regression formula for the rate parameter of negative binomial rate. "
@@ -331,7 +330,7 @@ int main(int argc, char **argv) {
     parameters.targets = parameters.targets | STD::Target::gamma_prior
                          | STD::Target::rho_prior;
 
-  if (options.fields)
+  if (parameters.use_fields)
     parameters.targets = parameters.targets | STD::Target::field;
   else
     parameters.mesh_additional = 0;

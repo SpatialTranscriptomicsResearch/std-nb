@@ -96,6 +96,7 @@ struct Parameters {
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
+  bool use_fields = false;
   double field_lambda_dirichlet = 1;
   double field_lambda_laplace = 1;
   size_t mesh_additional = 10000;

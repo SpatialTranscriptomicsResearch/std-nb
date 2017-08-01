@@ -868,61 +868,63 @@ void Model::initialize_coordinate_systems(double v) {
     coord_sys.field = Matrix(coord_sys.N, T);
     coord_sys.field.fill(v);
 
-    using Point = Vector;
-    size_t dim = experiments[coord_sys.members[0]].coords.cols();
-    vector<Point> pts;
-    {
-      Point pt(dim);
-      for (auto &member : coord_sys.members)
-        for (size_t s = 0; s < experiments[member].S; ++s) {
-          for (size_t i = 0; i < dim; ++i)
-            pt[i] = experiments[member].coords(s, i);
-          pts.push_back(pt);
-        }
-
-      if (num_additional > 0) {
-        Point mi = pts[0];
-        Point ma = pts[0];
-        for (auto &p : pts)
-          for (size_t d = 0; d < dim; ++d) {
-            if (p[d] < mi[d])
-              mi[d] = p[d];
-            if (p[d] > ma[d])
-              ma[d] = p[d];
-          }
-        if (parameters.mesh_hull_distance <= 0) {
-          Point mid = (ma + mi) / 2;
-          Point half_diff = (ma - mi) / 2;
-          mi = mid - half_diff * parameters.mesh_hull_enlarge;
-          ma = mid + half_diff * parameters.mesh_hull_enlarge;
-        } else {
-          mi.array() -= parameters.mesh_hull_distance;
-          ma.array() += parameters.mesh_hull_distance;
-        }
-        for (size_t i = 0; i < num_additional; ++i) {
-          // TODO improve this
-          // e.g. enlarge area, use convex hull instead of bounding box, etc
-          bool ok = false;
-          while (not ok) {
-            for (size_t d = 0; d < dim; ++d)
-              pt[d] = mi[d]
-                      + (ma[d] - mi[d])
-                            * RandomDistribution::Uniform(EntropySource::rng);
-            for (size_t s = 0; s < coord_sys.S; ++s)
-              if ((pt - pts[s]).norm() < parameters.mesh_hull_distance) {
-                ok = true;
-                break;
-              }
+    if (parameters.use_fields) {
+      using Point = Vector;
+      size_t dim = experiments[coord_sys.members[0]].coords.cols();
+      vector<Point> pts;
+      {
+        Point pt(dim);
+        for (auto &member : coord_sys.members)
+          for (size_t s = 0; s < experiments[member].S; ++s) {
+            for (size_t i = 0; i < dim; ++i)
+              pt[i] = experiments[member].coords(s, i);
+            pts.push_back(pt);
           }
 
-          pts.push_back(pt);
+        if (num_additional > 0) {
+          Point mi = pts[0];
+          Point ma = pts[0];
+          for (auto &p : pts)
+            for (size_t d = 0; d < dim; ++d) {
+              if (p[d] < mi[d])
+                mi[d] = p[d];
+              if (p[d] > ma[d])
+                ma[d] = p[d];
+            }
+          if (parameters.mesh_hull_distance <= 0) {
+            Point mid = (ma + mi) / 2;
+            Point half_diff = (ma - mi) / 2;
+            mi = mid - half_diff * parameters.mesh_hull_enlarge;
+            ma = mid + half_diff * parameters.mesh_hull_enlarge;
+          } else {
+            mi.array() -= parameters.mesh_hull_distance;
+            ma.array() += parameters.mesh_hull_distance;
+          }
+          for (size_t i = 0; i < num_additional; ++i) {
+            // TODO improve this
+            // e.g. enlarge area, use convex hull instead of bounding box, etc
+            bool ok = false;
+            while (not ok) {
+              for (size_t d = 0; d < dim; ++d)
+                pt[d] = mi[d]
+                        + (ma[d] - mi[d])
+                              * RandomDistribution::Uniform(EntropySource::rng);
+              for (size_t s = 0; s < coord_sys.S; ++s)
+                if ((pt - pts[s]).norm() < parameters.mesh_hull_distance) {
+                  ok = true;
+                  break;
+                }
+            }
+
+            pts.push_back(pt);
+          }
         }
       }
+      coord_sys.mesh = Mesh(
+          dim, pts,
+          parameters.output_directory + "coordsys"
+              + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
     }
-    coord_sys.mesh
-        = Mesh(dim, pts,
-               parameters.output_directory + "coordsys"
-                   + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
     coord_sys_idx++;
     S += coord_sys.S;
   }
