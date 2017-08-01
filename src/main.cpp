@@ -333,6 +333,8 @@ int main(int argc, char **argv) {
 
   if (options.fields)
     parameters.targets = parameters.targets | STD::Target::field;
+  else
+    parameters.mesh_additional = 0;
 
   LOG(verbose) << "Inference targets = " << parameters.targets;
   LOG(verbose) << "Rate regression formula = " << parameters.rate_formula;

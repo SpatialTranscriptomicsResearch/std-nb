@@ -59,7 +59,8 @@ void Model::add_covariate_terms(const Formula::Term &term,
       Coefficient covterm(G, T, experiments[e].S, variable, kind, info);
       coeffs.push_back(covterm);
 
-      LOG(debug) << "Creating new " << to_string(kind) << " covariate: " << idx;
+      LOG(verbose) << "Creating new " << to_string(kind) << " "
+                   << to_string(variable) << " covariate: " << idx;
     }
     coeffs[idx].experiment_idxs.push_back(e);
     experiments[e].coeff_idxs.push_back(idx);
