@@ -250,3 +250,25 @@ STD::Vector Coefficient::vectorize() const {
     *iter++ = x;
   return v;
 }
+
+void Coefficient::to_log() {
+  switch (distribution) {
+    case Distribution::log_normal:
+      break;
+    default:
+      for (auto &x : values)
+        x = log(x);
+      break;
+  }
+}
+
+void Coefficient::from_log() {
+  switch (distribution) {
+    case Distribution::log_normal:
+      break;
+    default:
+      for (auto &x : values)
+        x = exp(x);
+      break;
+  }
+}

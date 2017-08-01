@@ -421,6 +421,16 @@ size_t Model::size() const {
   return s;
 }
 
+void Model::from_log() {
+  for (auto &coeff : coeffs)
+    coeff.from_log();
+}
+
+void Model::to_log() {
+  for (auto &coeff : coeffs)
+    coeff.to_log();
+}
+
 Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
@@ -628,7 +638,8 @@ void Model::gradient_update() {
             + "/");
     }
 
-    from_log_vector(begin(x));
+    from_vector(begin(x));
+    from_log();
     enforce_positive_parameters(parameters.min_value);
     double score = 0;
     Model model_grad = compute_gradient(score);
@@ -636,6 +647,7 @@ void Model::gradient_update() {
       LOG(debug) << "Covariate, " << to_string(coeff.variable) << " "
                  << to_string(coeff.kind)
                  << " grad = " << Stats::summary(coeff.values);
+
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
     for (size_t e = 0; e < E; ++e) {
@@ -657,7 +669,12 @@ void Model::gradient_update() {
     return score;
   };
 
-  Vector x = vectorize().array().log();
+  Vector x;
+  {
+    Model model_grad = *this;
+    model_grad.to_log();
+    x = model_grad.vectorize();
+  }
 
   double fx;
   switch (parameters.optim_method) {
@@ -707,7 +724,8 @@ void Model::gradient_update() {
   }
   LOG(verbose) << "Final f(x) = " << fx;
 
-  from_log_vector(begin(x));
+  from_vector(begin(x));
+  from_log();
 }
 
 Vector Model::make_mask() const {

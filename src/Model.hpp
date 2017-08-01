@@ -62,24 +62,29 @@ struct Model {
                          const Matrix &odds_st) const;
   void coeff_debug_dump(const std::string &tag) const;
   double param_likel() const;
+
   Vector vectorize() const;
+
   template <typename Iter>
-  void from_log_vector(Iter iter) {
+  void from_vector(Iter iter) {
     for (auto &coeff : coeffs)
-      coeff.from_log_vector(iter);
+      coeff.from_vector(iter);
 
     if (parameters.targeted(Target::field)) {
       LOG(debug) << "Getting global field from vector";
       for (auto &coord_sys : coordinate_systems)
         for (auto &x : coord_sys.field)
-          x = exp(*iter++);
+          x = *iter++;
     }
 
     for (auto &experiment : experiments)
-      experiment.from_log_vector(iter);
+      experiment.from_vector(iter);
 
     update_experiment_fields();
   };
+
+  void from_log();
+  void to_log();
 
   void gradient_update();
   size_t size() const;

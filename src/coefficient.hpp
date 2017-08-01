@@ -3,8 +3,8 @@
 
 #include <string>
 #include <vector>
-#include "types.hpp"
 #include "covariate.hpp"
+#include "types.hpp"
 
 struct Coefficient {
   enum class Variable { rate, odds, prior };
@@ -33,9 +33,21 @@ struct Coefficient {
   bool gene_dependent() const;
   bool type_dependent() const;
   bool spot_dependent() const;
+
   size_t size() const;
   STD::Vector setZero();
+
+  template <typename Iter>
+  void from_vector(Iter &iter) {
+    for (auto &x : values)
+      x = *iter++;
+  };
+
   STD::Vector vectorize() const;
+
+  void to_log();
+  void from_log();
+
   CovariateInformation info;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;
@@ -81,12 +93,6 @@ struct Coefficient {
                         std::vector<Coefficient> &grad_coeffs,
                         size_t idx) const;
 
-  template <typename Iter>
-  void from_log_vector(Iter &iter) {
-    for (auto &x : values)
-      x = exp(*iter++);
-  };
-
   double get(size_t g, size_t t, size_t s) const;  // rename to operator()
   double &get(size_t g, size_t t, size_t s);       // rename to operator()
   void store(const std::string &path, CompressionMode,
@@ -123,6 +129,5 @@ inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
   return static_cast<Coefficient::Kind>((~static_cast<int>(a))
                                         & ((1 << 11) - 1));
 }
-
 
 #endif

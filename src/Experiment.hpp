@@ -87,11 +87,11 @@ struct Experiment {
   void setZero();
   Vector vectorize() const;
   template <typename Iter>
-  void from_log_vector(Iter &iter) {
+  void from_vector(Iter &iter) {
     if (parameters.targeted(Target::field)) {
       LOG(debug) << "Getting local field from vector";
       for (auto &x : field)
-        x = exp(*iter++);
+        x = *iter++;
     }
   }
 };
