@@ -129,32 +129,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   enforce_positive_parameters(parameters.min_value);
 }
 
-// NOTE: scalar covariates are multiplied into this table
-Matrix Model::compute_gene_type_table(const vector<size_t> &coeff_idxs) const {
-  Matrix gt = Matrix::Ones(G, T);
-
-  for (auto &idx : coeff_idxs)
-    if (not coeffs[idx].spot_dependent())
-      for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= coeffs[idx].get(g, t, 0);
-
-  return gt;
-}
-
-// NOTE: scalar covariates are NOT multiplied into this table
-Matrix Model::compute_spot_type_table(const vector<size_t> &coeff_idxs) const {
-  Matrix st = Matrix::Ones(S, T);
-
-  for (auto &idx : coeff_idxs)
-    if (coeffs[idx].spot_dependent())
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          st(s, t) *= coeffs[idx].get(0, t, s);
-
-  return st;
-}
-
 void Model::coeff_debug_dump(const string &tag) const {
   for (auto coeff : coeffs)
     LOG(debug) << tag << coeff << ": "
@@ -209,8 +183,7 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
   sort(begin(redundant), end(redundant));  // needed?
   size_t removed = 0;
   for (auto r : redundant) {
-    LOG(verbose) << "Removing " << to_string(coeffs[r].kind) << " "
-                 << to_string(coeffs[r].variable) << " coeff " << r << ": "
+    LOG(verbose) << "Removing " << r << ": " << coeffs[r] << ": "
                  << coeffs[r - removed].info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r - removed);
     removed++;
@@ -498,10 +471,14 @@ Model Model::compute_gradient(double &score) const {
 
   for (auto &coord_sys : coordinate_systems)
     for (auto e : coord_sys.members) {
-      rate_gt.push_back(compute_gene_type_table(experiments[e].rate_coeff_idxs));
-      rate_st.push_back(compute_spot_type_table(experiments[e].rate_coeff_idxs));
-      odds_gt.push_back(compute_gene_type_table(experiments[e].odds_coeff_idxs));
-      odds_st.push_back(compute_spot_type_table(experiments[e].odds_coeff_idxs));
+      rate_gt.push_back(experiments[e].compute_gene_type_table(
+          experiments[e].rate_coeff_idxs));
+      rate_st.push_back(experiments[e].compute_spot_type_table(
+          experiments[e].rate_coeff_idxs));
+      odds_gt.push_back(experiments[e].compute_gene_type_table(
+          experiments[e].odds_coeff_idxs));
+      odds_st.push_back(experiments[e].compute_spot_type_table(
+          experiments[e].odds_coeff_idxs));
     }
 
   score = 0;

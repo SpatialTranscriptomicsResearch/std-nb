@@ -500,6 +500,33 @@ Matrix Experiment::field_fitness_posterior_gradient() const {
   return grad;
 }
 
+// NOTE: scalar covariates are multiplied into this table
+Matrix Experiment::compute_gene_type_table(const vector<size_t> &idxs) const {
+  Matrix gt = Matrix::Ones(G, T);
+
+  for (auto &idx : idxs)
+    if (not model->coeffs[idx].spot_dependent())
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          gt(g, t) *= model->coeffs[idx].get(g, t, 0);
+
+  return gt;
+}
+
+// NOTE: scalar covariates are NOT multiplied into this table
+Matrix Experiment::compute_spot_type_table(const vector<size_t> &coeff_idxs) const {
+  Matrix st = Matrix::Ones(S, T);
+
+  for (auto &idx : coeff_idxs)
+    if (model->coeffs[idx].spot_dependent())
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          st(s, t) *= model->coeffs[idx].get(0, t, s);
+
+  return st;
+}
+
+
 /* TODO cov var
 Vector Experiment::marginalize_genes() const {
 
@@ -528,12 +555,12 @@ Vector Experiment::marginalize_genes() const {
 
 Matrix Experiment::expectation() const {
   Matrix mean(G, S);
-  Matrix rate_gt = model->compute_gene_type_table(rate_coeff_idxs);
-  Matrix odds_gt = model->compute_gene_type_table(odds_coeff_idxs);
+  Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
+  Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
   Matrix mean_gt = rate_gt.array() * odds_gt.array();
 
-  Matrix rate_st = model->compute_spot_type_table(rate_coeff_idxs);
-  Matrix odds_st = model->compute_spot_type_table(odds_coeff_idxs);
+  Matrix rate_st = compute_spot_type_table(rate_coeff_idxs);
+  Matrix odds_st = compute_spot_type_table(odds_coeff_idxs);
   Matrix mean_st = rate_st.array() * odds_st.array();
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
@@ -548,10 +575,10 @@ Matrix Experiment::expectation() const {
 
 Matrix Experiment::variance() const {
   Matrix var(G, S);
-  Matrix rate_gt = model->compute_gene_type_table(rate_coeff_idxs);
-  Matrix rate_st = model->compute_spot_type_table(rate_coeff_idxs);
-  Matrix odds_gt = model->compute_gene_type_table(odds_coeff_idxs);
-  Matrix odds_st = model->compute_spot_type_table(odds_coeff_idxs);
+  Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
+  Matrix rate_st = compute_spot_type_table(rate_coeff_idxs);
+  Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
+  Matrix odds_st = compute_spot_type_table(odds_coeff_idxs);
 #pragma omp parallel for if (DO_PARALLEL)
   for (size_t g = 0; g < G; ++g)
     for (size_t s = 0; s < S; ++s) {
@@ -566,12 +593,12 @@ Matrix Experiment::variance() const {
 }
 
 Matrix Experiment::expected_gene_type() const {
-  Matrix st = model->compute_spot_type_table(rate_coeff_idxs).array()
-              * model->compute_spot_type_table(odds_coeff_idxs).array();
+  Matrix st = compute_spot_type_table(rate_coeff_idxs).array()
+              * compute_spot_type_table(odds_coeff_idxs).array();
   Vector st_cs = colSums<Vector>(st);
 
-  Matrix expected = model->compute_gene_type_table(rate_coeff_idxs).array()
-                    * model->compute_gene_type_table(odds_coeff_idxs).array();
+  Matrix expected = compute_gene_type_table(rate_coeff_idxs).array()
+                    * compute_gene_type_table(odds_coeff_idxs).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= st_cs[t];
@@ -579,12 +606,12 @@ Matrix Experiment::expected_gene_type() const {
 }
 
 Matrix Experiment::expected_spot_type() const {
-  Matrix gt = model->compute_gene_type_table(rate_coeff_idxs).array()
-              * model->compute_gene_type_table(odds_coeff_idxs).array();
+  Matrix gt = compute_gene_type_table(rate_coeff_idxs).array()
+              * compute_gene_type_table(odds_coeff_idxs).array();
   Vector gt_cs = colSums<Vector>(gt);
 
-  Matrix expected = model->compute_spot_type_table(rate_coeff_idxs).array()
-                    * model->compute_spot_type_table(odds_coeff_idxs).array();
+  Matrix expected = compute_spot_type_table(rate_coeff_idxs).array()
+                    * compute_spot_type_table(odds_coeff_idxs).array();
 
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];

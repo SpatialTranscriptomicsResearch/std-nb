@@ -43,6 +43,9 @@ struct Experiment {
   std::vector<size_t> odds_coeff_idxs;
   std::vector<size_t> &coeff_idxs(Coefficient::Variable variable);
 
+  Matrix compute_gene_type_table(const std::vector<size_t> &coeff_idxs) const;
+  Matrix compute_spot_type_table(const std::vector<size_t> &coeff_idxs) const;
+
   Matrix field;
 
   /** hidden contributions to the count data due to the different factors */
