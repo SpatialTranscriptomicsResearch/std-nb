@@ -63,17 +63,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
                    << to_string(variable) << " covariate: " << idx;
     }
     coeffs[idx].experiment_idxs.push_back(e);
-    switch (variable) {
-      case Coefficient::Variable::rate:
-        experiments[e].rate_coeff_idxs.push_back(idx);
-        break;
-      case Coefficient::Variable::odds:
-        experiments[e].odds_coeff_idxs.push_back(idx);
-        break;
-      default:
-        throw std::runtime_error("Error: trying to register a non-rate and non-odds covariate.");
-        break;
-    }
+    experiments[e].coeff_idxs(variable).push_back(idx);
   }
 }
 
