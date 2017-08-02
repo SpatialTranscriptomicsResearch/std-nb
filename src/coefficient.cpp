@@ -7,6 +7,122 @@
 using namespace std;
 using STD::Matrix;
 
+Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
+                         Kind kind_, CovariateInformation info_)
+    : variable(variable_), kind(kind_), info(info_) {
+  // TODO cov prior fill prior_idx
+  distribution = Distribution::log_normal;
+  if (false)
+    switch (variable) {
+      case Variable::rate:
+        distribution = Distribution::gamma;
+        break;
+      case Variable::odds:
+        distribution = Distribution::beta_prime;
+        break;
+      case Variable::prior:
+        // TODO cov prior make variable
+        distribution = Distribution::gamma;
+        break;
+      default:
+        throw std::runtime_error(
+            "Error: no distribution assigned for Variable type.");
+        break;
+    }
+  switch (kind) {
+    case Kind::scalar:
+      values = Matrix::Ones(1, 1);
+      return;
+    case Kind::gene:
+      values = Matrix::Ones(G, 1);
+      return;
+    case Kind::spot:
+      values = Matrix::Ones(S, 1);
+      return;
+    case Kind::type:
+      values = Matrix::Ones(T, 1);
+      return;
+    case Kind::gene_type:
+      values = Matrix::Ones(G, T);
+      return;
+    case Kind::spot_type:
+      values = Matrix::Ones(S, T);
+      return;
+  }
+}
+
+void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
+                                   vector<Coefficient> &grad_coeffs,
+                                   size_t idx) const {
+  LOG(debug) << "Coefficient::compute_gradient " << to_string(kind) << " "
+             << to_string(variable) << " " << idx;
+  if (prior_idxs.size() < 2)
+    return;
+  size_t parent_a = prior_idxs[0];
+  size_t parent_b = prior_idxs[1];
+  bool parent_a_flexible
+      = grad_coeffs[parent_a].distribution != Distribution::fixed;
+  bool parent_b_flexible
+      = grad_coeffs[parent_b].distribution != Distribution::fixed;
+  switch (distribution) {
+    case Distribution::gamma:
+      LOG(verbose) << "Computing gamma distribution gradient.";
+      visit([&](size_t g, size_t t, size_t s) {
+        double a = coeffs[parent_a].get(g, t, s);
+        double b = coeffs[parent_b].get(g, t, s);
+        double x = get(g, t, s);
+
+        grad_coeffs[idx].get(g, t, s) += (a - 1) - x * b;
+
+        if (parent_a_flexible)
+          grad_coeffs[parent_a].get(g, t, s)
+              += a * (log(b) - digamma(a) + log(x));
+        if (parent_b_flexible)
+          grad_coeffs[parent_b].get(g, t, s) += a - b * x;
+      });
+      break;
+    case Distribution::beta_prime:
+      LOG(verbose) << "Computing beta prime distribution gradient.";
+      visit([&](size_t g, size_t t, size_t s) {
+        double a = coeffs[parent_a].get(g, t, s);
+        double b = coeffs[parent_b].get(g, t, s);
+        double x = get(g, t, s);
+        double p = odds_to_prob(x);
+
+        grad_coeffs[idx].get(g, t, s) += a - 1 - (a + b - 2) * p;
+
+        if (parent_a_flexible)
+          grad_coeffs[parent_a].get(g, t, s)
+              += log(x) - log(1 + x) + digamma_diff(a, b);
+        if (parent_b_flexible)
+          grad_coeffs[parent_b].get(g, t, s)
+              += -log(1 + x) + digamma_diff(b, a);
+      });
+    case Distribution::log_normal:
+      LOG(verbose) << "Computing log normal distribution gradient.";
+      visit([&](size_t g, size_t t, size_t s) {
+        double exp_mu = coeffs[parent_a].get(g, t, s);
+        double sigma = coeffs[parent_b].get(g, t, s);
+        double exp_x = get(g, t, s);
+        double x = log(exp_x);
+        double mu = log(exp_mu);
+
+        grad_coeffs[idx].get(g, t, s) += (mu - x) / (sigma * sigma);
+
+        if (parent_a_flexible)
+          grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
+        if (parent_b_flexible)
+          grad_coeffs[parent_b].get(g, t, s)
+              += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
+      });
+      break;
+    case Distribution::fixed:
+      return;
+    default:
+      throw std::runtime_error("Error: distribution not implemented.");
+  }
+}
+
 bool kind_included(Coefficient::Kind kind, Coefficient::Kind x) {
   return (kind & x) == x;
 }
@@ -109,50 +225,6 @@ string to_token(const Coefficient::Kind &kind) {
   }
 }
 
-Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
-                         Kind kind_, CovariateInformation info_)
-    : variable(variable_), kind(kind_), info(info_) {
-  // TODO cov prior fill prior_idx
-  distribution = Distribution::log_normal;
-  if (false)
-    switch (variable) {
-      case Variable::rate:
-        distribution = Distribution::gamma;
-        break;
-      case Variable::odds:
-        distribution = Distribution::beta_prime;
-        break;
-      case Variable::prior:
-        // TODO cov prior make variable
-        distribution = Distribution::gamma;
-        break;
-      default:
-        throw std::runtime_error(
-            "Error: no distribution assigned for Variable type.");
-        break;
-    }
-  switch (kind) {
-    case Kind::scalar:
-      values = Matrix::Ones(1, 1);
-      return;
-    case Kind::gene:
-      values = Matrix::Ones(G, 1);
-      return;
-    case Kind::spot:
-      values = Matrix::Ones(S, 1);
-      return;
-    case Kind::type:
-      values = Matrix::Ones(T, 1);
-      return;
-    case Kind::gene_type:
-      values = Matrix::Ones(G, T);
-      return;
-    case Kind::spot_type:
-      values = Matrix::Ones(S, T);
-      return;
-  }
-}
-
 double &Coefficient::get(size_t g, size_t t, size_t s) {
   switch (kind) {
     case Kind::scalar:
@@ -188,75 +260,6 @@ double Coefficient::get(size_t g, size_t t, size_t s) const {
       return values(s, t);
     default:
       throw std::runtime_error("Error: invalid Coefficient::Kind.");
-  }
-}
-
-void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
-                                   vector<Coefficient> &grad_coeffs,
-                                   size_t idx) const {
-  LOG(debug) << "Coefficient::compute_gradient " << to_string(kind) << " "
-             << to_string(variable) << " " << idx;
-  if (prior_idxs.size() < 2)
-    return;
-  size_t parent_a = prior_idxs[0];
-  size_t parent_b = prior_idxs[1];
-  bool parent_a_flexible
-      = grad_coeffs[parent_a].distribution != Distribution::fixed;
-  bool parent_b_flexible
-      = grad_coeffs[parent_b].distribution != Distribution::fixed;
-  switch (distribution) {
-    case Distribution::gamma:
-      visit([&](size_t g, size_t t, size_t s) {
-        double a = coeffs[parent_a].get(g, t, s);
-        double b = coeffs[parent_b].get(g, t, s);
-        double x = get(g, t, s);
-
-        grad_coeffs[idx].get(g, t, s) += (a - 1) - x * b;
-
-        if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s)
-              += a * (log(b) - digamma(a) + log(x));
-        if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s) += a - b * x;
-      });
-      break;
-    case Distribution::beta_prime:
-      visit([&](size_t g, size_t t, size_t s) {
-        double a = coeffs[parent_a].get(g, t, s);
-        double b = coeffs[parent_b].get(g, t, s);
-        double x = get(g, t, s);
-        double p = odds_to_prob(x);
-
-        grad_coeffs[idx].get(g, t, s) += a - 1 - (a + b - 2) * p;
-
-        if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s)
-              += log(x) - log(1 + x) + digamma_diff(a, b);
-        if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s)
-              += -log(1 + x) + digamma_diff(b, a);
-      });
-    case Distribution::log_normal:
-      visit([&](size_t g, size_t t, size_t s) {
-        double exp_mu = coeffs[parent_a].get(g, t, s);
-        double sigma = coeffs[parent_b].get(g, t, s);
-        double exp_x = get(g, t, s);
-        double x = log(exp_x);
-        double mu = log(exp_mu);
-
-        grad_coeffs[idx].get(g, t, s) += (mu - x) / (sigma * sigma);
-
-        if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
-        if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s)
-              += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
-      });
-      break;
-    case Distribution::fixed:
-      return;
-    default:
-      throw std::runtime_error("Error: distribution not implemented.");
   }
 }
 
