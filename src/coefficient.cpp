@@ -54,8 +54,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
 void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
                                    vector<Coefficient> &grad_coeffs,
                                    size_t idx) const {
-  LOG(debug) << "Coefficient::compute_gradient " << to_string(kind) << " "
-             << to_string(variable) << " " << idx;
+  LOG(debug) << "Coefficient::compute_gradient " << idx << ":" << *this;
   if (prior_idxs.size() < 2)
     return;
   size_t parent_a = prior_idxs[0];
@@ -174,57 +173,6 @@ void Coefficient::restore(const string &path) {
   values = parse_file<Matrix>(path, read_matrix, "\t");
 }
 
-string to_string(const Coefficient::Kind &kind) {
-  switch (kind) {
-    case Coefficient::Kind::scalar:
-      return "scalar";
-    case Coefficient::Kind::gene:
-      return "gene-dependent";
-    case Coefficient::Kind::spot:
-      return "spot-dependent";
-    case Coefficient::Kind::type:
-      return "type-dependent";
-    case Coefficient::Kind::gene_type:
-      return "gene- and type-dependent";
-    case Coefficient::Kind::spot_type:
-      return "spot- and type-dependent";
-    default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
-  }
-}
-
-string to_string(const Coefficient::Variable &variable) {
-  switch (variable) {
-    case Coefficient::Variable::rate:
-      return "rate";
-    case Coefficient::Variable::odds:
-      return "odds";
-    case Coefficient::Variable::prior:
-      return "prior";
-    default:
-      throw std::runtime_error("Error: invalid Coefficient::Variable.");
-  }
-}
-
-string to_token(const Coefficient::Kind &kind) {
-  switch (kind) {
-    case Coefficient::Kind::scalar:
-      return "scalar";
-    case Coefficient::Kind::gene:
-      return "gene";
-    case Coefficient::Kind::spot:
-      return "spot";
-    case Coefficient::Kind::type:
-      return "type";
-    case Coefficient::Kind::gene_type:
-      return "gene-type";
-    case Coefficient::Kind::spot_type:
-      return "spot-type";
-    default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
-  }
-}
-
 double &Coefficient::get(size_t g, size_t t, size_t s) {
   switch (kind) {
     case Kind::scalar:
@@ -271,4 +219,80 @@ STD::Vector Coefficient::vectorize() const {
   for (auto &x : values)
     *iter++ = x;
   return v;
+}
+
+string to_string(const Coefficient::Kind &kind) {
+  switch (kind) {
+    case Coefficient::Kind::scalar:
+      return "scalar";
+    case Coefficient::Kind::gene:
+      return "gene-dependent";
+    case Coefficient::Kind::spot:
+      return "spot-dependent";
+    case Coefficient::Kind::type:
+      return "type-dependent";
+    case Coefficient::Kind::gene_type:
+      return "gene- and type-dependent";
+    case Coefficient::Kind::spot_type:
+      return "spot- and type-dependent";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+  }
+}
+
+string to_string(const Coefficient::Variable &variable) {
+  switch (variable) {
+    case Coefficient::Variable::rate:
+      return "rate";
+    case Coefficient::Variable::odds:
+      return "odds";
+    case Coefficient::Variable::prior:
+      return "prior";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Variable.");
+  }
+}
+
+string to_string(const Coefficient::Distribution &distribution) {
+  switch (distribution) {
+    case Coefficient::Distribution::fixed:
+      return "fixed";
+    case Coefficient::Distribution::gamma:
+      return "gamma";
+    case Coefficient::Distribution::beta_prime:
+      return "beta_prime";
+    case Coefficient::Distribution::log_normal:
+      return "log_normal";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Distribution.");
+  }
+}
+
+string to_token(const Coefficient::Kind &kind) {
+  switch (kind) {
+    case Coefficient::Kind::scalar:
+      return "scalar";
+    case Coefficient::Kind::gene:
+      return "gene";
+    case Coefficient::Kind::spot:
+      return "spot";
+    case Coefficient::Kind::type:
+      return "type";
+    case Coefficient::Kind::gene_type:
+      return "gene-type";
+    case Coefficient::Kind::spot_type:
+      return "spot-type";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+  }
+}
+
+string Coefficient::to_string() const {
+  return "Coefficient, " + ::to_string(variable) + " "
+         + ::to_string(distribution) + "-distributed " + ::to_string(kind);
+}
+
+ostream &operator<<(ostream &os, const Coefficient &coeff) {
+  os << coeff.to_string();
+  return os;
 }

@@ -59,8 +59,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
       Coefficient covterm(G, T, experiments[e].S, variable, kind, info);
       coeffs.push_back(covterm);
 
-      LOG(verbose) << "Creating new " << to_string(kind) << " "
-                   << to_string(variable) << " covariate: " << idx;
+      LOG(verbose) << "Creating coefficient " << idx << ": " << covterm;
     }
     coeffs[idx].experiment_idxs.push_back(e);
     experiments[e].coeff_idxs(variable).push_back(idx);
@@ -158,13 +157,11 @@ Matrix Model::compute_spot_type_table(const vector<size_t> &coeff_idxs) const {
 
 void Model::coeff_debug_dump(const string &tag) const {
   for (auto coeff : coeffs)
-    LOG(debug) << tag << to_string(coeff.variable) << " "
-               << to_string(coeff.kind) << " coeff"
-               << ": " << coeff.info.to_string(design.covariates);
+    LOG(debug) << tag << coeff << ": "
+               << coeff.info.to_string(design.covariates);
   auto fnc = [&](const string &s, size_t idx, size_t e) {
-    LOG(debug) << tag << " " << s << " experiment " << e << " "
-               << to_string(coeffs[idx].variable) << " "
-               << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
+    LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
+               << coeffs[idx] << ": "
                << coeffs[idx].info.to_string(design.covariates);
   };
   for (size_t e = 0; e < E; ++e) {
@@ -675,9 +672,7 @@ void Model::gradient_update() {
     double score = 0;
     Model model_grad = compute_gradient(score);
     for (auto &coeff : model_grad.coeffs)
-      LOG(debug) << "Covariate, " << to_string(coeff.variable) << " "
-                 << to_string(coeff.kind)
-                 << " grad = " << Stats::summary(coeff.values);
+      LOG(debug) << coeff << " grad = " << Stats::summary(coeff.values);
 
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;

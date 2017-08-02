@@ -44,6 +44,7 @@ struct Coefficient {
   };
 
   STD::Vector vectorize() const;
+  std::string to_string() const;
 
   CovariateInformation info;
   STD::Matrix values;
@@ -102,7 +103,10 @@ struct Coefficient {
 
 std::string to_string(const Coefficient::Variable &variable);
 std::string to_string(const Coefficient::Kind &kind);
+std::string to_string(const Coefficient::Distribution &distribution);
 std::string to_token(const Coefficient::Kind &kind);
+
+std::ostream &operator<<(std::ostream &os, const Coefficient &coeff);
 
 inline constexpr Coefficient::Kind operator&(Coefficient::Kind a,
                                              Coefficient::Kind b) {
