@@ -95,9 +95,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   coeff_debug_dump("AFTER");
 
   for (auto &coeff : coeffs)
-    if (coeff.variable == Coefficient::Variable::rate
-        and (coeff.kind == Coefficient::Kind::gene_type
-             or coeff.kind == Coefficient::Kind::spot_type))
+    if (coeff.kind == Coefficient::Kind::gene_type
+        or coeff.kind == Coefficient::Kind::spot_type)
       for (auto &x : coeff.values)
         x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
     else
@@ -460,7 +459,6 @@ void Model::from_vector(const Vector &v) {
 
   update_experiment_fields();
 }
-
 
 Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
