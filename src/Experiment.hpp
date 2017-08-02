@@ -39,7 +39,9 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<size_t> coeff_idxs;
+  std::vector<size_t> rate_coeff_idxs;
+  std::vector<size_t> odds_coeff_idxs;
+  std::vector<size_t> &coeff_idxs(Coefficient::Variable variable);
 
   Matrix field;
 
@@ -67,9 +69,6 @@ struct Experiment {
                                         const Matrix &rate_st,
                                         const Matrix &odds_gt,
                                         const Matrix &odds_st, RNG &rng) const;
-
-  Matrix compute_gene_type_table(Coefficient::Variable variable) const;
-  Matrix compute_spot_type_table(Coefficient::Variable variable) const;
 
   Vector marginalize_genes() const;
 

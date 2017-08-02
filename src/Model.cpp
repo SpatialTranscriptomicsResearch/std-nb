@@ -63,7 +63,17 @@ void Model::add_covariate_terms(const Formula::Term &term,
                    << to_string(variable) << " covariate: " << idx;
     }
     coeffs[idx].experiment_idxs.push_back(e);
-    experiments[e].coeff_idxs.push_back(idx);
+    switch (variable) {
+      case Coefficient::Variable::rate:
+        experiments[e].rate_coeff_idxs.push_back(idx);
+        break;
+      case Coefficient::Variable::odds:
+        experiments[e].odds_coeff_idxs.push_back(idx);
+        break;
+      default:
+        throw std::runtime_error("Error: trying to register a non-rate and non-odds covariate.");
+        break;
+    }
   }
 }
 
@@ -130,17 +140,49 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   enforce_positive_parameters(parameters.min_value);
 }
 
+// NOTE: scalar covariates are multiplied into this table
+Matrix Model::compute_gene_type_table(const vector<size_t> &coeff_idxs) const {
+  Matrix gt = Matrix::Ones(G, T);
+
+  for (auto &idx : coeff_idxs)
+    if (not coeffs[idx].spot_dependent())
+      for (size_t g = 0; g < G; ++g)
+        for (size_t t = 0; t < T; ++t)
+          gt(g, t) *= coeffs[idx].get(g, t, 0);
+
+  return gt;
+}
+
+// NOTE: scalar covariates are NOT multiplied into this table
+Matrix Model::compute_spot_type_table(const vector<size_t> &coeff_idxs) const {
+  Matrix st = Matrix::Ones(S, T);
+
+  for (auto &idx : coeff_idxs)
+    if (coeffs[idx].spot_dependent())
+      for (size_t s = 0; s < S; ++s)
+        for (size_t t = 0; t < T; ++t)
+          st(s, t) *= coeffs[idx].get(0, t, s);
+
+  return st;
+}
+
 void Model::coeff_debug_dump(const string &tag) const {
   for (auto coeff : coeffs)
     LOG(debug) << tag << to_string(coeff.variable) << " "
                << to_string(coeff.kind) << " coeff"
                << ": " << coeff.info.to_string(design.covariates);
-  for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs)
-      LOG(debug) << tag << " rate experiment " << e << " "
-                 << to_string(coeffs[idx].variable) << " "
-                 << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
-                 << coeffs[idx].info.to_string(design.covariates);
+  auto fnc = [&](const string &s, size_t idx, size_t e) {
+    LOG(debug) << tag << " " << s << " experiment " << e << " "
+               << to_string(coeffs[idx].variable) << " "
+               << to_string(coeffs[idx].kind) << " coeff idx " << idx << ": "
+               << coeffs[idx].info.to_string(design.covariates);
+  };
+  for (size_t e = 0; e < E; ++e) {
+    for (auto idx : experiments[e].rate_coeff_idxs)
+      fnc("rate", idx, e);
+    for (auto idx : experiments[e].odds_coeff_idxs)
+      fnc("odds", idx, e);
+  }
 }
 
 vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
@@ -173,7 +215,7 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
                                    Coefficient::Kind kind) {
   vector<vector<size_t>> cov2groups(coeffs.size());
   for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs)
+    for (auto idx : experiments[e].coeff_idxs(variable))
       if (coeffs[idx].variable == variable and coeffs[idx].kind == kind)
         cov2groups[idx].push_back(e);
   auto redundant = find_redundant(cov2groups);
@@ -188,10 +230,11 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
   }
   for (size_t e = 0; e < E; ++e) {
     for (auto r : redundant)
-      experiments[e].coeff_idxs.erase(remove(begin(experiments[e].coeff_idxs),
-                                             end(experiments[e].coeff_idxs), r),
-                                      end(experiments[e].coeff_idxs));
-    for (auto &idx : experiments[e].coeff_idxs)
+      experiments[e].coeff_idxs(variable).erase(
+          remove(begin(experiments[e].coeff_idxs(variable)),
+                 end(experiments[e].coeff_idxs(variable)), r),
+          end(experiments[e].coeff_idxs(variable)));
+    for (auto &idx : experiments[e].coeff_idxs(variable))
       for (auto r : redundant)
         if (idx > r)
           idx--;
@@ -468,11 +511,10 @@ Model Model::compute_gradient(double &score) const {
 
   for (auto &coord_sys : coordinate_systems)
     for (auto e : coord_sys.members) {
-      using Variable = Coefficient::Variable;
-      rate_gt.push_back(experiments[e].compute_gene_type_table(Variable::rate));
-      rate_st.push_back(experiments[e].compute_spot_type_table(Variable::rate));
-      odds_gt.push_back(experiments[e].compute_gene_type_table(Variable::odds));
-      odds_st.push_back(experiments[e].compute_spot_type_table(Variable::odds));
+      rate_gt.push_back(compute_gene_type_table(experiments[e].rate_coeff_idxs));
+      rate_st.push_back(compute_spot_type_table(experiments[e].rate_coeff_idxs));
+      odds_gt.push_back(compute_gene_type_table(experiments[e].odds_coeff_idxs));
+      odds_st.push_back(compute_spot_type_table(experiments[e].odds_coeff_idxs));
     }
 
   score = 0;
@@ -555,19 +597,12 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double log_one_minus_p = neg_odds_to_log_prob(odds);
 
     const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
-    const double variance_term = k - p * (r + k);
+    const double odds_term = k - p * (r + k);
 
-    for (auto &idx : gradient.experiments[e].coeff_idxs)
-      switch (coeffs[idx].variable) {
-        case Coefficient::Variable::rate:
-          gradient.coeffs[idx].get(g, t, s) += rate_term;
-          break;
-        case Coefficient::Variable::odds:
-          gradient.coeffs[idx].get(g, t, s) += variance_term;
-          break;
-        default:
-          break;
-      }
+    for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
+      gradient.coeffs[idx].get(g, t, s) += rate_term;
+    for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
+      gradient.coeffs[idx].get(g, t, s) += odds_term;
   }
 }
 

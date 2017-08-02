@@ -68,6 +68,9 @@ struct Model {
   void gradient_update();
   size_t size() const;
 
+  Matrix compute_gene_type_table( const std::vector<size_t> &coeff_idxs) const;
+  Matrix compute_spot_type_table( const std::vector<size_t> &coeff_idxs) const;
+
   Vector make_mask() const;
   void apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const;
 
