@@ -45,9 +45,6 @@ struct Coefficient {
 
   STD::Vector vectorize() const;
 
-  void to_log();
-  void from_log();
-
   CovariateInformation info;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;

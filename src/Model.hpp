@@ -64,28 +64,7 @@ struct Model {
   double param_likel() const;
 
   Vector vectorize() const;
-
-  template <typename Iter>
-  void from_vector(Iter iter) {
-    for (auto &coeff : coeffs)
-      coeff.from_vector(iter);
-
-    if (parameters.targeted(Target::field)) {
-      LOG(debug) << "Getting global field from vector";
-      for (auto &coord_sys : coordinate_systems)
-        for (auto &x : coord_sys.field)
-          x = *iter++;
-    }
-
-    for (auto &experiment : experiments)
-      experiment.from_vector(iter);
-
-    update_experiment_fields();
-  };
-
-  void from_log();
-  void to_log();
-
+  void from_vector(const Vector &v);
   void gradient_update();
   size_t size() const;
 

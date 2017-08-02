@@ -421,16 +421,6 @@ size_t Model::size() const {
   return s;
 }
 
-void Model::from_log() {
-  for (auto &coeff : coeffs)
-    coeff.from_log();
-}
-
-void Model::to_log() {
-  for (auto &coeff : coeffs)
-    coeff.to_log();
-}
-
 Vector Model::vectorize() const {
   Vector v(size());
   auto iter = begin(v);
@@ -452,6 +442,25 @@ Vector Model::vectorize() const {
 
   return v;
 }
+
+void Model::from_vector(const Vector &v) {
+  auto iter = begin(v);
+  for (auto &coeff : coeffs)
+    coeff.from_vector(iter);
+
+  if (parameters.targeted(Target::field)) {
+    LOG(debug) << "Getting global field from vector";
+    for (auto &coord_sys : coordinate_systems)
+      for (auto &x : coord_sys.field)
+        x = *iter++;
+  }
+
+  for (auto &experiment : experiments)
+    experiment.from_vector(iter);
+
+  update_experiment_fields();
+}
+
 
 Model Model::compute_gradient(double &score) const {
   LOG(verbose) << "Computing gradient";
@@ -638,8 +647,7 @@ void Model::gradient_update() {
             + "/");
     }
 
-    from_vector(begin(x));
-    from_log();
+    from_vector(x.array().exp());
     enforce_positive_parameters(parameters.min_value);
     double score = 0;
     Model model_grad = compute_gradient(score);
@@ -669,12 +677,7 @@ void Model::gradient_update() {
     return score;
   };
 
-  Vector x;
-  {
-    Model model_grad = *this;
-    model_grad.to_log();
-    x = model_grad.vectorize();
-  }
+  Vector x = vectorize().array().log();
 
   double fx;
   switch (parameters.optim_method) {
@@ -724,8 +727,7 @@ void Model::gradient_update() {
   }
   LOG(verbose) << "Final f(x) = " << fx;
 
-  from_vector(begin(x));
-  from_log();
+  from_vector(x.array().exp());
 }
 
 Vector Model::make_mask() const {
