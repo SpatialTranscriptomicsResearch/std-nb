@@ -514,10 +514,10 @@ Matrix Experiment::compute_gene_type_table(const vector<size_t> &idxs) const {
 }
 
 // NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table(const vector<size_t> &coeff_idxs) const {
+Matrix Experiment::compute_spot_type_table(const vector<size_t> &idxs) const {
   Matrix st = Matrix::Ones(S, T);
 
-  for (auto &idx : coeff_idxs)
+  for (auto &idx : idxs)
     if (model->coeffs[idx].spot_dependent())
       for (size_t s = 0; s < S; ++s)
         for (size_t t = 0; t < T; ++t)
