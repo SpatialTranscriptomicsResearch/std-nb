@@ -126,6 +126,8 @@ struct Parameters {
 
   Formula rate_formula = DefaultRateFormula();
   Formula variance_formula = DefaultVarianceFormula();
+
+  DistributionMode distribution_mode = DistributionMode::log_normal;
 };
 }
 #endif

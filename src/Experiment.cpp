@@ -526,7 +526,6 @@ Matrix Experiment::compute_spot_type_table(const vector<size_t> &idxs) const {
   return st;
 }
 
-
 /* TODO cov var
 Vector Experiment::marginalize_genes() const {
 

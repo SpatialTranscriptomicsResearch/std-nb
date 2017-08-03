@@ -56,7 +56,9 @@ void Model::add_covariate_terms(const Formula::Term &term,
       covvalues2idx[cov_values] = idx;
 
       CovariateInformation info = {cov_idxs, cov_values};
-      Coefficient covterm(G, T, experiments[e].S, variable, kind, info);
+      Coefficient covterm(
+          G, T, experiments[e].S, variable, kind,
+          choose_distribution(variable, parameters.distribution_mode), info);
       coeffs.push_back(covterm);
 
       LOG(verbose) << "Creating coefficient " << idx << ": " << covterm;
@@ -111,8 +113,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     coeffs[idx].prior_idxs.push_back(n + 1);
     CovariateInformation info = coeffs[idx].info;
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
-                        Coefficient::Kind::scalar, info);
-    covterm.distribution = Coefficient::Distribution::fixed;
+                        Coefficient::Kind::scalar,
+                        Coefficient::Distribution::fixed, info);
     covterm.experiment_idxs = coeffs[idx].experiment_idxs;
 
     covterm.get(0, 0, 0)

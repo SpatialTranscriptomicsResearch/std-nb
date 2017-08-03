@@ -6,6 +6,13 @@
 #include "covariate.hpp"
 #include "types.hpp"
 
+enum class DistributionMode { log_normal, gamma_odds, gamma_odds_log_normal };
+
+std::string to_string(DistributionMode mode);
+DistributionMode distribution_from_string(const std::string &s);
+std::ostream &operator<<(std::ostream &os, DistributionMode mode);
+std::istream &operator>>(std::istream &is, DistributionMode &mode);
+
 struct Coefficient {
   enum class Variable { rate, odds, prior };
   enum class Kind {
@@ -26,7 +33,7 @@ struct Coefficient {
     // log_gp
   };
   Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
-              CovariateInformation info);
+              Distribution distribution, CovariateInformation info);
   Variable variable;
   Kind kind;
   Distribution distribution;
@@ -130,5 +137,8 @@ inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
   return static_cast<Coefficient::Kind>((~static_cast<int>(a))
                                         & ((1 << 11) - 1));
 }
+
+Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
+                                              DistributionMode mode);
 
 #endif

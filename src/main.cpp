@@ -126,6 +126,11 @@ int main(int argc, char **argv) {
     ("varformula", po::value(&parameters.variance_formula)->default_value(parameters.variance_formula),
      "Regression formula for the variance parameter of negative binomial rate. "
      "See information on --formula for syntax.")
+    ("distmode", po::value(&parameters.distribution_mode)->default_value(parameters.distribution_mode),
+     "Which probability distributions to use as default:\n"
+     "gamma_odds            \tUse gamma distributions for rate and prior parameters, and beta prime distributions for the odds parameters\n"
+     "gamma_odds_log_normal \tUse gamma distributions for rate parameters, beta prime distributions for the odds parameters, and log normal for the prior parameters\n"
+     "log_normal \tUse log normal for all parameters")
     ("top", po::value(&options.top)->default_value(options.top),
      "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
     ("bot", po::value(&options.bottom)->default_value(options.bottom),

@@ -7,28 +7,71 @@
 using namespace std;
 using STD::Matrix;
 
+std::string to_string(DistributionMode mode) {
+  switch (mode) {
+    case DistributionMode::log_normal:
+      return "log_normal";
+    case DistributionMode::gamma_odds:
+      return "gamma_odds";
+    case DistributionMode::gamma_odds_log_normal:
+      return "gamma_odds_log_normal";
+  }
+  throw std::runtime_error("Error in to_string(DistributionMode).");
+}
+
+DistributionMode distribution_from_string(const std::string &s_) {
+  string s = to_lower(s_);
+  if (s == "log_normal")
+    return DistributionMode::log_normal;
+  else if (s == "gamma_odds")
+    return DistributionMode::gamma_odds;
+  else if (s == "gamma_odds_log_normal")
+    return DistributionMode::gamma_odds_log_normal;
+  else
+    throw std::runtime_error("Couldn't parse DistributionMode: '" + s + "'.");
+}
+
+std::ostream &operator<<(std::ostream &os, DistributionMode mode) {
+  os << to_string(mode);
+  return os;
+}
+
+std::istream &operator>>(std::istream &is, DistributionMode &mode) {
+  string token;
+  is >> token;
+  mode = distribution_from_string(token);
+  return is;
+}
+
+Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
+                                              DistributionMode mode) {
+  switch (mode) {
+    case DistributionMode::log_normal:
+      return Coefficient::Distribution::log_normal;
+    case DistributionMode::gamma_odds:
+    case DistributionMode::gamma_odds_log_normal:
+      switch (variable) {
+        case Coefficient::Variable::rate:
+          return Coefficient::Distribution::gamma;
+        case Coefficient::Variable::odds:
+          return Coefficient::Distribution::beta_prime;
+        case Coefficient::Variable::prior:
+          if (mode == DistributionMode::gamma_odds)
+            return Coefficient::Distribution::gamma;
+          else if (mode == DistributionMode::gamma_odds_log_normal)
+            return Coefficient::Distribution::log_normal;
+          else
+            throw std::runtime_error("Error: this should not happen!");
+      }
+  }
+  throw std::runtime_error("Error in choose_distribution().");
+}
+
 Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
-                         Kind kind_, CovariateInformation info_)
-    : variable(variable_), kind(kind_), info(info_) {
+                         Kind kind_, Distribution dist,
+                         CovariateInformation info_)
+    : variable(variable_), kind(kind_), distribution(dist), info(info_) {
   // TODO cov prior fill prior_idx
-  distribution = Distribution::log_normal;
-  if (false)
-    switch (variable) {
-      case Variable::rate:
-        distribution = Distribution::gamma;
-        break;
-      case Variable::odds:
-        distribution = Distribution::beta_prime;
-        break;
-      case Variable::prior:
-        // TODO cov prior make variable
-        distribution = Distribution::gamma;
-        break;
-      default:
-        throw std::runtime_error(
-            "Error: no distribution assigned for Variable type.");
-        break;
-    }
   switch (kind) {
     case Kind::scalar:
       values = Matrix::Ones(1, 1);
@@ -291,8 +334,8 @@ string to_token(const Coefficient::Kind &kind) {
 
 string Coefficient::to_string() const {
   string s = "Coefficient, " + ::to_string(variable) + " "
-         + ::to_string(distribution) + "-distributed " + ::to_string(kind);
-  for(auto &prior_idx: prior_idxs)
+             + ::to_string(distribution) + "-distributed " + ::to_string(kind);
+  for (auto &prior_idx : prior_idxs)
     s += " prior=" + std::to_string(prior_idx);
   return s;
 }
