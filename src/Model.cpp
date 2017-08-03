@@ -104,23 +104,27 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
 
-  for (auto &term : coeffs) {
+  size_t num_coeffs = coeffs.size();
+  for (size_t idx = 0; idx < num_coeffs; ++idx) {
     size_t n = coeffs.size();
-    term.prior_idxs.push_back(n);
-    term.prior_idxs.push_back(n + 1);
-    CovariateInformation info = term.info;  // {cov_idxs, cov_values};
+    coeffs[idx].prior_idxs.push_back(n);
+    coeffs[idx].prior_idxs.push_back(n + 1);
+    CovariateInformation info = coeffs[idx].info;
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar, info);
-    covterm.experiment_idxs = term.experiment_idxs;
+    covterm.experiment_idxs = coeffs[idx].experiment_idxs;
 
     covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(term.distribution, 0);
+        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 0);
     coeffs.push_back(covterm);
+    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": "
+                 << covterm;
 
     covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(term.distribution, 1);
+        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 1);
     coeffs.push_back(covterm);
-    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": " << covterm;
+    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": "
+                 << covterm;
   }
 
   coeff_debug_dump("FINAL");

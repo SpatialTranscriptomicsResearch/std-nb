@@ -288,8 +288,11 @@ string to_token(const Coefficient::Kind &kind) {
 }
 
 string Coefficient::to_string() const {
-  return "Coefficient, " + ::to_string(variable) + " "
+  string s = "Coefficient, " + ::to_string(variable) + " "
          + ::to_string(distribution) + "-distributed " + ::to_string(kind);
+  for(auto &prior_idx: prior_idxs)
+    s += " prior=" + std::to_string(prior_idx);
+  return s;
 }
 
 ostream &operator<<(ostream &os, const Coefficient &coeff) {
