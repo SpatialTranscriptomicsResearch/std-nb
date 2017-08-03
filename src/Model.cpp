@@ -472,7 +472,7 @@ void Model::from_vector(const Vector &v) {
 }
 
 Model Model::compute_gradient(double &score) const {
-  LOG(verbose) << "Computing gradient";
+  LOG(debug) << "Computing gradient";
 
   vector<Matrix> rate_gt, rate_st;
   vector<Matrix> odds_gt, odds_st;
@@ -640,7 +640,7 @@ double Model::param_likel() const {
 }
 
 void Model::gradient_update() {
-  LOG(verbose) << "Performing gradient update iteration";
+  LOG(verbose) << "Performing gradient update iterations";
 
   size_t iter_cnt = 0;
 
