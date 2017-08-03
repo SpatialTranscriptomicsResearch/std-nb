@@ -22,7 +22,7 @@ struct Hyperparameters {
                   Float theta_r_1_ = 1, Float theta_r_2_ = 1,
                   Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95,
                   Float spot_a_ = 10, Float spot_b_ = 10, Float bline1 = 50,
-                  Float bline2 = 50, Float normal_1_ = 0, Float normal_2_ = 1)
+                  Float bline2 = 50, Float normal_1_ = exp(0), Float normal_2_ = 1)
       : gamma_1(gamma_1_),
         gamma_2(gamma_2_),
         lambda_1(lambda_1_),

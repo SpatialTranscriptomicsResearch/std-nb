@@ -248,9 +248,9 @@ int main(int argc, char **argv) {
     ("bline2", po::value(&parameters.hyperparameters.beta_2)->default_value(parameters.hyperparameters.beta_2),
      "Second prior for the baseline features.")
     ("normal_1", po::value(&parameters.hyperparameters.normal_1)->default_value(parameters.hyperparameters.normal_1),
-     "Prior 1 of normal distribution.")
+     "Exponential of the mean of log normal distributions.")
     ("normalrho_2", po::value(&parameters.hyperparameters.normal_2)->default_value(parameters.hyperparameters.normal_2),
-     "Prior 2 of normal distribution.");
+     "Variance of the log normal distribution.");
 
   inference_options.add_options()
     ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
