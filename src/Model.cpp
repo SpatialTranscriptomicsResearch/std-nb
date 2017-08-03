@@ -104,7 +104,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
 
-  size_t num_coeffs = coeffs.size();
+  const size_t num_coeffs = coeffs.size();
   for (size_t idx = 0; idx < num_coeffs; ++idx) {
     size_t n = coeffs.size();
     coeffs[idx].prior_idxs.push_back(n);
@@ -112,6 +112,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     CovariateInformation info = coeffs[idx].info;
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar, info);
+    covterm.distribution = Coefficient::Distribution::fixed;
     covterm.experiment_idxs = coeffs[idx].experiment_idxs;
 
     covterm.get(0, 0, 0)
@@ -136,7 +137,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
 void Model::coeff_debug_dump(const string &tag) const {
   for (auto coeff : coeffs)
-    LOG(debug) << tag << coeff << ": "
+    LOG(debug) << tag << " " << coeff << ": "
                << coeff.info.to_string(design.covariates);
   auto fnc = [&](const string &s, size_t idx, size_t e) {
     LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
@@ -182,7 +183,7 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
   vector<vector<size_t>> cov2groups(coeffs.size());
   for (size_t e = 0; e < E; ++e)
     for (auto idx : experiments[e].coeff_idxs(variable))
-      if (coeffs[idx].variable == variable and coeffs[idx].kind == kind)
+      if (coeffs[idx].kind == kind)
         cov2groups[idx].push_back(e);
   auto redundant = find_redundant(cov2groups);
   sort(begin(redundant), end(redundant));  // needed?
@@ -194,15 +195,15 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
     removed++;
   }
   for (size_t e = 0; e < E; ++e) {
-    for (auto r : redundant)
-      experiments[e].coeff_idxs(variable).erase(
-          remove(begin(experiments[e].coeff_idxs(variable)),
-                 end(experiments[e].coeff_idxs(variable)), r),
-          end(experiments[e].coeff_idxs(variable)));
-    for (auto &idx : experiments[e].coeff_idxs(variable))
+    for (auto v : {Coefficient::Variable::rate, Coefficient::Variable::odds}) {
+      auto &idxs = experiments[e].coeff_idxs(v);
       for (auto r : redundant)
-        if (idx > r)
-          idx--;
+        idxs.erase(remove(begin(idxs), end(idxs), r), end(idxs));
+      for (auto &idx : idxs)
+        for (auto r : redundant)
+          if (idx > r)
+            idx--;
+    }
   }
 }
 
