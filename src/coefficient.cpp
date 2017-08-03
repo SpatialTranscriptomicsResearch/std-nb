@@ -55,7 +55,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
                                    vector<Coefficient> &grad_coeffs,
                                    size_t idx) const {
   LOG(debug) << "Coefficient::compute_gradient " << idx << ":" << *this;
-  if (prior_idxs.size() < 2)
+  if (distribution == Distribution::fixed)
     return;
   size_t parent_a = prior_idxs[0];
   size_t parent_b = prior_idxs[1];
