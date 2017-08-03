@@ -65,7 +65,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
       = grad_coeffs[parent_b].distribution != Distribution::fixed;
   switch (distribution) {
     case Distribution::gamma:
-      LOG(verbose) << "Computing gamma distribution gradient.";
+      LOG(debug) << "Computing gamma distribution gradient.";
       visit([&](size_t g, size_t t, size_t s) {
         double a = coeffs[parent_a].get(g, t, s);
         double b = coeffs[parent_b].get(g, t, s);
@@ -81,7 +81,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
       });
       break;
     case Distribution::beta_prime:
-      LOG(verbose) << "Computing beta prime distribution gradient.";
+      LOG(debug) << "Computing beta prime distribution gradient.";
       visit([&](size_t g, size_t t, size_t s) {
         double a = coeffs[parent_a].get(g, t, s);
         double b = coeffs[parent_b].get(g, t, s);
@@ -98,7 +98,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
               += -log(1 + x) + digamma_diff(b, a);
       });
     case Distribution::log_normal:
-      LOG(verbose) << "Computing log normal distribution gradient.";
+      LOG(debug) << "Computing log normal distribution gradient.";
       visit([&](size_t g, size_t t, size_t s) {
         double exp_mu = coeffs[parent_a].get(g, t, s);
         double sigma = coeffs[parent_b].get(g, t, s);
