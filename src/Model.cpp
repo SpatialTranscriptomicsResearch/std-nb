@@ -850,7 +850,7 @@ Matrix Model::expected_gene_type() const {
 }
 
 void Model::update_experiment_fields() {
-  LOG(verbose) << "Updating experiment fields";
+  LOG(debug) << "Updating experiment fields";
   for (auto &coord_sys : coordinate_systems) {
     size_t cumul = 0;
     for (auto member : coord_sys.members) {
