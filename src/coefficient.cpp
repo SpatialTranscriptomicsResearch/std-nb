@@ -63,6 +63,8 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
       = grad_coeffs[parent_a].distribution != Distribution::fixed;
   bool parent_b_flexible
       = grad_coeffs[parent_b].distribution != Distribution::fixed;
+  LOG(debug) << "parent_a_flexible = " << parent_a_flexible;
+  LOG(debug) << "parent_b_flexible = " << parent_b_flexible;
   switch (distribution) {
     case Distribution::gamma:
       LOG(debug) << "Computing gamma distribution gradient.";
