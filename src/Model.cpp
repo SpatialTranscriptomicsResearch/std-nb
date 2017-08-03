@@ -120,6 +120,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     covterm.get(0, 0, 0)
         = parameters.hyperparameters.get_param(term.distribution, 1);
     coeffs.push_back(covterm);
+    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": " << covterm;
   }
 
   coeff_debug_dump("FINAL");
