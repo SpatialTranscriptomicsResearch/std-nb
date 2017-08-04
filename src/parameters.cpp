@@ -5,6 +5,14 @@ using namespace std;
 
 namespace STD {
 
+GaussianProcessParameters::GaussianProcessParameters(bool use_, double len,
+                                                     double spatial,
+                                                     double indep)
+    : use(use_),
+      length_scale(len),
+      spatial_variance(spatial),
+      independent_variance(indep) {}
+
 double Hyperparameters::get_param(Coefficient::Distribution distribution,
                                   size_t idx) const {
   switch (distribution) {
@@ -23,9 +31,16 @@ double Hyperparameters::get_param(Coefficient::Distribution distribution,
         return normal_1;
       else
         return normal_2;
+    case Coefficient::Distribution::log_gp:
+      if (idx == 0)
+        return normal_1;  // TODO gp mu parameter
+      else
+        return normal_2;  // TODO gp sigma parameter
     default:
       // TODO cov prior set for other disitributions
-      throw std::runtime_error("Error: no default hyper parameters defined for chosen distribution.");
+      throw std::runtime_error(
+          "Error: no default hyper parameters defined for chosen "
+          "distribution.");
       break;
   }
 }

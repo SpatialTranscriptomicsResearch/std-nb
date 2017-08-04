@@ -1,6 +1,7 @@
 #ifndef COEFFICIENT_HPP
 #define COEFFICIENT_HPP
 
+#include <memory>
 #include <string>
 #include <vector>
 #include "covariate.hpp"
@@ -29,11 +30,12 @@ struct Coefficient {
     gamma,
     beta_prime,
     // linear term
-    log_normal
-    // log_gp
+    log_normal,
+    log_gp
   };
   Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
-              Distribution distribution, CovariateInformation info);
+              Distribution distribution, std::shared_ptr<STD::Matrix> cov,
+              CovariateInformation info);
   Variable variable;
   Kind kind;
   Distribution distribution;
@@ -52,6 +54,8 @@ struct Coefficient {
 
   STD::Vector vectorize() const;
   std::string to_string() const;
+
+  std::shared_ptr<STD::Matrix> cov;
 
   CovariateInformation info;
   STD::Matrix values;
@@ -139,6 +143,7 @@ inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
 }
 
 Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
-                                              DistributionMode mode);
-
+                                              Coefficient::Kind kind,
+                                              DistributionMode mode,
+                                              bool use_gp);
 #endif

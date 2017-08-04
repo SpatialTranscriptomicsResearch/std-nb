@@ -22,7 +22,8 @@ struct Hyperparameters {
                   Float theta_r_1_ = 1, Float theta_r_2_ = 1,
                   Float theta_p_1_ = 0.05, Float theta_p_2_ = 0.95,
                   Float spot_a_ = 10, Float spot_b_ = 10, Float bline1 = 50,
-                  Float bline2 = 50, Float normal_1_ = exp(0), Float normal_2_ = 1)
+                  Float bline2 = 50, Float normal_1_ = exp(0),
+                  Float normal_2_ = 1)
       : gamma_1(gamma_1_),
         gamma_2(gamma_2_),
         lambda_1(lambda_1_),
@@ -74,6 +75,15 @@ struct Hyperparameters {
 };
 
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
+
+struct GaussianProcessParameters {
+  GaussianProcessParameters(bool use = false, double len = 5,
+                            double spatial = 1, double indep = 1);
+  bool use;
+  double length_scale;
+  double spatial_variance;
+  double independent_variance;
+};
 
 struct Parameters {
   /** Maximal number of propositions for Metropolis-Hastings sampling */
@@ -128,6 +138,8 @@ struct Parameters {
   Formula variance_formula = DefaultVarianceFormula();
 
   DistributionMode distribution_mode = DistributionMode::log_normal;
+
+  GaussianProcessParameters gp = {};
 };
 }
 #endif

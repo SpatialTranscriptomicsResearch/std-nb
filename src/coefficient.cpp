@@ -44,7 +44,12 @@ std::istream &operator>>(std::istream &is, DistributionMode &mode) {
 }
 
 Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
-                                              DistributionMode mode) {
+                                              Coefficient::Kind kind,
+                                              DistributionMode mode,
+                                              bool use_gp) {
+  if (variable == Coefficient::Variable::rate
+      and kind == Coefficient::Kind::spot_type and use_gp)
+    return Coefficient::Distribution::log_gp;
   switch (mode) {
     case DistributionMode::log_normal:
       return Coefficient::Distribution::log_normal;
@@ -68,9 +73,13 @@ Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
 }
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
-                         Kind kind_, Distribution dist,
+                         Kind kind_, Distribution dist, std::shared_ptr<Matrix> cov_,
                          CovariateInformation info_)
-    : variable(variable_), kind(kind_), distribution(dist), info(info_) {
+    : variable(variable_),
+      kind(kind_),
+      distribution(dist),
+      cov(cov_),
+      info(info_) {
   // TODO cov prior fill prior_idx
   switch (kind) {
     case Kind::scalar:
@@ -158,6 +167,37 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         if (parent_b_flexible)
           grad_coeffs[parent_b].get(g, t, s)
               += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
+      });
+      break;
+    case Distribution::log_gp:
+      LOG(debug) << "Computing log Gaussian process gradient.";
+      visit([&](size_t g, size_t t, size_t s) {
+        double exp_mu1 = coeffs[parent_a].get(g, t, s);
+        // double sigma = coeffs[parent_b].get(g, t, s);
+        double exp_x1 = get(g, t, s);
+        double x1 = log(exp_x1);
+        double mu1 = log(exp_mu1);
+
+        const size_t S = cov->rows();
+        // grad_coeffs[idx].get(g, t, s) += (mu - x) / (sigma * sigma);
+        for (size_t s2 = 0; s2 < S; ++s2)
+          if (s2 == s)
+            grad_coeffs[idx].get(g, t, s) += (mu1 - x1) * (*cov)(s, s);
+          else {
+            double exp_mu2 = coeffs[parent_a].get(g, t, s2);
+            double exp_x2 = get(g, t, s2);
+            double x2 = log(exp_x2);
+            double mu2 = log(exp_mu2);
+            grad_coeffs[idx].get(g, t, s) += (mu2 - x2) * (*cov)(s, s2) / 2;
+          }
+
+        /*
+      if (parent_a_flexible)
+        grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
+      if (parent_b_flexible)
+        grad_coeffs[parent_b].get(g, t, s)
+            += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
+            */
       });
       break;
     case Distribution::fixed:
@@ -308,6 +348,8 @@ string to_string(const Coefficient::Distribution &distribution) {
       return "beta_prime";
     case Coefficient::Distribution::log_normal:
       return "log_normal";
+    case Coefficient::Distribution::log_gp:
+      return "log_gaussian_process";
     default:
       throw std::runtime_error("Error: invalid Coefficient::Distribution.");
   }

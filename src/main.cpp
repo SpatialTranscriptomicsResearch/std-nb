@@ -85,6 +85,7 @@ int main(int argc, char **argv) {
 
   po::options_description required_options("Required options", num_cols);
   po::options_description basic_options("Basic options", num_cols);
+  po::options_description gaussian_process_options("Gaussian process options", num_cols);
   po::options_description advanced_options("Advanced options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
@@ -138,13 +139,23 @@ int main(int argc, char **argv) {
     ("transpose", po::bool_switch(&options.transpose),
      "Count matrices have spots in columns and genes in columns. Default is genes in rows and spots in columns.");
 
+  gaussian_process_options.add_options()
+    ("gp", po::bool_switch(&parameters.gp.use),
+     "Model spatial factor activities as a Gaussian process.")
+    ("gp_length", po::value(&parameters.gp.length_scale)->default_value(parameters.gp.length_scale),
+     "Length scale to use for Gaussian process.")
+    ("gp_var_spatial", po::value(&parameters.gp.spatial_variance)->default_value(parameters.gp.spatial_variance),
+     "Spatial variance to use for Gaussian process.")
+    ("gp_var_indep", po::value(&parameters.gp.independent_variance)->default_value(parameters.gp.independent_variance),
+     "Independent variance to use for Gaussian process.");
+
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
     ("learnprior", po::bool_switch(&options.learn_priors),
      "Learn priors for gamma and rho.")
     ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value),
-     "Minimal value to enforce for parameters")
+     "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
      "Warn when parameter values reach the lower limit specified by --minval.")
     ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
@@ -266,6 +277,7 @@ int main(int argc, char **argv) {
   cli_options.add(generic_options)
       .add(required_options)
       .add(basic_options)
+      .add(gaussian_process_options)
       .add(advanced_options)
       .add(rprop_options)
       .add(hyperparameter_options)
@@ -347,6 +359,11 @@ int main(int argc, char **argv) {
   LOG(verbose) << "Inference targets = " << parameters.targets;
   LOG(verbose) << "Rate regression formula = " << parameters.rate_formula;
   LOG(verbose) << "Variance regression formula = " << parameters.variance_formula;
+
+  LOG(verbose) << "gp = " << parameters.gp.use;
+  LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;
+  LOG(verbose) << "gp.spatial_variance = " << parameters.gp.spatial_variance;
+  LOG(verbose) << "gp.indep_variance = " << parameters.gp.independent_variance;
 
   try {
     run(data_sets, options, parameters);

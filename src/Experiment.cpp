@@ -8,6 +8,50 @@ using namespace std;
 
 namespace STD {
 
+Matrix build_cov_matrix(const Matrix &coords, double length_scale,
+                        double spatial_variance, double independent_variance) {
+  const size_t S = coords.rows();
+  Matrix cov = Matrix::Zero(S, S);
+  LOG(verbose) << "Building " << cov.rows() << "x" << cov.cols()
+               << " inverse covariance matrix.";
+  LOG(verbose) << "length_scale = " << length_scale;
+  LOG(verbose) << "spatial_variance = " << spatial_variance;
+  LOG(verbose) << "independent_variance = " << independent_variance;
+
+  // LOG(verbose) << coords;
+
+  // compute negative one-half squared distances divided by squared length scale
+  for (size_t i = 0; i < S; ++i)
+    for (size_t j = i + 1; j < S; ++j)
+      cov(i, j) = cov(j, i) = -1 / 2.0 * coords.row(i).dot(coords.row(j))
+                              / length_scale / length_scale;
+
+  // exponentiate
+  cov.array() = cov.array().exp();
+
+  // multiply by spatial_variance
+  cov = cov * spatial_variance;
+
+  // add diag(independent_variance)
+  for (size_t i = 0; i < S; ++i)
+    cov(i, i) = independent_variance;
+
+  /*
+  for (size_t i = 0; i < 10; ++i) {
+    for (size_t j = 0; j < 10; ++j)
+      std::cout << "\t" << cov(i, j);
+    std::cout << "\n";
+  }
+  */
+
+  // invert
+  cov = cov.inverse();
+
+  LOG(verbose) << "Built " << cov.rows() << "x" << cov.cols()
+               << " inverse covariance matrix.";
+  return cov;
+}
+
 Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
                        const Parameters &parameters_)
     : model(model_),
@@ -17,6 +61,9 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
+      inv_covariance(make_shared<Matrix>(build_cov_matrix(
+          coords, parameters.gp.length_scale, parameters.gp.spatial_variance,
+          parameters.gp.independent_variance))),
       field(Matrix::Ones(S, T)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
