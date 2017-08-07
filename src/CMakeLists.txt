@@ -19,6 +19,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   executioninformation.cpp
   formula.cpp
   gamma_func.cpp
+  gp.cpp
   io.cpp
   log.cpp
   metropolis_hastings.cpp

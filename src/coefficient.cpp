@@ -73,12 +73,13 @@ Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
 }
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
-                         Kind kind_, Distribution dist, std::shared_ptr<Matrix> cov_,
+                         Kind kind_, Distribution dist,
+                         std::shared_ptr<GP::GaussianProcess> gp_,
                          CovariateInformation info_)
     : variable(variable_),
       kind(kind_),
       distribution(dist),
-      cov(cov_),
+      gp(gp_),
       info(info_) {
   // TODO cov prior fill prior_idx
   switch (kind) {
@@ -170,36 +171,29 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
       });
       break;
     case Distribution::log_gp:
+
+    {
+      size_t n = values.rows();
       LOG(debug) << "Computing log Gaussian process gradient.";
+      Coefficient posterior_means = *this;
+      Coefficient posterior_vars = *this;
+      for (size_t i = 0; i < static_cast<size_t>(values.cols()); ++i) {
+        STD::Vector mu(n);
+        STD::Vector var(n);
+        double delta = 1;
+        gp->predict_means_and_vars(values.col(i).array().log(), delta, mu, var);
+        posterior_means.values.col(i) = mu;
+        posterior_vars.values.col(i) = var;
+      }
       visit([&](size_t g, size_t t, size_t s) {
-        double exp_mu1 = coeffs[parent_a].get(g, t, s);
-        // double sigma = coeffs[parent_b].get(g, t, s);
-        double exp_x1 = get(g, t, s);
-        double x1 = log(exp_x1);
-        double mu1 = log(exp_mu1);
+        double mu = posterior_means.get(g, t, s);
+        double var = posterior_vars.get(g, t, s);
+        double exp_x = get(g, t, s);
+        double x = log(exp_x);
 
-        const size_t S = cov->rows();
-        // grad_coeffs[idx].get(g, t, s) += (mu - x) / (sigma * sigma);
-        for (size_t s2 = 0; s2 < S; ++s2)
-          if (s2 == s)
-            grad_coeffs[idx].get(g, t, s) += (mu1 - x1) * (*cov)(s, s);
-          else {
-            double exp_mu2 = coeffs[parent_a].get(g, t, s2);
-            double exp_x2 = get(g, t, s2);
-            double x2 = log(exp_x2);
-            double mu2 = log(exp_mu2);
-            grad_coeffs[idx].get(g, t, s) += (mu2 - x2) * (*cov)(s, s2) / 2;
-          }
-
-        /*
-      if (parent_a_flexible)
-        grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
-      if (parent_b_flexible)
-        grad_coeffs[parent_b].get(g, t, s)
-            += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
-            */
+        grad_coeffs[idx].get(g, t, s) += (mu - x) / var;
       });
-      break;
+    } break;
     case Distribution::fixed:
       return;
     default:

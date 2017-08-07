@@ -60,7 +60,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
           G, T, experiments[e].S, variable, kind,
           choose_distribution(variable, kind, parameters.distribution_mode,
                               parameters.gp.use),
-          experiments[e].inv_covariance, info);
+          experiments[e].gp, info);
       coeffs.push_back(covterm);
 
       LOG(verbose) << "Creating coefficient " << idx << ": " << covterm;

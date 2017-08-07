@@ -13,7 +13,7 @@ Matrix build_cov_matrix(const Matrix &coords, double length_scale,
   const size_t S = coords.rows();
   Matrix cov = Matrix::Zero(S, S);
   LOG(verbose) << "Building " << cov.rows() << "x" << cov.cols()
-               << " inverse covariance matrix.";
+               << " covariance matrix.";
   LOG(verbose) << "length_scale = " << length_scale;
   LOG(verbose) << "spatial_variance = " << spatial_variance;
   LOG(verbose) << "independent_variance = " << independent_variance;
@@ -29,12 +29,12 @@ Matrix build_cov_matrix(const Matrix &coords, double length_scale,
   // exponentiate
   cov.array() = cov.array().exp();
 
-  // multiply by spatial_variance
-  cov = cov * spatial_variance;
-
   // add diag(independent_variance)
   for (size_t i = 0; i < S; ++i)
     cov(i, i) = independent_variance;
+
+  // multiply by spatial_variance
+  cov = cov * spatial_variance;
 
   /*
   for (size_t i = 0; i < 10; ++i) {
@@ -44,6 +44,18 @@ Matrix build_cov_matrix(const Matrix &coords, double length_scale,
   }
   */
 
+  LOG(verbose) << "Built " << cov.rows() << "x" << cov.cols()
+               << " covariance matrix.";
+  return cov;
+}
+
+Matrix build_inv_cov_matrix(const Matrix &coords, double length_scale,
+                            double spatial_variance,
+                            double independent_variance) {
+  LOG(verbose) << "Building " << coords.rows() << "x" << coords.cols()
+               << " inverse covariance matrix.";
+  Matrix cov = build_cov_matrix(coords, length_scale, spatial_variance,
+                                independent_variance);
   // invert
   cov = cov.inverse();
 
@@ -61,9 +73,8 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      inv_covariance(make_shared<Matrix>(build_cov_matrix(
-          coords, parameters.gp.length_scale, parameters.gp.spatial_variance,
-          parameters.gp.independent_variance))),
+      gp(make_shared<GP::GaussianProcess>(
+          GP::GaussianProcess(coords, parameters.gp.length_scale))),
       field(Matrix::Ones(S, T)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),

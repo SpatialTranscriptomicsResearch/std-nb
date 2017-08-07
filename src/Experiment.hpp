@@ -7,6 +7,7 @@
 #include "counts.hpp"
 #include "covariate.hpp"
 #include "entropy.hpp"
+#include "gp.hpp"
 #include "odds.hpp"
 #include "parameters.hpp"
 #include "stats.hpp"
@@ -39,7 +40,7 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::shared_ptr<Matrix> inv_covariance;
+  std::shared_ptr<GP::GaussianProcess> gp;
 
   std::vector<size_t> rate_coeff_idxs;
   std::vector<size_t> odds_coeff_idxs;

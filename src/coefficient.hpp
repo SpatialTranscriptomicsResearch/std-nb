@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 #include "covariate.hpp"
+#include "gp.hpp"
 #include "types.hpp"
 
 enum class DistributionMode { log_normal, gamma_odds, gamma_odds_log_normal };
@@ -34,7 +35,8 @@ struct Coefficient {
     log_gp
   };
   Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
-              Distribution distribution, std::shared_ptr<STD::Matrix> cov,
+              Distribution distribution,
+              std::shared_ptr<GP::GaussianProcess> gp,
               CovariateInformation info);
   Variable variable;
   Kind kind;
@@ -55,7 +57,7 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  std::shared_ptr<STD::Matrix> cov;
+  std::shared_ptr<GP::GaussianProcess> gp;
 
   CovariateInformation info;
   STD::Matrix values;
