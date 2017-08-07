@@ -479,17 +479,16 @@ Model Model::compute_gradient(double &score) const {
   vector<Matrix> rate_gt, rate_st;
   vector<Matrix> odds_gt, odds_st;
 
-  for (auto &coord_sys : coordinate_systems)
-    for (auto e : coord_sys.members) {
-      rate_gt.push_back(experiments[e].compute_gene_type_table(
-          experiments[e].rate_coeff_idxs));
-      rate_st.push_back(experiments[e].compute_spot_type_table(
-          experiments[e].rate_coeff_idxs));
-      odds_gt.push_back(experiments[e].compute_gene_type_table(
-          experiments[e].odds_coeff_idxs));
-      odds_st.push_back(experiments[e].compute_spot_type_table(
-          experiments[e].odds_coeff_idxs));
-    }
+  for (auto &experiment : experiments) {
+    rate_gt.push_back(
+        experiment.compute_gene_type_table(experiment.rate_coeff_idxs));
+    rate_st.push_back(
+        experiment.compute_spot_type_table(experiment.rate_coeff_idxs));
+    odds_gt.push_back(
+        experiment.compute_gene_type_table(experiment.odds_coeff_idxs));
+    odds_st.push_back(
+        experiment.compute_spot_type_table(experiment.odds_coeff_idxs));
+  }
 
   score = 0;
   Model gradient = *this;
