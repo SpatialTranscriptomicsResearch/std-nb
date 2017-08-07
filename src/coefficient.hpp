@@ -41,6 +41,13 @@ struct Coefficient {
   Variable variable;
   Kind kind;
   Distribution distribution;
+  std::shared_ptr<GP::GaussianProcess> gp;
+
+  CovariateInformation info;
+  STD::Matrix values;
+  std::vector<size_t> prior_idxs;
+  std::vector<size_t> experiment_idxs;
+
   bool gene_dependent() const;
   bool type_dependent() const;
   bool spot_dependent() const;
@@ -57,12 +64,18 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  std::shared_ptr<GP::GaussianProcess> gp;
+  void compute_gradient(const std::vector<Coefficient> &coeffs,
+                        std::vector<Coefficient> &grad_coeffs,
+                        size_t idx) const;
 
-  CovariateInformation info;
-  STD::Matrix values;
-  std::vector<size_t> prior_idxs;
-  std::vector<size_t> experiment_idxs;
+  double get(size_t g, size_t t, size_t s) const;  // rename to operator()
+  double &get(size_t g, size_t t, size_t s);       // rename to operator()
+  void store(const std::string &path, CompressionMode,
+             const std::vector<std::string> &gene_names,
+             const std::vector<std::string> &spot_names,
+             const std::vector<std::string> &factor_names,
+             std::vector<size_t> col_order) const;
+  void restore(const std::string &path);
 
   template <typename Fnc>
   void visit(Fnc fnc) const {
@@ -99,19 +112,6 @@ struct Coefficient {
         break;
     }
   }
-
-  void compute_gradient(const std::vector<Coefficient> &coeffs,
-                        std::vector<Coefficient> &grad_coeffs,
-                        size_t idx) const;
-
-  double get(size_t g, size_t t, size_t s) const;  // rename to operator()
-  double &get(size_t g, size_t t, size_t s);       // rename to operator()
-  void store(const std::string &path, CompressionMode,
-             const std::vector<std::string> &gene_names,
-             const std::vector<std::string> &spot_names,
-             const std::vector<std::string> &factor_names,
-             std::vector<size_t> col_order) const;
-  void restore(const std::string &path);
 };
 
 std::string to_string(const Coefficient::Variable &variable);
