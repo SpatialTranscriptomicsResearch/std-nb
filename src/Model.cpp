@@ -325,7 +325,8 @@ void Model::store(const string &prefix_, bool mean_and_var,
       /*
       // NOTE we ignore local features and local baseline
       w = mix_prior.r.array() / mix_prior.p.array();
-      Vector meanColSums = colSums<Vector>(gamma.array() / negodds_rho.array());
+      Vector meanColSums = colSums<Vector>(gamma.array() /
+      negodds_rho.array());
       for (size_t t = 0; t < T; ++t)
         w(t) *= meanColSums(t);
       // print weighted field
