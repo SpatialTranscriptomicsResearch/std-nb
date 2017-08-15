@@ -2,6 +2,7 @@
 #include "aux.hpp"
 #include "compression.hpp"
 #include "design.hpp"
+#include "entropy.hpp"
 #include "io.hpp"
 
 using namespace std;
