@@ -97,12 +97,12 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
 
+  const size_t n = coeffs.size();
+
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
 
-  const size_t num_coeffs = coeffs.size();
-  for (size_t idx = 0; idx < num_coeffs; ++idx) {
-    size_t n = coeffs.size();
+  for (size_t idx = start; idx < n; ++idx) {
     coeffs[idx].prior_idxs.push_back(n);
     coeffs[idx].prior_idxs.push_back(n + 1);
     CovariateInformation info = coeffs[idx].info;
