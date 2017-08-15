@@ -640,10 +640,10 @@ double Model::param_likel() const {
   return score;
 }
 
+size_t iter_cnt = 0;
+
 void Model::gradient_update() {
   LOG(verbose) << "Performing gradient update iterations";
-
-  size_t iter_cnt = 0;
 
   auto fnc = [&](const Vector &x, Vector &grad) {
     if (((iter_cnt++) % parameters.report_interval) == 0) {
