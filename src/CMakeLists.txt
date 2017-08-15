@@ -37,7 +37,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   )
 
 # ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
-# ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
+ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
 ADD_EXECUTABLE(std main.cpp cli.cpp)
 # ADD_EXECUTABLE(test_sampling test_sampling.cpp)
 ADD_EXECUTABLE(test_field test_fields.cpp)
@@ -67,11 +67,11 @@ TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_negative_binomial_convolution transcriptomedeconvolution)
 # TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(test_field transcriptomedeconvolution)
-# TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
+TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
 
 IF(GOOGLEPERFTOOLS_FOUND)
   TARGET_LINK_LIBRARIES(std ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
-  #   TARGET_LINK_LIBRARIES(enrich ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
+  TARGET_LINK_LIBRARIES(enrich ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
 ENDIF()
 
 CONFIGURE_FILE(git_config.hpp.in git_config.hpp)
