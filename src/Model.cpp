@@ -102,9 +102,10 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
 
-  for (size_t idx = start; idx < n; ++idx) {
-    coeffs[idx].prior_idxs.push_back(n);
-    coeffs[idx].prior_idxs.push_back(n + 1);
+  for (size_t idx = n; idx < n; ++idx) {
+    const size_t current_size = coeffs.size();
+    coeffs[idx].prior_idxs.push_back(current_size);
+    coeffs[idx].prior_idxs.push_back(current_size + 1);
     CovariateInformation info = coeffs[idx].info;
     Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
                         Coefficient::Kind::scalar,
