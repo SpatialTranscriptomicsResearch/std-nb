@@ -97,11 +97,16 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
       return;
     case Kind::gene_type:
       values = Matrix::Ones(G, T);
-      return;
+      break;
     case Kind::spot_type:
       values = Matrix::Ones(S, T);
-      return;
+      break;
   }
+
+  if (kind == Coefficient::Kind::gene_type
+      or kind == Coefficient::Kind::spot_type)
+    for (auto &x : values)
+      x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 }
 
 void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,

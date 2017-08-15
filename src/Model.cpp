@@ -97,14 +97,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
 
-  for (auto &coeff : coeffs)
-    if (coeff.kind == Coefficient::Kind::gene_type
-        or coeff.kind == Coefficient::Kind::spot_type)
-      for (auto &x : coeff.values)
-        x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
-    else
-      for (auto &x : coeff.values)
-        x = 1;
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
 
