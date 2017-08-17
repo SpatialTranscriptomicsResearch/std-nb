@@ -1,7 +1,9 @@
 #include "Experiment.hpp"
 #include "Model.hpp"
+#include "aux.hpp"
 #include "gamma_func.hpp"
 #include "hamiltonian_monte_carlo.hpp"
+#include "io.hpp"
 #include "rprop.hpp"
 
 using namespace std;

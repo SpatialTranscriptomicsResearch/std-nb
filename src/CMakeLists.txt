@@ -8,7 +8,6 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   Experiment.cpp
   Mesh.cpp
   Model.cpp
-  Theta.cpp
   aux.cpp
   coefficient.cpp
   compression_mode.cpp

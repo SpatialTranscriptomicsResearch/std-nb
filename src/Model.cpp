@@ -1,7 +1,9 @@
 #include "Model.hpp"
 #include <LBFGS.h>
 #include <map>
+#include "aux.hpp"
 #include "gamma_func.hpp"
+#include "io.hpp"
 #include "rprop.hpp"
 
 using namespace std;

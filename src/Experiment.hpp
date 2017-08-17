@@ -2,7 +2,6 @@
 #define EXPERIMENT_HPP
 
 #include <random>
-#include "Theta.hpp"
 #include "compression.hpp"
 #include "counts.hpp"
 #include "covariate.hpp"
