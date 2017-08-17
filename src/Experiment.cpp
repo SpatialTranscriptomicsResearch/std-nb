@@ -283,9 +283,7 @@ Vector Experiment::sample_contributions_gene_spot(
             = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
       for (size_t t = 0; t < T; ++t)
         cnts[t] /= z;
-      auto icnts = sample_multinomial(count, begin(cnts), end(cnts), rng);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] = icnts[t];
+      cnts = sample_multinomial<Vector>(count, begin(cnts), end(cnts), rng);
       return cnts;
     } break;
     case Sampling::Method::MH:
