@@ -144,6 +144,22 @@ void Experiment::store(const string &prefix,
     }
     */
 #pragma omp section
+    write_matrix(compute_gene_type_table(rate_coeff_idxs),
+                 prefix + "rate_gene_type" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    write_matrix(compute_gene_type_table(odds_coeff_idxs),
+                 prefix + "odds_gene_type" + FILENAME_ENDING,
+                 parameters.compression_mode, gene_names, factor_names, order);
+#pragma omp section
+    write_matrix(compute_spot_type_table(rate_coeff_idxs),
+                 prefix + "rate_spot_type" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
+#pragma omp section
+    write_matrix(compute_spot_type_table(odds_coeff_idxs),
+                 prefix + "odds_spot_type" + FILENAME_ENDING,
+                 parameters.compression_mode, spot_names, factor_names, order);
+#pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
