@@ -64,8 +64,6 @@ void Model::add_covariate_terms(const Formula::Term &term,
                               parameters.gp.use),
           experiments[e].gp, info);
       coeffs.push_back(covterm);
-
-      LOG(verbose) << "Creating coefficient " << idx << ": " << covterm;
     }
     coeffs[idx].experiment_idxs.push_back(e);
     experiments[e].coeff_idxs(variable).push_back(idx);
@@ -117,14 +115,10 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
     covterm.get(0, 0, 0)
         = parameters.hyperparameters.get_param(coeffs[idx].distribution, 0);
     coeffs.push_back(covterm);
-    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": "
-                 << covterm;
 
     covterm.get(0, 0, 0)
         = parameters.hyperparameters.get_param(coeffs[idx].distribution, 1);
     coeffs.push_back(covterm);
-    LOG(verbose) << "Creating coefficient " << (coeffs.size() - 1) << ": "
-                 << covterm;
   }
 
   coeff_debug_dump("FINAL");
@@ -962,7 +956,8 @@ ostream &operator<<(ostream &os, const Model &model) {
   os << "Spatial Transcriptome Deconvolution "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
-     << "E = " << model.E << endl;
+     << "E = " << model.E << " "
+     << "S = " << model.S << endl;
 
   for (auto &experiment : model.experiments)
     os << experiment;

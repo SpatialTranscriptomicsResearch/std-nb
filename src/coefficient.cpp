@@ -86,16 +86,16 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
   switch (kind) {
     case Kind::scalar:
       values = Matrix::Ones(1, 1);
-      return;
+      break;
     case Kind::gene:
       values = Matrix::Ones(G, 1);
-      return;
+      break;
     case Kind::spot:
       values = Matrix::Ones(S, 1);
-      return;
+      break;
     case Kind::type:
       values = Matrix::Ones(T, 1);
-      return;
+      break;
     case Kind::gene_type:
       values = Matrix::Ones(G, T);
       break;
@@ -108,6 +108,8 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
       or kind == Coefficient::Kind::spot_type)
     for (auto &x : values)
       x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+
+  LOG(verbose) << *this;
 }
 
 void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
