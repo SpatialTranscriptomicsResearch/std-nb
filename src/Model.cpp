@@ -411,6 +411,13 @@ void Model::setZero() {
     experiment.setZero();
 }
 
+size_t Model::number_parameters() const {
+  size_t s = 0;
+  for (auto &coeff : coeffs)
+    s += coeff.number_parameters();
+  return s;
+}
+
 size_t Model::size() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
@@ -953,11 +960,15 @@ void Model::add_experiment(const Counts &counts, size_t coord_sys) {
 }
 
 ostream &operator<<(ostream &os, const Model &model) {
+  size_t n_params = model.number_parameters();
   os << "Spatial Transcriptome Deconvolution "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
      << "E = " << model.E << " "
-     << "S = " << model.S << endl;
+     << "S = " << model.S << endl
+     << model.size() << " parameters, " << n_params << " variable" << endl
+     << "G * S = " << (model.G * model.S) << " -> "
+     << 100.0 * n_params / (model.G * model.S) << "%." << endl;
 
   for (auto &experiment : model.experiments)
     os << experiment;

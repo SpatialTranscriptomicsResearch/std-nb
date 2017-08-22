@@ -53,6 +53,7 @@ struct Coefficient {
   bool spot_dependent() const;
 
   size_t size() const;
+  size_t number_parameters() const;
   STD::Vector setZero();
 
   template <typename Iter>

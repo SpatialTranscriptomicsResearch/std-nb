@@ -300,6 +300,15 @@ double Coefficient::get(size_t g, size_t t, size_t s) const {
 
 size_t Coefficient::size() const { return values.size(); }
 
+size_t Coefficient::number_parameters() const {
+  switch (distribution) {
+    case Distribution::fixed:
+      return 0;
+    default:
+      return size();
+  }
+}
+
 STD::Vector Coefficient::vectorize() const {
   STD::Vector v(size());
   auto iter = begin(v);

@@ -67,6 +67,7 @@ struct Model {
   void from_vector(const Vector &v);
   void gradient_update();
   size_t size() const;
+  size_t number_parameters() const;
 
   Vector make_mask() const;
   void apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const;
