@@ -31,6 +31,14 @@ inline double digamma_diff(double a, double b) {
     return 0;
 }
 
+inline double digamma_diff_1p(double a, double b) {
+  double s = a + b;
+  if (s != a + 1)
+    return digamma(s) - digamma(a + 1);
+  else
+    return 0;
+}
+
 inline double trigamma_diff(double a, double b) {
   double s = a + b;
   if (s != a)

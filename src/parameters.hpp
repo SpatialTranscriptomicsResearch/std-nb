@@ -122,6 +122,9 @@ struct Parameters {
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
   Sampling::Method sample_method = Sampling::Method::Mean;
+
+  size_t sample_iterations = 10;
+
   size_t grad_iterations = 10000;
   double grad_alpha = 1e-1;
   double grad_anneal = 0.999;

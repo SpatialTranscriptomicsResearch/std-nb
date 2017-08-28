@@ -1,4 +1,5 @@
 #include "Experiment.hpp"
+#include <LBFGS.h>
 #include "Model.hpp"
 #include "aux.hpp"
 #include "gamma_func.hpp"
@@ -282,26 +283,106 @@ Vector Experiment::sample_contributions_gene_spot(
     return cnts;
   }
 
+  Vector rate(T);
+  for (size_t t = 0; t < T; ++t)
+    rate(t) = rate_gt(g, t) * rate_st(s, t);
+
+  Vector odds(T);
+  for (size_t t = 0; t < T; ++t)
+    odds(t) = odds_gt(g, t) * odds_st(s, t);
+
+  Vector proportions(T);
+  {
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += proportions(t) = rate(t) * odds(t);
+    for (size_t t = 0; t < T; ++t)
+      proportions(t) /= z;
+  }
+
   switch (parameters.sample_method) {
-    case Sampling::Method::Mean: {
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t]
-            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-      return cnts;
-    } break;
-    case Sampling::Method::Multinomial: {
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t]
-            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] /= z;
-      cnts = sample_multinomial<Vector>(count, begin(cnts), end(cnts), rng);
-      return cnts;
-    } break;
+    case Sampling::Method::Mean:
+      return proportions * count;
+    case Sampling::Method::Multinomial:
+      return sample_multinomial<Vector>(count, begin(proportions),
+                                        end(proportions), rng);
+    default:
+      break;
+  }
+
+  auto unlog = [&](const Vector &log_k) {
+    double max_log_k = -std::numeric_limits<double>::infinity();
+    for (size_t t = 0; t < T; ++t)
+      if (log_k(t) > max_log_k)
+        max_log_k = log_k(t);
+
+    double z = 0;
+    Vector k(T);
+    for (size_t t = 0; t < T; ++t)
+      z += k(t) = exp(log_k(t) - max_log_k);
+    for (size_t t = 0; t < T; ++t)
+      k(t) *= count / z;
+    return k;
+  };
+
+  Vector log_p(T);
+  for (size_t t = 0; t < T; ++t)
+    log_p(t) = odds_to_log_prob(odds(t));
+
+  // compute the count-dependent likelihood contribution
+  auto eval = [&](const Vector &k) {
+    double score = 0;
+    for (size_t t = 0; t < T; ++t)
+      score += lgamma(rate(t) + k(t)) - lgamma(k(t) + 1) + k(t) * log_p(t);
+    // - lgamma(rate(t))
+    return score;
+  };
+
+  auto compute_gradient = [&](const Vector &log_k, Vector &grad) {
+    grad = Vector(T);
+    Vector k = unlog(log_k);
+    double sum = 0;
+    for (size_t t = 0; t < T; ++t)
+      sum += grad(t) = k(t) * (digamma_diff_1p(k(t), rate(t)) + log_p(t));
+    for (size_t t = 0; t < T; ++t)
+      grad(t) = k(t) / count * (grad(t) - sum);
+  };
+
+  auto fnc = [&](const Vector &log_k, Vector &grad) {
+    compute_gradient(log_k, grad);
+    double score = -eval(unlog(log_k));
+    LOG(verbose) << "count = " << count << " fnc = " << score;
+    return score;
+  };
+
+  switch (parameters.sample_method) {
+    case Sampling::Method::Trial: {
+      double best_score = -std::numeric_limits<double>::infinity();
+      Vector best_cnts = Vector::Zero(T);
+      for (size_t i = 0; i < parameters.sample_iterations; ++i) {
+        Vector trial_cnts = sample_multinomial<Vector>(
+            count, begin(proportions), end(proportions), rng);
+        double trial_score = eval(trial_cnts);
+
+        if (trial_score > best_score) {
+          best_score = trial_score;
+          best_cnts = trial_cnts;
+        }
+      }
+      return best_cnts;
+    }
+    case Sampling::Method::TrialMean: {
+      double total_score = 0;
+      Vector mean_cnts = Vector::Zero(T);
+      for (size_t i = 0; i < parameters.sample_iterations; ++i) {
+        Vector trial_cnts = sample_multinomial<Vector>(
+            count, begin(proportions), end(proportions), rng);
+        double score = exp(eval(trial_cnts));
+        mean_cnts += score * trial_cnts;
+        total_score += score;
+      }
+      return mean_cnts / total_score;
+    }
     case Sampling::Method::MH:
       throw(runtime_error("Sampling method not implemented: MH."));
       break;
@@ -309,64 +390,38 @@ Vector Experiment::sample_contributions_gene_spot(
       throw(runtime_error("Sampling method not implemented: HMC."));
       break;
     case Sampling::Method::RPROP: {
-      throw(runtime_error("Sampling method not quite implemented: RPROP."));
-      /*
-      Vector log_rho(T);
-      for (size_t t = 0; t < T; ++t)
-        log_rho[t] = neg_odds_to_log_prob(model->negodds_rho(g, t));
+      cnts = (proportions * count).array().log();
 
-      Vector r(T);
-      double z = 0;
-      for (size_t t = 0; t < T; ++t) {
-        r[t] = rate_gt(g, t) * st(s, t);
-        z += cnts[t] = r[t] / model->negodds_rho(g, t);
-      }
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-
-      Vector k(T);
-      auto fnc = [&](const Vector &log_k, Vector &grad) {
-        // LOG(debug) << "inter log = " << log_k.transpose();
-        double score = 0;
-        double Z = 0;
-        for (size_t t = 0; t < T; ++t)
-          Z += k[t] = exp(log_k(t));
-        for (size_t t = 0; t < T; ++t)
-          k[t] *= count / Z;
-        double sum = 0;
-        for (size_t t = 0; t < T; ++t)
-          sum += grad[t] = k[t] * (digamma_diff(k[t], r[t]) + log_rho[t]);
-        // LOG(debug) << "inter exp = " << k.transpose();
-        for (size_t t = 0; t < T; ++t)
-          grad[t] -= k[t] / count * sum;
-        // LOG(debug) << "grad = " << grad.transpose();
-        return score;
-      };
       Vector grad(cnts.size());
       Vector prev_sign(Vector::Zero(cnts.size()));
       Vector rates(cnts.size());
       rates.fill(parameters.grad_alpha);
-      const size_t sample_iterations
-          = 20;  // TODO make into CLI configurable parameter
-      double fx = 0;
-      // LOG(debug) << "total = " << count;
-      // LOG(debug) << "start = " << cnts.transpose();
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] = log(cnts[t]);
-      // LOG(debug) << "start = " << cnts.transpose();
-      for (size_t iter = 0; iter < sample_iterations; ++iter) {
-        fx = fnc(cnts, grad);
+      for (size_t iter = 0; iter < parameters.sample_iterations; ++iter) {
+        compute_gradient(cnts, grad);
         rprop_update(grad, prev_sign, rates, cnts, parameters.rprop);
       }
-      z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = exp(cnts[t]);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-
-      // LOG(debug) << "final = " << cnts.transpose();
-      */
+      return unlog(cnts);
     } break;
+    case Sampling::Method::lBFGS: {
+      cnts = (proportions * count).array().log();
+
+      using namespace LBFGSpp;
+      LBFGSParam<double> param;
+      param.epsilon = parameters.lbfgs_epsilon;
+      // TODO make into separate CLI configurable parameter
+      param.max_iterations = parameters.lbfgs_iter;
+      // Create solver and function object
+      LBFGSSolver<double> solver(param);
+
+      double fx = std::numeric_limits<double>::infinity();
+      int niter = solver.minimize(fnc, cnts, fx);
+
+      LOG(verbose) << "lBFGS performed " << niter
+                   << " iterations and reached score " << fx;
+      return unlog(cnts);
+    } break;
+    default:
+      break;
   }
 
   /*

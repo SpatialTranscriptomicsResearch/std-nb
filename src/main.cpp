@@ -218,7 +218,9 @@ int main(int argc, char **argv) {
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
      "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
-     "How to sample the contributions. Available are: Mean, Multinomial, MH, HMC, RPROP.")
+     "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
+    ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
+     "Number of iterations to perform for iterative sampling methods.")
     ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha),
      "Initial learning rate for gradient learning.")
     ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
