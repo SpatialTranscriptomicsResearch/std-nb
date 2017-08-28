@@ -1,11 +1,11 @@
 #ifndef PDIST_HPP
 #define PDIST_HPP
 
-#include "log.hpp"
 #include <unistd.h>
 #include <cassert>
 #include <cmath>
 #include <vector>
+#include "log.hpp"
 
 // Discrete probability distributions
 
@@ -46,9 +46,12 @@ double log_negative_multinomial(const std::vector<I> &x, F r,
 
 // Continuous probability distributions
 
+/** Logarithm of the probability density function of the normal distribution */
+double log_normal(double x, double mu, double sigma);
 /** Gamma probability density function for x given a shape and a scale parameter
  */
-double log_gamma_rate(double x, double shape, double rate);/** Gamma probability density function for x given a shape and a scale parameter
+double log_gamma_rate(double x, double shape, double rate);
+/** Gamma probability density function for x given a shape and a scale parameter
  */
 double log_gamma_scale(double x, double shape, double scale);
 /** Beta probability density function for probability p given shape parameters
@@ -90,7 +93,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   if (N == 1)
     return exp(log_gamma_scale(x, shapes[0], scales[0]));
 
-  if(x == 0)
+  if (x == 0)
     return 0;
   /*
   if(x == 0) {
@@ -130,7 +133,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   for (size_t k = 1; k < K; ++k) {
     delta[k] = 0;
     for (size_t i = 1; i <= k; ++i)
-      delta[k] += i * gamma[i-1] * delta[k - i];
+      delta[k] += i * gamma[i - 1] * delta[k - i];
     delta[k] /= k;
     LOG(verbose) << "k=" << k << " delta[k]=" << delta[k];
   }
@@ -140,7 +143,7 @@ double convolved_gamma(double x, size_t K, const V &shapes, const V &scales) {
   double q = 0;
   for (size_t k = 0; k < K; ++k) {
     double p = exp(log(delta[k]) + (rho + k - 1) * log(x) - x / min_scale
-                    - lgamma(rho + k) - (rho + k) * log(min_scale));
+                   - lgamma(rho + k) - (rho + k) * log(min_scale));
     q += p;
     LOG(verbose) << "k=" << k << " p=" << p << " q=" << q;
   }

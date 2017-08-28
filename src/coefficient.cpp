@@ -4,6 +4,7 @@
 #include "design.hpp"
 #include "entropy.hpp"
 #include "io.hpp"
+#include "pdist.hpp"
 
 using namespace std;
 using STD::Matrix;
@@ -113,12 +114,12 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
   LOG(verbose) << *this;
 }
 
-void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
-                                   vector<Coefficient> &grad_coeffs,
-                                   size_t idx) const {
+double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
+                                     vector<Coefficient> &grad_coeffs,
+                                     size_t idx) const {
   LOG(debug) << "Coefficient::compute_gradient " << idx << ":" << *this;
   if (distribution == Distribution::fixed or prior_idxs.size() < 2)
-    return;
+    return 0;
   size_t parent_a = prior_idxs[0];
   size_t parent_b = prior_idxs[1];
   bool parent_a_flexible
@@ -130,7 +131,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
   switch (distribution) {
     case Distribution::gamma:
       LOG(debug) << "Computing gamma distribution gradient.";
-      visit([&](size_t g, size_t t, size_t s) {
+      return visit([&](size_t g, size_t t, size_t s) {
         double a = coeffs[parent_a].get(g, t, s);
         double b = coeffs[parent_b].get(g, t, s);
         double x = get(g, t, s);
@@ -142,11 +143,12 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
               += a * (log(b) - digamma(a) + log(x));
         if (parent_b_flexible)
           grad_coeffs[parent_b].get(g, t, s) += a - b * x;
+
+        return log_gamma_rate(x, a, b);
       });
-      break;
     case Distribution::beta_prime:
       LOG(debug) << "Computing beta prime distribution gradient.";
-      visit([&](size_t g, size_t t, size_t s) {
+      return visit([&](size_t g, size_t t, size_t s) {
         double a = coeffs[parent_a].get(g, t, s);
         double b = coeffs[parent_b].get(g, t, s);
         double x = get(g, t, s);
@@ -160,10 +162,11 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         if (parent_b_flexible)
           grad_coeffs[parent_b].get(g, t, s)
               += -log(1 + x) + digamma_diff(b, a);
+        return log_beta_odds(x, a, b);
       });
     case Distribution::log_normal:
       LOG(debug) << "Computing log normal distribution gradient.";
-      visit([&](size_t g, size_t t, size_t s) {
+      return visit([&](size_t g, size_t t, size_t s) {
         double exp_mu = coeffs[parent_a].get(g, t, s);
         double sigma = coeffs[parent_b].get(g, t, s);
         double exp_x = get(g, t, s);
@@ -177,8 +180,8 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         if (parent_b_flexible)
           grad_coeffs[parent_b].get(g, t, s)
               += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
+        return log_normal(x, mu, sigma);
       });
-      break;
     case Distribution::log_gp: {
       size_t n = values.rows();
       LOG(debug) << "Computing log Gaussian process gradient.";
@@ -192,17 +195,19 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         posterior_means.values.col(i) = mu;
         posterior_vars.values.col(i) = var;
       }
-      visit([&](size_t g, size_t t, size_t s) {
+      return visit([&](size_t g, size_t t, size_t s) {
         double mu = posterior_means.get(g, t, s);
         double var = posterior_vars.get(g, t, s);
         double exp_x = get(g, t, s);
         double x = log(exp_x);
 
         grad_coeffs[idx].get(g, t, s) += (mu - x) / var;
+        // TODO log_gp return value
+        return 0;
       });
-    } break;
+    }
     case Distribution::fixed:
-      return;
+      return 0;
     default:
       throw std::runtime_error("Error: distribution not implemented.");
   }

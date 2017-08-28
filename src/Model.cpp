@@ -422,9 +422,7 @@ Model Model::compute_gradient(double &score) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
-
-  score += param_likel();
+    score += coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
 
   return gradient;
 }

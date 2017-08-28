@@ -65,9 +65,9 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  void compute_gradient(const std::vector<Coefficient> &coeffs,
-                        std::vector<Coefficient> &grad_coeffs,
-                        size_t idx) const;
+  double compute_gradient(const std::vector<Coefficient> &coeffs,
+                          std::vector<Coefficient> &grad_coeffs,
+                          size_t idx) const;
 
   double get(size_t g, size_t t, size_t s) const;  // rename to operator()
   double &get(size_t g, size_t t, size_t s);       // rename to operator()
@@ -79,39 +79,41 @@ struct Coefficient {
   void restore(const std::string &path);
 
   template <typename Fnc>
-  void visit(Fnc fnc) const {
+  double visit(Fnc fnc) const {
+    double score = 0;
     switch (kind) {
       case Kind::scalar:
-        fnc(0, 0, 0);
+        score = fnc(0, 0, 0);
         break;
       case Kind::gene:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int g = 0; g < values.rows(); ++g)
-          fnc(g, 0, 0);
+          score += fnc(g, 0, 0);
         break;
       case Kind::type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int t = 0; t < values.rows(); ++t)
-          fnc(0, t, 0);
+          score += fnc(0, t, 0);
         break;
       case Kind::spot:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int s = 0; s < values.rows(); ++s)
-          fnc(0, 0, s);
+          score += fnc(0, 0, s);
         break;
       case Kind::gene_type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int g = 0; g < values.rows(); ++g)
           for (int t = 0; t < values.cols(); ++t)
-            fnc(g, t, 0);
+            score += fnc(g, t, 0);
         break;
       case Kind::spot_type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int s = 0; s < values.rows(); ++s)
           for (int t = 0; t < values.cols(); ++t)
-            fnc(0, t, s);
+            score += fnc(0, t, s);
         break;
     }
+    return score;
   }
 };
 
