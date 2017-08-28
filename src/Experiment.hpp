@@ -87,17 +87,7 @@ struct Experiment {
   //   theta(s,t) sigma(s) sum_g beta(g) lambda(g,t) gamma(g,t)
   Matrix expected_spot_type() const;
 
-  size_t size() const;
   void setZero();
-  Vector vectorize() const;
-  template <typename Iter>
-  void from_vector(Iter &iter) {
-    if (parameters.targeted(Target::field)) {
-      LOG(debug) << "Getting local field from vector";
-      for (auto &x : field)
-        x = *iter++;
-    }
-  }
 };
 
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);

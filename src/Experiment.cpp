@@ -532,26 +532,7 @@ Matrix Experiment::expected_spot_type() const {
   return expected;
 }
 
-size_t Experiment::size() const {
-  size_t s = 0;
-  if (parameters.targeted(Target::field))
-    s += field.size();
-  return s;
-}
-
 void Experiment::setZero() { field.setZero(); }
-
-Vector Experiment::vectorize() const {
-  Vector v(size());
-  auto iter = begin(v);
-  if (parameters.targeted(Target::field))
-    for (auto &x : field)
-      *iter++ = x;
-
-  assert(iter == end(v));
-
-  return v;
-}
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {
   os << "Experiment "

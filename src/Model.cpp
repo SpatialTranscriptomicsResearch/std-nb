@@ -422,11 +422,6 @@ size_t Model::size() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
     s += coeff.size();
-  if (parameters.targeted(Target::field))
-    for (auto &coord_sys : coordinate_systems)
-      s += coord_sys.field.size();
-  for (auto &experiment : experiments)
-    s += experiment.size();
   return s;
 }
 
@@ -438,15 +433,6 @@ Vector Model::vectorize() const {
     for (auto &x : coeff.vectorize())
       *iter++ = x;
 
-  if (parameters.targeted(Target::field))
-    for (auto &coord_sys : coordinate_systems)
-      for (auto &x : coord_sys.field)
-        *iter++ = x;
-
-  for (auto &experiment : experiments)
-    for (auto &x : experiment.vectorize())
-      *iter++ = x;
-
   assert(iter == end(v));
 
   return v;
@@ -456,18 +442,6 @@ void Model::from_vector(const Vector &v) {
   auto iter = begin(v);
   for (auto &coeff : coeffs)
     coeff.from_vector(iter);
-
-  if (parameters.targeted(Target::field)) {
-    LOG(debug) << "Getting global field from vector";
-    for (auto &coord_sys : coordinate_systems)
-      for (auto &x : coord_sys.field)
-        x = *iter++;
-  }
-
-  for (auto &experiment : experiments)
-    experiment.from_vector(iter);
-
-  update_experiment_fields();
 }
 
 Model Model::compute_gradient(double &score) const {
