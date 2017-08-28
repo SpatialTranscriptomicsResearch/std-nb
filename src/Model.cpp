@@ -4,7 +4,9 @@
 #include "aux.hpp"
 #include "gamma_func.hpp"
 #include "io.hpp"
+#include "pdist.hpp"
 #include "rprop.hpp"
+#include "sampling.hpp"
 
 using namespace std;
 
@@ -264,20 +266,6 @@ void Model::store(const string &prefix_, bool mean_and_var,
     }
 
 #pragma omp section
-    {
-      const size_t C = coordinate_systems.size();
-      const size_t num_digits = 1 + floor(log(C) / log(10));
-      for (size_t c = 0; c < C; ++c) {
-        vector<string> rn;
-        for (size_t n = 0; n < coordinate_systems[c].N; ++n)
-          rn.push_back(std::to_string(n));
-        write_matrix(coordinate_systems[c].field,
-                     prefix + "field" + to_string_embedded(c, num_digits)
-                         + FILENAME_ENDING,
-                     parameters.compression_mode, rn, type_names, order);
-      }
-    }
-#pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, type_names, order);
@@ -285,51 +273,6 @@ void Model::store(const string &prefix_, bool mean_and_var,
     write_vector(contributions_gene,
                  prefix + "contributions_gene" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names);
-#pragma omp section
-    {
-      auto print_field_matrix = [&](const string &path, const Vector &weights) {
-        ofstream ofs(path);
-        ofs << "coord_sys\tpoint_idx";
-        for (size_t d = 0; d < coordinate_systems[0].mesh.dim; ++d)
-          ofs << "\tx" << d;
-        for (size_t t = 0; t < T; ++t)
-          ofs << "\tFactor " << t + 1;
-        ofs << endl;
-
-        size_t coord_sys_idx = 0;
-        for (size_t c = 0; c < coordinate_systems.size(); ++c) {
-          for (size_t n = 0; n < coordinate_systems[c].N; ++n) {
-            // print coordinate system index
-            ofs << coord_sys_idx << "\t" << n;
-            // print coordinate
-            for (size_t d = 0; d < coordinate_systems[c].mesh.dim; ++d)
-              ofs << "\t" << coordinate_systems[c].mesh.points[n][d];
-            // print weighted field values of factors in order
-            for (size_t t = 0; t < T; ++t)
-              ofs << "\t"
-                  << coordinate_systems[c].field(n, order[t])
-                         * weights[order[t]];
-            ofs << endl;
-          }
-          coord_sys_idx++;
-        }
-      };
-      Vector w = Vector::Ones(T);
-      // print un-weighted field
-      print_field_matrix(prefix + "field" + FILENAME_ENDING, w);
-
-      // TODO covariates store expected fields
-      /*
-      // NOTE we ignore local features and local baseline
-      w = mix_prior.r.array() / mix_prior.p.array();
-      Vector meanColSums = colSums<Vector>(gamma.array() /
-      negodds_rho.array());
-      for (size_t t = 0; t < T; ++t)
-        w(t) *= meanColSums(t);
-      // print weighted field
-      print_field_matrix(prefix + "expfield" + FILENAME_ENDING, w);
-      */
-    }
   }
   for (size_t e = 0; e < E; ++e) {
     string exp_prefix = prefix + "experiment"
@@ -368,16 +311,6 @@ void Model::restore(const string &prefix) {
     }
   }
 
-  {
-    const size_t C = coordinate_systems.size();
-    const size_t num_digits = 1 + floor(log(C) / log(10));
-    for (size_t c = 0; c < C; ++c)
-      coordinate_systems[c].field = parse_file<Matrix>(
-          prefix + "field" + to_string_embedded(c, num_digits)
-              + FILENAME_ENDING,
-          read_matrix, "\t");
-  }
-
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
   contributions_gene
@@ -391,24 +324,9 @@ void Model::restore(const string &prefix) {
   }
 }
 
-Matrix Model::field_fitness_posterior_gradient() const {
-  Matrix grad(S, T);
-  size_t cumul = 0;
-  for (auto &experiment : experiments) {
-    grad.middleRows(cumul, experiment.S)
-        = experiment.field_fitness_posterior_gradient();
-    cumul += experiment.S;
-  }
-  return grad;
-}
-
 void Model::setZero() {
   for (auto &coeff : coeffs)
     coeff.values.setZero();
-  for (auto &coord_sys : coordinate_systems)
-    coord_sys.field.setZero();
-  for (auto &experiment : experiments)
-    experiment.setZero();
 }
 
 size_t Model::number_parameters() const {
@@ -469,13 +387,7 @@ Model Model::compute_gradient(double &score) const {
     experiment.contributions_spot_type.setZero();
     experiment.contributions_gene_type.setZero();
   }
-  if (parameters.targeted(Target::covariates_scalar)
-      or parameters.targeted(Target::covariates_gene)
-      or parameters.targeted(Target::covariates_type)
-      // TODO cov spot or parameters.targeted(Target::covariates_spot)
-      or parameters.targeted(Target::covariates_gene_type)
-      // TODO cov spot or parameters.targeted(Target::covariates_spot_type)
-      )
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     Model grad = gradient;
@@ -509,15 +421,8 @@ Model Model::compute_gradient(double &score) const {
 
   gradient.update_contributions();
 
-  if (parameters.targeted(Target::field))
-    for (size_t c = 0; c < coordinate_systems.size(); ++c)
-      score
-          += field_gradient(coordinate_systems[c], coordinate_systems[c].field,
-                            gradient.coordinate_systems[c].field);
-
-  if (not parameters.ignore_priors)
-    for (size_t i = 0; i < coeffs.size(); ++i)
-      coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
+  for (size_t i = 0; i < coeffs.size(); ++i)
+    coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
 
   score += param_likel();
 
@@ -703,74 +608,12 @@ void Model::gradient_update() {
   from_vector(x.array().exp());
 }
 
-double Model::field_gradient(const CoordinateSystem &coord_sys,
-                             const Matrix &field, Matrix &grad) const {
-  LOG(debug) << "Computing field gradient";
-  LOG(debug) << "field dim " << field.rows() << "x" << field.cols();
-  double score = 0;
-
-  Matrix fitness(coord_sys.S, T);
-  size_t cumul = 0;
-  for (auto member : coord_sys.members) {
-    const size_t current_S = experiments[member].S;
-    // no need to calculate fitness contribution to score
-    // it is calculated in finalize_gradient()
-    fitness.middleRows(cumul, current_S)
-        = experiments[member].field_fitness_posterior_gradient();
-    cumul += current_S;
-  }
-
-  LOG(debug) << "Fitness contribution to score: " << score;
-
-  grad = Matrix::Zero(coord_sys.N, T);
-
-  grad.topRows(coord_sys.S) = fitness;
-
-  if (parameters.field_lambda_dirichlet != 0) {
-    Matrix grad_dirichlet = Matrix::Zero(coord_sys.N, T);
-    for (size_t t = 0; t < T; ++t) {
-      grad_dirichlet.col(t)
-          = coord_sys.mesh.grad_dirichlet_energy(Vector(field.col(t)));
-
-      double s = coord_sys.mesh.sum_dirichlet_energy(Vector(field.col(t)));
-      score -= s * parameters.field_lambda_dirichlet;
-      LOG(debug) << "Smoothness contribution to score of factor " << t << ": "
-                 << s;
-    }
-    grad -= grad_dirichlet * parameters.field_lambda_dirichlet;
-  }
-
-  if (parameters.field_lambda_laplace != 0) {
-    Matrix grad_laplace = Matrix::Zero(coord_sys.N, T);
-    for (size_t t = 0; t < T; ++t) {
-      grad_laplace.col(t)
-          = coord_sys.mesh.grad_sq_laplace_operator(Vector(field.col(t)));
-
-      double s = coord_sys.mesh.sum_sq_laplace_operator(Vector(field.col(t)));
-      score -= s * parameters.field_lambda_laplace;
-      LOG(debug) << "Curvature contribution to score of factor " << t << ": "
-                 << s;
-    }
-    grad -= grad_laplace * parameters.field_lambda_laplace;
-  }
-
-  LOG(debug) << "Field score: " << score;
-
-  return score;
-}
-
 void Model::enforce_positive_parameters(double min_value) {
   for (size_t i = 0; i < coeffs.size(); ++i)
     enforce_positive_and_warn(
         to_string(coeffs[i].kind) + " " + to_string(coeffs[i].variable)
             + " covariate " + to_string_embedded(i, 3),
         coeffs[i].values, min_value, parameters.warn_lower_limit);
-
-  for (auto &coord_sys : coordinate_systems)
-    enforce_positive_and_warn("field", coord_sys.field, min_value,
-                              parameters.warn_lower_limit);
-  for (auto &experiment : experiments)
-    experiment.enforce_positive_parameters();
 }
 
 /* TODO covariates reactivate likelihood
@@ -805,18 +648,6 @@ Matrix Model::expected_gene_type() const {
   return m;
 }
 
-void Model::update_experiment_fields() {
-  LOG(debug) << "Updating experiment fields";
-  for (auto &coord_sys : coordinate_systems) {
-    size_t cumul = 0;
-    for (auto member : coord_sys.members) {
-      experiments[member].field
-          = coord_sys.field.middleRows(cumul, experiments[member].S);
-      cumul += experiments[member].S;
-    }
-  }
-}
-
 void Model::update_contributions() {
   contributions_gene_type.setZero();
   contributions_gene.setZero();
@@ -833,74 +664,11 @@ void Model::update_contributions() {
 void Model::initialize_coordinate_systems(double v) {
   size_t coord_sys_idx = 0;
   for (auto &coord_sys : coordinate_systems) {
-    size_t num_additional = parameters.mesh_additional;
     coord_sys.S = 0;
     for (auto &member : coord_sys.members)
       coord_sys.S += experiments[member].S;
-    if (coord_sys.S == 0)
-      num_additional = 0;
-    coord_sys.N = coord_sys.S + num_additional;
+    coord_sys.N = coord_sys.S;
     coord_sys.T = T;
-    coord_sys.field = Matrix(coord_sys.N, T);
-    coord_sys.field.fill(v);
-
-    if (parameters.use_fields) {
-      using Point = Vector;
-      size_t dim = experiments[coord_sys.members[0]].coords.cols();
-      vector<Point> pts;
-      {
-        Point pt(dim);
-        for (auto &member : coord_sys.members)
-          for (size_t s = 0; s < experiments[member].S; ++s) {
-            for (size_t i = 0; i < dim; ++i)
-              pt[i] = experiments[member].coords(s, i);
-            pts.push_back(pt);
-          }
-
-        if (num_additional > 0) {
-          Point mi = pts[0];
-          Point ma = pts[0];
-          for (auto &p : pts)
-            for (size_t d = 0; d < dim; ++d) {
-              if (p[d] < mi[d])
-                mi[d] = p[d];
-              if (p[d] > ma[d])
-                ma[d] = p[d];
-            }
-          if (parameters.mesh_hull_distance <= 0) {
-            Point mid = (ma + mi) / 2;
-            Point half_diff = (ma - mi) / 2;
-            mi = mid - half_diff * parameters.mesh_hull_enlarge;
-            ma = mid + half_diff * parameters.mesh_hull_enlarge;
-          } else {
-            mi.array() -= parameters.mesh_hull_distance;
-            ma.array() += parameters.mesh_hull_distance;
-          }
-          for (size_t i = 0; i < num_additional; ++i) {
-            // TODO improve this
-            // e.g. enlarge area, use convex hull instead of bounding box, etc
-            bool ok = false;
-            while (not ok) {
-              for (size_t d = 0; d < dim; ++d)
-                pt[d] = mi[d]
-                        + (ma[d] - mi[d])
-                              * RandomDistribution::Uniform(EntropySource::rng);
-              for (size_t s = 0; s < coord_sys.S; ++s)
-                if ((pt - pts[s]).norm() < parameters.mesh_hull_distance) {
-                  ok = true;
-                  break;
-                }
-            }
-
-            pts.push_back(pt);
-          }
-        }
-      }
-      coord_sys.mesh = Mesh(
-          dim, pts,
-          parameters.output_directory + "coordsys"
-              + to_string_embedded(coord_sys_idx, EXPERIMENT_NUM_DIGITS));
-    }
     coord_sys_idx++;
     S += coord_sys.S;
   }

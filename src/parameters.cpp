@@ -56,11 +56,4 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   os << "normal_2 = " << hyperparams.normal_2 << endl;
   return os;
 }
-
-bool Parameters::targeted(Target target) const {
-  return flagged(targets & target);
-}
-bool Parameters::forget(Target target) const {
-  return flagged(targets & target);
-}
 }

@@ -18,16 +18,13 @@ struct Options {
   string design_path;
   Design design;
   size_t num_factors = 20;
-  long num_warm_up = -1;
   bool intersect = false;
   string load_prefix = "";
   // TODO covariates reactivate likelihood
   // bool compute_likelihood = false;
   bool share_coord_sys = false;
-  bool perform_dge = false;
   bool keep_empty = false;
   bool transpose = false;
-  bool learn_priors = false;
   size_t top = 0;
   size_t bottom = 0;
 };
@@ -87,9 +84,12 @@ int main(int argc, char **argv) {
   po::options_description basic_options("Basic options", num_cols);
   po::options_description gaussian_process_options("Gaussian process options", num_cols);
   po::options_description advanced_options("Advanced options", num_cols);
+  po::options_description grad_options("Gradient descent options", num_cols);
+  po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
+  po::options_description lbfgs_options("lBFGS options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
-  po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
   po::options_description inference_options("MCMC inference options", num_cols);
+  po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
 
   required_options.add_options()
     ("file", po::value(&options.tsv_paths),
@@ -113,8 +113,6 @@ int main(int argc, char **argv) {
      "Assume that the samples lie in the same coordinate system.")
     ("output,o", po::value(&parameters.output_directory),
      "Prefix for generated output files.")
-    ("fields", po::bool_switch(&parameters.use_fields),
-     "Activate fields.")
     ("formula,f", po::value(&parameters.rate_formula)->default_value(parameters.rate_formula),
      "Regression formula for the rate parameter of negative binomial rate. "
      "Arbitrary covariates annotated to the input files in the design matrix file. "
@@ -152,65 +150,41 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("learnprior", po::bool_switch(&options.learn_priors),
-     "Learn priors for gamma and rho.")
     ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value),
      "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
      "Warn when parameter values reach the lower limit specified by --minval.")
-    ("normalized_est", po::bool_switch(&parameters.normalize_spot_stats),
-     "When sampling theta priors normalize spot statistics.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
      "Do not discard genes or spots with zero counts.")
     // TODO covariates reactivate likelihood
     // ("likel", po::bool_switch(&options.compute_likelihood),
     //  "Compute and print the likelihood after finishing.")
-    ("nopriors", po::bool_switch(&parameters.ignore_priors),
-     "Do not use priors for r and p, i.e. perform (conditional) maximum-likelihood for them, rather than maximum-a-posteriori.")
-    ("p_map", po::bool_switch(&parameters.p_empty_map),
-     "Choose p(gt) by maximum-a-posteriori rather than by Gibbs sampling when no data is available.")
-    ("cont_map", po::bool_switch(&parameters.contributions_map),
-     "Sample contributions by maximum-a-posteriori.")
-    ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
-     "Epsilon parameter for the leapfrog algorithm.")
-    ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),
-     "Number of micro-steps to take in the leapfrog algorithm.")
-    ("hmc_n", po::value(&parameters.hmc_N)->default_value(parameters.hmc_N),
-     "Number of leapfrog steps to take per iteration.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
-    ("mesh_dist", po::value(&parameters.mesh_hull_distance)->default_value(parameters.mesh_hull_distance),
-     "Maximal distance from the closest given point in which to insert additional mesh points.")
-    ("mesh_enlarge", po::value(&parameters.mesh_hull_enlarge)->default_value(parameters.mesh_hull_enlarge),
-     "Additional mesh points are sampeled from the bounding box enlarged by this factor (only used if --mesh_dist is zero).")
-    ("mesh_add", po::value(&parameters.mesh_additional)->default_value(parameters.mesh_additional),
-     "Add additional mesh points uniformly distributed in the bounding box.")
-    ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
-     "Maximal number of iterations to perform per lBFGS optimization of the field.")
-    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
-     "Epsilon parameter for lBFGS optimization of the field.")
-    ("field_lambda_dir", po::value(&parameters.field_lambda_dirichlet)->default_value(parameters.field_lambda_dirichlet),
-     "Lambda value for Dirichlet energy in field calculations.")
-    ("field_lambda_lap", po::value(&parameters.field_lambda_laplace)->default_value(parameters.field_lambda_laplace),
-     "Lambda value for squared Laplace operator in field calculations.")
-    ("warm,w", po::value(&options.num_warm_up)->default_value(options.num_warm_up),
-     "Length of warm-up period: number of iterations to discard before integrating parameter samples. Negative numbers deactivate MCMC integration.")
-    ("expcont", po::bool_switch(&parameters.expected_contributions),
-     "Dont sample x_{gst} contributions, but use expected values instead.")
-    ("dge", po::bool_switch(&options.perform_dge),
-     "Perform differential gene expression analysis.\n"
-     "- \tFor all factors, compare each experiment's local profile against the global one.\n"
-     "- \tPairwise comparisons between all factors in each experiment.")
-    ("sample", po::value(&parameters.targets)->default_value(parameters.targets),
-     "Which sampling steps to perform.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
      "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
      "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
-     "Number of iterations to perform for iterative sampling methods.")
+     "Number of iterations to perform for iterative sampling methods.");
+
+  lbfgs_options.add_options()
+    ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
+     "Maximal number of iterations to perform per lBFGS optimization.")
+    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
+     "Epsilon parameter for lBFGS optimization.");
+
+  hmc_options.add_options()
+    ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
+     "Epsilon parameter for the leapfrog algorithm.")
+    ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),
+     "Number of micro-steps to take in the leapfrog algorithm.")
+    ("hmc_n", po::value(&parameters.hmc_N)->default_value(parameters.hmc_N),
+     "Number of leapfrog steps to take per iteration.");
+
+  grad_options.add_options()
     ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha),
      "Initial learning rate for gradient learning.")
     ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
@@ -271,9 +245,12 @@ int main(int argc, char **argv) {
       .add(basic_options)
       .add(gaussian_process_options)
       .add(advanced_options)
+      .add(grad_options)
+      .add(lbfgs_options)
       .add(rprop_options)
-      .add(hyperparameter_options)
-      .add(inference_options);
+      .add(hmc_options)
+      .add(inference_options)
+      .add(hyperparameter_options);
 
   po::positional_options_description positional_options;
   positional_options.add("file", -1);
@@ -340,16 +317,6 @@ int main(int argc, char **argv) {
       = load_data(paths, options.intersect, options.top, options.bottom,
                   not options.keep_empty, options.transpose);
 
-  if (options.learn_priors)
-    parameters.targets = parameters.targets | STD::Target::gamma_prior
-                         | STD::Target::rho_prior;
-
-  if (parameters.use_fields)
-    parameters.targets = parameters.targets | STD::Target::field;
-  else
-    parameters.mesh_additional = 0;
-
-  LOG(verbose) << "Inference targets = " << parameters.targets;
   LOG(verbose) << "Rate regression formula = " << parameters.rate_formula;
   LOG(verbose) << "Variance regression formula = " << parameters.variance_formula;
 

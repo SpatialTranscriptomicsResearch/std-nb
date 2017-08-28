@@ -78,7 +78,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       parameters(parameters_),
       gp(make_shared<GP::GaussianProcess>(
           GP::GaussianProcess(coords, parameters.gp.length_scale))),
-      field(Matrix::Ones(S, T)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
       contributions_gene(rowSums<Vector>(*counts.matrix)),
@@ -120,9 +119,6 @@ void Experiment::store(const string &prefix,
 #pragma omp parallel sections if (DO_PARALLEL)
   {
 #pragma omp section
-    write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
-                 parameters.compression_mode, spot_names, factor_names, order);
-#pragma omp section
     write_matrix(expected_spot_type(),
                  prefix + "expected-mix" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
@@ -130,20 +126,6 @@ void Experiment::store(const string &prefix,
     write_matrix(expected_gene_type(),
                  prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
-    /* TODO cov var
-#pragma omp section
-    {
-      auto phi_marginal = marginalize_genes();
-      auto f = field;
-      for (size_t s = 0; s < S; ++s)
-        f.row(s).array() /= phi_marginal.array();
-      for (size_t t = 0; t < T; ++t)
-        f.col(t).array() /= spot.array();
-      write_matrix(f, prefix + "expected-field" + FILENAME_ENDING,
-                   parameters.compression_mode, spot_names, factor_names,
-                   order);
-    }
-    */
 #pragma omp section
     write_matrix(compute_gene_type_table(rate_coeff_idxs),
                  prefix + "rate_gene_type" + FILENAME_ENDING,
@@ -180,9 +162,6 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
-                             read_matrix, "\t");
-
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
   contributions_spot_type = parse_file<Matrix>(
@@ -381,40 +360,6 @@ Vector Experiment::sample_contributions_gene_spot(
   return cnts;
 }
 
-void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("local field", field);
-}
-
-/** Calculate log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior() const {
-  Matrix fit = Matrix::Zero(S, T);
-  /* TODO cov theta
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t) {
-      double prod = model->mix_prior.r(t) * field(s, t);
-      fit(s, t) = (prod - 1) * log(theta(s, t))
-                  - model->mix_prior.p(t) * theta(s, t) - lgamma(prod)
-                  + log(model->mix_prior.p(t)) * prod;
-    }
-  */
-  return fit;
-}
-
-/** Calculate gradient of log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior_gradient() const {
-  Matrix grad = Matrix::Zero(S, T);
-  /* TODO cov theta
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t)
-      grad(s, t) = model->mix_prior.r(t)
-                   * (log(theta(s, t)) + log(model->mix_prior.p(t))
-                      - digamma(model->mix_prior.r(t) * field(s, t)));
-  */
-  return grad;
-}
-
 // NOTE: scalar covariates are multiplied into this table
 Matrix Experiment::compute_gene_type_table(const vector<size_t> &idxs) const {
   Matrix gt = Matrix::Ones(G, T);
@@ -531,8 +476,6 @@ Matrix Experiment::expected_spot_type() const {
     expected.col(t) *= gt_cs[t];
   return expected;
 }
-
-void Experiment::setZero() { field.setZero(); }
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {
   os << "Experiment "

@@ -5,12 +5,10 @@
 #include "Mesh.hpp"
 #include "design.hpp"
 #include "formula.hpp"
-#include "priors.hpp"
 
 namespace STD {
 
 const int EXPERIMENT_NUM_DIGITS = 4;
-const bool abort_on_fatal_errors = false;
 
 struct Model {
   // TODO consider const
@@ -38,7 +36,6 @@ struct Model {
     // std::vector<Matrix> coords;
     std::vector<size_t> members;
     Mesh mesh;
-    Matrix field;
   };
   std::vector<CoordinateSystem> coordinate_systems;
 
@@ -82,11 +79,7 @@ struct Model {
   //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
-  void update_experiment_fields();
   void update_contributions();
-  Matrix field_fitness_posterior_gradient() const;
-  double field_gradient(const CoordinateSystem &coord_sys, const Matrix &field,
-                        Matrix &grad) const;
   void initialize_coordinate_systems(double v);
   void add_experiment(const Counts &data, size_t coord_sys);
 };
