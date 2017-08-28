@@ -132,11 +132,6 @@ struct Parameters {
   double mesh_hull_enlarge = 1.03;
   double mesh_hull_distance = 2;
 
-  size_t forget_start = 0;
-  size_t forget_end = 0;
-  double forget_rate = 0.05;
-  size_t forget_factor = 0;
-
   Formula rate_formula = DefaultRateFormula();
   Formula variance_formula = DefaultVarianceFormula();
 

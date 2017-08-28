@@ -688,8 +688,6 @@ void Model::gradient_update() {
       Vector rates(x.size());
       rates.fill(parameters.grad_alpha);
       for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
-        if (iter < parameters.forget_end and iter >= parameters.forget_start)
-          apply_mask(x, rates, prev_sign);
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
         enforce_positive_and_warn("RPROP log params", x,
@@ -729,23 +727,6 @@ void Model::gradient_update() {
   LOG(verbose) << "Final f(x) = " << fx;
 
   from_vector(x.array().exp());
-}
-
-Vector Model::make_mask() const {
-  Model mask_model = *this;
-  mask_model.setZero();
-  // TODO cov forgetting targets
-  return mask_model.vectorize();
-}
-
-void Model::apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const {
-  Vector mask = make_mask().array();
-  for (size_t i = 0; i < static_cast<size_t>(x.size()); ++i)
-    if (mask[i] == 1) {
-      x[i] = 0;
-      rates[i] = parameters.grad_alpha;
-      prev_sign[i] = 0;
-    }
 }
 
 double Model::field_gradient(const CoordinateSystem &coord_sys,

@@ -69,9 +69,6 @@ struct Model {
   size_t size() const;
   size_t number_parameters() const;
 
-  Vector make_mask() const;
-  void apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const;
-
   void enforce_positive_parameters(double min_value = 1e-200);
 
   void store(const std::string &prefix, bool mean_and_var = false,
