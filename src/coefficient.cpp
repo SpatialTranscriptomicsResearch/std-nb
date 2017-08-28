@@ -48,8 +48,9 @@ Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
                                               Coefficient::Kind kind,
                                               DistributionMode mode,
                                               bool use_gp) {
-  if (variable == Coefficient::Variable::rate
-      and kind == Coefficient::Kind::spot_type and use_gp)
+  if (use_gp and variable == Coefficient::Variable::rate
+      and (kind == Coefficient::Kind::spot_type
+           or kind == Coefficient::Kind::spot))
     return Coefficient::Distribution::log_gp;
   switch (mode) {
     case DistributionMode::log_normal:
@@ -178,9 +179,7 @@ void Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
               += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
       });
       break;
-    case Distribution::log_gp:
-
-    {
+    case Distribution::log_gp: {
       size_t n = values.rows();
       LOG(debug) << "Computing log Gaussian process gradient.";
       Coefficient posterior_means = *this;
