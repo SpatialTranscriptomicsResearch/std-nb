@@ -139,6 +139,22 @@ void Design::add_covariate_section() {
   covariates.push_back(cov);
 }
 
+void Design::add_covariate_coordsys() {
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) {
+                return cov.label == DesignNS::coordsys_label;
+              })
+      != end(covariates))
+    return;
+
+  Covariate cov = {DesignNS::coordsys_label, {}};
+  for (size_t i = 0; i < dataset_specifications.size(); ++i) {
+    cov.values.push_back(std::to_string(i + 1));
+    dataset_specifications[i].covariate_values.push_back(i);
+  }
+  covariates.push_back(cov);
+}
+
 void Design::add_covariate_unit() {
   if (find_if(begin(covariates), end(covariates),
               [&](const Covariate &cov) {

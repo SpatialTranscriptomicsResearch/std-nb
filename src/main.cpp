@@ -318,6 +318,7 @@ int main(int argc, char **argv) {
     options.design.add_dataset_specification(path);
 
   options.design.add_covariate_section();
+  options.design.add_covariate_coordsys();
   options.design.add_covariate_unit();
 
   LOG(verbose) << "Design: " << options.design;
