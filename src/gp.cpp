@@ -1,6 +1,7 @@
 #include "gp.hpp"
 #include <eigen3/Eigen/Eigenvalues>
 #include "log.hpp"
+#include "parallel.hpp"
 #include "types.hpp"
 
 namespace GP {
@@ -31,6 +32,7 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
   const size_t n = x.rows();
   const double l_square = l * l;
   Matrix k = Matrix::Zero(n, n);
+#pragma omp parallel if (DO_PARALLEL)
   for (size_t i = 0; i < n; ++i)
     for (size_t j = i + 1; j < n; ++j) {
       Vector diff = x.row(i) - x.row(j);
