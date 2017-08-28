@@ -723,7 +723,7 @@ void Model::gradient_update() {
 
       int niter = solver.minimize(fnc, x, fx);
 
-      LOG(verbose) << "LBFGS performed " << niter << " iterations";
+      LOG(verbose) << "lBFGS performed " << niter << " iterations";
     } break;
   }
   LOG(verbose) << "Final f(x) = " << fx;
