@@ -19,10 +19,11 @@ struct GaussianProcess {
   // std::shared_ptr<Matrix> x;
   Matrix eigenvectors;
   Vector eigenvalues;
-  double calc_mean(Vector y, double delta);
-  double calc_spatial_variance(const Vector &y, double mean, double delta);
+  double calc_mean(Vector y, double delta) const;
+  double calc_spatial_variance(const Vector &y, double mean,
+                               double delta) const;
   void predict_means_and_vars(const Vector &y, double delta, Vector &mu,
-                              Vector &var);
+                              Vector &var) const;
 };
 }
 #endif

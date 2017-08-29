@@ -43,7 +43,7 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
   return k;
 }
 
-double GaussianProcess::calc_mean(Vector y, double delta) {
+double GaussianProcess::calc_mean(Vector y, double delta) const {
   Vector u1 = eigenvectors.transpose() * Vector::Ones(n);
   Vector uy = eigenvectors.transpose() * y;
   double numerator = 0;
@@ -56,7 +56,7 @@ double GaussianProcess::calc_mean(Vector y, double delta) {
 }
 
 double GaussianProcess::calc_spatial_variance(const Vector &y, double mean,
-                                              double delta) {
+                                              double delta) const {
   Vector u1 = eigenvectors.transpose() * Vector::Ones(n) * mean;
   Vector uy = eigenvectors.transpose() * y;
   double sigma = 0;
@@ -68,7 +68,7 @@ double GaussianProcess::calc_spatial_variance(const Vector &y, double mean,
 }
 
 void GaussianProcess::predict_means_and_vars(const Vector &y, double delta,
-                                             Vector &mu, Vector &var) {
+                                             Vector &mu, Vector &var) const {
   double mean = calc_mean(y, delta);
   double sv = calc_spatial_variance(y, mean, delta);
   LOG(verbose) << "GP: mean = " << mean << " sv = " << sv
