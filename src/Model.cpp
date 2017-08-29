@@ -27,10 +27,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
 
   map<vector<size_t>, size_t> covvalues2idx;
   for (size_t e = 0; e < E; ++e) {
-    vector<size_t> cov_values;
-    for (auto &cov_idx : cov_idxs)
-      cov_values.push_back(
-          design.dataset_specifications[e].covariate_values[cov_idx]);
+    vector<size_t> cov_values = design.get_covariate_value_idxs(e, cov_idxs);
     auto iter = covvalues2idx.find(cov_values);
     size_t idx;
     if (iter != end(covvalues2idx)) {

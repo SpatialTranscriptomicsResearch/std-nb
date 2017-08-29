@@ -4,7 +4,8 @@
 
 using namespace std;
 
-vector<size_t> Design::determine_covariate_idxs(const vector<string> &term) {
+vector<size_t> Design::determine_covariate_idxs(
+    const vector<string> &term) const {
   vector<size_t> cov_idxs;
   for (auto &covariate_label : term) {
     LOG(debug) << "Treating covariate label: " << covariate_label;
@@ -26,6 +27,13 @@ vector<size_t> Design::determine_covariate_idxs(const vector<string> &term) {
   return cov_idxs;
 }
 
+vector<size_t> Design::get_covariate_value_idxs(
+    size_t e, const vector<size_t> &covariate_idxs) const {
+  vector<size_t> cov_values;
+  for (auto &cov_idx : covariate_idxs)
+    cov_values.push_back(dataset_specifications[e].covariate_values[cov_idx]);
+  return cov_values;
+}
 
 void Design::from_string(const string &str) {
   istringstream is(str);
@@ -128,7 +136,6 @@ void Design::from_stream(istream &is) {
       dataset_specifications.push_back(spec);
     }
   }
-
 }
 
 string Design::to_string() const {

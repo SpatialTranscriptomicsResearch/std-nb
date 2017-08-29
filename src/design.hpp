@@ -60,7 +60,8 @@ struct Design {
   bool is_reserved_name(const std::string &s) const;
   void add_dataset_specification(const std::string &s);
   std::vector<size_t> determine_covariate_idxs(
-      const std::vector<std::string> &term);
+      const std::vector<std::string> &term) const;
+  std::vector<size_t> get_covariate_value_idxs(size_t e, const std::vector<size_t> &covariate_idxs) const;
 };
 
 std::istream &operator>>(std::istream &is, Design &design);
