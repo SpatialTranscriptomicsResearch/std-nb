@@ -293,7 +293,7 @@ double &Coefficient::get(size_t g, size_t t, size_t s) {
     case Kind::spot_type:
       return values(s, t);
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+      throw std::runtime_error("Error: invalid Coefficient::Kind in get().");
   }
 }
 
@@ -312,7 +312,7 @@ double Coefficient::get(size_t g, size_t t, size_t s) const {
     case Kind::spot_type:
       return values(s, t);
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+      throw std::runtime_error("Error: invalid Coefficient::Kind in get() const.");
   }
 }
 
@@ -350,7 +350,7 @@ string to_string(const Coefficient::Kind &kind) {
     case Coefficient::Kind::spot_type:
       return "spot- and type-dependent";
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+      throw std::runtime_error("Error: invalid Coefficient::Kind in to_string().");
   }
 }
 
@@ -399,7 +399,7 @@ string to_token(const Coefficient::Kind &kind) {
     case Coefficient::Kind::spot_type:
       return "spot-type";
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind.");
+      throw std::runtime_error("Error: invalid Coefficient::Kind in to_token().");
   }
 }
 
