@@ -12,35 +12,17 @@ using namespace std;
 
 namespace STD {
 
+// returns a vector of indices of the coefficients for each sample
 void Model::add_covariate_terms(const Formula::Term &term,
                                 Coefficient::Variable variable) {
   LOG(debug) << "Treating next " << to_string(variable) << " formula term.";
-  Coefficient::Kind kind = Coefficient::Kind::scalar;
-  vector<size_t> cov_idxs;  // indices of covariates in this term
 
-  // determine kind and cov_idxs
-  for (auto &covariate_label : term) {
-    LOG(debug) << "Treating covariate label: " << covariate_label;
-    if (to_lower(covariate_label) == "gene")
-      kind = kind | Coefficient::Kind::gene;
-    else if (to_lower(covariate_label) == "spot")
-      kind = kind | Coefficient::Kind::spot;
-    else if (to_lower(covariate_label) == "type")
-      kind = kind | Coefficient::Kind::type;
-    else {
-      auto cov_iter = find_if(begin(design.covariates), end(design.covariates),
-                              [&](const Covariate &covariate) {
-                                return covariate.label == covariate_label;
-                              });
-      if (cov_iter == end(design.covariates)) {
-        throw(runtime_error("Error: a covariate mentioned in the formula '"
-                            + covariate_label
-                            + "' is not found in the design."));
-      } else {
-        cov_idxs.push_back(distance(begin(design.covariates), cov_iter));
-      }
-    }
-  }
+  Coefficient::Kind kind = determine_kind(term);
+  vector<size_t> cov_idxs = design.determine_covariate_idxs(term);
+
+  Coefficient::Distribution distribution = choose_distribution(
+      variable, kind, parameters.distribution_mode, parameters.gp.use);
+
   LOG(debug) << "Coefficient::Kind = " << to_string(kind);
 
   map<vector<size_t>, size_t> covvalues2idx;
@@ -60,11 +42,8 @@ void Model::add_covariate_terms(const Formula::Term &term,
       covvalues2idx[cov_values] = idx;
 
       CovariateInformation info = {cov_idxs, cov_values};
-      Coefficient covterm(
-          G, T, experiments[e].S, variable, kind,
-          choose_distribution(variable, kind, parameters.distribution_mode,
-                              parameters.gp.use),
-          experiments[e].gp, info);
+      Coefficient covterm(G, T, experiments[e].S, variable, kind, distribution,
+                          experiments[e].gp, info);
       coeffs.push_back(covterm);
     }
     coeffs[idx].experiment_idxs.push_back(e);

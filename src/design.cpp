@@ -4,6 +4,29 @@
 
 using namespace std;
 
+vector<size_t> Design::determine_covariate_idxs(const vector<string> &term) {
+  vector<size_t> cov_idxs;
+  for (auto &covariate_label : term) {
+    LOG(debug) << "Treating covariate label: " << covariate_label;
+    string label = to_lower(covariate_label);
+    if (label != "gene" and label != "spot" and label != "type") {
+      auto cov_iter = find_if(begin(covariates), end(covariates),
+                              [&](const Covariate &covariate) {
+                                return covariate.label == covariate_label;
+                              });
+      if (cov_iter == end(covariates)) {
+        throw(runtime_error("Error: a covariate mentioned in the formula '"
+                            + covariate_label
+                            + "' is not found in the design."));
+      } else {
+        cov_idxs.push_back(distance(begin(covariates), cov_iter));
+      }
+    }
+  }
+  return cov_idxs;
+}
+
+
 void Design::from_string(const string &str) {
   istringstream is(str);
   from_stream(is);

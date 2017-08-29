@@ -9,6 +9,20 @@
 using namespace std;
 using STD::Matrix;
 
+Coefficient::Kind determine_kind(const vector<string> &term) {
+  Coefficient::Kind kind = Coefficient::Kind::scalar;
+  for (auto &covariate_label : term) {
+    string label = to_lower(covariate_label);
+    if (label == "gene")
+      kind = kind | Coefficient::Kind::gene;
+    else if (label == "spot")
+      kind = kind | Coefficient::Kind::spot;
+    else if (label == "type")
+      kind = kind | Coefficient::Kind::type;
+  }
+  return kind;
+}
+
 std::string to_string(DistributionMode mode) {
   switch (mode) {
     case DistributionMode::log_normal:

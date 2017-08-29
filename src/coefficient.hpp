@@ -117,6 +117,8 @@ struct Coefficient {
   }
 };
 
+Coefficient::Kind determine_kind(const std::vector<std::string> &term);
+
 std::string to_string(const Coefficient::Variable &variable);
 std::string to_string(const Coefficient::Kind &kind);
 std::string to_string(const Coefficient::Distribution &distribution);
