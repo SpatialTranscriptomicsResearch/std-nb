@@ -41,11 +41,11 @@ struct Specification {
 using Specifications = std::vector<Specification>;
 
 namespace DesignNS {
-  const std::string path_label = "path";
-  const std::string name_label = "name";
-  const std::string section_label = "section";
-  const std::string coordsys_label = "coordsys";
-  const std::string unit_label = "1";
+const std::string path_label = "path";
+const std::string name_label = "name";
+const std::string section_label = "section";
+const std::string coordsys_label = "coordsys";
+const std::string unit_label = "1";
 };
 
 struct Design {
