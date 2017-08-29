@@ -51,6 +51,28 @@ void Model::add_covariate_terms(const Formula::Term &term,
   }
 }
 
+void Model::add_prior_coefficients() {
+  const size_t n = coeffs.size();
+  for (size_t idx = 0; idx < n; ++idx) {
+    const size_t current_size = coeffs.size();
+    coeffs[idx].prior_idxs.push_back(current_size);
+    coeffs[idx].prior_idxs.push_back(current_size + 1);
+    CovariateInformation info = coeffs[idx].info;
+    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
+                        Coefficient::Kind::scalar,
+                        Coefficient::Distribution::fixed, nullptr, info);
+    covterm.experiment_idxs = coeffs[idx].experiment_idxs;
+
+    covterm.get(0, 0, 0)
+        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 0);
+    coeffs.push_back(covterm);
+
+    covterm.get(0, 0, 0)
+        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 1);
+    coeffs.push_back(covterm);
+  }
+}
+
 Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
              const Parameters &parameters_, bool same_coord_sys)
     : G(max_row_number(c)),
@@ -77,32 +99,11 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   coeff_debug_dump("BEFORE");
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
-
-  const size_t n = coeffs.size();
+  add_prior_coefficients();
+  coeff_debug_dump("FINAL");
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
-
-  for (size_t idx = 0; idx < n; ++idx) {
-    const size_t current_size = coeffs.size();
-    coeffs[idx].prior_idxs.push_back(current_size);
-    coeffs[idx].prior_idxs.push_back(current_size + 1);
-    CovariateInformation info = coeffs[idx].info;
-    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
-                        Coefficient::Kind::scalar,
-                        Coefficient::Distribution::fixed, nullptr, info);
-    covterm.experiment_idxs = coeffs[idx].experiment_idxs;
-
-    covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 0);
-    coeffs.push_back(covterm);
-
-    covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 1);
-    coeffs.push_back(covterm);
-  }
-
-  coeff_debug_dump("FINAL");
 
   initialize_coordinate_systems(1);
 

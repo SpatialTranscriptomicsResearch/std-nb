@@ -51,6 +51,7 @@ struct Model {
 
   void add_covariate_terms(const Formula::Term &term,
                            Coefficient::Variable variable);
+  void add_prior_coefficients();
   void setZero();
   Model compute_gradient(double &score) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
