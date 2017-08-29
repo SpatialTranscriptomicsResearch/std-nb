@@ -34,6 +34,7 @@ struct Coefficient {
     log_normal,
     log_gp
   };
+
   Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
               Distribution distribution,
               std::shared_ptr<GP::GaussianProcess> gp,

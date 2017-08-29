@@ -22,6 +22,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   io.cpp
   log.cpp
   metropolis_hastings.cpp
+  modelspec.cpp
   optimization_method.cpp
   parameters.cpp
   pdist.cpp
@@ -45,7 +46,10 @@ ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp)
 ADD_EXECUTABLE(test_gamma_convolution test_gamma_convolution.cpp)
 ADD_EXECUTABLE(test_negative_binomial_convolution test_negative_binomial_convolution.cpp)
 
+ADD_SUBDIRECTORY(spec_parser)
+
 TARGET_LINK_LIBRARIES(transcriptomedeconvolution
+  transcriptomedeconvolution_parser
   m
   -L${Boost_LIBRARY_DIRS}
   ${Boost_FILESYSTEM_LIBRARY}

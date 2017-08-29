@@ -5,6 +5,7 @@
 #include "Mesh.hpp"
 #include "design.hpp"
 #include "formula.hpp"
+#include "modelspec.hpp"
 #include "priors.hpp"
 
 namespace STD {
@@ -25,6 +26,7 @@ struct Model {
 
   Formula rate_formula, variance_formula;
   Design design;
+  ModelSpec model_spec;
   std::vector<Experiment> experiments;
 
   Parameters parameters;
@@ -46,13 +48,14 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts> &data, size_t T, const Design &design,
-        const Parameters &parameters, bool same_coord_sys);
+  Model(const std::vector<Counts>& data, size_t T, const Design& design,
+        const ModelSpec& model_spec, const Parameters& parameters,
+        bool same_coord_sys);
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Variable variable,
                               Coefficient::Kind kind);
 
-  void add_covariate_terms(const Formula::Term &term,
+  void add_covariate_terms(const ModelSpec::RandomVariable& var,
                            Coefficient::Variable variable);
   void setZero();
   Model compute_gradient(double &score) const;

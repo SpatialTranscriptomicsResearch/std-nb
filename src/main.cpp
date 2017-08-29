@@ -16,7 +16,9 @@ using namespace std;
 struct Options {
   vector<string> tsv_paths;
   string design_path;
+  string spec_path;
   Design design;
+  ModelSpec model_spec;
   size_t num_factors = 20;
   long num_warm_up = -1;
   bool intersect = false;
@@ -35,7 +37,8 @@ struct Options {
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
   STD::Model pfa(data_sets, options.num_factors,
-                 options.design, parameters, options.share_coord_sys);
+                 options.design, options.model_spec, parameters,
+                 options.share_coord_sys);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
@@ -98,7 +101,10 @@ int main(int argc, char **argv) {
      "header line, and row names in the first column of each row.")
     ("design,d", po::value(&options.design_path),
      "Path to a design matrix file. "
-     "Format: tab-separated.");
+     "Format: tab-separated.")
+    ("model,m", po::value(&options.spec_path),
+     "Path to a model specification file.");
+
 
   basic_options.add_options()
     ("types,t", po::value(&options.num_factors)->default_value(options.num_factors),
@@ -319,8 +325,8 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  ifstream ifs(options.design_path);
-  options.design.from_stream(ifs);
+  ifstream(options.design_path) >> options.design_path;
+  ifstream(options.spec_path) >> options.model_spec;
 
   for (auto &path : options.tsv_paths)
     options.design.add_dataset_specification(path);

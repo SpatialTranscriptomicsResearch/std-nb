@@ -1,3 +1,5 @@
+#include <unordered_set>
+
 #include "Model.hpp"
 #include <LBFGS.h>
 #include <map>
@@ -10,14 +12,33 @@ using namespace std;
 
 namespace STD {
 
-void Model::add_covariate_terms(const Formula::Term &term,
+void Model::add_covariate_terms(const ModelSpec::RandomVariable &var,
                                 Coefficient::Variable variable) {
   LOG(debug) << "Treating next " << to_string(variable) << " formula term.";
+
+  if (var.distribution == ModelSpec::RandomVariable::Distribution::fixed) {
+    LOG(debug) << "This is a fixed variable.";
+    if (var.covariates.size() != 0) {
+      throw invalid_argument("Fixed variables cannot have covariate dependencies.");
+    }
+
+    // TODO: why do we need covariate info for fixed variables?
+    CovariateInformation info = coeffs.back().info;
+    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
+                        Coefficient::Kind::scalar,
+                        Coefficient::Distribution::fixed, nullptr, info);
+    covterm.experiment_idxs = coeffs.back().experiment_idxs;
+    covterm.get(0, 0, 0) = var.value;
+    coeffs.push_back(covterm);
+    return;
+  }
+  LOG(debug) << "This is a random variable.";
+
   Coefficient::Kind kind = Coefficient::Kind::scalar;
   vector<size_t> cov_idxs;  // indices of covariates in this term
 
   // determine kind and cov_idxs
-  for (auto &covariate_label : term) {
+  for (auto &covariate_label : var.covariates) {
     LOG(debug) << "Treating covariate label: " << covariate_label;
     if (to_lower(covariate_label) == "gene")
       kind = kind | Coefficient::Kind::gene;
@@ -60,27 +81,51 @@ void Model::add_covariate_terms(const Formula::Term &term,
       CovariateInformation info = {cov_idxs, cov_values};
       Coefficient covterm(
           G, T, experiments[e].S, variable, kind,
-          choose_distribution(variable, kind, parameters.distribution_mode,
-                              parameters.gp.use),
+          var.distribution,
+          // choose_distribution(variable, kind, parameters.distribution_mode,
+          //                     parameters.gp.use),
           experiments[e].gp, info);
       coeffs.push_back(covterm);
+
+      // TODO: Check that we have the correct number of arguments
+      LOG(debug) << "Adding priors.";
+      for (auto& prior : var.arguments) {
+        if (prior.covariates.size() >= var.covariates.size()) {
+          throw invalid_argument("Subset of prior's covariates cannot be strict.");
+        }
+        for (auto& covariate : prior.covariates) {
+          if (find(var.covariates.begin(), var.covariates.end(), covariate)
+              == var.covariates.end()) {
+            throw invalid_argument("Prior's covariates is not a subset.");
+          }
+        }
+
+        coeffs[idx].prior_idxs.push_back(coeffs.size());
+        add_covariate_terms(prior, Coefficient::Variable::prior);
+      }
     }
-    coeffs[idx].experiment_idxs.push_back(e);
-    experiments[e].coeff_idxs(variable).push_back(idx);
+
+    if (variable != Coefficient::Variable::prior) {
+      coeffs[idx].experiment_idxs.push_back(e);
+      experiments[e].coeff_idxs(variable).push_back(idx);
+    }
   }
 }
 
-Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
-             const Parameters &parameters_, bool same_coord_sys)
-    : G(max_row_number(c)),
-      T(T_),
-      E(0),
-      S(0),
-      design(design_),
-      experiments(),
-      parameters(parameters_),
-      contributions_gene_type(Matrix::Zero(G, T)),
-      contributions_gene(Vector::Zero(G)) {
+Model::Model(const vector<Counts>& c, size_t T_, const Design& design_,
+             const ModelSpec& model_spec_, const Parameters& parameters_,
+             bool same_coord_sys)
+    : G(max_row_number(c))
+    , T(T_)
+    , E(0)
+    , S(0)
+    , design(design_)
+    , model_spec(model_spec_)
+    , experiments()
+    , parameters(parameters_)
+    , contributions_gene_type(Matrix::Zero(G, T))
+    , contributions_gene(Vector::Zero(G))
+{
   size_t coord_sys = 0;
   for (auto &counts : c)
     add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
@@ -88,40 +133,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
-  for (auto &term : parameters.rate_formula.terms)
-    add_covariate_terms(term, Coefficient::Variable::rate);
-  for (auto &term : parameters.variance_formula.terms)
-    add_covariate_terms(term, Coefficient::Variable::odds);
+  for (auto &coefficient : model_spec.rate_coefficients)
+    add_covariate_terms(coefficient, Coefficient::Variable::rate);
+  for (auto &coefficient : model_spec.odds_coefficients)
+    add_covariate_terms(coefficient, Coefficient::Variable::odds);
 
   coeff_debug_dump("BEFORE");
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
-
-  const size_t n = coeffs.size();
-
-  // TODO cov spot initialize spot scaling:
-  // linear in number of counts, scaled so that mean = 1
-
-  for (size_t idx = 0; idx < n; ++idx) {
-    const size_t current_size = coeffs.size();
-    coeffs[idx].prior_idxs.push_back(current_size);
-    coeffs[idx].prior_idxs.push_back(current_size + 1);
-    CovariateInformation info = coeffs[idx].info;
-    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
-                        Coefficient::Kind::scalar,
-                        Coefficient::Distribution::fixed, nullptr, info);
-    covterm.experiment_idxs = coeffs[idx].experiment_idxs;
-
-    covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 0);
-    coeffs.push_back(covterm);
-
-    covterm.get(0, 0, 0)
-        = parameters.hyperparameters.get_param(coeffs[idx].distribution, 1);
-    coeffs.push_back(covterm);
-  }
-
-  coeff_debug_dump("FINAL");
 
   initialize_coordinate_systems(1);
 
