@@ -29,7 +29,7 @@ Matrix GaussianProcess::inverse_covariance(double spatial_var,
 
 // negative one-half squared distances divided by squared length scale
 Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
-  const size_t n = x.rows();
+  assert(static_cast<size_t>(x.rows()) == n);
   const double l_square = l * l;
   Matrix k = Matrix::Zero(n, n);
 #pragma omp parallel if (DO_PARALLEL)
