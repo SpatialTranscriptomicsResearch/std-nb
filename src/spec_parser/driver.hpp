@@ -6,7 +6,7 @@
 
 #include "RandomVariable.hpp"
 #include "RegressionEquation.hpp"
-#include "spec_parser/parser.tab.hh"
+#include "spec_parser/parser.tab.hpp"
 
 // Tell Flex the lexer's prototype ...
 #define YY_DECL yy::parser::symbol_type yylex(Driver& Driver)

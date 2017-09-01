@@ -1,5 +1,5 @@
 #include "driver.hpp"
-#include "parser.tab.hh"
+#include "parser.tab.hpp"
 
 Driver::Driver()
     : trace_scanning(false)

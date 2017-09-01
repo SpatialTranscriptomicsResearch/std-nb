@@ -1,19 +1,16 @@
-ADD_CUSTOM_COMMAND(
-  OUTPUT lex.yy.cc
-  COMMAND flex ${CMAKE_CURRENT_SOURCE_DIR}/scanner.ll
-  # rename output file in order for cmake to recognize it as a c++ file
-  COMMAND cmake -E rename lex.yy.c lex.yy.cc
-  )
+find_package(FLEX)
+find_package(BISON)
 
-ADD_CUSTOM_COMMAND(
-  OUTPUT parser.tab.cc parser.tab.hh
-  COMMAND bison -d ${CMAKE_CURRENT_SOURCE_DIR}/parser.yy
-  )
+FLEX_TARGET(Lexer scanner.ll ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc)
+BISON_TARGET(Parser parser.yy ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp)
 
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
-ADD_LIBRARY(transcriptomedeconvolution_parser STATIC
+# Make it possible to #include generated header files for out-of-source builds
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+
+ADD_LIBRARY(transcriptomedeconvolution_parser SHARED
   driver.cpp
   lex.yy.cc
-  parser.tab.cc
+  parser.tab.cpp
   )

@@ -4,7 +4,7 @@
 #include <cstdlib>
 #include <string>
 #include "driver.hpp"
-#include "parser.tab.hh"
+#include "parser.tab.hpp"
 
 // The location of the current token.
 static yy::location loc;
