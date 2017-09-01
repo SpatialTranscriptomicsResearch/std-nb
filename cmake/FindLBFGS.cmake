@@ -3,8 +3,6 @@
 #  LBFGS_FOUND - System has LBFGS.h
 #  LBFGS_INCLUDE_DIRS - The LBFGS.h include directories
 
-find_package(PkgConfig)
-
 find_path(LBFGS_INCLUDE_DIR LBFGS.h)
 
 include(FindPackageHandleStandardArgs)
