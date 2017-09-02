@@ -43,7 +43,6 @@ std::vector<Coefficient>::iterator Model::find_coefficient(
   });
 }
 
-// returns a vector of indices of the coefficients for each sample
 void Model::add_covariate_terms(const Formula::Term &term,
                                 Coefficient::Variable variable) {
   LOG(debug) << "Treating next " << to_string(variable) << " formula term.";
@@ -218,8 +217,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 }
 
 void Model::coeff_debug_dump(const string &tag) const {
+  size_t index = 0;
   for (auto coeff : coeffs)
-    LOG(debug) << tag << " " << coeff << ": "
+    LOG(debug) << tag << " " << index++ << " " << coeff << ": "
                << coeff.info.to_string(design.covariates);
   auto fnc = [&](const string &s, size_t idx, size_t e) {
     LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
