@@ -43,8 +43,9 @@ using Specifications = std::vector<Specification>;
 namespace DesignNS {
 const std::string path_label = "path";
 const std::string name_label = "name";
+const std::string spot_label = "spot";
 const std::string section_label = "section";
-const std::string coordsys_label = "coordsys";
+const std::string coordsys_label = "coord";
 const std::string unit_label = "1";
 };
 
@@ -55,7 +56,7 @@ struct Design {
   Specifications dataset_specifications;
   Covariates covariates;
   void add_covariate_section();
-  void add_covariate_coordsys();
+  void add_covariate_coordsys(bool share_coord_sys);
   void add_covariate_unit();
   bool is_reserved_name(const std::string &s) const;
   void add_dataset_specification(const std::string &s);

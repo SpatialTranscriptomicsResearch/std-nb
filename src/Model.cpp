@@ -12,6 +12,26 @@ using namespace std;
 
 namespace STD {
 
+CovariateInformation drop_covariate(const CovariateInformation &info,
+                                    const Design &design,
+                                    const std::string &cov_label) {
+  auto mod_info = info;
+  for (size_t idx = 0; idx < info.idxs.size(); ++idx)
+    if (design.covariates[info.idxs[idx]].label == cov_label) {
+      mod_info.idxs.erase(begin(mod_info.idxs) + idx);
+      mod_info.vals.erase(begin(mod_info.vals) + idx);
+    }
+  return mod_info;
+}
+
+CovariateInformation drop_covariates(
+    CovariateInformation info, const Design &design,
+    const std::vector<std::string> &cov_labels) {
+  for (auto &cov_label : cov_labels)
+    info = drop_covariate(info, design, cov_label);
+  return info;
+}
+
 std::vector<Coefficient>::iterator Model::find_coefficient(
     const std::string &label, Coefficient::Variable variable,
     Coefficient::Kind kind, Coefficient::Distribution distribution,
@@ -36,39 +56,119 @@ void Model::add_covariate_terms(const Formula::Term &term,
 
   LOG(debug) << "Coefficient::Kind = " << to_string(kind);
 
-  map<vector<size_t>, size_t> covvalues2idx;
-  for (size_t e = 0; e < E; ++e) {
-    vector<size_t> cov_values = design.get_covariate_value_idxs(e, cov_idxs);
-    auto iter = covvalues2idx.find(cov_values);
-    size_t idx;
-    if (iter != end(covvalues2idx)) {
-      idx = iter->second;
-      LOG(debug) << "Found previous covariate value combination: " << idx;
-    } else {
-      // this covariate value combination was not previously used
-      idx = coeffs.size();
-      covvalues2idx[cov_values] = idx;
+  const string label = to_string(variable);
 
-      CovariateInformation info = {cov_idxs, cov_values};
-      Coefficient covterm(G, T, experiments[e].S, variable, kind, distribution,
-                          experiments[e].gp, info);
+  for (size_t e = 0; e < E; ++e) {
+    CovariateInformation info
+        = {cov_idxs, design.get_covariate_value_idxs(e, cov_idxs)};
+    auto coeff_iter
+        = find_coefficient(label, variable, kind, distribution, info);
+    if (coeff_iter == end(coeffs)) {
+      LOG(debug) << "Creating new coefficient";
+      // this covariate value combination was not previously used
+      Coefficient covterm(G, T, experiments[e].S, label, variable, kind,
+                          distribution, info);
       coeffs.push_back(covterm);
+      coeff_iter = prev(end(coeffs));
     }
-    coeffs[idx].experiment_idxs.push_back(e);
+    coeff_iter->experiment_idxs.push_back(e);
+    size_t idx = distance(begin(coeffs), coeff_iter);
     experiments[e].coeff_idxs(variable).push_back(idx);
+
+    LOG(verbose) << "idx = " << idx;
+
+    if (distribution == Coefficient::Distribution::log_gp) {
+      auto gp_coord_info = drop_covariates(
+          info, design, {DesignNS::spot_label, DesignNS::section_label});
+      auto gp_coord_kind = kind & ~Coefficient::Kind::spot;
+      auto gp_coord_coeff_iter = find_coefficient(
+          label, variable, gp_coord_kind,
+          Coefficient::Distribution::log_gp_coord, gp_coord_info);
+      if (gp_coord_coeff_iter == end(coeffs)) {
+        LOG(verbose) << "Adding GP coordinate system";
+        Coefficient gp_coord_coeff(G, T, 0, label, variable, gp_coord_kind,
+                                   Coefficient::Distribution::log_gp_coord,
+                                   gp_coord_info);
+        coeffs.push_back(gp_coord_coeff);
+        gp_coord_coeff_iter = prev(end(coeffs));
+      }
+      LOG(verbose) << "Updating GP coordinate system"
+                   << distance(begin(coeffs), gp_coord_coeff_iter);
+      gp_coord_coeff_iter->experiment_idxs.push_back(e);
+      gp_coord_coeff_iter->prior_idxs.push_back(idx);
+
+      size_t gp_coord_idx = distance(begin(coeffs), gp_coord_coeff_iter);
+
+      auto gp_info
+          = drop_covariates(info, design,
+                            {DesignNS::spot_label, DesignNS::section_label,
+                             DesignNS::coordsys_label});
+      auto gp_kind = kind & ~Coefficient::Kind::spot;
+      auto gp_coeff_iter
+          = find_coefficient(label, variable, gp_kind,
+                             Coefficient::Distribution::log_gp_proxy, gp_info);
+      if (gp_coeff_iter == end(coeffs)) {
+        LOG(verbose) << "Adding GP proxy";
+        Coefficient gp_coeff(G, T, 0, label, variable, gp_kind,
+                             Coefficient::Distribution::log_gp_proxy, gp_info);
+        coeffs.push_back(gp_coeff);
+        gp_coeff_iter = prev(end(coeffs));
+      }
+      LOG(verbose) << "Updating GP proxy "
+                   << distance(begin(coeffs), gp_coeff_iter);
+      gp_coeff_iter->experiment_idxs.push_back(e);
+      if (std::find(begin(gp_coeff_iter->prior_idxs),
+                    end(gp_coeff_iter->prior_idxs), gp_coord_idx)
+          == end(gp_coeff_iter->prior_idxs))
+        gp_coeff_iter->prior_idxs.push_back(gp_coord_idx);
+    }
   }
+}
+
+void Model::add_gp_proxies() {
+  LOG(verbose) << "Constructing GP proxies";
+  for (size_t idx = 0; idx < coeffs.size(); ++idx)
+    if (coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy) {
+      LOG(verbose) << "Constructing GP proxy " << idx;
+      for (auto &coord_coeff_idx : coeffs[idx].prior_idxs) {
+        LOG(verbose) << "using coordinate system coefficient "
+                     << coord_coeff_idx;
+        auto &coord_coeff = coeffs[coord_coeff_idx];
+        auto exp_idxs = coord_coeff.experiment_idxs;
+        auto prior_idxs = coord_coeff.prior_idxs;
+        size_t n = 0;
+        for (size_t e : exp_idxs)
+          n += experiments[e].S;
+        size_t ncol = experiments[exp_idxs[0]].coords.cols();
+        LOG(verbose) << "n = " << n;
+        Matrix m = Matrix::Zero(n, ncol);
+        size_t i = 0;
+        for (size_t e : exp_idxs) {
+          for (size_t s = 0; s < experiments[e].S; ++s)
+            for (size_t j = 0; j < ncol; ++j)
+              m(i + s, j) = experiments[e].coords(s, j);
+          i += experiments[e].S;
+        }
+        coord_coeff.gp = GP::GaussianProcess(m, parameters.gp.length_scale);
+      }
+    }
 }
 
 void Model::add_prior_coefficients() {
   const size_t n = coeffs.size();
   for (size_t idx = 0; idx < n; ++idx) {
+    if (coeffs[idx].distribution == Coefficient::Distribution::log_gp_coord
+        or coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy)
+      continue;
+
     const size_t current_size = coeffs.size();
     coeffs[idx].prior_idxs.push_back(current_size);
     coeffs[idx].prior_idxs.push_back(current_size + 1);
     CovariateInformation info = coeffs[idx].info;
-    Coefficient covterm(0, 0, 0, Coefficient::Variable::prior,
-                        Coefficient::Kind::scalar,
-                        Coefficient::Distribution::fixed, nullptr, info);
+    Coefficient::Variable variable = Coefficient::Variable::prior;
+    string label = to_string(variable);
+    Coefficient covterm(0, 0, 0, label, variable, Coefficient::Kind::scalar,
+                        Coefficient::Distribution::fixed, info);
     covterm.experiment_idxs = coeffs[idx].experiment_idxs;
 
     covterm.get(0, 0, 0)
@@ -82,7 +182,7 @@ void Model::add_prior_coefficients() {
 }
 
 Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
-             const Parameters &parameters_, bool same_coord_sys)
+             const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
       E(0),
@@ -92,9 +192,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
-  size_t coord_sys = 0;
   for (auto &counts : c)
-    add_experiment(counts, same_coord_sys ? 0 : coord_sys++);
+    add_experiment(counts);
   update_contributions();
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
@@ -104,6 +203,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   for (auto &term : parameters.variance_formula.terms)
     add_covariate_terms(term, Coefficient::Variable::odds);
 
+  coeff_debug_dump("INITIAL");
+  add_gp_proxies();
   coeff_debug_dump("BEFORE");
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
@@ -112,8 +213,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
-
-  initialize_coordinate_systems(1);
 
   enforce_positive_parameters(parameters.min_value);
 }
@@ -384,22 +483,22 @@ Model Model::compute_gradient(double &score) const {
 
 #pragma omp for
     for (size_t g = 0; g < G; ++g)
-      for (auto &coord_sys : coordinate_systems)
-        for (auto e : coord_sys.members)
-          for (size_t s = 0; s < experiments[e].S; ++s)
-            if (RandomDistribution::Uniform(rng)
-                >= parameters.dropout_gene_spot) {
-              auto cnts = experiments[e].sample_contributions_gene_spot(
-                  g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
-              for (size_t t = 0; t < T; ++t) {
-                double r = rate_gt[e](g, t) * rate_st[e](s, t);
-                double odds = odds_gt[e](g, t) * odds_st[e](s, t);
-                double p = odds_to_prob(odds);
-                score += log_negative_binomial(cnts[t], r, p);
-              }
-              register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
-                                odds_gt[e], odds_st[e]);
+      for (size_t e = 0; e < E; ++e)
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          if (RandomDistribution::Uniform(rng)
+              >= parameters.dropout_gene_spot) {
+            auto cnts = experiments[e].sample_contributions_gene_spot(
+                g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
+            for (size_t t = 0; t < T; ++t) {
+              double r = rate_gt[e](g, t) * rate_st[e](s, t);
+              double odds = odds_gt[e](g, t) * odds_st[e](s, t);
+              double p = odds_to_prob(odds);
+              score += log_negative_binomial(cnts[t], r, p);
             }
+            register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
+                              odds_gt[e], odds_st[e]);
+          }
+
 #pragma omp critical
     {
       gradient = gradient + grad;
@@ -647,25 +746,9 @@ void Model::update_contributions() {
     }
 }
 
-void Model::initialize_coordinate_systems(double v) {
-  size_t coord_sys_idx = 0;
-  for (auto &coord_sys : coordinate_systems) {
-    coord_sys.S = 0;
-    for (auto &member : coord_sys.members)
-      coord_sys.S += experiments[member].S;
-    coord_sys.N = coord_sys.S;
-    coord_sys.T = T;
-    coord_sys_idx++;
-    S += coord_sys.S;
-  }
-}
-
-void Model::add_experiment(const Counts &counts, size_t coord_sys) {
+void Model::add_experiment(const Counts &counts) {
   experiments.push_back({this, counts, T, parameters});
   E++;
-  while (coordinate_systems.size() <= coord_sys)
-    coordinate_systems.push_back({});
-  coordinate_systems[coord_sys].members.push_back(E - 1);
 }
 
 ostream &operator<<(ostream &os, const Model &model) {

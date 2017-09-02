@@ -31,8 +31,7 @@ struct Options {
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
-  STD::Model pfa(data_sets, options.num_factors,
-                 options.design, parameters, options.share_coord_sys);
+  STD::Model pfa(data_sets, options.num_factors, options.design, parameters);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
@@ -295,7 +294,7 @@ int main(int argc, char **argv) {
     options.design.add_dataset_specification(path);
 
   options.design.add_covariate_section();
-  options.design.add_covariate_coordsys();
+  options.design.add_covariate_coordsys(options.share_coord_sys);
   options.design.add_covariate_unit();
 
   LOG(verbose) << "Design: " << options.design;

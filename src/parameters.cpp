@@ -36,6 +36,11 @@ double Hyperparameters::get_param(Coefficient::Distribution distribution,
         return normal_1;  // TODO gp mu parameter
       else
         return normal_2;  // TODO gp sigma parameter
+    case Coefficient::Distribution::log_gp_proxy:
+      if (idx == 0)
+        return normal_1;  // TODO gp mu parameter
+      else
+        return normal_2;  // TODO gp sigma parameter
     default:
       // TODO cov prior set for other disitributions
       throw std::runtime_error(

@@ -35,27 +35,19 @@ struct Model {
       Coefficient::Kind kind, Coefficient::Distribution distribution,
       const CovariateInformation &info);
 
-  struct CoordinateSystem {
-    CoordinateSystem() : S(0), N(0), T(0){};
-    size_t S, N, T;
-    // std::vector<Matrix> coords;
-    std::vector<size_t> members;
-    Mesh mesh;
-  };
-  std::vector<CoordinateSystem> coordinate_systems;
-
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
   Model(const std::vector<Counts> &data, size_t T, const Design &design,
-        const Parameters &parameters, bool same_coord_sys);
+        const Parameters &parameters);
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Variable variable,
                               Coefficient::Kind kind);
 
   void add_covariate_terms(const Formula::Term &term,
                            Coefficient::Variable variable);
+  void add_gp_proxies();
   void add_prior_coefficients();
   void setZero();
   Model compute_gradient(double &score) const;
@@ -86,8 +78,7 @@ struct Model {
   Matrix expected_gene_type() const;
 
   void update_contributions();
-  void initialize_coordinate_systems(double v);
-  void add_experiment(const Counts &data, size_t coord_sys);
+  void add_experiment(const Counts &data);
 };
 
 std::ostream &operator<<(std::ostream &os, const Model &pfa);

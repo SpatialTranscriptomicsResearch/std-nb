@@ -169,7 +169,7 @@ void Design::add_covariate_section() {
   covariates.push_back(cov);
 }
 
-void Design::add_covariate_coordsys() {
+void Design::add_covariate_coordsys(bool share_coord_sys) {
   if (find_if(begin(covariates), end(covariates),
               [&](const Covariate &cov) {
                 return cov.label == DesignNS::coordsys_label;
@@ -178,9 +178,12 @@ void Design::add_covariate_coordsys() {
     return;
 
   Covariate cov = {DesignNS::coordsys_label, {}};
+  size_t coord_sys_idx = 0;
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
-    cov.values.push_back(std::to_string(i + 1));
-    dataset_specifications[i].covariate_values.push_back(i);
+    cov.values.push_back(std::to_string(coord_sys_idx));
+    dataset_specifications[i].covariate_values.push_back(coord_sys_idx);
+    if (not share_coord_sys)
+      coord_sys_idx++;
   }
   covariates.push_back(cov);
 }

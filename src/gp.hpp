@@ -7,6 +7,7 @@ using Matrix = STD::Matrix;
 using Vector = STD::Vector;
 
 struct GaussianProcess {
+  GaussianProcess();
   GaussianProcess(const Matrix &x, double len_scale);
   Matrix covariance(double spatial_var, double indep_var) const;
 

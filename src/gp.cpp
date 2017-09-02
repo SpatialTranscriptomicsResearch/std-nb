@@ -4,7 +4,11 @@
 #include "parallel.hpp"
 #include "types.hpp"
 
+using namespace std;
+
 namespace GP {
+GaussianProcess::GaussianProcess() : length_scale(1) {}
+
 GaussianProcess::GaussianProcess(const Matrix &x, double len_scale)
     : n(x.rows()), length_scale(len_scale) {
   LOG(verbose) << "GaussianProcess::GaussianProcess()";

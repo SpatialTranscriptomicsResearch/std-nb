@@ -1,4 +1,5 @@
 #include "coefficient.hpp"
+#include "Experiment.hpp"
 #include "aux.hpp"
 #include "compression.hpp"
 #include "design.hpp"
@@ -89,15 +90,18 @@ Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
   throw std::runtime_error("Error in choose_distribution().");
 }
 
-Coefficient::Coefficient(size_t G, size_t T, size_t S, Variable variable_,
-                         Kind kind_, Distribution dist,
-                         std::shared_ptr<GP::GaussianProcess> gp_,
+Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
+                         Variable variable_, Kind kind_, Distribution dist,
                          CovariateInformation info_)
-    : variable(variable_),
+    : label(label_),
+      variable(variable_),
       kind(kind_),
       distribution(dist),
-      gp(gp_),
       info(info_) {
+  if (distribution == Distribution::log_gp and not spot_dependent())
+    throw std::runtime_error(
+        "Error: Gaussian processes only allowed for spot-dependent or "
+        "spot- and type-dependent coefficients.");
   // TODO cov prior fill prior_idx
   switch (kind) {
     case Kind::scalar:
@@ -132,7 +136,8 @@ double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
                                      vector<Coefficient> &grad_coeffs,
                                      size_t idx) const {
   LOG(debug) << "Coefficient::compute_gradient " << idx << ":" << *this;
-  if (distribution == Distribution::fixed or prior_idxs.size() < 2)
+  if (distribution == Distribution::fixed
+      or distribution == Distribution::log_gp or prior_idxs.size() < 2)
     return 0;
   size_t parent_a = prior_idxs[0];
   size_t parent_b = prior_idxs[1];
@@ -196,9 +201,10 @@ double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
               += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
         return log_normal(x, mu, sigma);
       });
-    case Distribution::log_gp: {
-      size_t n = values.rows();
+    case Distribution::log_gp_proxy: {
       LOG(debug) << "Computing log Gaussian process gradient.";
+
+      /*
       Coefficient posterior_means = *this;
       Coefficient posterior_vars = *this;
       for (size_t i = 0; i < static_cast<size_t>(values.cols()); ++i) {
@@ -219,6 +225,7 @@ double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
         // TODO log_gp return value
         return 0;
       });
+      */
     }
     case Distribution::fixed:
       return 0;
@@ -312,7 +319,8 @@ double Coefficient::get(size_t g, size_t t, size_t s) const {
     case Kind::spot_type:
       return values(s, t);
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind in get() const.");
+      throw std::runtime_error(
+          "Error: invalid Coefficient::Kind in get() const.");
   }
 }
 
@@ -321,6 +329,7 @@ size_t Coefficient::size() const { return values.size(); }
 size_t Coefficient::number_parameters() const {
   switch (distribution) {
     case Distribution::fixed:
+    case Distribution::log_gp_coord:
       return 0;
     default:
       return size();
@@ -350,7 +359,8 @@ string to_string(const Coefficient::Kind &kind) {
     case Coefficient::Kind::spot_type:
       return "spot- and type-dependent";
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind in to_string().");
+      throw std::runtime_error(
+          "Error: invalid Coefficient::Kind in to_string().");
   }
 }
 
@@ -379,6 +389,10 @@ string to_string(const Coefficient::Distribution &distribution) {
       return "log_normal";
     case Coefficient::Distribution::log_gp:
       return "log_gaussian_process";
+    case Coefficient::Distribution::log_gp_proxy:
+      return "log_gaussian_process_proxy";
+    case Coefficient::Distribution::log_gp_coord:
+      return "log_gaussian_process_coord";
     default:
       throw std::runtime_error("Error: invalid Coefficient::Distribution.");
   }
@@ -399,12 +413,13 @@ string to_token(const Coefficient::Kind &kind) {
     case Coefficient::Kind::spot_type:
       return "spot-type";
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind in to_token().");
+      throw std::runtime_error(
+          "Error: invalid Coefficient::Kind in to_token().");
   }
 }
 
 string Coefficient::to_string() const {
-  string s = "Coefficient, " + ::to_string(variable) + " "
+  string s = "Coefficient '" + label + "', " + ::to_string(variable) + " "
              + ::to_string(distribution) + "-distributed " + ::to_string(kind);
   for (auto &prior_idx : prior_idxs)
     s += " prior=" + std::to_string(prior_idx);

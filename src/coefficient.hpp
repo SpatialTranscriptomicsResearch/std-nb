@@ -1,6 +1,7 @@
 #ifndef COEFFICIENT_HPP
 #define COEFFICIENT_HPP
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -32,16 +33,19 @@ struct Coefficient {
     beta_prime,
     // linear term
     log_normal,
-    log_gp
+    log_gp,
+    log_gp_coord,
+    log_gp_proxy
   };
-  Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
-              Distribution distribution,
-              std::shared_ptr<GP::GaussianProcess> gp,
+  Coefficient(size_t G, size_t T, size_t S, const std::string &label,
+              Variable variable, Kind kind, Distribution distribution,
               CovariateInformation info);
+  std::string label;
   Variable variable;
   Kind kind;
   Distribution distribution;
-  std::shared_ptr<GP::GaussianProcess> gp;
+
+  GP::GaussianProcess gp;
 
   CovariateInformation info;
   STD::Matrix values;

@@ -6,6 +6,7 @@
 #include <unordered_set>
 
 #include "aux.hpp"
+#include "design.hpp"
 
 using std::function;
 using std::pair;
@@ -190,8 +191,10 @@ Formula DefaultVarianceFormula() { return Formula("gene*type+section+1"); }
 void Formula::add_section_to_spots() {
   for (auto& term : terms)
     if (find(begin(term), end(term), "spot") != end(term)
-        and find(begin(term), end(term), "section") == end(term))
-      term.push_back("section");
+        and find(begin(term), end(term), "section") == end(term)) {
+      term.push_back(DesignNS::section_label);
+      term.push_back(DesignNS::coordsys_label);
+    }
 }
 
 std::ostream& operator<<(std::ostream& os, const Formula& formula) {
