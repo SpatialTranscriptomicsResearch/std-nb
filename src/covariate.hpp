@@ -23,6 +23,8 @@ struct CovariateInformation {
   idxs_t idxs;
   idxs_t vals;
   std::string to_string(const Covariates &covariates) const;
+  bool operator==(const CovariateInformation &other) const;
+  bool operator<(const CovariateInformation &other) const;
 };
 
 #endif
