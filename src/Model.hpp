@@ -30,6 +30,11 @@ struct Model {
   using Coefficients = std::vector<Coefficient>;
   Coefficients coeffs;
 
+  std::vector<Coefficient>::iterator find_coefficient(
+      const std::string &label, Coefficient::Variable variable,
+      Coefficient::Kind kind, Coefficient::Distribution distribution,
+      const CovariateInformation &info);
+
   struct CoordinateSystem {
     CoordinateSystem() : S(0), N(0), T(0){};
     size_t S, N, T;

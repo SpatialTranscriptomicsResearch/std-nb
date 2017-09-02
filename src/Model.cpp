@@ -12,6 +12,17 @@ using namespace std;
 
 namespace STD {
 
+std::vector<Coefficient>::iterator Model::find_coefficient(
+    const std::string &label, Coefficient::Variable variable,
+    Coefficient::Kind kind, Coefficient::Distribution distribution,
+    const CovariateInformation &info) {
+  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
+    return coeff.label == label and coeff.variable == variable
+           and coeff.kind == kind and coeff.distribution == distribution
+           and coeff.info == info;
+  });
+}
+
 // returns a vector of indices of the coefficients for each sample
 void Model::add_covariate_terms(const Formula::Term &term,
                                 Coefficient::Variable variable) {
