@@ -495,7 +495,7 @@ Model Model::compute_gradient(double &score) const {
               double r = rate_gt[e](g, t) * rate_st[e](s, t);
               double odds = odds_gt[e](g, t) * odds_st[e](s, t);
               double p = odds_to_prob(odds);
-              score += log_negative_binomial(cnts[t], r, p);
+              score_ += log_negative_binomial(cnts[t], r, p);
             }
             register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
                               odds_gt[e], odds_st[e]);

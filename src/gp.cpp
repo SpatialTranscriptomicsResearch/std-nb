@@ -83,7 +83,7 @@ double GaussianProcess::calc_spatial_variance(const Vector &y, double mean,
   Vector u1 = eigenvectors.transpose() * Vector::Ones(n) * mean;
   Vector uy = eigenvectors.transpose() * y;
   double sigma = 0;
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : sigma) if (DO_PARALLEL)
   for (size_t i = 0; i < n; ++i) {
     double diff = uy(i) - u1(i);
     sigma += diff * diff / (eigenvalues(i) + delta);
