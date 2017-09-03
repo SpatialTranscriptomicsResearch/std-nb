@@ -92,11 +92,23 @@ double GaussianProcess::calc_spatial_variance(const Vector &y, double mean,
 }
 
 void GaussianProcess::predict_means_and_vars(const Vector &y, double delta,
+                                             MeanTreatment mean_treatment,
                                              Vector &mu, Vector &var) const {
-  double mean = calc_mean(y, delta);
+  double mean = 0;
+  calc_mean(y, delta);
+  switch (mean_treatment) {
+    case MeanTreatment::zero:
+      break;
+    case MeanTreatment::shared:
+    case MeanTreatment::independent:
+      mean = calc_mean(y, delta);
+      break;
+  }
   double sv = calc_spatial_variance(y, mean, delta);
   LOG(verbose) << "GP: mean = " << mean << " sv = " << sv
                << " delta = " << delta;
+
+  assert(sv > 0);
 
   Matrix inverse = inverse_covariance(sv, delta);
 

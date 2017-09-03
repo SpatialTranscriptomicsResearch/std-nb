@@ -26,7 +26,8 @@ struct GaussianProcess {
   double calc_mean(Vector y, double delta) const;
   double calc_spatial_variance(const Vector &y, double mean,
                                double delta) const;
-  void predict_means_and_vars(const Vector &y, double delta, Vector &mu,
+  void predict_means_and_vars(const Vector &y, double delta,
+                              MeanTreatment mean_treatmeant, Vector &mu,
                               Vector &var) const;
 };
 
