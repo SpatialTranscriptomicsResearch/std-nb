@@ -77,11 +77,13 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
   GaussianProcessParameters(bool use = false, double len = 5,
-                            double spatial = 1, double indep = 1);
+                            double spatial = 1, double indep = 1,
+                            size_t first_iteration = 80);
   bool use;
   double length_scale;
   double spatial_variance;
   double independent_variance;
+  size_t first_iteration;
 };
 
 struct Parameters {

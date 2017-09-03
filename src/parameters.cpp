@@ -7,11 +7,13 @@ namespace STD {
 
 GaussianProcessParameters::GaussianProcessParameters(bool use_, double len,
                                                      double spatial,
-                                                     double indep)
+                                                     double indep,
+                                                     size_t first_iter)
     : use(use_),
       length_scale(len),
       spatial_variance(spatial),
-      independent_variance(indep) {}
+      independent_variance(indep),
+      first_iteration(first_iter) {}
 
 double Hyperparameters::get_param(Coefficient::Distribution distribution,
                                   size_t idx) const {

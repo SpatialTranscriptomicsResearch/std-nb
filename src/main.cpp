@@ -139,6 +139,8 @@ int main(int argc, char **argv) {
   gaussian_process_options.add_options()
     ("gp", po::bool_switch(&parameters.gp.use),
      "Model spatial factor activities as a Gaussian process.")
+    ("gp_iter", po::value(&parameters.gp.first_iteration)->default_value(parameters.gp.first_iteration),
+     "In which iteration to start using the Gaussian process prior.")
     ("gp_length", po::value(&parameters.gp.length_scale)->default_value(parameters.gp.length_scale),
      "Length scale to use for Gaussian process.")
     ("gp_var_spatial", po::value(&parameters.gp.spatial_variance)->default_value(parameters.gp.spatial_variance),

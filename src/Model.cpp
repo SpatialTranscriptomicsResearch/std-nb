@@ -12,6 +12,8 @@ using namespace std;
 
 namespace STD {
 
+size_t iter_cnt = 0;
+
 CovariateInformation drop_covariate(const CovariateInformation &info,
                                     const Design &design,
                                     const std::string &cov_label) {
@@ -509,7 +511,9 @@ Model Model::compute_gradient(double &score) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    score += coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
+    if (coeffs[i].distribution != Coefficient::Distribution::log_gp_proxy
+        or iter_cnt >= parameters.gp.first_iteration)
+      score += coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
 
   return gradient;
 }
@@ -600,8 +604,6 @@ double Model::param_likel() const {
 
   return score;
 }
-
-size_t iter_cnt = 0;
 
 void Model::gradient_update() {
   LOG(verbose) << "Performing gradient update iterations";
