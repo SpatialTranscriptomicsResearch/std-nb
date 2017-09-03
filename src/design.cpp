@@ -180,7 +180,7 @@ void Design::add_covariate_coordsys(bool share_coord_sys) {
   Covariate cov = {DesignNS::coordsys_label, {}};
   size_t coord_sys_idx = 0;
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
-    cov.values.push_back(std::to_string(coord_sys_idx));
+    cov.values.push_back(std::to_string(coord_sys_idx + 1));
     dataset_specifications[i].covariate_values.push_back(coord_sys_idx);
     if (not share_coord_sys)
       coord_sys_idx++;
