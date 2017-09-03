@@ -76,8 +76,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      gp(make_shared<GP::GaussianProcess>(
-          GP::GaussianProcess(coords, parameters.gp.length_scale))),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
       contributions_gene(rowSums<Vector>(*counts.matrix)),

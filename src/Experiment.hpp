@@ -40,8 +40,6 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::shared_ptr<GP::GaussianProcess> gp;
-
   std::vector<size_t> rate_coeff_idxs;
   std::vector<size_t> odds_coeff_idxs;
   std::vector<size_t> &coeff_idxs(Coefficient::Variable variable);
