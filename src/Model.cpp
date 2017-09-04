@@ -767,6 +767,7 @@ void Model::update_contributions() {
 void Model::add_experiment(const Counts &counts) {
   experiments.push_back({this, counts, T, parameters});
   E++;
+  S += experiments.back().S;
 }
 
 ostream &operator<<(ostream &os, const Model &model) {
