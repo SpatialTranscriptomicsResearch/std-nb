@@ -73,10 +73,10 @@ void Model::add_covariate_terms(const Formula::Term &term,
       coeff_iter = prev(end(coeffs));
     }
     coeff_iter->experiment_idxs.push_back(e);
-    size_t idx = distance(begin(coeffs), coeff_iter);
-    experiments[e].coeff_idxs(variable).push_back(idx);
+    size_t coeff_idx = distance(begin(coeffs), coeff_iter);
+    experiments[e].coeff_idxs(variable).push_back(coeff_idx);
 
-    LOG(verbose) << "idx = " << idx;
+    LOG(verbose) << "coeff_idx = " << coeff_idx;
 
     if (distribution == Coefficient::Distribution::log_gp) {
       auto gp_coord_info = drop_covariates(
@@ -93,12 +93,12 @@ void Model::add_covariate_terms(const Formula::Term &term,
         coeffs.push_back(gp_coord_coeff);
         gp_coord_coeff_iter = prev(end(coeffs));
       }
-      LOG(verbose) << "Updating GP coordinate system"
-                   << distance(begin(coeffs), gp_coord_coeff_iter);
-      gp_coord_coeff_iter->experiment_idxs.push_back(e);
-      gp_coord_coeff_iter->prior_idxs.push_back(idx);
 
       size_t gp_coord_idx = distance(begin(coeffs), gp_coord_coeff_iter);
+      LOG(verbose) << "Updating GP coordinate system" << gp_coord_idx;
+
+      gp_coord_coeff_iter->experiment_idxs.push_back(e);
+      gp_coord_coeff_iter->prior_idxs.push_back(coeff_idx);
 
       auto gp_info
           = drop_covariates(info, design,
