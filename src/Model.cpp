@@ -76,7 +76,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
     size_t coeff_idx = distance(begin(coeffs), coeff_iter);
     experiments[e].coeff_idxs(variable).push_back(coeff_idx);
 
-    LOG(verbose) << "coeff_idx = " << coeff_idx;
+    LOG(debug) << "coeff_idx = " << coeff_idx;
 
     if (distribution == Coefficient::Distribution::log_gp) {
       auto gp_coord_info = drop_covariates(
@@ -86,7 +86,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
           label, variable, gp_coord_kind,
           Coefficient::Distribution::log_gp_coord, gp_coord_info);
       if (gp_coord_coeff_iter == end(coeffs)) {
-        LOG(verbose) << "Adding GP coordinate system";
+        LOG(debug) << "Adding GP coordinate system";
         Coefficient gp_coord_coeff(G, T, 0, label, variable, gp_coord_kind,
                                    Coefficient::Distribution::log_gp_coord,
                                    gp_coord_info);
@@ -95,7 +95,7 @@ void Model::add_covariate_terms(const Formula::Term &term,
       }
 
       size_t gp_coord_idx = distance(begin(coeffs), gp_coord_coeff_iter);
-      LOG(verbose) << "Updating GP coordinate system" << gp_coord_idx;
+      LOG(debug) << "Updating GP coordinate system" << gp_coord_idx;
 
       gp_coord_coeff_iter->experiment_idxs.push_back(e);
       gp_coord_coeff_iter->prior_idxs.push_back(coeff_idx);
@@ -109,13 +109,13 @@ void Model::add_covariate_terms(const Formula::Term &term,
           = find_coefficient(label, variable, gp_kind,
                              Coefficient::Distribution::log_gp_proxy, gp_info);
       if (gp_coeff_iter == end(coeffs)) {
-        LOG(verbose) << "Adding GP proxy";
+        LOG(debug) << "Adding GP proxy";
         Coefficient gp_coeff(G, T, 0, label, variable, gp_kind,
                              Coefficient::Distribution::log_gp_proxy, gp_info);
         coeffs.push_back(gp_coeff);
         gp_coeff_iter = prev(end(coeffs));
       }
-      LOG(verbose) << "Updating GP proxy "
+      LOG(debug) << "Updating GP proxy "
                    << distance(begin(coeffs), gp_coeff_iter);
       gp_coeff_iter->experiment_idxs.push_back(e);
       if (std::find(begin(gp_coeff_iter->prior_idxs),
@@ -279,7 +279,7 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
   // drop redundant coefficients
   size_t removed = 0;
   for (auto r : redundant) {
-    LOG(verbose) << "Removing " << r << ": " << coeffs[r] << ": "
+    LOG(debug) << "Removing " << r << ": " << coeffs[r] << ": "
                  << coeffs[r - removed].info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r - removed);
     removed++;
