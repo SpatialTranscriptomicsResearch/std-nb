@@ -325,7 +325,7 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  ifstream(options.design_path) >> options.design_path;
+  ifstream(options.design_path) >> options.design;
   ifstream(options.spec_path) >> options.model_spec;
 
   for (auto &path : options.tsv_paths)

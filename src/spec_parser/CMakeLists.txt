@@ -9,7 +9,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 # Make it possible to #include generated header files for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
-ADD_LIBRARY(transcriptomedeconvolution_parser SHARED
+ADD_LIBRARY(transcriptomedeconvolution_parser STATIC
   driver.cpp
   lex.yy.cc
   parser.tab.cpp

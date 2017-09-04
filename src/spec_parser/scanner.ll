@@ -56,13 +56,14 @@ comment #[^\n]*
 .          Driver.error(loc, "invalid character");
 %%
 
-void Driver::scan_begin ()
+int Driver::parse(const std::string& s)
 {
+  cur_line = s;
   yy_flex_debug = trace_scanning;
-  yyin = stdin;
-}
-
-void Driver::scan_end ()
-{
-  fclose(yyin);
+  YY_BUFFER_STATE buf = yy_scan_string(cur_line.c_str());
+  yy::parser parser(*this);
+  parser.set_debug_level(trace_parsing);
+  int res = parser.parse();
+  yy_delete_buffer(buf);
+  return res;
 }

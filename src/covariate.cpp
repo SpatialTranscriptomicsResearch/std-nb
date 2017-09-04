@@ -34,3 +34,12 @@ string CovariateInformation::to_string(const Covariates &covariates) const {
     s = "global";
   return s;
 }
+
+// TODO: maybe better implementing a hash function and using unordered_map/set
+// wherever needed. This feels a bit odd.
+bool CovariateInformation::operator<(const CovariateInformation& other) const {
+  if (idxs != other.idxs) {
+    return idxs < other.idxs;
+  }
+  return vals < other.vals;
+}

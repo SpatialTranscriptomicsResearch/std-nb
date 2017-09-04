@@ -4,6 +4,7 @@
 #include <memory>
 #include <string>
 #include <vector>
+#include <set>
 #include "covariate.hpp"
 #include "gp.hpp"
 #include "types.hpp"
@@ -39,6 +40,7 @@ struct Coefficient {
               Distribution distribution,
               std::shared_ptr<GP::GaussianProcess> gp,
               CovariateInformation info);
+  // TODO: Not used anymore?
   Variable variable;
   Kind kind;
   Distribution distribution;
@@ -47,7 +49,7 @@ struct Coefficient {
   CovariateInformation info;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;
-  std::vector<size_t> experiment_idxs;
+  std::set<size_t> experiment_idxs;
 
   bool gene_dependent() const;
   bool type_dependent() const;
@@ -113,6 +115,21 @@ struct Coefficient {
             fnc(0, t, s);
         break;
     }
+  }
+};
+
+struct CoefficientId {
+  std::string name;
+  Coefficient::Kind kind;
+  CovariateInformation covariates;
+  bool operator<(const CoefficientId& other) const {
+    if (name != other.name) {
+      return name < other.name;
+    }
+    if (kind != other.kind) {
+      return kind < other.kind;
+    }
+    return covariates < other.covariates;
   }
 };
 

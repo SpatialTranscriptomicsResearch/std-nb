@@ -1,44 +1,34 @@
 #ifndef RANDOMVARIABLE_HPP
 #define RANDOMVARIABLE_HPP
 
+#include <memory>
+#include <set>
 #include <string>
 #include <unordered_map>
-#include <unordered_set>
 #include <vector>
 
-#include "../coefficient.hpp"
+#include "../aux.hpp"
+#include "Distribution.hpp"
 
 struct RandomVariable {
-  // TODO: consider using separate Distribution type to increase modularity
-  using Distribution = Coefficient::Distribution;
-
-  static Distribution stodistr(const std::string& s)
-  {
-    static const std::unordered_map<std::string, Distribution> map{
-      { "Beta'", Distribution::beta_prime },
-      { "Betaprime", Distribution::beta_prime },
-      { "Gamma", Distribution::gamma },
-      { "Loggp", Distribution::log_gp },
-      { "Lognormal", Distribution::log_normal },
-      { "logN", Distribution::log_normal },
-    };
-    auto it = map.find(s);
-    if (it == map.end()) {
-      throw std::invalid_argument("Invalid distribution '" + s + "'.");
-    }
-    return it->second;
-  }
+  std::set<std::string> covariates;
+  std::string id;
 
   Distribution distribution;
-  std::vector<std::string> arguments;
-  std::unordered_set<std::string> covariates;
 
-  RandomVariable(std::string distribution, std::unordered_set<std::string> covariates,
-      std::vector<std::string> arguments)
-      : distribution(stodistr(distribution))
-      , arguments(arguments)
-      , covariates(covariates)
+  RandomVariable() = default;
+  RandomVariable(std::string _id, std::set<std::string> _covariates)
+      : covariates(_covariates)
+      , id(_id)
   {
+  }
+
+  std::string full_id() const
+  {
+    return id + "(" +
+      intercalate<std::set<std::string>::iterator, std::string>(
+          covariates.begin(), covariates.end(), ",")
+      + ")";
   }
 };
 

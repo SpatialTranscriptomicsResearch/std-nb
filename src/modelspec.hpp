@@ -14,29 +14,17 @@ namespace ModelSpec {
 } // namespace ModelSpec
 
 struct ModelSpec {
-  struct RandomVariable;
-
   void from_string(const std::string& str);
   void from_stream(std::istream& is);
-  std::string to_string() const;
 
-  std::vector<RandomVariable> rate_coefficients, odds_coefficients;
+  // TODO: make into functions
+  std::vector<std::string> rate_coefficients, odds_coefficients;
+  std::unordered_map<std::string, RandomVariable> variables;
 
   private:
   Driver parser;
 };
 
-// TODO: would be nicer with a polymorphic, std::variant-like approach
-struct ModelSpec::RandomVariable {
-  using Distribution = Coefficient::Distribution;
-
-  Distribution distribution;
-  double value;  // value for fixed variables
-  std::vector<RandomVariable> arguments;
-  std::vector<std::string> covariates;
-};
-
 std::istream& operator>>(std::istream& is, ModelSpec& model_spec);
-std::ostream& operator<<(std::ostream& os, const ModelSpec& model_spec);
 
 #endif // MODELSPEC_HPP

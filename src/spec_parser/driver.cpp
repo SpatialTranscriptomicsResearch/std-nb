@@ -1,3 +1,6 @@
+#include <exception>
+#include <sstream>
+
 #include "driver.hpp"
 #include "parser.tab.hpp"
 
@@ -9,20 +12,20 @@ Driver::Driver()
 
 Driver::~Driver() {}
 
-int Driver::parse(const std::string& f)
+static std::string location_to_string(const yy::location& l)
 {
-  file = f;
-  scan_begin();
-  yy::parser parser(*this);
-  parser.set_debug_level(trace_parsing);
-  int res = parser.parse();
-  scan_end();
-  return res;
+  std::stringstream ss;
+  ss << l;
+  return ss.str();
 }
 
 void Driver::error(const yy::location& l, const std::string& m)
 {
-  std::cerr << l << ": " << m << std::endl;
+  throw std::runtime_error(
+      "'" + cur_line + "' (" + location_to_string(l) + "): " + m);
 }
 
-void Driver::error(const std::string& m) { std::cerr << m << std::endl; }
+void Driver::error(const std::string& m)
+{
+  throw std::runtime_error("'" + cur_line + "' : " + m);
+}

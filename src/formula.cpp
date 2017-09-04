@@ -178,9 +178,12 @@ void Formula::from_string(const string& str) {
 string Formula::to_string() const {
   vs covariates;
   for (const Term& x : terms) {
-    covariates.push_back(intercalate(x, string(":")));
+    covariates.push_back(
+        intercalate<std::vector<std::string>::const_iterator, std::string>(
+            x.begin(), x.end(), string(":")));
   }
-  return intercalate(covariates, string("+"));
+  return intercalate<std::vector<std::string>::const_iterator, std::string>(
+      covariates.begin(), covariates.end(), string("+"));
 }
 
 Formula DefaultRateFormula() { return Formula("1+gene*(type+section)"); }

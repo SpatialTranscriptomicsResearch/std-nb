@@ -12,7 +12,9 @@
 #include <memory>
 #include <string>
 #include <iostream>
+#include <set>
 
+#include "Distribution.hpp"
 #include "RegressionEquation.hpp"
 #include "RandomVariable.hpp"
 
@@ -23,12 +25,6 @@ class Driver;
 %param { Driver& driver }
 
 %locations
-
-%initial-action
-{
-  // Initialize the initial location.
-  @$.begin.filename = @$.end.filename = &driver.file;
-};
 
 %define parse.trace
 %define parse.error verbose
@@ -65,9 +61,16 @@ std::string unit_covariate(int number) {
 %token <int> NUMBER "number"
 
 %type <RegressionEquation> regression_eq;
-%type <RandomVariable> distr;
+
+%type <std::string> covariate;
+%type <std::set<std::string>> covariates;
+
+%type <Distribution> distr;
+%type <std::string> distr_arg;
+%type <std::vector<std::string>> distr_args;
+
 %type <std::string> regressand;
-%type <std::pair<std::string, std::vector<std::string>>> regressor;
+%type <RandomVariable> regressor;
 
 %%
 %left "+" "-";
@@ -87,7 +90,7 @@ statement: regression_formula
 
 regression_formula: regressand ":=" formula_expr;
 
-regressand: "identifier";
+regressand: "identifier" { $$ = $1; };
 
 formula_expr: covariate
             | "(" formula_expr ")"
@@ -96,30 +99,30 @@ formula_expr: covariate
             | formula_expr "*" formula_expr
             | formula_expr "^" "number";
 
-/* TODO: could allow empty sets of arguments */
-covariates: covariate
-          | covariates "," covariate;
+covariates: %empty { $$ = std::set<std::string> {}; }
+          | covariate { $$ = std::set<std::string> { $1 }; }
+          | covariates "," covariate { $$ = $1; $$.insert($3); };
 
-covariate: "identifier"
-         | "number";
+covariate: "identifier" { $$ = $1; };
 
-regression_eq: regressand "=" regression_eq { driver.regression_equation[$1] = $3; }
+regression_eq: regressand "=" regression_eq { driver.regression_equations[$1] = $3; }
 
-regression_eq: regressor { $$ = RegressionEquation($1); }
-               | regression_eq "*" regression_eq { $$ = $1 * $3; };
+regression_eq: regressor { $$ = RegressionEquation($1.full_id()); }
+             | regression_eq "*" regression_eq { $$ = $1 * $3; };
 
-regressor: "identifier" "(" covariates ")";
+regressor: "identifier" "(" covariates ")" { $$ = RandomVariable($1, $3); };
 
-distr_spec: regressor "~" distr { driver.random_variables[$1] = $3; };
+distr_spec: regressor "~" distr { $1.distribution = $3; driver.random_variables[$1.full_id()] = $1; };
 
 /* TODO: perhaps introduce special tokens for distribution names */
-distr: "identifier" "(" distr_args ")" { $$ = RandomVariable($1.first, $1.second, $3); };
+distr: "identifier" "(" distr_args ")" { $$ = Distribution($1, $3); }
 
-distr_args: distr_arg
-          | distr_args "," distr_arg;
+distr_args: %empty { $$ = std::vector<std::string> {}; }
+          | distr_arg { $$ = std::vector<std::string> { $1 }; }
+          | distr_args "," distr_arg { $$ = $1; $$.push_back($3); };
 
-distr_arg: "number"
-         | regressor;
+distr_arg: "number" { $$ = std::to_string($1); }
+         | regressor { $$ = $1.full_id(); };
 %%
 
 void yy::parser::error (const location_type& l, const std::string& m)

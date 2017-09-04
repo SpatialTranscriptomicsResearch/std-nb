@@ -1,6 +1,8 @@
 #ifndef MODEL_HPP
 #define MODEL_HPP
 
+#include <map>
+
 #include "Experiment.hpp"
 #include "Mesh.hpp"
 #include "design.hpp"
@@ -29,6 +31,8 @@ struct Model {
   ModelSpec model_spec;
   std::vector<Experiment> experiments;
 
+  std::map<CoefficientId, size_t> coeff2idx;
+
   Parameters parameters;
 
   using Coefficients = std::vector<Coefficient>;
@@ -55,8 +59,17 @@ struct Model {
   void remove_redundant_terms(Coefficient::Variable variable,
                               Coefficient::Kind kind);
 
-  void add_covariate_terms(const ModelSpec::RandomVariable& var,
-                           Coefficient::Variable variable);
+  std::vector<size_t> get_covariate_idxs(
+      const std::set<std::string>& covariates);
+  Coefficient::Kind get_kind(const std::set<std::string>& covariates);
+  void add_covariate_terms(
+      const std::unordered_map<std::string, RandomVariable>& variable_map,
+      Coefficient::Variable variable_type, const std::string& var);
+  size_t register_coefficient(
+      const std::unordered_map<std::string, RandomVariable>& variable_map,
+      Coefficient::Variable variable_type,
+      std::string id, size_t experiment);
+
   void setZero();
   Model compute_gradient(double &score) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
