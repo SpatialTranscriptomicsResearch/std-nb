@@ -271,6 +271,8 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
         cov2groups[idx].push_back(e);
   auto redundant = find_redundant(cov2groups);
   sort(begin(redundant), end(redundant));  // needed?
+
+  // drop redundant coefficients
   size_t removed = 0;
   for (auto r : redundant) {
     LOG(verbose) << "Removing " << r << ": " << coeffs[r] << ": "
@@ -278,6 +280,19 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
     coeffs.erase(begin(coeffs) + r - removed);
     removed++;
   }
+
+  // fix prior_idxs for dropped redundant coefficients
+  for (auto &coeff : coeffs) {
+    auto &idxs = coeff.prior_idxs;
+    for (auto r : redundant)
+      idxs.erase(remove(begin(idxs), end(idxs), r), end(idxs));
+    for (auto &idx : idxs)
+      for (auto r : redundant)
+        if (idx > r)
+          idx--;
+  }
+
+  // fix experiment.coeff_idxs for dropped redundant coefficients
   for (size_t e = 0; e < E; ++e) {
     for (auto v : {Coefficient::Variable::rate, Coefficient::Variable::odds}) {
       auto &idxs = experiments[e].coeff_idxs(v);
