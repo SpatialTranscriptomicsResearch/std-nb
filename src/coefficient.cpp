@@ -220,7 +220,6 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
 
   GP::MeanTreatment mean_treatment = GP::MeanTreatment::zero;
 
-  LOG(debug) << "values = " << values;
   vector<double> deltas(values.size());
   for (size_t t = 0; t < deltas.size(); ++t)
     deltas[t] = values(t);
