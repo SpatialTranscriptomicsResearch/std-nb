@@ -222,15 +222,12 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
 
   LOG(debug) << "values = " << values;
   vector<double> deltas(values.size());
-  for (size_t t = 0; t < deltas.size(); ++t) {
-    // deltas[t] = 1e-3;
+  for (size_t t = 0; t < deltas.size(); ++t)
     deltas[t] = values(t);
-    LOG(debug) << "delta = " << deltas[t];
-  }
 
   vector<const GP::GaussianProcess *> gps;
   for (auto idx : prior_idxs)
-    gps.push_back(&coeffs[idx].gp);
+    gps.push_back(coeffs[idx].gp.get());
 
   vector<Matrix> formed_data;
   for (auto idx : prior_idxs)
@@ -245,9 +242,15 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
 
   vector<Matrix> vars = mus;
 
+  Vector grad_delta = Vector::Zero(values.size());
   auto sv = predict_means_and_vars(gps, formed_data, deltas, mean_treatment,
-                                   mus, vars);
-  LOG(verbose) << "spatial variance = " << sv.transpose();
+                                   mus, vars, grad_delta);
+
+  grad_coeffs[coeff_idx].values.array() += grad_delta.array();
+  LOG(debug) << "    DELTA =        " << coeffs[coeff_idx].values.transpose();
+  LOG(debug) << "GRADDELTA =        " << grad_delta.transpose();
+
+  LOG(debug) << "spatial variance = " << sv.transpose();
   for (size_t idx = 0; idx < prior_idxs.size(); ++idx)
     if (sv[idx] > 0) {
       Matrix formed_gradient = (mus[idx] - formed_data[idx]).array()

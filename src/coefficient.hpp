@@ -45,7 +45,7 @@ struct Coefficient {
   Kind kind;
   Distribution distribution;
 
-  GP::GaussianProcess gp;
+  std::shared_ptr<GP::GaussianProcess> gp;
   STD::Matrix form_data(const std::vector<Coefficient> &coeffs) const;
   void add_formed_data(const STD::Matrix &m,
                        std::vector<Coefficient> &coeffs) const;

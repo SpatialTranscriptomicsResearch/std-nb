@@ -7,11 +7,11 @@
 using namespace std;
 
 namespace GP {
-GaussianProcess::GaussianProcess() : length_scale(1) {}
 
 GaussianProcess::GaussianProcess(const Matrix &x, double len_scale)
     : n(x.rows()), length_scale(len_scale) {
-  LOG(verbose) << "GaussianProcess::GaussianProcess()";
+  LOG(debug) << "GaussianProcess::GaussianProcess(n=" << n
+             << ", length_scale=" << length_scale << ")";
   Matrix K = rbf_kernel(x, length_scale);
   Eigen::SelfAdjointEigenSolver<Matrix> es(K);
   eigenvectors = es.eigenvectors();
@@ -80,6 +80,7 @@ double GaussianProcess::calc_mean(Vector y, double delta) const {
 
 double GaussianProcess::calc_spatial_variance(const Vector &y, double mean,
                                               double delta) const {
+  assert(static_cast<size_t>(y.size()) == n);
   Vector u1 = eigenvectors.transpose() * Vector::Ones(n) * mean;
   Vector uy = eigenvectors.transpose() * y;
   double sigma = 0;
@@ -105,8 +106,7 @@ void GaussianProcess::predict_means_and_vars(const Vector &y, double delta,
       break;
   }
   double sv = calc_spatial_variance(y, mean, delta);
-  LOG(verbose) << "GP: mean = " << mean << " sv = " << sv
-               << " delta = " << delta;
+  LOG(debug) << "GP: mean = " << mean << " sv = " << sv << " delta = " << delta;
 
   assert(sv > 0);
 
@@ -123,11 +123,16 @@ void GaussianProcess::predict_means_and_vars(const Vector &y, double delta,
   }
 }
 
+// Vector predict_means_and_vars(const vector<shared_ptr<GaussianProcess>> &gps,
 Vector predict_means_and_vars(const vector<const GaussianProcess *> &gps,
                               const vector<Matrix> &ys,
                               const vector<double> &delta,
                               MeanTreatment mean_treatment, vector<Matrix> &mus,
-                              vector<Matrix> &vars) {
+                              vector<Matrix> &vars, Vector &grad_delta) {
+  LOG(debug) << "TOP predict_means_and_vars(gps.size()=" << gps.size()
+             << ", ys.size()=" << ys.size() << ", delta.size()=" << delta.size()
+             << ", mus.size=" << mus.size() << ", vars.size=" << vars.size()
+             << ", grad_delta.size()=" << grad_delta.size() << ")";
   assert(not ys.empty());
   Vector res(ys.front().cols());
   for (int i = 0; i < ys.front().cols(); ++i) {
@@ -138,7 +143,7 @@ Vector predict_means_and_vars(const vector<const GaussianProcess *> &gps,
       vvars.push_back(vars[j].col(i));
     }
     res(i) = predict_means_and_vars(gps, vys, delta[i], mean_treatment, vmus,
-                                    vvars);
+                                    vvars, grad_delta[i]);
     for (size_t j = 0; j < ys.size(); ++j) {
       mus[j].col(i) = vmus[j];
       vars[j].col(i) = vvars[j];
@@ -147,13 +152,18 @@ Vector predict_means_and_vars(const vector<const GaussianProcess *> &gps,
   return res;
 }
 
+// double predict_means_and_vars(const vector<shared_ptr<GaussianProcess>> &gps,
 double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
                               const vector<Vector> &ys, double delta,
                               MeanTreatment mean_treatment, vector<Vector> &mus,
-                              vector<Vector> &vars) {
+                              vector<Vector> &vars, double &grad_delta) {
+  LOG(debug) << "SUB predict_means_and_vars(gps.size()=" << gps.size()
+             << ", ys.size()=" << ys.size() << ", delta=" << delta
+             << ", mus.size=" << mus.size() << ", vars.size=" << vars.size()
+             << ", grad_delta=" << grad_delta << ")";
   const size_t num_gp = gps.size();
   size_t n = 0;
-  for (auto &gp : gps)
+  for (auto gp : gps)
     n += gp->n;
 
   assert(ys.size() == num_gp);
@@ -177,8 +187,8 @@ double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
     sv += gps[idx]->calc_spatial_variance(ys[idx], means[idx], delta)
           * gps[idx]->n;
   sv /= n;
-  LOG(verbose) << "GP: means = " << means.transpose() << " sv = " << sv
-               << " delta = " << delta;
+  LOG(debug) << "GP: means = " << means.transpose() << " sv = " << sv
+             << " delta = " << delta;
 
   if (sv > 0) {
     for (size_t idx = 0; idx < num_gp; ++idx) {
@@ -199,7 +209,25 @@ double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
       }
     }
   }
+
+  double a = 0;
+  double b = 0;
+  double c = 0;
+  for (size_t idx = 0; idx < num_gp; ++idx) {
+    Vector uy = gps[idx]->eigenvectors.transpose() * ys[idx];
+#pragma omp parallel reduction(+ : a, b, c) if (DO_PARALLEL)
+    for (size_t i = 0; i < gps[idx]->n; ++i) {
+      double denominator = delta + gps[idx]->eigenvalues(i);
+      double x = uy(i);
+      a += delta / denominator;
+      b += x / denominator;
+      c += x / denominator / denominator;
+    }
+  }
+
+  LOG(debug) << "(a, b, c, n) = " << a << " " << b << " " << c << " " << n;
+  grad_delta -= a - n / b * c;
+  LOG(debug) << "grad_delta = " << grad_delta;
   return sv;
 }
-
 }

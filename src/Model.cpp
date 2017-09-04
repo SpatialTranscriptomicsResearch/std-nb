@@ -153,7 +153,8 @@ void Model::add_gp_proxies() {
           i += experiments[e].S;
         }
         LOG(debug) << "m.dimesions = " << m.rows() << "x" << m.cols();
-        coord_coeff.gp = GP::GaussianProcess(m, parameters.gp.length_scale);
+        coeffs[coord_coeff_idx].gp = make_shared<GP::GaussianProcess>(
+            GP::GaussianProcess(m, parameters.gp.length_scale));
       }
     }
 }
