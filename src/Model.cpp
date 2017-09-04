@@ -158,8 +158,9 @@ void Model::add_gp_proxies() {
 void Model::add_prior_coefficients() {
   const size_t n = coeffs.size();
   for (size_t idx = 0; idx < n; ++idx) {
-    if (coeffs[idx].distribution == Coefficient::Distribution::log_gp_coord
-        or coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy)
+    if (coeffs[idx].distribution == Coefficient::Distribution::log_gp
+        or coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy
+        or coeffs[idx].distribution == Coefficient::Distribution::log_gp_coord)
       continue;
 
     const size_t current_size = coeffs.size();
