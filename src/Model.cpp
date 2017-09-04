@@ -127,13 +127,15 @@ void Model::add_covariate_terms(const Formula::Term &term,
 }
 
 void Model::add_gp_proxies() {
-  LOG(verbose) << "Constructing GP proxies";
+  LOG(debug) << "Constructing GP proxies";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
     if (coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy) {
-      LOG(verbose) << "Constructing GP proxy " << idx;
+      LOG(debug) << "Constructing GP proxy " << idx << ": " << coeffs[idx];
       for (auto &coord_coeff_idx : coeffs[idx].prior_idxs) {
-        LOG(verbose) << "using coordinate system coefficient "
-                     << coord_coeff_idx;
+        assert(coeffs[coord_coeff_idx].distribution
+               == Coefficient::Distribution::log_gp_coord);
+        LOG(debug) << "using coordinate system coefficient " << coord_coeff_idx
+                   << ": " << coeffs[coord_coeff_idx];
         auto &coord_coeff = coeffs[coord_coeff_idx];
         auto exp_idxs = coord_coeff.experiment_idxs;
         auto prior_idxs = coord_coeff.prior_idxs;
@@ -141,7 +143,7 @@ void Model::add_gp_proxies() {
         for (size_t e : exp_idxs)
           n += experiments[e].S;
         size_t ncol = experiments[exp_idxs[0]].coords.cols();
-        LOG(verbose) << "n = " << n;
+        LOG(debug) << "n = " << n;
         Matrix m = Matrix::Zero(n, ncol);
         size_t i = 0;
         for (size_t e : exp_idxs) {
@@ -150,6 +152,7 @@ void Model::add_gp_proxies() {
               m(i + s, j) = experiments[e].coords(s, j);
           i += experiments[e].S;
         }
+        LOG(debug) << "m.dimesions = " << m.rows() << "x" << m.cols();
         coord_coeff.gp = GP::GaussianProcess(m, parameters.gp.length_scale);
       }
     }
