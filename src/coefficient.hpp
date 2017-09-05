@@ -120,6 +120,7 @@ struct Coefficient {
 
 struct CoefficientId {
   std::string name;
+  Coefficient::Variable type;
   Coefficient::Kind kind;
   CovariateInformation covariates;
   bool operator<(const CoefficientId& other) const {
@@ -128,6 +129,9 @@ struct CoefficientId {
     }
     if (kind != other.kind) {
       return kind < other.kind;
+    }
+    if (type != other.type) {
+      return type < other.type;
     }
     return covariates < other.covariates;
   }

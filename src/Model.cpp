@@ -19,8 +19,8 @@ static map<string, Coefficient::Kind> id2kind{
   { "type", Coefficient::Kind::type },
 };
 
-// determine cov_idxs
-std::vector<size_t> Model::get_covariate_idxs(const set<string>& covariates)
+CovariateInformation Model::get_covariate_info(
+    const set<string>& covariates, size_t experiment)
 {
   auto covariates_ = covariates;
   // spot dependency implies section dependency
@@ -44,10 +44,15 @@ std::vector<size_t> Model::get_covariate_idxs(const set<string>& covariates)
       }
     }
   }
-  return cov_idxs;
+
+  vector<size_t> cov_vals;
+  for (auto &covariate_idx : cov_idxs)
+    cov_vals.push_back(
+        design.dataset_specifications[experiment].covariate_values[covariate_idx]);
+
+  return CovariateInformation { cov_idxs, cov_vals };
 }
 
-// determine kind
 Coefficient::Kind Model::get_kind(const set<string>& covariates)
 {
   Coefficient::Kind kind = Coefficient::Kind::scalar;
@@ -58,96 +63,91 @@ Coefficient::Kind Model::get_kind(const set<string>& covariates)
   return kind;
 }
 
-// add coeffiecient in given experiment
-size_t Model::register_coefficient(
-    const unordered_map<string, RandomVariable>& variable_map,
-    Coefficient::Variable variable_type, string id, size_t experiment)
-{
-  Coefficient::Distribution dist;
-  Coefficient::Kind kind;
-  CovariateInformation info;
-  std::shared_ptr<GP::GaussianProcess> gp;
-  size_t _G, _T, _S;
-  double value;
-  RandomVariable variable;
-
-  bool fixed = false;
-  try {
-    value = stod(id);
-
-    // register numeric (fixed) variable
-    LOG(debug) << "Registering constant variable " << value << ".";
-
-    fixed = true;
-    _G = _T = _S = 0;
-    gp = nullptr;
-    dist = Coefficient::Distribution::fixed;
-    kind = Coefficient::Kind::scalar;
-    info = CovariateInformation{};
-  } catch (const invalid_argument&) {
-    // register random variable
-    LOG(debug) << "Registering random variable " << id << " for experiment "
-               << experiment << ".";
-
-    auto it = variable_map.find(id);
-    if (it == variable_map.end()) {
-      throw runtime_error("Unable to find definition of '" + id + "'.");
-    }
-    variable = it->second;
-
-    auto cov_idxs = get_covariate_idxs(variable.covariates);
-    vector<size_t> cov_values;
-    for (auto &cov_idx : cov_idxs)
-      cov_values.push_back(
-          design.dataset_specifications[experiment].covariate_values[cov_idx]);
-
-    _G = G;
-    _T = T;
-    _S = experiments[experiment].S;
-    gp = experiments[experiment].gp;
-    dist = Coefficient::Distribution::fixed;
-    kind = get_kind(variable.covariates);
-    info = CovariateInformation{ cov_idxs, cov_values };
-  }
-
-  // TODO: would be better to abstract this away into separate function to avoid
-  // the top declarations in this function.
+// Helper function for Model::register_coefficient.
+// Registers coefficient only if it does not already exist.
+size_t Model::_register_coefficient(
+    const CoefficientId& cid,
+    Coefficient::Distribution dist,
+    std::shared_ptr<GP::GaussianProcess> gp,
+    size_t _G,
+    size_t _T,
+    size_t _S) {
   size_t idx;
-  CoefficientId cid{ id, kind, info };
   auto it = coeff2idx.find(cid);
   if (it != coeff2idx.end()) {
-    idx = it->second;
-    LOG(debug) << "Variable has already been registered.";
+    LOG(debug) << "A coefficient with this identity has already been "
+                  "registered, reusing.";
+    return it->second;
   } else {
-    Coefficient covterm(_G, _T, _S, variable_type, kind, dist, gp, info);
-
-    if (fixed) {
-      covterm.get(0, 0, 0) = value;
-    }
-
+    Coefficient covterm(_G, _T, _S, cid.type, cid.kind, dist, gp, cid.covariates);
     idx = coeffs.size();
     coeffs.push_back(covterm);
     coeff2idx[cid] = idx;
-
-    // add priors
-    if (not fixed) {
-      for (auto& prior : variable.distribution.arguments) {
-        LOG(debug) << "Adding prior " << prior << ".";
-        coeffs[idx].prior_idxs.push_back(register_coefficient(
-              variable_map, variable_type, prior, experiment));
-      }
-    }
+    return idx;
   }
-
-  return idx;
 }
 
-// add all coefficients of given id
+size_t Model::register_coefficient(
+    const unordered_map<string, RandomVariable>& variable_map,
+    Coefficient::Variable variable_type,
+    string id,
+    size_t experiment)
+{
+  auto register_fixed = [&](double value) {
+    LOG(debug) << "Interpreting '" << id << "' as a fixed variable.";
+    size_t idx = _register_coefficient(
+        CoefficientId{ id, variable_type, Coefficient::Kind::scalar,
+            CovariateInformation{} },     // coefficient_id
+        Coefficient::Distribution::fixed, // dist
+        nullptr,                          // gp
+        0,                                // G
+        0,                                // T
+        0);                               // S
+    coeffs[idx].get(0, 0, 0) = value;
+    return idx;
+  };
+
+  auto register_random = [&]() {
+    LOG(debug) << "Interpreting '" << id << "' as a random variable.";
+    auto it = variable_map.find(id);
+    if (it == variable_map.end()) {
+      throw runtime_error("Unable to find the definition of '" + id + "'.");
+    }
+    auto variable = it->second;
+    auto info = get_covariate_info(variable.covariates, experiment);
+    CoefficientId cid{
+      id, variable_type, get_kind(variable.covariates), info,
+    };
+    size_t idx = _register_coefficient(cid, // coefficient_id
+        variable.distribution.type,         // dist
+        experiments[experiment].gp,         // gp
+        G,                                  // G
+        T,                                  // T
+        experiments[experiment].S);         // S
+    for (auto& prior : variable.distribution.arguments) {
+      LOG(debug) << "Adding prior " << prior << ".";
+      coeffs[idx].prior_idxs.push_back(register_coefficient(
+            variable_map, variable_type, prior, experiment));
+    }
+    return idx;
+  };
+
+  double value;
+  try {
+    value = stod(id);
+  } catch (const invalid_argument&) {
+    return register_random();
+  }
+  return register_fixed(value);
+}
+
 void Model::add_covariate_terms(
     const std::unordered_map<std::string, RandomVariable>& variable_map,
     Coefficient::Variable variable_type, const std::string& variable_id)
 {
   for (size_t e = 0; e < E; ++e) {
+    LOG(verbose) << "Registering coefficient '" << variable_id
+                 << "' for experiment " << e;
     size_t idx = register_coefficient(variable_map, variable_type, variable_id, e);
     coeffs[idx].experiment_idxs.insert(e);
     experiments[e].coeff_idxs(variable_type).push_back(idx);
@@ -175,13 +175,13 @@ Model::Model(const vector<Counts>& c, size_t T_, const Design& design_,
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
+  LOG(verbose) << "Adding rate coefficients";
   for (auto& coefficient : model_spec.rate_coefficients) {
-    LOG(debug) << "Adding rate coefficient '" << coefficient << "'.";
     add_covariate_terms(
         model_spec.variables, Coefficient::Variable::rate, coefficient);
   }
+  LOG(verbose) << "Adding odds coefficients";
   for (auto& coefficient : model_spec.odds_coefficients) {
-    LOG(debug) << "Adding odds coefficient '" << coefficient << "'.";
     add_covariate_terms(
         model_spec.variables, Coefficient::Variable::odds, coefficient);
   }
