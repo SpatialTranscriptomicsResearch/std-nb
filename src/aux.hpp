@@ -151,6 +151,9 @@ std::string trim(const std::string &str, char sym = ' ');
 template <typename It, typename T>
 T intercalate(const It& begin, const It& end, const T& x)
 {
+  if (begin == end) {
+    return T();
+  }
   std::vector<T> ret;
   It it = begin;
   do {
