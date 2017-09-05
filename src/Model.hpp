@@ -63,10 +63,10 @@ struct Model {
       const std::set<std::string>& covariates);
   Coefficient::Kind get_kind(const std::set<std::string>& covariates);
   void add_covariate_terms(
-      const std::unordered_map<std::string, RandomVariable>& variable_map,
+      const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
       Coefficient::Variable variable_type, const std::string& var);
   size_t register_coefficient(
-      const std::unordered_map<std::string, RandomVariable>& variable_map,
+      const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
       Coefficient::Variable variable_type,
       std::string id, size_t experiment);
 

@@ -5,6 +5,8 @@
 
 #include "../coefficient.hpp"
 
+namespace spec_parser {
+
 struct Distribution {
   // TODO: consider using separate Distribution type to increase modularity
   using Type = Coefficient::Distribution;
@@ -53,5 +55,7 @@ struct Distribution {
   {
   }
 };
+
+} // namespace spec_parser
 
 #endif // DISTRIBUTION_HPP

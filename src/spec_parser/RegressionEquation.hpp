@@ -4,6 +4,8 @@
 #include <vector>
 #include <string>
 
+namespace spec_parser {
+
 struct RegressionEquation {
   std::vector<std::string> variables;
 
@@ -19,5 +21,7 @@ struct RegressionEquation {
     return ret;
   }
 };
+
+} // namespace spec_parser
 
 #endif // REGRESSIONEQUATION_HPP

@@ -8,6 +8,7 @@
 #include "io.hpp"
 #include "rprop.hpp"
 
+using namespace spec_parser;
 using namespace std;
 
 namespace STD {

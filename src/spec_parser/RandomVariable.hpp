@@ -10,6 +10,8 @@
 #include "../aux.hpp"
 #include "Distribution.hpp"
 
+namespace spec_parser {
+
 struct RandomVariable {
   std::set<std::string> covariates;
   std::string id;
@@ -31,5 +33,7 @@ struct RandomVariable {
       + ")";
   }
 };
+
+} // namespace spec_parser
 
 #endif // RANDOMVARIABLE_HPP

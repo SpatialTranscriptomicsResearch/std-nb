@@ -4,6 +4,8 @@
 #include "driver.hpp"
 #include "parser.tab.hpp"
 
+using namespace spec_parser;
+
 Driver::Driver()
     : trace_scanning(false)
     , trace_parsing(false)

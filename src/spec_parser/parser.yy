@@ -18,11 +18,13 @@
 #include "RegressionEquation.hpp"
 #include "RandomVariable.hpp"
 
+namespace spec_parser {
 class Driver;
+}
 }
 
 // The parsing context.
-%param { Driver& driver }
+%param { spec_parser::Driver& driver }
 
 %locations
 
@@ -53,17 +55,17 @@ class Driver;
 %token <std::string> IDENTIFIER "identifier"
 %token <std::string> NUMERIC "numeric"
 
-%type <RegressionEquation> regression_eq;
+%type <spec_parser::RegressionEquation> regression_eq;
 
 %type <std::string> covariate;
 %type <std::set<std::string>> covariates;
 
-%type <Distribution> distr;
+%type <spec_parser::Distribution> distr;
 %type <std::string> distr_arg;
 %type <std::vector<std::string>> distr_args;
 
 %type <std::string> regressand;
-%type <RandomVariable> regressor;
+%type <spec_parser::RandomVariable> regressor;
 
 %%
 %left "+" "-";
@@ -100,15 +102,15 @@ covariate: "identifier" { $$ = $1; };
 
 regression_eq: regressand "=" regression_eq { driver.regression_equations[$1] = $3; }
 
-regression_eq: regressor { $$ = RegressionEquation($1.full_id()); }
+regression_eq: regressor { $$ = spec_parser::RegressionEquation($1.full_id()); }
              | regression_eq "*" regression_eq { $$ = $1 * $3; };
 
-regressor: "identifier" "(" covariates ")" { $$ = RandomVariable($1, $3); };
+regressor: "identifier" "(" covariates ")" { $$ = spec_parser::RandomVariable($1, $3); };
 
 distr_spec: regressor "~" distr { $1.distribution = $3; driver.random_variables[$1.full_id()] = $1; };
 
 /* TODO: perhaps introduce special tokens for distribution names */
-distr: "identifier" "(" distr_args ")" { $$ = Distribution($1, $3); }
+distr: "identifier" "(" distr_args ")" { $$ = spec_parser::Distribution($1, $3); }
 
 distr_args: %empty { $$ = std::vector<std::string> {}; }
           | distr_arg { $$ = std::vector<std::string> { $1 }; }

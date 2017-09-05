@@ -19,10 +19,10 @@ struct ModelSpec {
 
   // TODO: make into functions
   std::vector<std::string> rate_coefficients, odds_coefficients;
-  std::unordered_map<std::string, RandomVariable> variables;
+  std::unordered_map<std::string, spec_parser::RandomVariable> variables;
 
   private:
-  Driver parser;
+  spec_parser::Driver parser;
 };
 
 std::istream& operator>>(std::istream& is, ModelSpec& model_spec);

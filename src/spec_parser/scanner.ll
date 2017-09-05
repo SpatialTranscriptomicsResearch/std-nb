@@ -48,7 +48,7 @@ comment #[^\n]*
 .          Driver.error(loc, "invalid character");
 %%
 
-int Driver::parse(const std::string& s)
+int spec_parser::Driver::parse(const std::string& s)
 {
   cur_line = s;
   yy_flex_debug = trace_scanning;

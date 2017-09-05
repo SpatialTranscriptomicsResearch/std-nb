@@ -9,11 +9,11 @@
 #include "parser.tab.hpp"
 
 // Tell Flex the lexer's prototype ...
-#define YY_DECL yy::parser::symbol_type yylex(Driver& Driver)
+#define YY_DECL yy::parser::symbol_type yylex(spec_parser::Driver& Driver)
 // ... and declare it for the parser's sake.
 YY_DECL;
 
-// TODO: add namespace
+namespace spec_parser {
 
 class Driver {
   public:
@@ -33,5 +33,7 @@ class Driver {
   private:
   std::string cur_line;
 };
+
+} // namespace spec_parser
 
 #endif // ! DRIVER_HH
