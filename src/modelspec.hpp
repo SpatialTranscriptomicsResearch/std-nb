@@ -10,6 +10,9 @@
 
 namespace Exception {
 namespace ModelSpec {
+struct UnrecoverableParseError : public std::runtime_error {
+  UnrecoverableParseError() : runtime_error("Error: unrecoverable parse error.") {}
+};
 } // namespace Exception
 } // namespace ModelSpec
 

@@ -59,3 +59,7 @@ int spec_parser::Driver::parse(const std::string& s)
   yy_delete_buffer(buf);
   return res;
 }
+
+yy::location& spec_parser::Driver::location() const {
+  return loc;
+}

@@ -15,6 +15,14 @@ YY_DECL;
 
 namespace spec_parser {
 
+struct ParseError : public std::runtime_error {
+  const std::string line;
+  const yy::location where;
+  ParseError() = delete;
+  ParseError(const std::string& line, const yy::location& where,
+      const std::string& what);
+};
+
 class Driver {
   public:
   void error(const yy::location& l, const std::string& m);
@@ -29,6 +37,7 @@ class Driver {
   virtual ~Driver();
 
   int parse(const std::string& s);
+  yy::location& location() const;
 
   private:
   std::string cur_line;

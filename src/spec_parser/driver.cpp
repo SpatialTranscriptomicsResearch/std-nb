@@ -6,28 +6,23 @@
 
 using namespace spec_parser;
 
+ParseError::ParseError(const std::string& _line, const yy::location& _where,
+    const std::string& what)
+    : runtime_error(what)
+    , line(_line)
+    , where(_where)
+{
+}
+
+Driver::~Driver() {}
+
 Driver::Driver()
     : trace_scanning(false)
     , trace_parsing(false)
 {
 }
 
-Driver::~Driver() {}
-
-static std::string location_to_string(const yy::location& l)
-{
-  std::stringstream ss;
-  ss << l;
-  return ss.str();
-}
-
 void Driver::error(const yy::location& l, const std::string& m)
 {
-  throw std::runtime_error(
-      "'" + cur_line + "' (" + location_to_string(l) + "): " + m);
-}
-
-void Driver::error(const std::string& m)
-{
-  throw std::runtime_error("'" + cur_line + "' : " + m);
+  throw ParseError(cur_line, l, m);
 }
