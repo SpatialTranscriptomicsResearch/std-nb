@@ -32,13 +32,6 @@ class Driver;
 %code
 {
 #include "driver.hpp"
-
-std::string unit_covariate(int number) {
-  if (number != 1) {
-    throw std::logic_error("covariate must be identifier or \"1\"");
-  }
-  return std::to_string(number);
-}
 }
 
 %define api.token.prefix {TOK_}
