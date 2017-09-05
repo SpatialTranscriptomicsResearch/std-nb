@@ -22,8 +22,14 @@ static map<string, Coefficient::Kind> id2kind{
 // determine cov_idxs
 std::vector<size_t> Model::get_covariate_idxs(const set<string>& covariates)
 {
+  auto covariates_ = covariates;
+  // spot dependency implies section dependency
+  if (covariates_.find("spot") != covariates_.end()) {
+    covariates_.insert("section");
+  }
+
   vector<size_t> cov_idxs; // indices of covariates in this term
-  for (auto& covariate_label : covariates) {
+  for (auto& covariate_label : covariates_) {
     if (id2kind.find(covariate_label) == id2kind.end()) {
       auto cov_iter = find_if(begin(design.covariates), end(design.covariates),
                               [&](const Covariate &covariate) {
