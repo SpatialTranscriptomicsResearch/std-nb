@@ -51,7 +51,7 @@ class Driver;
   RPAREN  ")"
 ;
 %token <std::string> IDENTIFIER "identifier"
-%token <int> NUMBER "number"
+%token <std::string> NUMERIC "numeric"
 
 %type <RegressionEquation> regression_eq;
 
@@ -90,7 +90,7 @@ formula_expr: covariate
             | formula_expr "+" formula_expr
             | formula_expr ":" formula_expr
             | formula_expr "*" formula_expr
-            | formula_expr "^" "number";
+            | formula_expr "^" "numeric";
 
 covariates: %empty { $$ = std::set<std::string> {}; }
           | covariate { $$ = std::set<std::string> { $1 }; }
@@ -114,7 +114,7 @@ distr_args: %empty { $$ = std::vector<std::string> {}; }
           | distr_arg { $$ = std::vector<std::string> { $1 }; }
           | distr_args "," distr_arg { $$ = $1; $$.push_back($3); };
 
-distr_arg: "number" { $$ = std::to_string($1); }
+distr_arg: "numeric" { $$ = $1; }
          | regressor { $$ = $1.full_id(); };
 %%
 

@@ -11,7 +11,7 @@ static yy::location loc;
 %}
 %option noyywrap nounput batch debug noinput
 id      [a-zA-Z][a-zA-Z_0-9]*
-int     [0-9]+
+numeric [0-9\.]+
 blank   [ \t]
 comment #[^\n]*
 
@@ -39,19 +39,11 @@ comment #[^\n]*
 "("        return yy::parser::make_LPAREN(loc);
 ")"        return yy::parser::make_RPAREN(loc);
 
-{int}      {
-  errno = 0;
-  long n = strtol (yytext, NULL, 10);
-  if (!(INT_MIN <= n && n <= INT_MAX && errno != ERANGE)) {
-    Driver.error (loc, "integer is out of range");
-  }
-  return yy::parser::make_NUMBER(n, loc);
-}
-
 {blank}+   loc.step();
 {comment}  loc.step();
 [\n]+      loc.lines(yyleng); loc.step();
 {id}       return yy::parser::make_IDENTIFIER(yytext, loc);
+{numeric}  return yy::parser::make_NUMERIC(yytext, loc);
 <<EOF>>    return yy::parser::make_END(loc);
 .          Driver.error(loc, "invalid character");
 %%
