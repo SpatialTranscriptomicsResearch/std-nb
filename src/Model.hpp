@@ -64,13 +64,6 @@ struct Model {
       size_t experiment);
   Coefficient::Kind get_kind(const std::set<std::string>& covariates);
 
-  size_t _register_coefficient(
-      const CoefficientId& coefficient_id,
-      Coefficient::Distribution dist,
-      std::shared_ptr<GP::GaussianProcess> gp,
-      size_t G,
-      size_t T,
-      size_t S);
   size_t register_coefficient(
       const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
       Coefficient::Variable variable_type,

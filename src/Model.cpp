@@ -63,48 +63,47 @@ Coefficient::Kind Model::get_kind(const set<string>& covariates)
   return kind;
 }
 
-// Helper function for Model::register_coefficient.
-// Registers coefficient only if it does not already exist.
-size_t Model::_register_coefficient(
-    const CoefficientId& cid,
-    Coefficient::Distribution dist,
-    std::shared_ptr<GP::GaussianProcess> gp,
-    size_t _G,
-    size_t _T,
-    size_t _S) {
-  size_t idx;
-  auto it = coeff2idx.find(cid);
-  if (it != coeff2idx.end()) {
-    LOG(debug) << "A coefficient with this identity has already been "
-                  "registered, reusing.";
-    return it->second;
-  } else {
-    Coefficient covterm(_G, _T, _S, cid.type, cid.kind, dist, gp, cid.covariates);
-    idx = coeffs.size();
-    coeffs.push_back(covterm);
-    coeff2idx[cid] = idx;
-    return idx;
-  }
-}
-
 size_t Model::register_coefficient(
     const unordered_map<string, RandomVariable>& variable_map,
     Coefficient::Variable variable_type,
     string id,
     size_t experiment)
 {
+  auto do_registration = [&](
+      const CoefficientId& cid,
+      Coefficient::Distribution dist,
+      std::shared_ptr<GP::GaussianProcess> gp,
+      size_t _G,
+      size_t _T,
+      size_t _S,
+      std::function<void(Coefficient&)> on_add) {
+    size_t idx;
+    auto it = coeff2idx.find(cid);
+    if (it != coeff2idx.end()) {
+      LOG(debug) << "A coefficient with this identity has already been "
+                    "registered, reusing.";
+      return it->second;
+    } else {
+      Coefficient covterm(
+          _G, _T, _S, cid.type, cid.kind, dist, gp, cid.covariates);
+      idx = coeffs.size();
+      coeffs.push_back(covterm);
+      coeff2idx[cid] = idx;
+      on_add(coeffs[idx]);
+      return idx;
+    }
+  };
+
   auto register_fixed = [&](double value) {
     LOG(debug) << "Interpreting '" << id << "' as a fixed variable.";
-    size_t idx = _register_coefficient(
-        CoefficientId{ id, variable_type, Coefficient::Kind::scalar,
-            CovariateInformation{} },     // coefficient_id
-        Coefficient::Distribution::fixed, // dist
-        nullptr,                          // gp
-        0,                                // G
-        0,                                // T
-        0);                               // S
-    coeffs[idx].get(0, 0, 0) = value;
-    return idx;
+    CoefficientId cid{ id, variable_type, Coefficient::Kind::scalar,
+      CovariateInformation{} };
+    return do_registration(cid, Coefficient::Distribution::fixed,
+        nullptr, // gp
+        0,       // G
+        0,       // T
+        0,       // S
+        [value](Coefficient& coef) { coef.get(0, 0, 0) = value; });
   };
 
   auto register_random = [&]() {
@@ -118,18 +117,17 @@ size_t Model::register_coefficient(
     CoefficientId cid{
       id, variable_type, get_kind(variable.covariates), info,
     };
-    size_t idx = _register_coefficient(cid, // coefficient_id
-        variable.distribution.type,         // dist
-        experiments[experiment].gp,         // gp
-        G,                                  // G
-        T,                                  // T
-        experiments[experiment].S);         // S
-    for (auto& prior : variable.distribution.arguments) {
-      LOG(debug) << "Adding prior " << prior << ".";
-      coeffs[idx].prior_idxs.push_back(register_coefficient(
-            variable_map, variable_type, prior, experiment));
-    }
-    return idx;
+    return do_registration(cid, variable.distribution.type,
+        experiments[experiment].gp, G, T, experiments[experiment].S,
+        [&](Coefficient& coef) {
+          size_t i = 1;
+          for (auto& prior : variable.distribution.arguments) {
+            LOG(debug) << "Adding prior " << i++ << " of " << id << ": "
+                       << prior << ".";
+            coef.prior_idxs.push_back(register_coefficient(
+                variable_map, variable_type, prior, experiment));
+          }
+        });
   };
 
   double value;
