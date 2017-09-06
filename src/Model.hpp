@@ -59,11 +59,6 @@ struct Model {
   void remove_redundant_terms(Coefficient::Variable variable,
                               Coefficient::Kind kind);
 
-  CovariateInformation get_covariate_info(
-      const std::set<std::string>& covariates,
-      size_t experiment);
-  Coefficient::Kind get_kind(const std::set<std::string>& covariates);
-
   size_t register_coefficient(
       const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
       Coefficient::Variable variable_type,

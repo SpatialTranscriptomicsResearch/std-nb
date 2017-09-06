@@ -19,8 +19,8 @@ static map<string, Coefficient::Kind> id2kind{
   { "type", Coefficient::Kind::type },
 };
 
-CovariateInformation Model::get_covariate_info(
-    const set<string>& covariates, size_t experiment)
+static CovariateInformation get_covariate_info(
+    const Design& design, const set<string>& covariates, size_t experiment)
 {
   auto covariates_ = covariates;
   // spot dependency implies section dependency
@@ -53,7 +53,7 @@ CovariateInformation Model::get_covariate_info(
   return CovariateInformation { cov_idxs, cov_vals };
 }
 
-Coefficient::Kind Model::get_kind(const set<string>& covariates)
+static Coefficient::Kind get_kind(const set<string>& covariates)
 {
   Coefficient::Kind kind = Coefficient::Kind::scalar;
   for (auto& k : id2kind) {
@@ -113,7 +113,7 @@ size_t Model::register_coefficient(
       throw runtime_error("Unable to find the definition of '" + id + "'.");
     }
     auto variable = it->second;
-    auto info = get_covariate_info(variable.covariates, experiment);
+    auto info = get_covariate_info(design, variable.covariates, experiment);
     CoefficientId cid{
       id, variable_type, get_kind(variable.covariates), info,
     };
