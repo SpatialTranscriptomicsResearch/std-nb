@@ -314,7 +314,6 @@ int main(int argc, char **argv) {
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
   ifstream(options.design_path) >> options.design;
-  ifstream(options.spec_path) >> options.model_spec;
 
   for (auto &path : options.tsv_paths)
     options.design.add_dataset_specification(path);
@@ -323,6 +322,11 @@ int main(int argc, char **argv) {
   options.design.add_covariate_unit();
 
   LOG(verbose) << "Design: " << options.design;
+
+  ifstream(options.spec_path) >> options.model_spec;
+
+  LOG(verbose) << "Model specification:";
+  log([](const std::string& s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
   for (auto &spec : options.design.dataset_specifications) {

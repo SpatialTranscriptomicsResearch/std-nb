@@ -28,6 +28,9 @@ struct ModelSpec {
   spec_parser::Driver parser;
 };
 
+void log(const std::function<void(const std::string& s)> log_func,
+    const ModelSpec& model_spec);
+
 std::istream& operator>>(std::istream& is, ModelSpec& model_spec);
 
 #endif // MODELSPEC_HPP

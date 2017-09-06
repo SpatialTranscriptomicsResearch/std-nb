@@ -1,5 +1,7 @@
 #include "modelspec.hpp"
 
+#include <map>
+
 #include "log.hpp"
 #include "spec_parser/driver.hpp"
 
@@ -43,14 +45,44 @@ void ModelSpec::from_stream(std::istream& is)
   rate_coefficients = parser.regression_equations[RATE_VARIABLE].variables;
   odds_coefficients = parser.regression_equations[ODDS_VARIABLE].variables;
   variables = parser.random_variables;
-
-  LOG(verbose) << "Model consists of " << variables.size() << " variables.";
-  LOG(verbose) << rate_coefficients.size() << " variables are rate coefficients.";
-  LOG(verbose) << odds_coefficients.size() << " variables are odds coefficients.";
 }
 
 std::istream& operator>>(std::istream& is, ModelSpec& model_spec)
 {
   model_spec.from_stream(is);
   return is;
+}
+
+void log(const std::function<void(const std::string& s)> log_func,
+    const ModelSpec& model_spec)
+{
+  log_func(">>>");
+
+  log_func("Rate coefficients");
+  log_func("-----------------");
+  for (auto &x : model_spec.rate_coefficients) {
+    log_func(x);
+  }
+  log_func("");
+
+  log_func("Odds coefficients");
+  log_func("-----------------");
+  for (auto &x : model_spec.odds_coefficients) {
+    log_func(x);
+  }
+  log_func("");
+
+  log_func("Coefficient distributions");
+  log_func("-------------------------");
+  std::map<std::string, spec_parser::RandomVariable> sorted_variables(
+      model_spec.variables.begin(), model_spec.variables.end());
+  for (auto &x : sorted_variables) {
+    auto distr_name = spec_parser::Distribution::distrtos(x.second.distribution.type);
+    auto args = intercalate<std::vector<std::string>::const_iterator, std::string>(
+        x.second.distribution.arguments.begin(),
+        x.second.distribution.arguments.end(), ",");
+    log_func(x.first + "~" + distr_name + "(" + args + ")");
+  }
+
+  log_func("<<<");
 }
