@@ -4,6 +4,7 @@
 #include <unordered_map>
 #include <string>
 
+#include "Formula.hpp"
 #include "RandomVariable.hpp"
 #include "RegressionEquation.hpp"
 #include "parser.tab.hpp"
@@ -35,6 +36,8 @@ class Driver {
 
   Driver();
   virtual ~Driver();
+
+  void add_formula(const std::string& id, const Formula& formula);
 
   int parse(const std::string& s);
   yy::location& location() const;

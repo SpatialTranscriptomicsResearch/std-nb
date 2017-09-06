@@ -11,6 +11,7 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(transcriptomedeconvolution_parser SHARED
   driver.cpp
+  Formula.cpp
   lex.yy.cc
   parser.tab.cpp
   )

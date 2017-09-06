@@ -26,3 +26,13 @@ void Driver::error(const yy::location& l, const std::string& m)
 {
   throw ParseError(cur_line, l, m);
 }
+
+void Driver::add_formula(const std::string& id, const Formula& formula)
+{
+  RegressionEquation req;
+  for (auto& term : formula.terms) {
+    RandomVariable rv(id, std::set<std::string>(term.cbegin(), term.cend()));
+    req.variables.push_back(rv.full_id());
+  }
+  regression_equations[id] = req;
+}
