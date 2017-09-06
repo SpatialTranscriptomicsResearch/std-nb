@@ -121,18 +121,6 @@ int main(int argc, char **argv) {
      "Prefix for generated output files.")
     ("fields", po::bool_switch(&parameters.use_fields),
      "Activate fields.")
-    ("formula,f", po::value(&parameters.rate_formula)->default_value(parameters.rate_formula),
-     "Regression formula for the rate parameter of negative binomial rate. "
-     "Arbitrary covariates annotated to the input files in the design matrix file. "
-     "Additionally, the following covariates are predefined by default:\n"
-     "gene    \tcovariate with values for every gene\n"
-     "type    \tcovariate with values for every type\n"
-     "section \tcovariate with values for every input file. "
-     "Note that in case you have split one section's spots into two different count matrix input files, you can specify your own 'section' column in the design matrix file and give the correct input file to section mapping there.\n"
-     "1       \tcovariate serving as an intercept term to set overall baseline")
-    ("varformula", po::value(&parameters.variance_formula)->default_value(parameters.variance_formula),
-     "Regression formula for the variance parameter of negative binomial rate. "
-     "See information on --formula for syntax.")
     ("distmode", po::value(&parameters.distribution_mode)->default_value(parameters.distribution_mode),
      "Which probability distributions to use as default:\n"
      "gamma_odds            \tUse gamma distributions for rate and prior parameters, and beta prime distributions for the odds parameters\n"
@@ -363,8 +351,6 @@ int main(int argc, char **argv) {
     parameters.mesh_additional = 0;
 
   LOG(verbose) << "Inference targets = " << parameters.targets;
-  LOG(verbose) << "Rate regression formula = " << parameters.rate_formula;
-  LOG(verbose) << "Variance regression formula = " << parameters.variance_formula;
 
   LOG(verbose) << "gp = " << parameters.gp.use;
   LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;

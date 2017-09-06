@@ -5,7 +5,6 @@
 #include "coefficient.hpp"
 #include "compression_mode.hpp"
 #include "covariate.hpp"
-#include "formula.hpp"
 #include "optimization_method.hpp"
 #include "rprop.hpp"
 #include "sampling_method.hpp"
@@ -133,9 +132,6 @@ struct Parameters {
   size_t forget_end = 0;
   double forget_rate = 0.05;
   size_t forget_factor = 0;
-
-  Formula rate_formula = DefaultRateFormula();
-  Formula variance_formula = DefaultVarianceFormula();
 
   DistributionMode distribution_mode = DistributionMode::log_normal;
 

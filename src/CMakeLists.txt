@@ -24,7 +24,6 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   design.cpp
   entropy.cpp
   executioninformation.cpp
-  formula.cpp
   gamma_func.cpp
   gp.cpp
   io.cpp

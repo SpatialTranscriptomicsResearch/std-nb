@@ -6,7 +6,6 @@
 #include "Experiment.hpp"
 #include "Mesh.hpp"
 #include "design.hpp"
-#include "formula.hpp"
 #include "modelspec.hpp"
 #include "priors.hpp"
 
@@ -26,7 +25,6 @@ struct Model {
   /** number of spots */
   size_t S;
 
-  Formula rate_formula, variance_formula;
   Design design;
   ModelSpec model_spec;
   std::vector<Experiment> experiments;
