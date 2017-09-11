@@ -3,7 +3,7 @@
 #include <climits>
 #include <cstdlib>
 #include <string>
-#include "driver.hpp"
+#include "Driver.hpp"
 #include "parser.tab.hpp"
 
 // The location of the current token.

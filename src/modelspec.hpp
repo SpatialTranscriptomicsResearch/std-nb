@@ -6,7 +6,7 @@
 
 #include "coefficient.hpp"
 #include "spec_parser/RandomVariable.hpp"
-#include "spec_parser/driver.hpp"
+#include "spec_parser/Driver.hpp"
 
 namespace Exception {
 namespace ModelSpec {

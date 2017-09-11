@@ -3,7 +3,6 @@
 #include <map>
 
 #include "log.hpp"
-#include "spec_parser/driver.hpp"
 
 #define RATE_VARIABLE "rate"
 #define ODDS_VARIABLE "odds"

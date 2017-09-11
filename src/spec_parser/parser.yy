@@ -34,7 +34,7 @@ class Driver;
 
 %code
 {
-#include "driver.hpp"
+#include "Driver.hpp"
 }
 
 %define api.token.prefix {TOK_}
