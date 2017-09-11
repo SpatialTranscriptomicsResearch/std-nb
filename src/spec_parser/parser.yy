@@ -56,7 +56,7 @@ class Driver;
 %token <std::string> IDENTIFIER "identifier"
 %token <std::string> NUMERIC "numeric"
 
-%type <spec_parser::RegressionEquation> regression_eq;
+%type <spec_parser::RegressionEquation> regression_expr;
 
 %type <std::string> covariate;
 %type <std::set<std::string>> covariates;
@@ -104,10 +104,10 @@ covariates: %empty { $$ = std::set<std::string> {}; }
 
 covariate: "identifier" { $$ = $1; };
 
-regression_eq: regressand "=" regression_eq { driver.regression_equations[$1] = $3; }
+regression_eq: regressand "=" regression_expr { driver.regression_equations[$1] = $3; }
 
-regression_eq: regressor { $$ = spec_parser::RegressionEquation($1.full_id()); }
-             | regression_eq "*" regression_eq { $$ = $1 * $3; };
+regression_expr: regressor { $$ = spec_parser::RegressionEquation($1.full_id()); }
+               | regression_expr "*" regression_expr { $$ = $1 * $3; };
 
 regressor: "identifier" "(" covariates ")" { $$ = spec_parser::RandomVariable($1, $3); };
 
