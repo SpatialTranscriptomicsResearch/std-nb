@@ -91,6 +91,11 @@ Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
   throw std::runtime_error("Error in choose_distribution().");
 }
 
+Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id& id)
+    : Coefficient(G, T, S, id.name, id.type, id.kind, id.dist, id.info)
+{
+}
+
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
                          Variable variable_, Kind kind_, Distribution dist,
                          CovariateInformation info_)

@@ -27,14 +27,12 @@ struct Model {
   ModelSpec model_spec;
   std::vector<Experiment> experiments;
 
-  std::map<CoefficientId, size_t> coeff2idx;
-
   Parameters parameters;
 
   using Coefficients = std::vector<Coefficient>;
   Coefficients coeffs;
 
-  std::vector<Coefficient>::iterator find_coefficient(const CoefficientId& cid);
+  std::vector<Coefficient>::iterator find_coefficient(const Coefficient::Id& cid);
 
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;

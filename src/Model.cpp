@@ -39,7 +39,7 @@ CovariateInformation drop_covariates(
   return info;
 }
 
-std::vector<Coefficient>::iterator Model::find_coefficient(const CoefficientId& cid) {
+std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
   return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
     return coeff.label == cid.name and coeff.variable == cid.type
            and coeff.kind == cid.kind and coeff.distribution == cid.dist
@@ -75,7 +75,7 @@ size_t Model::register_coefficient(
   // Register coefficient if it doesn't already exist and return its index in
   // the coeffs vector.
   auto do_registration = [this](
-      const CoefficientId& cid,
+      const Coefficient::Id& cid,
       size_t _G,
       size_t _T,
       size_t _S,
@@ -89,15 +89,7 @@ size_t Model::register_coefficient(
       idx = coeffs.size();
       LOG(debug) << "Adding new coefficient for " << cid.name << " (" << idx
                  << ").";
-      Coefficient covterm(
-          _G,
-          _T,
-          _S,
-          cid.name,
-          cid.type,
-          cid.kind,
-          cid.dist,
-          cid.info);
+      Coefficient covterm(_G, _T, _S, cid);
       coeffs.push_back(covterm);
       on_add(idx);
     }
@@ -105,7 +97,7 @@ size_t Model::register_coefficient(
   };
 
   auto register_fixed = [&](double value) {
-    CoefficientId cid{
+    Coefficient::Id cid{
       .name = id,
       .type = variable_type,
       .kind = Coefficient::Kind::scalar,
@@ -125,7 +117,7 @@ size_t Model::register_coefficient(
 
     auto info = get_covariate_info(design, variable.covariates, experiment);
     auto kind = determine_kind(variable.covariates);
-    CoefficientId cid{
+    Coefficient::Id cid{
       .name = id,
       .type = variable_type,
       .kind = kind,
@@ -151,7 +143,7 @@ size_t Model::register_coefficient(
       // Create or update coordinate system
       auto gp_coord_info = drop_covariates(
           info, design, { DesignNS::spot_label, DesignNS::section_label });
-      auto gp_coord_id = CoefficientId{
+      auto gp_coord_id = Coefficient::Id{
         .name = id + "-gp-coord",
         .type = variable_type,
         .kind = gp_kind,
@@ -171,7 +163,7 @@ size_t Model::register_coefficient(
       auto gp_proxy_info = drop_covariates(info, design,
           { DesignNS::spot_label, DesignNS::section_label,
               DesignNS::coordsys_label });
-      auto gp_id = CoefficientId{
+      auto gp_id = Coefficient::Id{
         .name = id + "-gp-proxy",
         .type = variable_type,
         .kind = gp_kind,

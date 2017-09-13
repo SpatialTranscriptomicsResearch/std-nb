@@ -38,9 +38,18 @@ struct Coefficient {
     log_gp_coord,
     log_gp_proxy
   };
+  struct Id {
+    std::string name;
+    Coefficient::Variable type;
+    Coefficient::Kind kind;
+    Coefficient::Distribution dist;
+    CovariateInformation info;
+  };
+  Coefficient(size_t G, size_t T, size_t S, const Id &id);
   Coefficient(size_t G, size_t T, size_t S, const std::string &label,
               Variable variable, Kind kind, Distribution distribution,
               CovariateInformation info);
+
   std::string label;
   Variable variable;
   Kind kind;
@@ -126,15 +135,6 @@ struct Coefficient {
     }
     return score;
   }
-};
-
-// TODO: Should perhaps be part of the Coefficient struct
-struct CoefficientId {
-  std::string name;
-  Coefficient::Variable type;
-  Coefficient::Kind kind;
-  Coefficient::Distribution dist;
-  CovariateInformation info;
 };
 
 Coefficient::Kind determine_kind(const std::set<std::string> &term);
