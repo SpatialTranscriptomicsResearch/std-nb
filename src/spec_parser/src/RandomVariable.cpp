@@ -1,4 +1,4 @@
-#include "RandomVariable.hpp"
+#include "spec_parser/RandomVariable.hpp"
 
 using namespace spec_parser;
 

@@ -7,8 +7,8 @@
 #include <unordered_map>
 #include <vector>
 
-#include "../aux.hpp"
-#include "Distribution.hpp"
+#include "aux.hpp"
+#include "spec_parser/Distribution.hpp"
 
 namespace spec_parser {
 

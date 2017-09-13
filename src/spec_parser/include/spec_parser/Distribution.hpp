@@ -4,7 +4,7 @@
 #include <exception>
 #include <unordered_map>
 
-#include "../coefficient.hpp"
+#include "coefficient.hpp"
 
 namespace spec_parser {
 

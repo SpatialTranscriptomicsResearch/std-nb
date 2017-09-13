@@ -1,4 +1,4 @@
-#include "RegressionEquation.hpp"
+#include "spec_parser/RegressionEquation.hpp"
 
 using namespace spec_parser;
 

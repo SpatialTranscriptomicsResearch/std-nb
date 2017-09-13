@@ -1,4 +1,4 @@
-#include "Distribution.hpp"
+#include "spec_parser/Distribution.hpp"
 
 using namespace spec_parser;
 

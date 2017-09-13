@@ -5,12 +5,6 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -march=native)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_SUBDIRECTORY(spec_parser)
-# Since we don't install the spec_parser anywhere, most headers will be left in
-# the src dir. Additionally, some headers get built to the bin dir by bison.
-# Thus, we need to include both directories.
-# TODO: Should be possible to do this in a nicer way.
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/spec_parser)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/spec_parser)
 
 ADD_LIBRARY(transcriptomedeconvolution SHARED
   Experiment.cpp
@@ -52,7 +46,7 @@ ADD_EXECUTABLE(test_gamma_convolution test_gamma_convolution.cpp)
 ADD_EXECUTABLE(test_negative_binomial_convolution test_negative_binomial_convolution.cpp)
 
 TARGET_LINK_LIBRARIES(transcriptomedeconvolution
-  transcriptomedeconvolution_parser
+  parser
   m
   -L${Boost_LIBRARY_DIRS}
   ${Boost_FILESYSTEM_LIBRARY}

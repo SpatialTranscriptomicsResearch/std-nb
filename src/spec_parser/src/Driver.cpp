@@ -1,7 +1,8 @@
+#include "spec_parser/Driver.hpp"
+
 #include <exception>
 #include <sstream>
 
-#include "Driver.hpp"
 #include "parser.tab.hpp"
 
 using namespace spec_parser;

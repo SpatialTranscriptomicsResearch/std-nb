@@ -14,10 +14,10 @@
 #include <iostream>
 #include <set>
 
-#include "Distribution.hpp"
-#include "Formula.hpp"
-#include "RegressionEquation.hpp"
-#include "RandomVariable.hpp"
+#include "spec_parser/Distribution.hpp"
+#include "spec_parser/Formula.hpp"
+#include "spec_parser/RegressionEquation.hpp"
+#include "spec_parser/RandomVariable.hpp"
 
 namespace spec_parser {
 class Driver;
@@ -34,7 +34,7 @@ class Driver;
 
 %code
 {
-#include "Driver.hpp"
+#include "spec_parser/Driver.hpp"
 }
 
 %define api.token.prefix {TOK_}

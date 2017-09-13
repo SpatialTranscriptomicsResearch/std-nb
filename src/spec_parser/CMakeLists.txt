@@ -1,20 +1,21 @@
 find_package(FLEX)
 find_package(BISON)
 
-FLEX_TARGET(Lexer scanner.ll ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc)
-BISON_TARGET(Parser parser.yy ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp)
+FLEX_TARGET(Lexer src/scanner.ll ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc)
+BISON_TARGET(Parser src/parser.yy ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp)
 
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
-
-# Make it possible to #include generated header files for out-of-source builds
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
-
-ADD_LIBRARY(transcriptomedeconvolution_parser SHARED
-  Distribution.cpp
-  Driver.cpp
-  Formula.cpp
-  RandomVariable.cpp
-  RegressionEquation.cpp
-  lex.yy.cc
-  parser.tab.cpp
+ADD_LIBRARY(parser SHARED
+  src/Distribution.cpp
+  src/Driver.cpp
+  src/Formula.cpp
+  src/RandomVariable.cpp
+  src/RegressionEquation.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp
+  ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc
   )
+
+TARGET_INCLUDE_DIRECTORIES(parser PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+TARGET_INCLUDE_DIRECTORIES(parser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
+
+# Needed for aux.hpp and coefficient.hpp, which don't get installed anywhere.
+TARGET_INCLUDE_DIRECTORIES(parser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)

@@ -4,9 +4,9 @@
 #include <unordered_map>
 #include <string>
 
-#include "Formula.hpp"
-#include "RandomVariable.hpp"
-#include "RegressionEquation.hpp"
+#include "spec_parser/Formula.hpp"
+#include "spec_parser/RandomVariable.hpp"
+#include "spec_parser/RegressionEquation.hpp"
 #include "parser.tab.hpp"
 
 // Tell Flex the lexer's prototype ...
