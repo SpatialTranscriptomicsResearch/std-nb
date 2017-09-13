@@ -8,7 +8,6 @@
 #include "optimization_method.hpp"
 #include "rprop.hpp"
 #include "sampling_method.hpp"
-#include "target.hpp"
 #include "types.hpp"
 
 namespace STD {
@@ -77,11 +76,13 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
   GaussianProcessParameters(bool use = false, double len = 5,
-                            double spatial = 1, double indep = 1);
+                            double spatial = 1, double indep = 1,
+                            size_t first_iteration = 80);
   bool use;
   double length_scale;
   double spatial_variance;
   double independent_variance;
+  size_t first_iteration;
 };
 
 struct Parameters {
@@ -92,46 +93,28 @@ struct Parameters {
   /** Temperature for Metropolis-Hastings sampling of r[g][t] */
   double temperature = 1.0;
   bool warn_lower_limit = false;
-  bool expected_contributions = false;
-  bool normalize_spot_stats = false;
-  bool p_empty_map = false;
-  bool contributions_map = false;
   double hmc_epsilon = 1e-2;
   size_t hmc_L = 5;
   size_t hmc_N = 15;
-  bool ignore_priors = false;
   double dropout_gene_spot = 0;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
-  Target targets = DefaultTarget();
-  Target to_forget = DefaultForget();
-  bool targeted(Target target) const;
-  bool forget(Target target) const;
 
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
-  bool use_fields = false;
-  double field_lambda_dirichlet = 1;
-  double field_lambda_laplace = 1;
-  size_t mesh_additional = 10000;
   double lbfgs_epsilon = 1e-5;
   size_t lbfgs_iter = 100;
   size_t report_interval = 200;
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
   Sampling::Method sample_method = Sampling::Method::Mean;
+
+  size_t sample_iterations = 10;
+
   size_t grad_iterations = 10000;
   double grad_alpha = 1e-1;
   double grad_anneal = 0.999;
-
-  double mesh_hull_enlarge = 1.03;
-  double mesh_hull_distance = 2;
-
-  size_t forget_start = 0;
-  size_t forget_end = 0;
-  double forget_rate = 0.05;
-  size_t forget_factor = 0;
 
   DistributionMode distribution_mode = DistributionMode::log_normal;
 

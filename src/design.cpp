@@ -4,6 +4,37 @@
 
 using namespace std;
 
+vector<size_t> Design::determine_covariate_idxs(
+    const set<string> &term) const {
+  vector<size_t> cov_idxs;
+  for (auto &covariate_label : term) {
+    LOG(debug) << "Treating covariate label: " << covariate_label;
+    string label = to_lower(covariate_label);
+    if (label != "gene" and label != "spot" and label != "type") {
+      auto cov_iter = find_if(begin(covariates), end(covariates),
+                              [&](const Covariate &covariate) {
+                                return covariate.label == covariate_label;
+                              });
+      if (cov_iter == end(covariates)) {
+        throw(runtime_error("Error: a covariate mentioned in the formula '"
+                            + covariate_label
+                            + "' is not found in the design."));
+      } else {
+        cov_idxs.push_back(distance(begin(covariates), cov_iter));
+      }
+    }
+  }
+  return cov_idxs;
+}
+
+vector<size_t> Design::get_covariate_value_idxs(
+    size_t e, const vector<size_t> &covariate_idxs) const {
+  vector<size_t> cov_values;
+  for (auto &cov_idx : covariate_idxs)
+    cov_values.push_back(dataset_specifications[e].covariate_values[cov_idx]);
+  return cov_values;
+}
+
 void Design::from_string(const string &str) {
   istringstream is(str);
   from_stream(is);
@@ -105,7 +136,6 @@ void Design::from_stream(istream &is) {
       dataset_specifications.push_back(spec);
     }
   }
-
 }
 
 string Design::to_string() const {
@@ -135,6 +165,25 @@ void Design::add_covariate_section() {
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
     cov.values.push_back(std::to_string(i + 1));
     dataset_specifications[i].covariate_values.push_back(i);
+  }
+  covariates.push_back(cov);
+}
+
+void Design::add_covariate_coordsys(bool share_coord_sys) {
+  if (find_if(begin(covariates), end(covariates),
+              [&](const Covariate &cov) {
+                return cov.label == DesignNS::coordsys_label;
+              })
+      != end(covariates))
+    return;
+
+  Covariate cov = {DesignNS::coordsys_label, {}};
+  size_t coord_sys_idx = 0;
+  for (size_t i = 0; i < dataset_specifications.size(); ++i) {
+    cov.values.push_back(std::to_string(coord_sys_idx + 1));
+    dataset_specifications[i].covariate_values.push_back(coord_sys_idx);
+    if (not share_coord_sys)
+      coord_sys_idx++;
   }
   covariates.push_back(cov);
 }

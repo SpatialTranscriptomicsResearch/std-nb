@@ -11,6 +11,9 @@ enum class Method {
   MH = 1 << 1,
   HMC = 1 << 2,
   RPROP = 1 << 3,
+  Trial = 1 << 4,
+  TrialMean = 1 << 5,
+  lBFGS = 1 << 6,
 };
 
 std::ostream &operator<<(std::ostream &os, const Method &which);

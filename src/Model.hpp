@@ -7,12 +7,10 @@
 #include "Mesh.hpp"
 #include "design.hpp"
 #include "modelspec.hpp"
-#include "priors.hpp"
 
 namespace STD {
 
 const int EXPERIMENT_NUM_DIGITS = 4;
-const bool abort_on_fatal_errors = false;
 
 struct Model {
   // TODO consider const
@@ -36,23 +34,14 @@ struct Model {
   using Coefficients = std::vector<Coefficient>;
   Coefficients coeffs;
 
-  struct CoordinateSystem {
-    CoordinateSystem() : S(0), N(0), T(0){};
-    size_t S, N, T;
-    // std::vector<Matrix> coords;
-    std::vector<size_t> members;
-    Mesh mesh;
-    Matrix field;
-  };
-  std::vector<CoordinateSystem> coordinate_systems;
+  std::vector<Coefficient>::iterator find_coefficient(const CoefficientId& cid);
 
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
   Model(const std::vector<Counts>& data, size_t T, const Design& design,
-        const ModelSpec& model_spec, const Parameters& parameters,
-        bool same_coord_sys);
+        const ModelSpec& model_spec, const Parameters& parameters);
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Variable variable,
                               Coefficient::Kind kind);
@@ -66,6 +55,9 @@ struct Model {
       const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
       Coefficient::Variable variable_type,
       const std::string& var);
+
+  void add_gp_proxies();
+  void add_prior_coefficients();
 
   void setZero();
   Model compute_gradient(double &score) const;
@@ -82,9 +74,6 @@ struct Model {
   size_t size() const;
   size_t number_parameters() const;
 
-  Vector make_mask() const;
-  void apply_mask(Vector &x, Vector &rates, Vector &prev_sign) const;
-
   void enforce_positive_parameters(double min_value = 1e-200);
 
   void store(const std::string &prefix, bool mean_and_var = false,
@@ -98,13 +87,8 @@ struct Model {
   //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;
 
-  void update_experiment_fields();
   void update_contributions();
-  Matrix field_fitness_posterior_gradient() const;
-  double field_gradient(const CoordinateSystem &coord_sys, const Matrix &field,
-                        Matrix &grad) const;
-  void initialize_coordinate_systems(double v);
-  void add_experiment(const Counts &data, size_t coord_sys);
+  void add_experiment(const Counts &data);
 };
 
 std::ostream &operator<<(std::ostream &os, const Model &pfa);

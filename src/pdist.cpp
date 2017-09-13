@@ -27,6 +27,11 @@ double log_dirichlet(const vector<double> &p, const vector<double> &alpha) {
   return l;
 }
 
+double log_normal(double x, double mu, double sigma) {
+  double std_diff = (x - mu) / sigma;
+  return -0.5 * log(2 * M_PI) - log(sigma) - 0.5 * std_diff * std_diff;
+}
+
 double log_gamma_rate(double x, double shape, double rate) {
   if (x == 0) {
     if (shape == 1)

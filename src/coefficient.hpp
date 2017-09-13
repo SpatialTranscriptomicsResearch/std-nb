@@ -1,6 +1,7 @@
 #ifndef COEFFICIENT_HPP
 #define COEFFICIENT_HPP
 
+#include <map>
 #include <memory>
 #include <string>
 #include <vector>
@@ -33,23 +34,27 @@ struct Coefficient {
     beta_prime,
     // linear term
     log_normal,
-    log_gp
+    log_gp,
+    log_gp_coord,
+    log_gp_proxy
   };
-
-  Coefficient(size_t G, size_t T, size_t S, Variable variable, Kind kind,
-              Distribution distribution,
-              std::shared_ptr<GP::GaussianProcess> gp,
+  Coefficient(size_t G, size_t T, size_t S, const std::string &label,
+              Variable variable, Kind kind, Distribution distribution,
               CovariateInformation info);
-  // TODO: Not used anymore?
+  std::string label;
   Variable variable;
   Kind kind;
   Distribution distribution;
+
   std::shared_ptr<GP::GaussianProcess> gp;
+  STD::Matrix form_data(const std::vector<Coefficient> &coeffs) const;
+  void add_formed_data(const STD::Matrix &m,
+                       std::vector<Coefficient> &coeffs) const;
 
   CovariateInformation info;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;
-  std::set<size_t> experiment_idxs;
+  std::vector<size_t> experiment_idxs;
 
   bool gene_dependent() const;
   bool type_dependent() const;
@@ -68,9 +73,12 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  void compute_gradient(const std::vector<Coefficient> &coeffs,
-                        std::vector<Coefficient> &grad_coeffs,
-                        size_t idx) const;
+  double compute_gradient(const std::vector<Coefficient> &coeffs,
+                          std::vector<Coefficient> &grad_coeffs,
+                          size_t idx) const;
+  double compute_gradient_gp(const std::vector<Coefficient> &coeffs,
+                             std::vector<Coefficient> &grad_coeffs,
+                             size_t idx) const;
 
   double get(size_t g, size_t t, size_t s) const;  // rename to operator()
   double &get(size_t g, size_t t, size_t s);       // rename to operator()
@@ -82,60 +90,54 @@ struct Coefficient {
   void restore(const std::string &path);
 
   template <typename Fnc>
-  void visit(Fnc fnc) const {
+  double visit(Fnc fnc) const {
+    double score = 0;
     switch (kind) {
       case Kind::scalar:
-        fnc(0, 0, 0);
+        score = fnc(0, 0, 0);
         break;
       case Kind::gene:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int g = 0; g < values.rows(); ++g)
-          fnc(g, 0, 0);
+          score += fnc(g, 0, 0);
         break;
       case Kind::type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int t = 0; t < values.rows(); ++t)
-          fnc(0, t, 0);
+          score += fnc(0, t, 0);
         break;
       case Kind::spot:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int s = 0; s < values.rows(); ++s)
-          fnc(0, 0, s);
+          score += fnc(0, 0, s);
         break;
       case Kind::gene_type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int g = 0; g < values.rows(); ++g)
           for (int t = 0; t < values.cols(); ++t)
-            fnc(g, t, 0);
+            score += fnc(g, t, 0);
         break;
       case Kind::spot_type:
-#pragma omp parallel for if (DO_PARALLEL)
+#pragma omp parallel for reduction(+ : score) if (DO_PARALLEL)
         for (int s = 0; s < values.rows(); ++s)
           for (int t = 0; t < values.cols(); ++t)
-            fnc(0, t, s);
+            score += fnc(0, t, s);
         break;
     }
+    return score;
   }
 };
 
+// TODO: Should perhaps be part of the Coefficient struct
 struct CoefficientId {
   std::string name;
   Coefficient::Variable type;
   Coefficient::Kind kind;
-  CovariateInformation covariates;
-  bool operator<(const CoefficientId& other) const {
-    if (name != other.name) {
-      return name < other.name;
-    }
-    if (kind != other.kind) {
-      return kind < other.kind;
-    }
-    if (type != other.type) {
-      return type < other.type;
-    }
-    return covariates < other.covariates;
-  }
+  Coefficient::Distribution dist;
+  CovariateInformation info;
 };
+
+Coefficient::Kind determine_kind(const std::set<std::string> &term);
 
 std::string to_string(const Coefficient::Variable &variable);
 std::string to_string(const Coefficient::Kind &kind);

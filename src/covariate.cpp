@@ -35,11 +35,21 @@ string CovariateInformation::to_string(const Covariates &covariates) const {
   return s;
 }
 
-// TODO: maybe better implementing a hash function and using unordered_map/set
-// wherever needed. This feels a bit odd.
-bool CovariateInformation::operator<(const CovariateInformation& other) const {
-  if (idxs != other.idxs) {
-    return idxs < other.idxs;
-  }
-  return vals < other.vals;
+bool CovariateInformation::operator==(const CovariateInformation &other) const {
+  if (idxs.size() != other.idxs.size() or vals.size() != other.vals.size())
+    return false;
+  for (size_t i = 0; i < idxs.size(); ++i)
+    if (idxs[i] != other.idxs[i])
+      return false;
+  for (size_t i = 0; i < vals.size(); ++i)
+    if (vals[i] != other.vals[i])
+      return false;
+  return true;
+}
+
+bool CovariateInformation::operator<(const CovariateInformation &other) const {
+  return std::lexicographical_compare(begin(idxs), end(idxs), begin(other.idxs),
+                                      end(other.idxs))
+         or std::lexicographical_compare(begin(vals), end(vals),
+                                         begin(other.vals), end(other.vals));
 }

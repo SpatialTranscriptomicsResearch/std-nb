@@ -7,11 +7,13 @@ namespace STD {
 
 GaussianProcessParameters::GaussianProcessParameters(bool use_, double len,
                                                      double spatial,
-                                                     double indep)
+                                                     double indep,
+                                                     size_t first_iter)
     : use(use_),
       length_scale(len),
       spatial_variance(spatial),
-      independent_variance(indep) {}
+      independent_variance(indep),
+      first_iteration(first_iter) {}
 
 double Hyperparameters::get_param(Coefficient::Distribution distribution,
                                   size_t idx) const {
@@ -36,6 +38,11 @@ double Hyperparameters::get_param(Coefficient::Distribution distribution,
         return normal_1;  // TODO gp mu parameter
       else
         return normal_2;  // TODO gp sigma parameter
+    case Coefficient::Distribution::log_gp_proxy:
+      if (idx == 0)
+        return normal_1;  // TODO gp mu parameter
+      else
+        return normal_2;  // TODO gp sigma parameter
     default:
       // TODO cov prior set for other disitributions
       throw std::runtime_error(
@@ -55,12 +62,5 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   os << "normal_1 = " << hyperparams.normal_1 << endl;
   os << "normal_2 = " << hyperparams.normal_2 << endl;
   return os;
-}
-
-bool Parameters::targeted(Target target) const {
-  return flagged(targets & target);
-}
-bool Parameters::forget(Target target) const {
-  return flagged(targets & target);
 }
 }

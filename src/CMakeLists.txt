@@ -33,10 +33,8 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   optimization_method.cpp
   parameters.cpp
   pdist.cpp
-  priors.cpp
   sampling.cpp
   sampling_method.cpp
-  target.cpp
   terminal.cpp
   timer.cpp
   types.cpp

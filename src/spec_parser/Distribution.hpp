@@ -38,8 +38,9 @@ struct Distribution {
       return "Loggp";
     case Type::log_normal:
       return "Lognormal";
+    default:
+      throw std::logic_error("Not implemented.");
     }
-    throw std::logic_error("Not implemented.");
   }
 
   Type type;

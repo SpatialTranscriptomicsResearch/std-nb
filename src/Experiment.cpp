@@ -1,4 +1,5 @@
 #include "Experiment.hpp"
+#include <LBFGS.h>
 #include "Model.hpp"
 #include "aux.hpp"
 #include "gamma_func.hpp"
@@ -75,9 +76,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       counts(counts_),
       coords(counts.parse_coords()),
       parameters(parameters_),
-      gp(make_shared<GP::GaussianProcess>(
-          GP::GaussianProcess(coords, parameters.gp.length_scale))),
-      field(Matrix::Ones(S, T)),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
       contributions_gene(rowSums<Vector>(*counts.matrix)),
@@ -119,9 +117,6 @@ void Experiment::store(const string &prefix,
 #pragma omp parallel sections if (DO_PARALLEL)
   {
 #pragma omp section
-    write_matrix(field, prefix + "raw-field" + FILENAME_ENDING,
-                 parameters.compression_mode, spot_names, factor_names, order);
-#pragma omp section
     write_matrix(expected_spot_type(),
                  prefix + "expected-mix" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
@@ -129,20 +124,6 @@ void Experiment::store(const string &prefix,
     write_matrix(expected_gene_type(),
                  prefix + "expected-features" + FILENAME_ENDING,
                  parameters.compression_mode, gene_names, factor_names, order);
-    /* TODO cov var
-#pragma omp section
-    {
-      auto phi_marginal = marginalize_genes();
-      auto f = field;
-      for (size_t s = 0; s < S; ++s)
-        f.row(s).array() /= phi_marginal.array();
-      for (size_t t = 0; t < T; ++t)
-        f.col(t).array() /= spot.array();
-      write_matrix(f, prefix + "expected-field" + FILENAME_ENDING,
-                   parameters.compression_mode, spot_names, factor_names,
-                   order);
-    }
-    */
 #pragma omp section
     write_matrix(compute_gene_type_table(rate_coeff_idxs),
                  prefix + "rate_gene_type" + FILENAME_ENDING,
@@ -179,9 +160,6 @@ void Experiment::store(const string &prefix,
 }
 
 void Experiment::restore(const string &prefix) {
-  field = parse_file<Matrix>(prefix + "raw-field" + FILENAME_ENDING,
-                             read_matrix, "\t");
-
   contributions_gene_type = parse_file<Matrix>(
       prefix + "contributions_gene_type" + FILENAME_ENDING, read_matrix, "\t");
   contributions_spot_type = parse_file<Matrix>(
@@ -219,53 +197,6 @@ Matrix Experiment::log_likelihood() const {
 }
 */
 
-double neg_log_posterior(const Vector &y, size_t count, const Vector &r,
-                         const Vector &p) {
-  const size_t T = y.size();
-  Vector x = count * gibbs(y);
-  double l = 0;
-  if (noisy) {
-    LOG(trace) << "y = " << y;
-    LOG(trace) << "x = " << x;
-  }
-  for (size_t t = 0; t < T; ++t)
-    // TODO only compute relevant terms
-    l += log_negative_binomial(x[t], r[t], p[t]);
-  return -l;
-}
-
-Vector neg_grad_log_posterior(const Vector &y, size_t count, const Vector &r,
-                              const Vector &p) {
-  const size_t T = y.size();
-  Vector x = count * gibbs(y);
-
-  if (noisy) {
-    LOG(trace) << "count = " << count;
-    LOG(trace) << "y = " << y;
-    LOG(trace) << "x = " << x;
-  }
-
-  Vector tmp(T);
-  for (size_t t = 0; t < T; ++t)
-    // TODO use digamma_diff
-    tmp(t) = log(p(t)) + digamma(x(t) + r(t)) - digamma(x(t) + 1);
-
-  if (noisy)
-    LOG(trace) << "tmp = " << tmp;
-
-  double z = 0;
-  for (size_t t = 0; t < T; ++t)
-    z += x(t) / count * tmp(t);
-
-  Vector grad(T);
-  for (size_t t = 0; t < T; ++t)
-    grad(t) = -x(t) * (tmp(t) - z);
-
-  if (noisy)
-    LOG(debug) << "grad = " << grad;
-  return grad;
-}
-
 /** sample count decomposition */
 Vector Experiment::sample_contributions_gene_spot(
     size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
@@ -282,26 +213,106 @@ Vector Experiment::sample_contributions_gene_spot(
     return cnts;
   }
 
+  Vector rate(T);
+  for (size_t t = 0; t < T; ++t)
+    rate(t) = rate_gt(g, t) * rate_st(s, t);
+
+  Vector odds(T);
+  for (size_t t = 0; t < T; ++t)
+    odds(t) = odds_gt(g, t) * odds_st(s, t);
+
+  Vector proportions(T);
+  {
+    double z = 0;
+    for (size_t t = 0; t < T; ++t)
+      z += proportions(t) = rate(t) * odds(t);
+    for (size_t t = 0; t < T; ++t)
+      proportions(t) /= z;
+  }
+
   switch (parameters.sample_method) {
-    case Sampling::Method::Mean: {
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t]
-            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-      return cnts;
-    } break;
-    case Sampling::Method::Multinomial: {
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t]
-            = rate_gt(g, t) * rate_st(s, t) * odds_gt(g, t) * odds_st(s, t);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] /= z;
-      cnts = sample_multinomial<Vector>(count, begin(cnts), end(cnts), rng);
-      return cnts;
-    } break;
+    case Sampling::Method::Mean:
+      return proportions * count;
+    case Sampling::Method::Multinomial:
+      return sample_multinomial<Vector>(count, begin(proportions),
+                                        end(proportions), rng);
+    default:
+      break;
+  }
+
+  auto unlog = [&](const Vector &log_k) {
+    double max_log_k = -std::numeric_limits<double>::infinity();
+    for (size_t t = 0; t < T; ++t)
+      if (log_k(t) > max_log_k)
+        max_log_k = log_k(t);
+
+    double z = 0;
+    Vector k(T);
+    for (size_t t = 0; t < T; ++t)
+      z += k(t) = exp(log_k(t) - max_log_k);
+    for (size_t t = 0; t < T; ++t)
+      k(t) *= count / z;
+    return k;
+  };
+
+  Vector log_p(T);
+  for (size_t t = 0; t < T; ++t)
+    log_p(t) = odds_to_log_prob(odds(t));
+
+  // compute the count-dependent likelihood contribution
+  auto eval = [&](const Vector &k) {
+    double score = 0;
+    for (size_t t = 0; t < T; ++t)
+      score += lgamma(rate(t) + k(t)) - lgamma(k(t) + 1) + k(t) * log_p(t);
+    // - lgamma(rate(t))
+    return score;
+  };
+
+  auto compute_gradient = [&](const Vector &log_k, Vector &grad) {
+    grad = Vector(T);
+    Vector k = unlog(log_k);
+    double sum = 0;
+    for (size_t t = 0; t < T; ++t)
+      sum += grad(t) = k(t) * (digamma_diff_1p(k(t), rate(t)) + log_p(t));
+    for (size_t t = 0; t < T; ++t)
+      grad(t) = k(t) / count * (grad(t) - sum);
+  };
+
+  auto fnc = [&](const Vector &log_k, Vector &grad) {
+    compute_gradient(log_k, grad);
+    double score = -eval(unlog(log_k));
+    LOG(verbose) << "count = " << count << " fnc = " << score;
+    return score;
+  };
+
+  switch (parameters.sample_method) {
+    case Sampling::Method::Trial: {
+      double best_score = -std::numeric_limits<double>::infinity();
+      Vector best_cnts = Vector::Zero(T);
+      for (size_t i = 0; i < parameters.sample_iterations; ++i) {
+        Vector trial_cnts = sample_multinomial<Vector>(
+            count, begin(proportions), end(proportions), rng);
+        double trial_score = eval(trial_cnts);
+
+        if (trial_score > best_score) {
+          best_score = trial_score;
+          best_cnts = trial_cnts;
+        }
+      }
+      return best_cnts;
+    }
+    case Sampling::Method::TrialMean: {
+      double total_score = 0;
+      Vector mean_cnts = Vector::Zero(T);
+      for (size_t i = 0; i < parameters.sample_iterations; ++i) {
+        Vector trial_cnts = sample_multinomial<Vector>(
+            count, begin(proportions), end(proportions), rng);
+        double score = exp(eval(trial_cnts));
+        mean_cnts += score * trial_cnts;
+        total_score += score;
+      }
+      return mean_cnts / total_score;
+    }
     case Sampling::Method::MH:
       throw(runtime_error("Sampling method not implemented: MH."));
       break;
@@ -309,269 +320,42 @@ Vector Experiment::sample_contributions_gene_spot(
       throw(runtime_error("Sampling method not implemented: HMC."));
       break;
     case Sampling::Method::RPROP: {
-      throw(runtime_error("Sampling method not quite implemented: RPROP."));
-      /*
-      Vector log_rho(T);
-      for (size_t t = 0; t < T; ++t)
-        log_rho[t] = neg_odds_to_log_prob(model->negodds_rho(g, t));
+      cnts = (proportions * count).array().log();
 
-      Vector r(T);
-      double z = 0;
-      for (size_t t = 0; t < T; ++t) {
-        r[t] = rate_gt(g, t) * st(s, t);
-        z += cnts[t] = r[t] / model->negodds_rho(g, t);
-      }
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-
-      Vector k(T);
-      auto fnc = [&](const Vector &log_k, Vector &grad) {
-        // LOG(debug) << "inter log = " << log_k.transpose();
-        double score = 0;
-        double Z = 0;
-        for (size_t t = 0; t < T; ++t)
-          Z += k[t] = exp(log_k(t));
-        for (size_t t = 0; t < T; ++t)
-          k[t] *= count / Z;
-        double sum = 0;
-        for (size_t t = 0; t < T; ++t)
-          sum += grad[t] = k[t] * (digamma_diff(k[t], r[t]) + log_rho[t]);
-        // LOG(debug) << "inter exp = " << k.transpose();
-        for (size_t t = 0; t < T; ++t)
-          grad[t] -= k[t] / count * sum;
-        // LOG(debug) << "grad = " << grad.transpose();
-        return score;
-      };
       Vector grad(cnts.size());
       Vector prev_sign(Vector::Zero(cnts.size()));
       Vector rates(cnts.size());
       rates.fill(parameters.grad_alpha);
-      const size_t sample_iterations
-          = 20;  // TODO make into CLI configurable parameter
-      double fx = 0;
-      // LOG(debug) << "total = " << count;
-      // LOG(debug) << "start = " << cnts.transpose();
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] = log(cnts[t]);
-      // LOG(debug) << "start = " << cnts.transpose();
-      for (size_t iter = 0; iter < sample_iterations; ++iter) {
-        fx = fnc(cnts, grad);
+      for (size_t iter = 0; iter < parameters.sample_iterations; ++iter) {
+        compute_gradient(cnts, grad);
         rprop_update(grad, prev_sign, rates, cnts, parameters.rprop);
       }
-      z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += cnts[t] = exp(cnts[t]);
-      for (size_t t = 0; t < T; ++t)
-        cnts[t] *= count / z;
-
-      // LOG(debug) << "final = " << cnts.transpose();
-      */
+      return unlog(cnts);
     } break;
+    case Sampling::Method::lBFGS: {
+      cnts = (proportions * count).array().log();
+
+      using namespace LBFGSpp;
+      LBFGSParam<double> param;
+      param.epsilon = parameters.lbfgs_epsilon;
+      // TODO make into separate CLI configurable parameter
+      param.max_iterations = parameters.lbfgs_iter;
+      // Create solver and function object
+      LBFGSSolver<double> solver(param);
+
+      double fx = std::numeric_limits<double>::infinity();
+      int niter = solver.minimize(fnc, cnts, fx);
+
+      LOG(verbose) << "lBFGS performed " << niter
+                   << " iterations and reached score " << fx;
+      return unlog(cnts);
+    } break;
+    default:
+      break;
   }
 
-  /*
-  if (false) {
-    if (parameters.contributions_map) {
-      Vector r(T);
-      for (size_t t = 0; t < T; ++t)
-        r[t] = model->gamma(g, t) * lambda(g, t) * beta(g) * theta(s, t)
-               * spot(s);
-
-      Vector p(T);
-      for (size_t t = 0; t < T; ++t)
-        p[t] = neg_odds_to_prob(model->negodds_rho(g, t));
-
-      if (noisy) {
-        for (size_t t = 0; t < T; ++t)
-          LOG(debug) << "r = " << r[t];
-        for (size_t t = 0; t < T; ++t)
-          LOG(debug) << "p = " << p[t];
-      }
-
-      if (true) {
-        for (size_t t = 0; t < T; ++t)
-          cnts[t] = log(r[t] / model->negodds_rho(g, t));
-
-        Vector mean(T);
-        const size_t max_iter = (noisy ? 10 : 1);
-        for (size_t iter = 0; iter < max_iter; ++iter) {
-          mean = count * gibbs(cnts);
-          if (noisy)
-            LOG(verbose) << "cnts 0: " << (count * gibbs(cnts)).transpose();
-          for (size_t i = 0; i < parameters.hmc_N; ++i) {
-            if (noisy)
-              LOG(debug) << "cnts " << i + 1 << ": "
-                         << (count * gibbs(cnts).transpose());
-            cnts = HMC::sample(cnts, neg_log_posterior, neg_grad_log_posterior,
-                               parameters.hmc_L, parameters.hmc_epsilon, rng,
-                               count, r, p);
-            mean += count * gibbs(cnts);
-          }
-          mean /= parameters.hmc_N + 1;
-          if (noisy) {
-            double z = 0;
-            for (auto &m : mean)
-              z += m;
-            LOG(verbose) << "cnts X iter = " << iter << " z = " << z
-                         << " cnt=" << count;
-            LOG(verbose) << "cnts X: " << (count * gibbs(cnts)).transpose();
-            LOG(verbose) << "cnts m: " << mean.transpose();
-          }
-        }
-        return mean;
-      } else {
-        for (size_t iter = 0; iter < 10; ++iter) {
-          if (noisy)
-            LOG(verbose) << "Iteration " << iter
-                         << " cnts = " << count * gibbs(cnts);
-          auto grad = neg_grad_log_posterior(cnts, count, r, p);
-          if (noisy)
-            LOG(verbose) << "Iteration " << iter << " grad = " << grad;
-
-          // TODO reconsider activating this
-          // this was mostly de-activated because it doesn't for the two-factor
-          // case it should work better for more than two factors
-          if (false) {
-            double l = 0;
-            for (auto &x : grad)
-              l += x * x;
-            l = sqrt(l);
-
-            grad /= l;
-          } else
-            grad *= 1e-2;
-
-          if (noisy)
-            LOG(verbose) << "Iteration " << iter << " grad = " << grad;
-
-          // TODO check convergence
-          cnts = cnts - grad;
-        }
-      }
-      if (noisy)
-        LOG(verbose) << "Final cnts = " << count * gibbs(cnts);
-      cnts = count * gibbs(cnts);
-
-    } else {
-      auto log_posterior_difference = [&](const Vector &v, size_t i, size_t j,
-                                          size_t n) {
-        double l = 0;
-
-        if (noisy)
-          LOG(debug) << "i=" << i << " j=" << j << " n=" << n
-                     << " v[i]=" << v[i] << " v[j]=" << v[j];
-
-        const double r_i = model->gamma(g, i) * lambda(g, i);
-        const double no_i = model->negodds_rho(g, i);
-        const double prod_i = r_i * theta(s, i) * spot(s);
-
-        const double r_j = model->gamma(g, j) * lambda(g, j);
-        const double no_j = model->negodds_rho(g, j);
-        const double prod_j = r_j * theta(s, j) * spot(s);
-
-        // TODO determine continous-valued mean by optimizing the posterior
-        // TODO handle infinities
-        // if(prod + v[t] == 0)
-        //   return -numeric_limits<double>::infinity();
-
-        if (noisy)
-          LOG(debug) << "r_i=" << r_i << " no_i=" << no_i
-                     << " prod_i=" << prod_i << " r_j=" << r_j
-                     << " no_j=" << no_j << " prod_j=" << prod_j;
-
-        // subtract current score contributions
-        l -= lgamma_diff_1p(v[i], prod_i) - v[i] * log(1 + no_i);
-        l -= lgamma_diff_1p(v[j], prod_j) - v[j] * log(1 + no_j);
-
-        // add proposed score contributions
-        l += lgamma_diff_1p(v[i] - n, prod_i) - (v[i] - n) * log(1 + no_i);
-        l += lgamma_diff_1p(v[j] + n, prod_j) - (v[j] + n) * log(1 + no_j);
-
-        return l;
-      };
-
-      // TODO use full-conditional expected counts instead of one sample
-
-      // sample x_gst for all t
-      vector<double> expected_prob(T, 0);
-      double z = 0;
-      for (size_t t = 0; t < T; ++t)
-        z += expected_prob[t] = beta(g) * lambda(g, t) * model->gamma(g, t)
-                                / model->negodds_rho(g, t) * theta(s, t);
-      for (size_t t = 0; t < T; ++t)
-        expected_prob[t] /= z;
-      auto icnts = sample_multinomial(counts(g, s), begin(expected_prob),
-                                      end(expected_prob), rng);
-      for (size_t t = 0; t < T; ++t)
-        // cnts(t) = icnts(t);
-        // TODO deactivate or change back
-        cnts[t] = counts(g, s) * expected_prob[t];
-
-      if (false and T > 1) {
-        // perform several Metropolis-Hastings steps
-        const size_t initial = 100;
-        int n_iter = initial;
-        while (n_iter--) {
-          // modify
-          size_t i = uniform_int_distribution<size_t>(0, T - 1)(rng);
-          while (cnts[i] == 0)
-            i = uniform_int_distribution<size_t>(0, T - 1)(rng);
-          size_t j = uniform_int_distribution<size_t>(0, T - 1)(rng);
-          while (i == j)
-            j = uniform_int_distribution<size_t>(0, T - 1)(rng);
-          size_t n = uniform_int_distribution<size_t>(1, cnts[i])(rng);
-
-          // calculate score difference
-          double l = log_posterior_difference(cnts, i, j, n);
-          if (l > 0 or (isfinite(l)
-                        and log(RandomDistribution::Uniform(rng))
-                                    * parameters.temperature
-                                <= l)) {
-            // accept the candidate
-            cnts[i] -= n;
-            cnts[j] += n;
-          }
-        }
-      }
-    }
-  }
-  */
-
+  throw std::runtime_error("Error: this point should not be reached.");
   return cnts;
-}
-
-void Experiment::enforce_positive_parameters() {
-  enforce_positive_and_warn("local field", field);
-}
-
-/** Calculate log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior() const {
-  Matrix fit = Matrix::Zero(S, T);
-  /* TODO cov theta
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t) {
-      double prod = model->mix_prior.r(t) * field(s, t);
-      fit(s, t) = (prod - 1) * log(theta(s, t))
-                  - model->mix_prior.p(t) * theta(s, t) - lgamma(prod)
-                  + log(model->mix_prior.p(t)) * prod;
-    }
-  */
-  return fit;
-}
-
-/** Calculate gradient of log posterior of theta with respect to the field */
-Matrix Experiment::field_fitness_posterior_gradient() const {
-  Matrix grad = Matrix::Zero(S, T);
-  /* TODO cov theta
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t s = 0; s < S; ++s)
-    for (size_t t = 0; t < T; ++t)
-      grad(s, t) = model->mix_prior.r(t)
-                   * (log(theta(s, t)) + log(model->mix_prior.p(t))
-                      - digamma(model->mix_prior.r(t) * field(s, t)));
-  */
-  return grad;
 }
 
 // NOTE: scalar covariates are multiplied into this table
@@ -689,27 +473,6 @@ Matrix Experiment::expected_spot_type() const {
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];
   return expected;
-}
-
-size_t Experiment::size() const {
-  size_t s = 0;
-  if (parameters.targeted(Target::field))
-    s += field.size();
-  return s;
-}
-
-void Experiment::setZero() { field.setZero(); }
-
-Vector Experiment::vectorize() const {
-  Vector v(size());
-  auto iter = begin(v);
-  if (parameters.targeted(Target::field))
-    for (auto &x : field)
-      *iter++ = x;
-
-  assert(iter == end(v));
-
-  return v;
 }
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {
