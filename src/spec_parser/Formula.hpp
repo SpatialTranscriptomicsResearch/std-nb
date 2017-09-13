@@ -4,14 +4,15 @@
 #include <string>
 #include <unordered_set>
 
-// TODO: Look into creating a better hash function
+#include <boost/functional/hash.hpp>
+
 namespace std {
 template <typename T>
 struct hash<unordered_set<T>> {
   size_t operator()(const unordered_set<T>& xs) const {
     size_t h = 0;
     for (auto& x : xs) {
-      h ^= hash<T>()(x);
+      boost::hash_combine(h, boost::hash_value(x));
     }
     return h;
   }
