@@ -10,8 +10,11 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
 ADD_LIBRARY(transcriptomedeconvolution_parser SHARED
+  Distribution.cpp
   Driver.cpp
   Formula.cpp
+  RandomVariable.cpp
+  RegressionEquation.cpp
   lex.yy.cc
   parser.tab.cpp
   )

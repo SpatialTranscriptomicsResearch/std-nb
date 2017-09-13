@@ -18,20 +18,10 @@ struct RandomVariable {
 
   Distribution distribution;
 
-  RandomVariable() = default;
-  RandomVariable(std::string _id, std::set<std::string> _covariates)
-      : covariates(_covariates)
-      , id(_id)
-  {
-  }
+  RandomVariable();
+  RandomVariable(std::string id, std::set<std::string> covariates);
 
-  std::string full_id() const
-  {
-    return id + "(" +
-      intercalate<std::set<std::string>::iterator, std::string>(
-          covariates.begin(), covariates.end(), ",")
-      + ")";
-  }
+  std::string full_id() const;
 };
 
 } // namespace spec_parser

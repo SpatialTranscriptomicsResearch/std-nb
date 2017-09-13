@@ -9,17 +9,10 @@ namespace spec_parser {
 struct RegressionEquation {
   std::vector<std::string> variables;
 
-  RegressionEquation() = default;
-  RegressionEquation(const std::string& s) : variables({s}) {}
+  RegressionEquation();
+  RegressionEquation(const std::string& s);
 
-  RegressionEquation operator*(const RegressionEquation& other) {
-    RegressionEquation ret;
-    ret.variables = variables;
-    for (auto& var : other.variables) {
-      ret.variables.push_back(var);
-    }
-    return ret;
-  }
+  RegressionEquation operator*(const RegressionEquation& other) const;
 };
 
 } // namespace spec_parser
