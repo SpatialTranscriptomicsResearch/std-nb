@@ -11,7 +11,6 @@
 {
 #include <memory>
 #include <string>
-#include <iostream>
 #include <set>
 
 #include "spec_parser/Distribution.hpp"
