@@ -19,3 +19,5 @@ TARGET_INCLUDE_DIRECTORIES(parser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
 # Needed for aux.hpp and coefficient.hpp, which don't get installed anywhere.
 TARGET_INCLUDE_DIRECTORIES(parser PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/..)
+
+INSTALL(TARGETS parser DESTINATION lib)
