@@ -4,6 +4,7 @@
 #include <sstream>
 
 #include "parser.tab.hpp"
+#include "spec_parser/RandomVariable.hpp"
 
 using namespace spec_parser;
 
@@ -36,4 +37,20 @@ void Driver::add_formula(const std::string& id, const Formula& formula)
     req.variables.push_back(rv.full_id());
   }
   regression_equations[id] = req;
+}
+
+RegressionEquation* Driver::get_equation(const std::string& id) {
+  return &regression_equations[id];
+}
+
+RandomVariable* Driver::get_variable(
+    const std::string& id, std::set<std::string> covariates)
+{
+  auto variable = RandomVariable(id, covariates);
+  auto it = random_variables.find(variable.full_id());
+  if (it != random_variables.end()) {
+    return &(it->second);
+  }
+  random_variables[variable.full_id()] = variable;
+  return &random_variables[variable.full_id()];
 }

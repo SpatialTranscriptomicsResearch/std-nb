@@ -66,7 +66,7 @@ class Driver;
 %type <std::vector<std::string>> distr_args;
 
 %type <std::string> regressand;
-%type <spec_parser::RandomVariable> regressor;
+%type <spec_parser::RandomVariable*> regressor;
 
 %type <spec_parser::Formula> formula_expr;
 
@@ -104,14 +104,14 @@ covariates: %empty { $$ = std::set<std::string> {}; }
 
 covariate: "identifier" { $$ = $1; };
 
-regression_eq: regressand "=" regression_expr { driver.regression_equations[$1] = $3; }
+regression_eq: regressand "=" regression_expr { *driver.get_equation($1) = $3; }
 
-regression_expr: regressor { $$ = spec_parser::RegressionEquation($1.full_id()); }
+regression_expr: regressor { $$ = spec_parser::RegressionEquation($1->full_id()); }
                | regression_expr "*" regression_expr { $$ = $1 * $3; };
 
-regressor: "identifier" "(" covariates ")" { $$ = spec_parser::RandomVariable($1, $3); };
+regressor: "identifier" "(" covariates ")" { $$ = driver.get_variable($1, $3); }
 
-distr_spec: regressor "~" distr { $1.distribution = $3; driver.random_variables[$1.full_id()] = $1; };
+distr_spec: regressor "~" distr { $1->set_distribution($3); };
 
 /* TODO: perhaps introduce special tokens for distribution names */
 distr: "identifier" "(" distr_args ")" { $$ = spec_parser::Distribution($1, $3); }
@@ -121,7 +121,7 @@ distr_args: %empty { $$ = std::vector<std::string> {}; }
           | distr_args "," distr_arg { $$ = $1; $$.push_back($3); };
 
 distr_arg: "numeric" { $$ = $1; }
-         | regressor { $$ = $1.full_id(); };
+         | regressor { $$ = $1->full_id(); };
 %%
 
 void yy::parser::error (const location_type& l, const std::string& m)

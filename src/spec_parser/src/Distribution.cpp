@@ -42,8 +42,13 @@ Distribution::Distribution()
 {
 }
 Distribution::Distribution(
-    const std::string& _type, const std::vector<std::string> _arguments)
-    : type(stodistr(_type))
+    Type _type, const std::vector<std::string> _arguments)
+    : type(_type)
     , arguments(_arguments)
+{
+}
+Distribution::Distribution(
+    const std::string& _type, const std::vector<std::string> _arguments)
+    : Distribution(stodistr(_type), _arguments)
 {
 }

@@ -19,6 +19,7 @@ struct Distribution {
   std::vector<std::string> arguments;
 
   Distribution();
+  Distribution(Type type, const std::vector<std::string> arguments);
   Distribution(const std::string& type, const std::vector<std::string> arguments);
 };
 

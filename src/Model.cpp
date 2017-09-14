@@ -1,6 +1,7 @@
 #include "Model.hpp"
 
 #include <map>
+#include <memory>
 #include <unordered_set>
 
 #include <LBFGS.h>
@@ -66,6 +67,21 @@ static CovariateInformation get_covariate_info(
   return CovariateInformation { cov_idxs, cov_vals };
 }
 
+// Removes trailing zeros in a numeric string's decimals.
+static string remove_trailing_zeros(const string& str) {
+  if (str.find('.') == string::npos) {
+    return str;
+  }
+  auto pos = str.end();
+  while (*(--pos) != '.') {
+    if (*pos != '0') {
+      pos += 1;
+      break;
+    }
+  }
+  return string(str.begin(), pos);
+}
+
 size_t Model::register_coefficient(
     const unordered_map<string, RandomVariable>& variable_map,
     Coefficient::Variable variable_type,
@@ -117,18 +133,38 @@ size_t Model::register_coefficient(
 
     auto info = get_covariate_info(design, variable.covariates, experiment);
     auto kind = determine_kind(variable.covariates);
+
+    if (variable.distribution == nullptr) {
+      auto dist = choose_distribution(
+            variable_type,
+            kind,
+            parameters.distribution_mode,
+            parameters.gp.use
+            );
+      LOG(verbose) << id
+                   << " does not have a distribution specification. Using "
+                   << to_string(dist) << " as per defaults.";
+      variable.distribution = make_shared<Distribution>(dist,
+          vector<string> {
+              remove_trailing_zeros(to_string(
+                    parameters.hyperparameters.get_param(dist, 0))),
+              remove_trailing_zeros(to_string(
+                    parameters.hyperparameters.get_param(dist, 1))),
+          });
+    }
+
     Coefficient::Id cid{
       .name = id,
       .type = variable_type,
       .kind = kind,
-      .dist = variable.distribution.type,
+      .dist = variable.distribution->type,
       .info = info,
     };
 
     size_t idx = do_registration(
         cid, G, T, experiments[experiment].S, [&](size_t _idx) {
           size_t i = 1;
-          for (auto& prior : variable.distribution.arguments) {
+          for (auto& prior : variable.distribution->arguments) {
             size_t prior_idx = register_coefficient(
                 variable_map, variable_type, prior, experiment);
             coeffs[_idx].prior_idxs.push_back(prior_idx);
@@ -137,7 +173,7 @@ size_t Model::register_coefficient(
           }
         });
 
-    if (variable.distribution.type == Coefficient::Distribution::log_gp) {
+    if (variable.distribution->type == Coefficient::Distribution::log_gp) {
       auto gp_kind = kind & ~Coefficient::Kind::spot;
 
       // Create or update coordinate system
