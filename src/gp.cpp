@@ -129,7 +129,7 @@ Vector predict_means_and_vars(const vector<const GaussianProcess *> &gps,
                               const vector<double> &delta,
                               MeanTreatment mean_treatment, vector<Matrix> &mus,
                               vector<Matrix> &vars, Vector &grad_delta) {
-  LOG(debug) << "TOP predict_means_and_vars(gps.size()=" << gps.size()
+  LOG(trace) << "TOP predict_means_and_vars(gps.size()=" << gps.size()
              << ", ys.size()=" << ys.size() << ", delta.size()=" << delta.size()
              << ", mus.size=" << mus.size() << ", vars.size=" << vars.size()
              << ", grad_delta.size()=" << grad_delta.size() << ")";
@@ -157,7 +157,7 @@ double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
                               const vector<Vector> &ys, double delta,
                               MeanTreatment mean_treatment, vector<Vector> &mus,
                               vector<Vector> &vars, double &grad_delta) {
-  LOG(debug) << "SUB predict_means_and_vars(gps.size()=" << gps.size()
+  LOG(trace) << "SUB predict_means_and_vars(gps.size()=" << gps.size()
              << ", ys.size()=" << ys.size() << ", delta=" << delta
              << ", mus.size=" << mus.size() << ", vars.size=" << vars.size()
              << ", grad_delta=" << grad_delta << ")";
@@ -192,7 +192,7 @@ double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
 
   if (sv > 0) {
     for (size_t idx = 0; idx < num_gp; ++idx) {
-      LOG(debug) << "Doing coordinate system " << idx;
+      LOG(trace) << "Doing coordinate system " << idx;
       Matrix inverse = gps[idx]->inverse_covariance(sv, delta);
 
       Vector y_minus_mean = ys[idx].array() - means[idx];

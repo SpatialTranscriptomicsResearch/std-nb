@@ -1,9 +1,9 @@
-This is code to perform Monte-Carlo Markov Chain (MCMC) inference for the
+This is code to perform probabilistic inference for the
 Spatial Transcriptome Deconvolution model.
 
 In order to compile it, you need two libraries:
 * [Boost](http://www.boost.org/), version 1.58.0 or newer
-* [Armadillo](http://arma.sourceforge.net/), version 6.400 or newer
+* [Eigen](http://eigen.tuxfamily.org/), version 3
 
 Compiling
 =========
@@ -12,9 +12,8 @@ Note that ```<INSTALL_PREFIX>``` is a path below which the program will be insta
 This could be e.g. ```$HOME/local``` to install into a user-local prefix.
 
 ```sh
-mkdir build
 cd build
-cmake .. -DCMAKE_INSTALL_PREFIX=<INSTALL_PREFIX>
+./gen_build.sh -DCMAKE_INSTALL_PREFIX=<INSTALL_PREFIX>
 make
 make install
 ```
