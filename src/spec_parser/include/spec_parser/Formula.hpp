@@ -6,10 +6,28 @@
 
 #include <boost/functional/hash.hpp>
 
+namespace spec_parser {
+
+struct NonPositiveExponent : public std::invalid_argument {
+  NonPositiveExponent()
+      : invalid_argument("Error: exponent must be greater than 1.")
+  {
+  }
+};
+
+struct FormulaTerm : public std::unordered_set<std::string> {
+  FormulaTerm();
+  FormulaTerm(std::initializer_list<std::string> init);
+};
+
+} // must do hash specialization of FormulaTerm outside of the spec_parser
+  // namespace and before the declaration of FormulaTerms, as its declaration
+  // (implicitly) instantiates FormulaTerm.
+
 namespace std {
-template <typename T>
-struct hash<unordered_set<T>> {
-  size_t operator()(const unordered_set<T>& xs) const {
+template <>
+struct hash<spec_parser::FormulaTerm> {
+  size_t operator()(const spec_parser::FormulaTerm& xs) const {
     size_t h = 0;
     for (auto& x : xs) {
       boost::hash_combine(h, boost::hash_value(x));
@@ -21,20 +39,18 @@ struct hash<unordered_set<T>> {
 
 namespace spec_parser {
 
-struct NonPositiveExponent : public std::invalid_argument {
-  NonPositiveExponent()
-      : invalid_argument("Error: exponent must be greater than 1.")
-  {
-  }
+struct FormulaTerms : public std::unordered_set<FormulaTerm> {
+  FormulaTerms(std::initializer_list<FormulaTerm> init);
 };
 
 struct Formula {
-  using Term = std::unordered_set<std::string>;
-  using Terms = std::unordered_set<Term>;
+  using Term = FormulaTerm;
+  using Terms = FormulaTerms;
+
   Terms terms;
 
-  Formula() = default;
-  Formula(const std::string& covariate);
+  Formula();
+  Formula(std::initializer_list<Term> terms);
 
   Formula add(const Formula& other) const;
   Formula interact(const Formula& other) const;

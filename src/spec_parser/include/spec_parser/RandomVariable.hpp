@@ -4,7 +4,6 @@
 #include <memory>
 #include <set>
 #include <string>
-#include <unordered_map>
 #include <vector>
 
 #include "aux.hpp"
@@ -16,10 +15,12 @@ struct RandomVariable {
   std::set<std::string> covariates;
   std::string id;
 
-  Distribution distribution;
+  std::shared_ptr<Distribution> distribution;
 
   RandomVariable();
-  RandomVariable(std::string id, std::set<std::string> covariates);
+  RandomVariable(const std::string& id, std::set<std::string> covariates);
+
+  void set_distribution(const Distribution& distribution);
 
   std::string full_id() const;
 };

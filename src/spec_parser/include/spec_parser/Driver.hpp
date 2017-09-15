@@ -2,6 +2,7 @@
 #define DRIVER_HH
 
 #include <unordered_map>
+#include <set>
 #include <string>
 
 #include "spec_parser/Formula.hpp"
@@ -38,6 +39,10 @@ class Driver {
   virtual ~Driver();
 
   void add_formula(const std::string& id, const Formula& formula);
+
+  RegressionEquation* get_equation(const std::string& id);
+  RandomVariable* get_variable(
+      const std::string& id, std::set<std::string> covariates);
 
   int parse(const std::string& s);
   yy::location& location() const;
