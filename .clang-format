@@ -1,0 +1,8 @@
+BasedOnStyle : google
+AccessModifierOffset : -2
+AlignTrailingComments : true
+AllowShortIfStatementsOnASingleLine : false
+AllowShortLoopsOnASingleLine : false
+BreakBeforeBinaryOperators : true
+AlwaysBreakTemplateDeclarations : true
+Standard : C++11
