@@ -2,10 +2,28 @@
 
 #include <exception>
 
+#include "parser.tab.hpp"
+
 using namespace spec_parser;
 
-Formula::Formula(const std::string& covariate)
-    : terms{ { covariate } }
+FormulaTerm::FormulaTerm()
+    : FormulaTerm(std::initializer_list<std::string>{})
+{
+}
+FormulaTerm::FormulaTerm(std::initializer_list<std::string> init)
+    : unordered_set(init)
+{
+  insert(unit_covariate);
+}
+
+FormulaTerms::FormulaTerms(std::initializer_list<FormulaTerm> init)
+    : unordered_set(init)
+{
+}
+
+Formula::Formula() : terms{} {};
+Formula::Formula(std::initializer_list<Term> _terms)
+    : terms(_terms)
 {
 }
 

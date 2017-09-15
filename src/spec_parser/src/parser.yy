@@ -19,8 +19,13 @@
 #include "spec_parser/RandomVariable.hpp"
 
 namespace spec_parser {
+
+constexpr char unit_covariate[] = "1";
+
 class Driver;
-}
+
+} // namespace_spec_parser
+
 }
 
 // The parsing context.
@@ -34,6 +39,16 @@ class Driver;
 %code
 {
 #include "spec_parser/Driver.hpp"
+
+static void assert_unit(const std::string& str) {
+  if (str != spec_parser::unit_covariate) {
+    std::stringstream error_msg;
+    error_msg << "Covariates must either be the unit covariate "
+              << "(" << spec_parser::unit_covariate << ")"
+              << " or non-numeric.";
+    throw std::invalid_argument(error_msg.str());
+  }
+}
 }
 
 %define api.token.prefix {TOK_}
@@ -89,7 +104,8 @@ regression_formula: regressand ":=" formula_expr { driver.add_formula($1, $3); }
 
 regressand: "identifier" { $$ = $1; };
 
-formula_expr: covariate { $$ = spec_parser::Formula($1); }
+formula_expr: covariate { $$ = spec_parser::Formula{ { $1 } }; }
+            | "numeric" { assert_unit($1); $$ = spec_parser::Formula{ { } }; }
             | "(" formula_expr ")" { $$ = $2; }
             | formula_expr "+" formula_expr { $$ = $1.add($3); }
             | formula_expr "-" formula_expr { $$ = $1.subtract($3); }
