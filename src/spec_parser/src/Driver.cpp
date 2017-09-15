@@ -54,10 +54,13 @@ RandomVariable* Driver::get_variable(
     }
   }
   auto variable = RandomVariable(id, covariates);
-  auto it = random_variables.find(variable.full_id());
-  if (it != random_variables.end()) {
-    return &(it->second);
+  auto full_id = variable.full_id();
+  { // check if variable already exists
+    auto it = random_variables.find(full_id);
+    if (it != random_variables.end()) {
+      return &(it->second);
+    }
   }
-  random_variables[variable.full_id()] = variable;
-  return &random_variables[variable.full_id()];
+  auto res = random_variables.emplace(full_id, std::move(variable));
+  return &(res.first->second);
 }
