@@ -1,9 +1,10 @@
 This is code to perform probabilistic inference for the
 Spatial Transcriptome Deconvolution model.
 
-In order to compile it, you need two libraries:
+In order to compile it, you need the following libraries:
 * [Boost](http://www.boost.org/), version 1.58.0 or newer
 * [Eigen](http://eigen.tuxfamily.org/), version 3
+* [LBFGSpp] (https://github.com/yixuan/LBFGSpp)
 
 Compiling
 =========
