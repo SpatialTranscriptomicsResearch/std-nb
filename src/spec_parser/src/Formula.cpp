@@ -38,11 +38,11 @@ Formula Formula::interact(const Formula& other) const
 {
   Formula ret;
   for (auto& x : terms) {
-    Term term = x;
     for (auto& y : other.terms) {
+      Term term = x;
       term.insert(y.begin(), y.end());
+      ret.terms.insert(term);
     }
-    ret.terms.insert(term);
   }
   return ret;
 }
