@@ -138,8 +138,7 @@ size_t Model::register_coefficient(
       auto dist = choose_distribution(
             variable_type,
             kind,
-            parameters.distribution_mode,
-            parameters.gp.use
+            parameters.distribution_mode
             );
       LOG(verbose) << id
                    << " does not have a distribution specification. Using "

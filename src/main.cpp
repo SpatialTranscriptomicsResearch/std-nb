@@ -90,7 +90,6 @@ int main(int argc, char **argv) {
   po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
   po::options_description lbfgs_options("lBFGS options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
-  po::options_description inference_options("MCMC inference options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
 
   required_options.add_options()
@@ -130,14 +129,10 @@ int main(int argc, char **argv) {
      "Count matrices have spots in columns and genes in columns. Default is genes in rows and spots in columns.");
 
   gaussian_process_options.add_options()
-    ("gp", po::bool_switch(&parameters.gp.use),
-     "Model spatial factor activities as a Gaussian process.")
     ("gp_iter", po::value(&parameters.gp.first_iteration)->default_value(parameters.gp.first_iteration),
      "In which iteration to start using the Gaussian process prior.")
     ("gp_length", po::value(&parameters.gp.length_scale)->default_value(parameters.gp.length_scale),
      "Length scale to use for Gaussian process.")
-    ("gp_var_spatial", po::value(&parameters.gp.spatial_variance)->default_value(parameters.gp.spatial_variance),
-     "Spatial variance to use for Gaussian process.")
     ("gp_var_indep", po::value(&parameters.gp.independent_variance)->default_value(parameters.gp.independent_variance),
      "Independent variance to use for Gaussian process.");
 
@@ -196,43 +191,17 @@ int main(int argc, char **argv) {
 
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
-     "Prior 1 of gamma.")
+     "Default value for the 1st argument of gamma distributions.")
     ("gamma_2", po::value(&parameters.hyperparameters.gamma_2)->default_value(parameters.hyperparameters.gamma_2),
-     "Prior 2 of gamma.")
-    ("lambda_1", po::value(&parameters.hyperparameters.lambda_1)->default_value(parameters.hyperparameters.lambda_1),
-     "Prior 1 of lambda.")
-    ("lambda_2", po::value(&parameters.hyperparameters.lambda_2)->default_value(parameters.hyperparameters.lambda_2),
-     "Prior 2 of lambda.")
-    ("rho_1", po::value(&parameters.hyperparameters.rho_1)->default_value(parameters.hyperparameters.rho_1),
-     "Prior 1 of rho.")
-    ("rho_2", po::value(&parameters.hyperparameters.rho_2)->default_value(parameters.hyperparameters.rho_2),
-     "Prior 2 of rho.")
-    ("theta_r_1", po::value(&parameters.hyperparameters.theta_r_1)->default_value(parameters.hyperparameters.theta_r_1),
-     "Gamma prior 1 of r[t].")
-    ("theta_r_2", po::value(&parameters.hyperparameters.theta_r_2)->default_value(parameters.hyperparameters.theta_r_2),
-     "Gamma prior 2 of r[t].")
-    ("theta_p_1", po::value(&parameters.hyperparameters.theta_p_1)->default_value(parameters.hyperparameters.theta_p_1, to_string(round(parameters.hyperparameters.theta_p_1 * 100) / 100)),
-     "Beta prior 1 of p[t].")
-    ("theta_p_2", po::value(&parameters.hyperparameters.theta_p_2)->default_value(parameters.hyperparameters.theta_p_2, to_string(round(parameters.hyperparameters.theta_p_2 * 100) / 100)),
-     "Beta prior 2 of p[t].")
-    ("spot_1", po::value(&parameters.hyperparameters.spot_a)->default_value(parameters.hyperparameters.spot_a),
-     "Gamma prior 1 of the spot scaling parameter.")
-    ("spot_2", po::value(&parameters.hyperparameters.spot_b)->default_value(parameters.hyperparameters.spot_b),
-     "Gamma prior 2 of the spot scaling parameter.")
-    ("bline1", po::value(&parameters.hyperparameters.beta_1)->default_value(parameters.hyperparameters.beta_1),
-     "First prior for the baseline features.")
-    ("bline2", po::value(&parameters.hyperparameters.beta_2)->default_value(parameters.hyperparameters.beta_2),
-     "Second prior for the baseline features.")
-    ("normal_1", po::value(&parameters.hyperparameters.normal_1)->default_value(parameters.hyperparameters.normal_1),
-     "Exponential of the mean of log normal distributions.")
-    ("normalrho_2", po::value(&parameters.hyperparameters.normal_2)->default_value(parameters.hyperparameters.normal_2),
-     "Variance of the log normal distribution.");
-
-  inference_options.add_options()
-    ("MHiter", po::value(&parameters.n_iter)->default_value(parameters.n_iter),
-     "Maximal number of propositions for Metropolis-Hastings sampling of r")
-    ("MHtemp", po::value(&parameters.temperature)->default_value(parameters.temperature),
-     "Temperature for Metropolis-Hastings sampling of R.");
+     "Default value for the 2nd argument of gamma distributions.")
+    ("beta_prime_1", po::value(&parameters.hyperparameters.beta_prime_1)->default_value(parameters.hyperparameters.beta_prime_1),
+     "Default value for the 1st argument of beta prime distributions.")
+    ("beta_prime_2", po::value(&parameters.hyperparameters.beta_prime_2)->default_value(parameters.hyperparameters.beta_prime_2),
+     "Default value for the 2nd argument of beta prime distributions.")
+    ("log_normal_1", po::value(&parameters.hyperparameters.log_normal_1)->default_value(parameters.hyperparameters.log_normal_1),
+     "Default value for the exponential of the mean of log normal distributions.")
+    ("log_normalrho_2", po::value(&parameters.hyperparameters.log_normal_2)->default_value(parameters.hyperparameters.log_normal_2),
+     "Default value for the variance of log normal distribution.");
 
   cli_options.add(generic_options)
       .add(required_options)
@@ -243,7 +212,6 @@ int main(int argc, char **argv) {
       .add(lbfgs_options)
       .add(rprop_options)
       .add(hmc_options)
-      .add(inference_options)
       .add(hyperparameter_options);
 
   po::positional_options_description positional_options;
@@ -315,9 +283,7 @@ int main(int argc, char **argv) {
       = load_data(paths, options.intersect, options.top, options.bottom,
                   not options.keep_empty, options.transpose);
 
-  LOG(verbose) << "gp = " << parameters.gp.use;
   LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;
-  LOG(verbose) << "gp.spatial_variance = " << parameters.gp.spatial_variance;
   LOG(verbose) << "gp.indep_variance = " << parameters.gp.independent_variance;
 
   try {

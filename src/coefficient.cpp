@@ -63,12 +63,7 @@ std::istream &operator>>(std::istream &is, DistributionMode &mode) {
 
 Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
                                               Coefficient::Kind kind,
-                                              DistributionMode mode,
-                                              bool use_gp) {
-  if (use_gp and variable == Coefficient::Variable::rate
-      and (kind == Coefficient::Kind::spot_type
-           or kind == Coefficient::Kind::spot))
-    return Coefficient::Distribution::log_gp;
+                                              DistributionMode mode) {
   switch (mode) {
     case DistributionMode::log_normal:
       return Coefficient::Distribution::log_normal;

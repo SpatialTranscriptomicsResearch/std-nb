@@ -171,6 +171,5 @@ inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
 
 Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
                                               Coefficient::Kind kind,
-                                              DistributionMode mode,
-                                              bool use_gp);
+                                              DistributionMode mode);
 #endif
