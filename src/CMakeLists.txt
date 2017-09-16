@@ -57,7 +57,6 @@ TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   ${Boost_IOSTREAMS_LIBRARY}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_DATE_TIME_LIBRARY}
-  ${ARMADILLO_LIBRARIES}
   )
 
 TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)
