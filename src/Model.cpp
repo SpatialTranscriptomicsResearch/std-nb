@@ -604,16 +604,21 @@ Model Model::compute_gradient(double &score) const {
         for (size_t s = 0; s < experiments[e].S; ++s)
           if (RandomDistribution::Uniform(rng)
               >= parameters.dropout_gene_spot) {
-            auto cnts = experiments[e].sample_contributions_gene_spot(
-                g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
-            for (size_t t = 0; t < T; ++t) {
-              double r = rate_gt[e](g, t) * rate_st[e](s, t);
-              double odds = odds_gt[e](g, t) * odds_st[e](s, t);
-              double p = odds_to_prob(odds);
-              score_ += log_negative_binomial(cnts[t], r, p);
+            if (experiments[e].counts(g, s) == 0) {
+              register_gradient_zero_count(g, e, s, grad, rate_gt[e],
+                                           rate_st[e], odds_gt[e], odds_st[e]);
+            } else {
+              auto cnts = experiments[e].sample_contributions_gene_spot(
+                  g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
+              for (size_t t = 0; t < T; ++t) {
+                double r = rate_gt[e](g, t) * rate_st[e](s, t);
+                double odds = odds_gt[e](g, t) * odds_st[e](s, t);
+                double p = odds_to_prob(odds);
+                score_ += log_negative_binomial(cnts[t], r, p);
+              }
+              register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
+                                odds_gt[e], odds_st[e]);
             }
-            register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
-                              odds_gt[e], odds_st[e]);
           }
 
 #pragma omp critical
@@ -651,6 +656,27 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 
     const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
     const double odds_term = k - p * (r + k);
+
+    for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
+      gradient.coeffs[idx].get(g, t, s) += rate_term;
+    for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
+      gradient.coeffs[idx].get(g, t, s) += odds_term;
+  }
+}
+
+void Model::register_gradient_zero_count(size_t g, size_t e, size_t s,
+                                         Model &gradient, const Matrix &rate_gt,
+                                         const Matrix &rate_st,
+                                         const Matrix &odds_gt,
+                                         const Matrix &odds_st) const {
+  for (size_t t = 0; t < T; ++t) {
+    const double r = rate_gt(g, t) * rate_st(s, t);
+    const double odds = odds_gt(g, t) * odds_st(s, t);
+    const double p = odds_to_prob(odds);
+    const double log_one_minus_p = neg_odds_to_log_prob(odds);
+
+    const double rate_term = r * log_one_minus_p;
+    const double odds_term = -p * r;
 
     for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
       gradient.coeffs[idx].get(g, t, s) += rate_term;

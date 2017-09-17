@@ -63,6 +63,12 @@ struct Model {
                          Model &gradient, const Matrix &rate_gt,
                          const Matrix &rate_st, const Matrix &odds_gt,
                          const Matrix &odds_st) const;
+  void register_gradient_zero_count(size_t g, size_t e, size_t s,
+                                    Model &gradient, const Matrix &rate_gt,
+                                    const Matrix &rate_st,
+                                    const Matrix &odds_gt,
+                                    const Matrix &odds_st) const;
+
   void coeff_debug_dump(const std::string &tag) const;
   double param_likel() const;
 
