@@ -1,5 +1,5 @@
 find_package(FLEX)
-find_package(BISON)
+find_package(BISON 3.0.4)
 
 FLEX_TARGET(Lexer src/scanner.ll ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc)
 BISON_TARGET(Parser src/parser.yy ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp)
