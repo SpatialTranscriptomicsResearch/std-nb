@@ -4,6 +4,7 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -march=native)
 # Make it possible to #include generated header files for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
 
+ADD_SUBDIRECTORY(spec_generator)
 ADD_SUBDIRECTORY(spec_parser)
 
 ADD_LIBRARY(transcriptomedeconvolution SHARED
