@@ -25,6 +25,8 @@ struct RandomVariable {
   std::string full_id() const;
 };
 
+std::string to_string(const RandomVariable& rv);
+
 } // namespace spec_parser
 
 #endif // RANDOMVARIABLE_HPP

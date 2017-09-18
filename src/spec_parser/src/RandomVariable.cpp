@@ -22,3 +22,19 @@ std::string RandomVariable::full_id() const
                         covariates.begin(), covariates.end(), ",")
       + ")";
 }
+
+std::string spec_parser::to_string(const RandomVariable& rv) {
+  std::string distr_spec;
+  if (rv.distribution != nullptr) {
+    auto distr_name
+        = Distribution::distrtos(rv.distribution->type);
+    auto args
+        = intercalate<std::vector<std::string>::const_iterator, std::string>(
+            rv.distribution->arguments.begin(),
+            rv.distribution->arguments.end(), ",");
+    distr_spec = distr_name + "(" + args + ")";
+  } else {
+    distr_spec = "unspecified";
+  }
+  return rv.full_id() + "~" + distr_spec;
+}

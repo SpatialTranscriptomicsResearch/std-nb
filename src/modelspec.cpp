@@ -76,17 +76,7 @@ void log(const std::function<void(const std::string& s)> log_func,
   std::map<std::string, spec_parser::RandomVariable> sorted_variables(
       model_spec.variables.begin(), model_spec.variables.end());
   for (auto &x : sorted_variables) {
-    std::string distr_spec;
-    if (x.second.distribution != nullptr) {
-      auto distr_name = spec_parser::Distribution::distrtos(x.second.distribution->type);
-      auto args = intercalate<std::vector<std::string>::const_iterator, std::string>(
-          x.second.distribution->arguments.begin(),
-          x.second.distribution->arguments.end(), ",");
-      distr_spec = distr_name + "(" + args + ")";
-    } else {
-      distr_spec = "default";
-    }
-    log_func(x.first + "~" + distr_spec);
+    log_func(to_string(x.second));
   }
 
   log_func("<<<");
