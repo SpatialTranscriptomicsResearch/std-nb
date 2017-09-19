@@ -42,9 +42,8 @@ CovariateInformation drop_covariates(
 
 std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
   return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
-    return coeff.label == cid.name and coeff.variable == cid.type
-           and coeff.kind == cid.kind and coeff.distribution == cid.dist
-           and coeff.info == cid.info;
+    return coeff.label == cid.name and coeff.kind == cid.kind
+           and coeff.distribution == cid.dist and coeff.info == cid.info;
   });
 }
 
@@ -84,7 +83,6 @@ static string remove_trailing_zeros(const string& str) {
 
 size_t Model::register_coefficient(
     const unordered_map<string, RandomVariable>& variable_map,
-    Coefficient::Variable variable_type,
     string id,
     size_t experiment)
 {
@@ -115,7 +113,6 @@ size_t Model::register_coefficient(
   auto register_fixed = [&](double value) {
     Coefficient::Id cid{
       .name = id,
-      .type = variable_type,
       .kind = Coefficient::Kind::scalar,
       .dist = Coefficient::Distribution::fixed,
       .info = CovariateInformation{},
@@ -135,11 +132,7 @@ size_t Model::register_coefficient(
     auto kind = determine_kind(variable.covariates);
 
     if (variable.distribution == nullptr) {
-      auto dist = choose_distribution(
-            variable_type,
-            kind,
-            parameters.distribution_mode
-            );
+      auto dist = Coefficient::Distribution::log_normal;
       LOG(verbose) << id
                    << " does not have a distribution specification. Using "
                    << to_string(dist) << " as per defaults.";
@@ -154,7 +147,6 @@ size_t Model::register_coefficient(
 
     Coefficient::Id cid{
       .name = id,
-      .type = variable_type,
       .kind = kind,
       .dist = variable.distribution->type,
       .info = info,
@@ -165,7 +157,7 @@ size_t Model::register_coefficient(
           size_t i = 1;
           for (auto& prior : variable.distribution->arguments) {
             size_t prior_idx = register_coefficient(
-                variable_map, variable_type, prior, experiment);
+                variable_map, prior, experiment);
             coeffs[_idx].prior_idxs.push_back(prior_idx);
             LOG(debug) << "Prior " << i++ << " of " << id << " (" << _idx
                        << ") is " << prior << " (" << prior_idx << ").";
@@ -180,7 +172,6 @@ size_t Model::register_coefficient(
           info, design, { DesignNS::spot_label, DesignNS::section_label });
       auto gp_coord_id = Coefficient::Id{
         .name = id + "-gp-coord",
-        .type = variable_type,
         .kind = gp_kind,
         .dist = Coefficient::Distribution::log_gp_coord,
         .info = gp_coord_info,
@@ -200,7 +191,6 @@ size_t Model::register_coefficient(
               DesignNS::coordsys_label });
       auto gp_id = Coefficient::Id{
         .name = id + "-gp-proxy",
-        .type = variable_type,
         .kind = gp_kind,
         .dist = Coefficient::Distribution::log_gp_proxy,
         .info = gp_proxy_info,
@@ -232,16 +222,31 @@ size_t Model::register_coefficient(
 }
 
 void Model::add_covariate_terms(
-    const std::unordered_map<std::string, RandomVariable>& variable_map,
-    Coefficient::Variable variable_type, const std::string& variable_id)
-{
+    const std::unordered_map<std::string, RandomVariable> &variable_map,
+    const std::string &variable_id, std::function<void(Experiment&, size_t)> fnc) {
   for (size_t e = 0; e < E; ++e) {
     LOG(verbose) << "Registering coefficient '" << variable_id
                  << "' for experiment " << e;
-    size_t idx = register_coefficient(variable_map, variable_type, variable_id, e);
+    size_t idx = register_coefficient(variable_map, variable_id, e);
     coeffs[idx].experiment_idxs.push_back(e);
-    experiments[e].coeff_idxs(variable_type).push_back(idx);
+    fnc(experiments[e], idx);
   }
+}
+
+void Model::add_covariates(const ModelSpec& model_spec) {
+  LOG(verbose) << "Adding rate coefficients";
+  for (auto &coefficient : model_spec.rate_coefficients) {
+    add_covariate_terms(
+        model_spec.variables, coefficient,
+        [](Experiment &e, size_t idx) { e.rate_coeff_idxs.push_back(idx); });
+  }
+  LOG(verbose) << "Adding odds coefficients";
+  for (auto &coefficient : model_spec.odds_coefficients) {
+    add_covariate_terms(
+        model_spec.variables, coefficient,
+        [](Experiment &e, size_t idx) { e.odds_coeff_idxs.push_back(idx); });
+  }
+
 }
 
 void Model::add_gp_proxies() {
@@ -278,13 +283,12 @@ void Model::add_gp_proxies() {
 }
 
 Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
-             const ModelSpec& model_spec_, const Parameters &parameters_)
+             const ModelSpec& model_spec, const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
       E(0),
       S(0),
       design(design_),
-      model_spec(model_spec_),
       experiments(),
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
@@ -295,16 +299,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
-  LOG(verbose) << "Adding rate coefficients";
-  for (auto& coefficient : model_spec.rate_coefficients) {
-    add_covariate_terms(
-        model_spec.variables, Coefficient::Variable::rate, coefficient);
-  }
-  LOG(verbose) << "Adding odds coefficients";
-  for (auto& coefficient : model_spec.odds_coefficients) {
-    add_covariate_terms(
-        model_spec.variables, Coefficient::Variable::odds, coefficient);
-  }
+  add_covariates(model_spec);
 
   coeff_debug_dump("INITIAL");
   add_gp_proxies();
@@ -353,29 +348,39 @@ vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
 }
 
 void Model::remove_redundant_terms() {
-  using Variable = Coefficient::Variable;
   using Kind = Coefficient::Kind;
-  for (auto variable : {Variable::rate, Variable::odds})
-    for (auto kind : {Kind::scalar, Kind::gene, Kind::type, Kind::spot,
-                      Kind::gene_type, Kind::spot_type})
-      remove_redundant_terms(variable, kind);
+  for (auto kind : {Kind::scalar, Kind::gene, Kind::type, Kind::spot,
+                    Kind::gene_type, Kind::spot_type})
+    remove_redundant_terms(kind);
 }
 
 // TODO covariates: add redundant term labels
-void Model::remove_redundant_terms(Coefficient::Variable variable,
-                                   Coefficient::Kind kind) {
-  vector<vector<size_t>> cov2groups(coeffs.size());
+void Model::remove_redundant_terms(Coefficient::Kind kind) {
+  vector<vector<size_t>> cov2groups_rate(coeffs.size());
   for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].coeff_idxs(variable))
+    for (auto idx : experiments[e].rate_coeff_idxs)
       if (coeffs[idx].kind == kind)
-        cov2groups[idx].push_back(e);
+        cov2groups_rate[idx].push_back(e);
+  remove_redundant_terms_sub(cov2groups_rate);
+
+  vector<vector<size_t>> cov2groups_odds(coeffs.size());
+  for (size_t e = 0; e < E; ++e)
+    for (auto idx : experiments[e].odds_coeff_idxs)
+      if (coeffs[idx].kind == kind)
+        cov2groups_rate[idx].push_back(e);
+  remove_redundant_terms_sub(cov2groups_odds);
+}
+
+
+void Model::remove_redundant_terms_sub(const vector<vector<size_t>> &cov2groups) {
+  // TODO print warning in case coefficients are used in both rate and odds eqs
   auto redundant = find_redundant(cov2groups);
   sort(begin(redundant), end(redundant));  // needed?
 
   // drop redundant coefficients
   size_t removed = 0;
   for (auto r : redundant) {
-    LOG(debug) << "Removing " << r << ": " << coeffs[r] << ": "
+    LOG(verbose) << "Removing " << r << ": " << coeffs[r - removed] << ": "
                  << coeffs[r - removed].info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r - removed);
     removed++;
@@ -392,13 +397,13 @@ void Model::remove_redundant_terms(Coefficient::Variable variable,
           idx--;
   }
 
-  // fix experiment.coeff_idxs for dropped redundant coefficients
+  // fix experiment.rate_coeff_idxs and experiment.odds_coeff_idxs for dropped redundant coefficients
   for (size_t e = 0; e < E; ++e) {
-    for (auto v : {Coefficient::Variable::rate, Coefficient::Variable::odds}) {
-      auto &idxs = experiments[e].coeff_idxs(v);
+    for (auto idxs :
+         {&experiments[e].rate_coeff_idxs, &experiments[e].odds_coeff_idxs}) {
       for (auto r : redundant)
-        idxs.erase(remove(begin(idxs), end(idxs), r), end(idxs));
-      for (auto &idx : idxs)
+        idxs->erase(remove(begin(*idxs), end(*idxs), r), end(*idxs));
+      for (auto &idx : *idxs)
         for (auto r : redundant)
           if (idx > r)
             idx--;
@@ -450,18 +455,14 @@ void Model::store(const string &prefix_, bool mean_and_var,
 // TODO cov perhaps write out a single file for the scalar covariates
 #pragma omp section
     {
-      map<pair<Coefficient::Variable, Coefficient::Kind>, size_t> kind_counts;
       for (auto &coeff : coeffs) {
-        auto iter = kind_counts.insert({{coeff.variable, coeff.kind}, 0});
         vector<string> spot_names;
         if (coeff.spot_dependent())
           for (auto idx : coeff.experiment_idxs)
             spot_names.insert(begin(spot_names),
                               begin(experiments[idx].counts.col_names),
                               end(experiments[idx].counts.col_names));
-        coeff.store(prefix + "covariate-" + to_string(coeff.variable) + "-"
-                        + to_token(coeff.kind) + "-"
-                        + to_string_embedded(iter.first->second++, 2) + "_"
+        coeff.store(prefix + "covariate-" + coeff.label + "-"
                         + coeff.info.to_string(design.covariates)
                         + FILENAME_ENDING,
                     parameters.compression_mode, gene_names, spot_names,
@@ -503,13 +504,8 @@ void Model::store(const string &prefix_, bool mean_and_var,
 /* TODO covariates enable loading of subsets of covariates */
 void Model::restore(const string &prefix) {
   {
-    map<Coefficient::Kind, size_t> kind_counts;
     for (auto &coeff : coeffs) {
-      auto iter
-          = kind_counts.insert(pair<Coefficient::Kind, size_t>(coeff.kind, 0));
-      coeff.restore(prefix + "covariate-" + to_string(coeff.variable) + "-"
-                    + to_token(coeff.kind) + "-"
-                    + to_string_embedded(iter.first->second++, 2) + "_"
+      coeff.restore(prefix + "covariate-" + coeff.label + "-"
                     + coeff.info.to_string(design.covariates)
                     + FILENAME_ENDING);
     }
@@ -839,7 +835,7 @@ void Model::gradient_update() {
 void Model::enforce_positive_parameters(double min_value) {
   for (size_t i = 0; i < coeffs.size(); ++i)
     enforce_positive_and_warn(
-        to_string(coeffs[i].kind) + " " + to_string(coeffs[i].variable)
+        to_string(coeffs[i].kind) + " " + coeffs[i].label
             + " covariate " + to_string_embedded(i, 3),
         coeffs[i].values, min_value, parameters.warn_lower_limit);
 }
