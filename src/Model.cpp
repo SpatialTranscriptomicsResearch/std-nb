@@ -233,20 +233,21 @@ void Model::add_covariate_terms(
   }
 }
 
-void Model::add_covariates(const ModelSpec& model_spec) {
-  LOG(verbose) << "Adding rate coefficients";
+void Model::add_covariates(const ModelSpec &model_spec) {
+  LOG(debug) << "Adding rate coefficients";
   for (auto &coefficient : model_spec.rate_coefficients) {
-    add_covariate_terms(
-        model_spec.variables, coefficient,
-        [](Experiment &e, size_t idx) { e.rate_coeff_idxs.push_back(idx); });
+    add_covariate_terms(model_spec.variables, coefficient,
+                        [](Experiment &experiment, size_t idx) {
+                          experiment.rate_coeff_idxs.push_back(idx);
+                        });
   }
-  LOG(verbose) << "Adding odds coefficients";
+  LOG(debug) << "Adding odds coefficients";
   for (auto &coefficient : model_spec.odds_coefficients) {
-    add_covariate_terms(
-        model_spec.variables, coefficient,
-        [](Experiment &e, size_t idx) { e.odds_coeff_idxs.push_back(idx); });
+    add_covariate_terms(model_spec.variables, coefficient,
+                        [](Experiment &experiment, size_t idx) {
+                          experiment.odds_coeff_idxs.push_back(idx);
+                        });
   }
-
 }
 
 void Model::add_gp_proxies() {
@@ -380,8 +381,8 @@ void Model::remove_redundant_terms_sub(const vector<vector<size_t>> &cov2groups)
   // drop redundant coefficients
   size_t removed = 0;
   for (auto r : redundant) {
-    LOG(verbose) << "Removing " << r << ": " << coeffs[r - removed] << ": "
-                 << coeffs[r - removed].info.to_string(design.covariates);
+    LOG(debug) << "Removing " << r << ": " << coeffs[r - removed] << ": "
+               << coeffs[r - removed].info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r - removed);
     removed++;
   }
