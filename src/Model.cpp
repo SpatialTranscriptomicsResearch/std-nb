@@ -463,7 +463,8 @@ void Model::store(const string &prefix_, bool mean_and_var,
             spot_names.insert(begin(spot_names),
                               begin(experiments[idx].counts.col_names),
                               end(experiments[idx].counts.col_names));
-        coeff.store(prefix + "covariate-" + coeff.label + "-"
+        coeff.store(prefix + "covariate-" + storage_type(coeff.kind) + "-"
+                        + coeff.label + "-"
                         + coeff.info.to_string(design.covariates)
                         + FILENAME_ENDING,
                     parameters.compression_mode, gene_names, spot_names,

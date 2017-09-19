@@ -378,6 +378,24 @@ string to_token(const Coefficient::Kind &kind) {
   }
 }
 
+string storage_type(Coefficient::Kind kind) {
+  using Kind = Coefficient::Kind;
+  switch (kind) {
+    case Kind::scalar:
+      return "scalar";
+    case Kind::gene:
+    case Kind::type:
+    case Kind::spot:
+      return "vector";
+    case Kind::gene_type:
+    case Kind::spot_type:
+      return "matrix";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Kind in storage_type().");
+  }
+}
+
+
 string Coefficient::to_string() const {
   string s = "Coefficient '" + label + "', "
              + ::to_string(distribution) + "-distributed " + ::to_string(kind);

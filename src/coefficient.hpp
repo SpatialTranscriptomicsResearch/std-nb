@@ -131,7 +131,7 @@ Coefficient::Kind determine_kind(const std::set<std::string> &term);
 std::string to_string(const Coefficient::Kind &kind);
 std::string to_string(const Coefficient::Distribution &distribution);
 std::string to_token(const Coefficient::Kind &kind);
-
+std::string storage_type(Coefficient::Kind kind);
 std::ostream &operator<<(std::ostream &os, const Coefficient &coeff);
 
 inline constexpr Coefficient::Kind operator&(Coefficient::Kind a,
