@@ -25,42 +25,6 @@ Coefficient::Kind determine_kind(const set<string> &term) {
   return kind;
 }
 
-std::string to_string(DistributionMode mode) {
-  switch (mode) {
-    case DistributionMode::log_normal:
-      return "log_normal";
-    case DistributionMode::gamma_odds:
-      return "gamma_odds";
-    case DistributionMode::gamma_odds_log_normal:
-      return "gamma_odds_log_normal";
-  }
-  throw std::runtime_error("Error in to_string(DistributionMode).");
-}
-
-DistributionMode distribution_from_string(const std::string &s_) {
-  string s = to_lower(s_);
-  if (s == "log_normal")
-    return DistributionMode::log_normal;
-  else if (s == "gamma_odds")
-    return DistributionMode::gamma_odds;
-  else if (s == "gamma_odds_log_normal")
-    return DistributionMode::gamma_odds_log_normal;
-  else
-    throw std::runtime_error("Couldn't parse DistributionMode: '" + s + "'.");
-}
-
-std::ostream &operator<<(std::ostream &os, DistributionMode mode) {
-  os << to_string(mode);
-  return os;
-}
-
-std::istream &operator>>(std::istream &is, DistributionMode &mode) {
-  string token;
-  is >> token;
-  mode = distribution_from_string(token);
-  return is;
-}
-
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id& id)
     : Coefficient(G, T, S, id.name, id.kind, id.dist, id.info)
 {

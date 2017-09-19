@@ -10,13 +10,6 @@
 #include "gp.hpp"
 #include "types.hpp"
 
-enum class DistributionMode { log_normal, gamma_odds, gamma_odds_log_normal };
-
-std::string to_string(DistributionMode mode);
-DistributionMode distribution_from_string(const std::string &s);
-std::ostream &operator<<(std::ostream &os, DistributionMode mode);
-std::istream &operator>>(std::istream &is, DistributionMode &mode);
-
 struct Coefficient {
   enum class Kind {
     scalar = 0,
