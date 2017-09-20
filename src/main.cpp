@@ -50,6 +50,37 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   */
 }
 
+/**
+ * Computes the default rate formula given the covariates in the spec file.
+ *
+ * The default rate formula is defined as
+ *   gene * (type + section + ...) + spot * type + 1,
+ * where the dots represent all user-defined covariates.
+ */
+string default_rate_formula(const vector<string> &covariates) {
+  using DesignNS::labels;
+  vector<string> filtered;
+  copy_if(begin(covariates), end(covariates), back_inserter(filtered),
+          [](const string x) {
+            return find(labels.begin(), labels.end(), x)
+                   == DesignNS::labels.end();
+          });
+  vector<string> expr;
+  prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
+  return "gene*(type+section" + accumulate(expr.begin(), expr.end(), string())
+         + ")+spot*type+1";
+}
+
+/**
+ * Computes the default odds formula given the covariates in the spec file.
+ *
+ * The default rate formula is defined as
+ *   spot * type + 1.
+ */
+string default_odds_formula(const vector<string>&) {
+  return DesignNS::gene_label + "*type+1";
+}
+
 }
 
 int main(int argc, char **argv) {
@@ -269,9 +300,25 @@ int main(int argc, char **argv) {
 
   LOG(verbose) << "Design: " << options.design;
 
+  {  // add default formulas to the model spec
+    vector<string> covariate_labels;
+    transform(begin(options.design.covariates), end(options.design.covariates),
+              back_inserter(covariate_labels),
+              [](const Covariate &x) { return x.label; });
+
+    string _default_rate_formula = default_rate_formula(covariate_labels);
+    LOG(verbose) << "Default rate formula: " << _default_rate_formula;
+    options.model_spec.from_string("rate:=" + _default_rate_formula);
+
+    string _default_odds_formula = default_odds_formula(covariate_labels);
+    LOG(verbose) << "Default odds formula: " << _default_odds_formula;
+    options.model_spec.from_string("odds:=" + _default_odds_formula);
+  }
+
+  LOG(debug) << "Parsing model specification " << options.spec_path;
   ifstream(options.spec_path) >> options.model_spec;
 
-  LOG(verbose) << "Model specification:";
+  LOG(verbose) << "Final model specification:";
   log([](const std::string& s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
