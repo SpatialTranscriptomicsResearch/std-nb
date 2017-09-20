@@ -14,6 +14,8 @@
 
 using namespace std;
 
+namespace {
+
 struct Options {
   vector<string> tsv_paths;
   string design_path;
@@ -46,6 +48,8 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
     LOG(info) << "Final log-likelihood = "
               << pfa.log_likelihood(pfa.parameters.output_directory);
   */
+}
+
 }
 
 int main(int argc, char **argv) {
