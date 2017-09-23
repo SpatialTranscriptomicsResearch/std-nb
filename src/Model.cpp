@@ -596,7 +596,7 @@ Model Model::compute_gradient(double &score) const {
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
 
-#pragma omp for
+#pragma omp for schedule (guided)
     for (size_t g = 0; g < G; ++g)
       for (size_t e = 0; e < E; ++e)
         for (size_t s = 0; s < experiments[e].S; ++s)
