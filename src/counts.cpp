@@ -16,6 +16,8 @@ using Int = STD::Int;
 using Matrix = STD::Matrix;
 using Vector = STD::Vector;
 
+Counts::Counts() : path(""), row_names(0), col_names(0), matrix(nullptr) {}
+
 Counts::Counts(const string &path_, bool transpose, const string &separator)
     : path(path_),
       row_names(),
@@ -124,10 +126,11 @@ void discard_empty_genes(vector<Counts> &cnts) {
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
                          size_t top, size_t bottom, bool discard_empty,
                          bool transpose) {
-  vector<Counts> counts_v;
-  for (auto &path : paths) {
-    LOG(verbose) << "Loading " << path;
-    counts_v.push_back(Counts(path, transpose));
+  vector<Counts> counts_v(paths.size());
+#pragma omp parallel for if (DO_PARALLEL)
+  for(size_t i = 0; i < paths.size(); ++i) {
+    LOG(verbose) << "Loading " << paths[i];
+    counts_v[i] = Counts(paths[i], transpose);
   }
 
   if (intersect)
@@ -169,6 +172,7 @@ void match_genes(vector<Counts> &counts_v, Fnc fnc) {
   for (size_t g = 0; g < G; ++g)
     gene_map[selected[g]] = g;
 
+#pragma omp parallel for if (DO_PARALLEL)
   for (auto &counts : counts_v) {
     const size_t H = counts.matrix->rows();
     const size_t S = counts.matrix->cols();

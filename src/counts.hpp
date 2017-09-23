@@ -6,6 +6,7 @@
 #include "types.hpp"
 
 struct Counts {
+  Counts();
   Counts(const std::string &path, bool transpose,
          const std::string &separator = "\t");
   std::string path;
