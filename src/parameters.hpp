@@ -78,8 +78,6 @@ struct Parameters {
   double grad_alpha = 1e-1;
   double grad_anneal = 0.999;
 
-  DistributionMode distribution_mode = DistributionMode::log_normal;
-
   GaussianProcessParameters gp = {};
 };
 }

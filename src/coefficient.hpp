@@ -3,22 +3,14 @@
 
 #include <map>
 #include <memory>
+#include <set>
 #include <string>
 #include <vector>
-#include <set>
 #include "covariate.hpp"
 #include "gp.hpp"
 #include "types.hpp"
 
-enum class DistributionMode { log_normal, gamma_odds, gamma_odds_log_normal };
-
-std::string to_string(DistributionMode mode);
-DistributionMode distribution_from_string(const std::string &s);
-std::ostream &operator<<(std::ostream &os, DistributionMode mode);
-std::istream &operator>>(std::istream &is, DistributionMode &mode);
-
 struct Coefficient {
-  enum class Variable { rate, odds, prior };
   enum class Kind {
     scalar = 0,
     gene = 1,
@@ -40,18 +32,15 @@ struct Coefficient {
   };
   struct Id {
     std::string name;
-    Coefficient::Variable type;
     Coefficient::Kind kind;
     Coefficient::Distribution dist;
     CovariateInformation info;
   };
   Coefficient(size_t G, size_t T, size_t S, const Id &id);
-  Coefficient(size_t G, size_t T, size_t S, const std::string &label,
-              Variable variable, Kind kind, Distribution distribution,
-              CovariateInformation info);
+  Coefficient(size_t G, size_t T, size_t S, const std::string &label, Kind kind,
+              Distribution distribution, CovariateInformation info);
 
   std::string label;
-  Variable variable;
   Kind kind;
   Distribution distribution;
 
@@ -139,11 +128,10 @@ struct Coefficient {
 
 Coefficient::Kind determine_kind(const std::set<std::string> &term);
 
-std::string to_string(const Coefficient::Variable &variable);
 std::string to_string(const Coefficient::Kind &kind);
 std::string to_string(const Coefficient::Distribution &distribution);
 std::string to_token(const Coefficient::Kind &kind);
-
+std::string storage_type(Coefficient::Kind kind);
 std::ostream &operator<<(std::ostream &os, const Coefficient &coeff);
 
 inline constexpr Coefficient::Kind operator&(Coefficient::Kind a,
@@ -169,7 +157,4 @@ inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
                                         & ((1 << 11) - 1));
 }
 
-Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
-                                              Coefficient::Kind kind,
-                                              DistributionMode mode);
 #endif

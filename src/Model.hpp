@@ -24,7 +24,6 @@ struct Model {
   size_t S;
 
   Design design;
-  ModelSpec model_spec;
   std::vector<Experiment> experiments;
 
   Parameters parameters;
@@ -41,18 +40,17 @@ struct Model {
   Model(const std::vector<Counts>& data, size_t T, const Design& design,
         const ModelSpec& model_spec, const Parameters& parameters);
   void remove_redundant_terms();
-  void remove_redundant_terms(Coefficient::Variable variable,
-                              Coefficient::Kind kind);
+  void remove_redundant_terms(Coefficient::Kind kind);
+  void remove_redundant_terms_sub(const std::vector<std::vector<size_t>> &cov_groups);
 
   size_t register_coefficient(
       const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
-      Coefficient::Variable variable_type,
       std::string id,
       size_t experiment);
   void add_covariate_terms(
-      const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
-      Coefficient::Variable variable_type,
-      const std::string& var);
+    const std::unordered_map<std::string, spec_parser::RandomVariable> &variable_map,
+    const std::string &variable_id, std::function<void(Experiment&, size_t)> fnc);
+  void add_covariates(const ModelSpec& ms);
 
   void add_gp_proxies();
   void add_prior_coefficients();

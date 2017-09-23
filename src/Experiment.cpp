@@ -32,18 +32,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
   LOG(debug) << "Coords: " << coords;
 }
 
-vector<size_t> &Experiment::coeff_idxs(Coefficient::Variable variable) {
-  switch (variable) {
-    case Coefficient::Variable::rate:
-      return rate_coeff_idxs;
-    case Coefficient::Variable::odds:
-      return odds_coeff_idxs;
-    default:
-      throw std::runtime_error(
-          "Error: Experiments only have rate and odds variable.");
-  }
-}
-
 void Experiment::store(const string &prefix,
                        const vector<size_t> &order) const {
   auto factor_names = form_factor_names(T);

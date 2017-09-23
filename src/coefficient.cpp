@@ -25,77 +25,15 @@ Coefficient::Kind determine_kind(const set<string> &term) {
   return kind;
 }
 
-std::string to_string(DistributionMode mode) {
-  switch (mode) {
-    case DistributionMode::log_normal:
-      return "log_normal";
-    case DistributionMode::gamma_odds:
-      return "gamma_odds";
-    case DistributionMode::gamma_odds_log_normal:
-      return "gamma_odds_log_normal";
-  }
-  throw std::runtime_error("Error in to_string(DistributionMode).");
-}
-
-DistributionMode distribution_from_string(const std::string &s_) {
-  string s = to_lower(s_);
-  if (s == "log_normal")
-    return DistributionMode::log_normal;
-  else if (s == "gamma_odds")
-    return DistributionMode::gamma_odds;
-  else if (s == "gamma_odds_log_normal")
-    return DistributionMode::gamma_odds_log_normal;
-  else
-    throw std::runtime_error("Couldn't parse DistributionMode: '" + s + "'.");
-}
-
-std::ostream &operator<<(std::ostream &os, DistributionMode mode) {
-  os << to_string(mode);
-  return os;
-}
-
-std::istream &operator>>(std::istream &is, DistributionMode &mode) {
-  string token;
-  is >> token;
-  mode = distribution_from_string(token);
-  return is;
-}
-
-Coefficient::Distribution choose_distribution(Coefficient::Variable variable,
-                                              Coefficient::Kind kind,
-                                              DistributionMode mode) {
-  switch (mode) {
-    case DistributionMode::log_normal:
-      return Coefficient::Distribution::log_normal;
-    case DistributionMode::gamma_odds:
-    case DistributionMode::gamma_odds_log_normal:
-      switch (variable) {
-        case Coefficient::Variable::rate:
-          return Coefficient::Distribution::gamma;
-        case Coefficient::Variable::odds:
-          return Coefficient::Distribution::beta_prime;
-        case Coefficient::Variable::prior:
-          if (mode == DistributionMode::gamma_odds)
-            return Coefficient::Distribution::gamma;
-          else if (mode == DistributionMode::gamma_odds_log_normal)
-            return Coefficient::Distribution::log_normal;
-          else
-            throw std::runtime_error("Error: this should not happen!");
-      }
-  }
-  throw std::runtime_error("Error in choose_distribution().");
-}
-
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id& id)
-    : Coefficient(G, T, S, id.name, id.type, id.kind, id.dist, id.info)
+    : Coefficient(G, T, S, id.name, id.kind, id.dist, id.info)
 {
 }
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
-                         Variable variable_, Kind kind_, Distribution dist,
+                         Kind kind_, Distribution dist,
                          CovariateInformation info_)
     : label(label_),
-      variable(variable_),
       kind(kind_),
       distribution(dist),
       info(info_) {
@@ -399,19 +337,6 @@ string to_string(const Coefficient::Kind &kind) {
   }
 }
 
-string to_string(const Coefficient::Variable &variable) {
-  switch (variable) {
-    case Coefficient::Variable::rate:
-      return "rate";
-    case Coefficient::Variable::odds:
-      return "odds";
-    case Coefficient::Variable::prior:
-      return "prior";
-    default:
-      throw std::runtime_error("Error: invalid Coefficient::Variable.");
-  }
-}
-
 string to_string(const Coefficient::Distribution &distribution) {
   switch (distribution) {
     case Coefficient::Distribution::fixed:
@@ -453,8 +378,26 @@ string to_token(const Coefficient::Kind &kind) {
   }
 }
 
+string storage_type(Coefficient::Kind kind) {
+  using Kind = Coefficient::Kind;
+  switch (kind) {
+    case Kind::scalar:
+      return "scalar";
+    case Kind::gene:
+    case Kind::type:
+    case Kind::spot:
+      return "vector";
+    case Kind::gene_type:
+    case Kind::spot_type:
+      return "matrix";
+    default:
+      throw std::runtime_error("Error: invalid Coefficient::Kind in storage_type().");
+  }
+}
+
+
 string Coefficient::to_string() const {
-  string s = "Coefficient '" + label + "', " + ::to_string(variable) + " "
+  string s = "Coefficient '" + label + "', "
              + ::to_string(distribution) + "-distributed " + ::to_string(kind);
   s += ": " + std::to_string(values.rows()) + "x"
        + std::to_string(values.cols()) + " (" + std::to_string(values.size())
