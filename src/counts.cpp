@@ -173,17 +173,17 @@ void match_genes(vector<Counts> &counts_v, Fnc fnc) {
     gene_map[selected[g]] = g;
 
 #pragma omp parallel for if (DO_PARALLEL)
-  for (auto &counts : counts_v) {
-    const size_t H = counts.matrix->rows();
-    const size_t S = counts.matrix->cols();
+  for(size_t i = 0; i < counts_v.size(); ++i) {
+    const size_t H = counts_v[i].matrix->rows();
+    const size_t S = counts_v[i].matrix->cols();
     Matrix new_counts = Matrix::Zero(G, S);
     for (size_t h = 0; h < H; ++h) {
-      auto iter = gene_map.find(counts.row_names[h]);
+      auto iter = gene_map.find(counts_v[i].row_names[h]);
       if (iter != end(gene_map))
-        new_counts.row(iter->second) = counts.matrix->row(h);
+        new_counts.row(iter->second) = counts_v[i].matrix->row(h);
     }
-    *counts.matrix = new_counts;
-    counts.row_names = selected;
+    *counts_v[i].matrix = new_counts;
+    counts_v[i].row_names = selected;
   }
 }
 
