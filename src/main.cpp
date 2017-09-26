@@ -4,6 +4,7 @@
 #include <exception>
 #include <iostream>
 #include <string>
+#include <sstream>
 #include <vector>
 #include "Model.hpp"
 #include "aux.hpp"
@@ -131,10 +132,16 @@ int main(int argc, char **argv) {
     ("gp_var_indep", po::value(&parameters.gp.independent_variance)->default_value(parameters.gp.independent_variance),
      "Independent variance to use for Gaussian process.");
 
+ auto stringize = [](double x) -> std::string {
+   stringstream s;
+   s << x;
+   return s.str();
+ };
+
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value),
+    ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value, stringize(parameters.min_value)),
      "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
      "Warn when parameter values reach the lower limit specified by --minval.")
@@ -157,7 +164,7 @@ int main(int argc, char **argv) {
   lbfgs_options.add_options()
     ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
      "Maximal number of iterations to perform per lBFGS optimization.")
-    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon),
+    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon, stringize(parameters.lbfgs_epsilon)),
      "Epsilon parameter for lBFGS optimization.");
 
   hmc_options.add_options()
@@ -169,19 +176,19 @@ int main(int argc, char **argv) {
      "Number of leapfrog steps to take per iteration.");
 
   grad_options.add_options()
-    ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha),
+    ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha, stringize(parameters.grad_alpha)),
      "Initial learning rate for gradient learning.")
     ("grad_anneal", po::value(&parameters.grad_anneal)->default_value(parameters.grad_anneal),
      "Anneal learning rate by this factor every iteration.");
 
   rprop_options.add_options()
-    ("rprop_etap", po::value(&parameters.rprop.eta_plus)->default_value(parameters.rprop.eta_plus),
+    ("rprop_etap", po::value(&parameters.rprop.eta_plus)->default_value(parameters.rprop.eta_plus, stringize(parameters.rprop.eta_plus)),
      "Multiplier for parameter-specific learning rates in case of successive gradients with identical sign.")
-    ("rprop_etam", po::value(&parameters.rprop.eta_minus)->default_value(parameters.rprop.eta_minus),
+    ("rprop_etam", po::value(&parameters.rprop.eta_minus)->default_value(parameters.rprop.eta_minus, stringize(parameters.rprop.eta_minus)),
      "Multiplier for parameter-specific learning rates in case of successive gradients with opposite sign.")
     ("rprop_min", po::value(&parameters.rprop.min_change)->default_value(parameters.rprop.min_change),
      "Minimal parameter-specific learning rate.")
-    ("rprop_max", po::value(&parameters.rprop.max_change)->default_value(parameters.rprop.max_change),
+    ("rprop_max", po::value(&parameters.rprop.max_change)->default_value(parameters.rprop.max_change, stringize(parameters.rprop.max_change)),
      "Maximal parameter-specific learning rate.");
 
   hyperparameter_options.add_options()
