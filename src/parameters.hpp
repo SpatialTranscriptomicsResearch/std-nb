@@ -79,6 +79,8 @@ struct Parameters {
   double grad_anneal = 0.999;
 
   GaussianProcessParameters gp = {};
+
+  double temperature = 1;
 };
 }
 #endif

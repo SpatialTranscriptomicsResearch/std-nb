@@ -159,7 +159,9 @@ int main(int argc, char **argv) {
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
      "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
-     "Number of iterations to perform for iterative sampling methods.");
+     "Number of iterations to perform for iterative sampling methods.")
+    ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
+     "Temperature for Metropolis-Hastings sampling.");
 
   lbfgs_options.add_options()
     ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),

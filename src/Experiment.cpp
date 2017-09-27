@@ -5,6 +5,7 @@
 #include "gamma_func.hpp"
 #include "hamiltonian_monte_carlo.hpp"
 #include "io.hpp"
+#include "metropolis_hastings.hpp"
 #include "rprop.hpp"
 
 using namespace std;
@@ -232,7 +233,7 @@ Vector Experiment::sample_contributions_gene_spot(
         }
       }
       return best_cnts;
-    }
+    } break;
     case Sampling::Method::TrialMean: {
       double total_score = 0;
       Vector mean_cnts = Vector::Zero(T);
@@ -244,10 +245,20 @@ Vector Experiment::sample_contributions_gene_spot(
         total_score += score;
       }
       return mean_cnts / total_score;
-    }
-    case Sampling::Method::MH:
-      throw(runtime_error("Sampling method not implemented: MH."));
-      break;
+    } break;
+    case Sampling::Method::MH: {
+      cnts = proportions.array().log();
+      std::normal_distribution<double> normal_dist(0, 0.5);
+      auto generate = [&normal_dist](const Vector &v, RNG &rng_) -> Vector {
+        Vector w = v;
+        for (auto &x : w)
+          x += normal_dist(rng_);
+        return w;
+      };
+      MetropolisHastings sampler(parameters.temperature);
+      return unlog(sampler.sample(cnts, parameters.sample_iterations, rng,
+                                  generate, eval));
+    } break;
     case Sampling::Method::HMC:
       throw(runtime_error("Sampling method not implemented: HMC."));
       break;
