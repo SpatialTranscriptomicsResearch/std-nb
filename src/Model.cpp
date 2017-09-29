@@ -688,16 +688,13 @@ double Model::param_likel() const {
   double score = 0;
   // TODO covariates likelihood
   /*
-  if (parameters.targeted(Target::gamma)) {
     const double a = parameters.hyperparameters.gamma_1;
     const double b = parameters.hyperparameters.gamma_2;
 #pragma omp parallel for if (DO_PARALLEL)
     for (size_t g = 0; g < G; ++g)
       for (size_t t = 0; t < T; ++t)
         score += log_gamma_rate(gamma(g, t), a, b);
-  }
 
-  if (parameters.targeted(Target::lambda)) {
     const double a = parameters.hyperparameters.lambda_1;
     const double b = parameters.hyperparameters.lambda_2;
     for (auto &coord_sys : coordinate_systems)
@@ -706,9 +703,7 @@ double Model::param_likel() const {
         for (size_t g = 0; g < G; ++g)
           for (size_t t = 0; t < T; ++t)
             score += log_gamma_rate(experiments[e].lambda(g, t), a, b);
-  }
 
-  if (parameters.targeted(Target::beta)) {
     const double a = parameters.hyperparameters.beta_1;
     const double b = parameters.hyperparameters.beta_2;
     for (auto &coord_sys : coordinate_systems)
@@ -716,9 +711,7 @@ double Model::param_likel() const {
 #pragma omp parallel for if (DO_PARALLEL)
         for (size_t g = 0; g < G; ++g)
           score += log_gamma_rate(experiments[e].beta(g), a, b);
-  }
 
-  if (parameters.targeted(Target::theta))
     for (auto &coord_sys : coordinate_systems)
       for (auto e : coord_sys.members)
 #pragma omp parallel for if (DO_PARALLEL)
@@ -729,7 +722,6 @@ double Model::param_likel() const {
             score += log_gamma_rate(experiments[e].theta(s, t), a, b);
           }
 
-  if (parameters.targeted(Target::rho)) {
     const double a = parameters.hyperparameters.rho_1;
     const double b = parameters.hyperparameters.rho_2;
 #pragma omp parallel for if (DO_PARALLEL)
@@ -738,7 +730,6 @@ double Model::param_likel() const {
         const double no = negodds_rho(g, t);
         score += log_beta_neg_odds(no, a, b);
       }
-  }
   */
 
   return score;
