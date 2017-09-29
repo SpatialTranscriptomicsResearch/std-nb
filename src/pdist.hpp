@@ -13,8 +13,8 @@
 double log_poisson(size_t k, double lambda);
 /** Negative binomial probability mass function for x given r failures and
  * success probability p */
-double log_negative_binomial(size_t x, double r, double p);
-double log_negative_binomial(size_t x, double r, double p1, double p2);
+double log_negative_binomial(double x, double r, double p);
+double log_negative_binomial(double x, double r, double p1, double p2);
 /** Specializations of the above routines for zero counts */
 double log_negative_binomial_zero(double r, double p);
 double log_negative_binomial_zero_log_one_minus_p(double r,
