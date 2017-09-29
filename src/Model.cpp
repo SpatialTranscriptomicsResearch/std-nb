@@ -52,9 +52,11 @@ static CovariateInformation get_covariate_info(
 {
   auto covariates_ = covariates;
 
+  using namespace DesignNS;
+
   // spot dependency implies section dependency
-  if (covariates_.find("spot") != covariates_.end()) {
-    covariates_.insert("section");
+  if (covariates_.find(spot_label) != covariates_.end()) {
+    covariates_.insert(section_label);
   }
 
   vector<size_t> cov_idxs = design.determine_covariate_idxs(covariates_);

@@ -4,13 +4,13 @@
 
 using namespace std;
 
-vector<size_t> Design::determine_covariate_idxs(
-    const set<string> &term) const {
+vector<size_t> Design::determine_covariate_idxs(const set<string> &term) const {
+  using namespace DesignNS;
   vector<size_t> cov_idxs;
   for (auto &covariate_label : term) {
     LOG(debug) << "Treating covariate label: " << covariate_label;
     string label = to_lower(covariate_label);
-    if (label != "gene" and label != "spot" and label != "type") {
+    if (label != gene_label and label != spot_label and label != type_label) {
       auto cov_iter = find_if(begin(covariates), end(covariates),
                               [&](const Covariate &covariate) {
                                 return covariate.label == covariate_label;
@@ -41,7 +41,8 @@ void Design::from_string(const string &str) {
 }
 
 bool Design::is_reserved_name(const string &s) const {
-  if (s == "1")
+  using namespace DesignNS;
+  if (s == unit_label or s == gene_label or s == spot_label or s == type_label)
     return true;
   return false;
 }

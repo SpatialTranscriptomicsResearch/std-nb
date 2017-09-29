@@ -12,10 +12,11 @@ using STD::Vector;
 using STD::Matrix;
 
 Coefficient::Kind determine_kind(const set<string> &term) {
+  using namespace DesignNS;
   static map<string, Coefficient::Kind> id2kind{
-    { "gene", Coefficient::Kind::gene },
-    { "spot", Coefficient::Kind::spot },
-    { "type", Coefficient::Kind::type },
+    { gene_label, Coefficient::Kind::gene },
+    { spot_label, Coefficient::Kind::spot },
+    { type_label, Coefficient::Kind::type },
   };
   Coefficient::Kind kind = Coefficient::Kind::scalar;
   for (auto& k : id2kind) {
