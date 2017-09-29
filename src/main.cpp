@@ -51,6 +51,18 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
 }
 
 /**
+ * Computes the simple default rate formula
+ *
+ * The default rate formula is defined as
+ *   type * (gene + spot) + 1.
+ */
+string simple_default_rate_formula() {
+  using namespace DesignNS;
+  return type_label + " * (" + gene_label + " + " + spot_label + ") + "
+         + unit_label;
+}
+
+/**
  * Computes the default rate formula given the covariates in the spec file.
  *
  * The default rate formula is defined as
@@ -67,8 +79,10 @@ string default_rate_formula(const vector<string> &covariates) {
           });
   vector<string> expr;
   prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
-  return "gene*(type+section" + accumulate(expr.begin(), expr.end(), string())
-         + ")+spot*type+1";
+  using namespace DesignNS;
+  return gene_label + " * (" + type_label + "+" + section_label
+         + accumulate(expr.begin(), expr.end(), string()) + ") + " + spot_label
+         + " * " + type_label + " + " + unit_label;
 }
 
 /**
@@ -77,8 +91,9 @@ string default_rate_formula(const vector<string> &covariates) {
  * The default rate formula is defined as
  *   spot * type + 1.
  */
-string default_odds_formula(const vector<string>&) {
-  return DesignNS::gene_label + "*type+1";
+string default_odds_formula() {
+  using namespace DesignNS;
+  return gene_label + "*" + type_label + "+" + unit_label;
 }
 
 }
@@ -306,11 +321,22 @@ int main(int argc, char **argv) {
               back_inserter(covariate_labels),
               [](const Covariate &x) { return x.label; });
 
-    string _default_rate_formula = default_rate_formula(covariate_labels);
+    string _default_rate_formula;
+    switch (options.design.dataset_specifications.size()) {
+      case 0:
+        throw std::runtime_error("Error: no datasets specified!");
+        break;
+      case 1:
+        _default_rate_formula = simple_default_rate_formula();
+        break;
+      default:
+        _default_rate_formula = default_rate_formula(covariate_labels);
+        break;
+    }
     LOG(verbose) << "Default rate formula: " << _default_rate_formula;
     options.model_spec.from_string("rate:=" + _default_rate_formula);
 
-    string _default_odds_formula = default_odds_formula(covariate_labels);
+    string _default_odds_formula = default_odds_formula();
     LOG(verbose) << "Default odds formula: " << _default_odds_formula;
     options.model_spec.from_string("odds:=" + _default_odds_formula);
   }
