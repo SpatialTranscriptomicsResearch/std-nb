@@ -146,21 +146,37 @@ std::vector<std::string> split_at(char sep, const std::string &str);
 std::string trim(const std::string &str, char sym = ' ');
 
 /**
+ * Prepends iterator elements by a given symbol.
+ */
+template <typename InputIt, typename OutputIt, typename T>
+void prepend(InputIt first, InputIt last, OutputIt d_first, T value) {
+  for (; first != last; ++first) {
+    *d_first++ = value;
+    *d_first++ = *first;
+  }
+}
+
+/**
+ * Intersperses iterator elements by a given symbol.
+ */
+template <typename InputIt, typename OutputIt, typename T>
+void intersperse(InputIt first, InputIt last, OutputIt d_first, T value) {
+  if (first == last) {
+    return;
+  }
+  *d_first = *first;
+  prepend(++first, last, ++d_first, value);
+}
+
+/**
  * Intersperses iterator by a given symbol and concatenates the result.
  */
-template <typename It, typename T>
-T intercalate(const It& begin, const It& end, const T& x)
+template <typename InputIt, typename T>
+T intercalate(InputIt begin, InputIt last, const T& x)
 {
-  if (begin == end) {
-    return T();
-  }
   std::vector<T> ret;
-  It it = begin;
-  do {
-    ret.push_back(*it);
-    ret.push_back(x);
-  } while (++it != end);
-  return std::accumulate(ret.begin(), ret.end() - 1, T());
+  intersperse(begin, last, std::back_inserter(ret), x);
+  return std::accumulate(ret.begin(), ret.end(), T());
 }
 
 #endif

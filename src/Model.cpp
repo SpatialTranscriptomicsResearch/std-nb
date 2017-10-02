@@ -18,6 +18,8 @@ using namespace std;
 
 namespace STD {
 
+namespace {
+
 size_t iter_cnt = 0;
 
 CovariateInformation drop_covariate(const CovariateInformation &info,
@@ -40,21 +42,16 @@ CovariateInformation drop_covariates(
   return info;
 }
 
-std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
-  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
-    return coeff.label == cid.name and coeff.kind == cid.kind
-           and coeff.distribution == cid.dist and coeff.info == cid.info;
-  });
-}
-
-static CovariateInformation get_covariate_info(
+CovariateInformation get_covariate_info(
     const Design& design, const set<string>& covariates, size_t experiment)
 {
   auto covariates_ = covariates;
 
+  using namespace DesignNS;
+
   // spot dependency implies section dependency
-  if (covariates_.find("spot") != covariates_.end()) {
-    covariates_.insert("section");
+  if (covariates_.find(spot_label) != covariates_.end()) {
+    covariates_.insert(section_label);
   }
 
   vector<size_t> cov_idxs = design.determine_covariate_idxs(covariates_);
@@ -67,7 +64,7 @@ static CovariateInformation get_covariate_info(
 }
 
 // Removes trailing zeros in a numeric string's decimals.
-static string remove_trailing_zeros(const string& str) {
+string remove_trailing_zeros(const string& str) {
   if (str.find('.') == string::npos) {
     return str;
   }
@@ -79,6 +76,56 @@ static string remove_trailing_zeros(const string& str) {
     }
   }
   return string(str.begin(), pos);
+}
+
+void verify_model(const Model& m) {
+  {  // check for overspecification
+    static const auto input_dim
+        = Coefficient::Kind::gene | Coefficient::Kind::spot;
+    for (auto &x : m.coeffs) {
+      if ((x.kind & input_dim) == input_dim) {
+        throw runtime_error(
+            "Error: coefficient '" + x.label
+            + "' has dimensionality greater than or equal to the input data.");
+      }
+    }
+  }
+
+  {  // check for cycles in model spec
+    auto check_cycles = [&m](size_t root) {
+      vector<bool> visited(m.coeffs.size());
+      function<void(size_t)> go = [&m, &visited, &go](size_t x) {
+        if (visited[x]) {
+          throw runtime_error(
+              "Error: cyclic model specifications are currently not "
+              "supported.");
+        }
+        visited[x] = true;
+        for (auto &p : m.coeffs[x].prior_idxs) {
+          go(p);
+        }
+        visited[x] = false;
+      };
+      return go(root);
+    };
+    unordered_set<size_t> coeffs;
+    for (auto &e : m.experiments) {
+      coeffs.insert(e.rate_coeff_idxs.begin(), e.rate_coeff_idxs.end());
+      coeffs.insert(e.odds_coeff_idxs.begin(), e.odds_coeff_idxs.end());
+    }
+    for (auto &x : coeffs) {
+      check_cycles(x);
+    }
+  }
+}
+
+}  // namespace
+
+std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
+  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
+    return coeff.label == cid.name and coeff.kind == cid.kind
+           and coeff.distribution == cid.dist and coeff.info == cid.info;
+  });
 }
 
 size_t Model::register_coefficient(
@@ -307,6 +354,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   coeff_debug_dump("BEFORE");
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
+
+  verify_model(*this);
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1

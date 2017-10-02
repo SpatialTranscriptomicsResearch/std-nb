@@ -41,6 +41,13 @@ void ModelSpec::from_stream(std::istream& is)
       throw Exception::ModelSpec::UnrecoverableParseError();
     }
   }
+  for (auto &x : parser.regression_equations) {
+    if (x.first != RATE_VARIABLE and x.first != ODDS_VARIABLE) {
+      throw Exception::ModelSpec::InvalidModel(
+          "declaration of '" + x.first
+          + "' is meaningless; please check the model specification");
+    }
+  }
   rate_coefficients = parser.regression_equations[RATE_VARIABLE].variables;
   odds_coefficients = parser.regression_equations[ODDS_VARIABLE].variables;
   variables = parser.random_variables;

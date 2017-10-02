@@ -45,9 +45,15 @@ namespace DesignNS {
 const std::string path_label = "path";
 const std::string name_label = "name";
 const std::string spot_label = "spot";
+const std::string gene_label = "gene";
+const std::string type_label = "type";
 const std::string section_label = "section";
 const std::string coordsys_label = "coord";
 const std::string unit_label = "1";
+const std::vector<std::string> labels{
+    path_label,     name_label, spot_label, section_label,
+    coordsys_label, unit_label, gene_label, type_label
+};
 };
 
 struct Design {
