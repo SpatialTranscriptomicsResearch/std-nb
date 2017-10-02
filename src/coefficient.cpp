@@ -319,23 +319,37 @@ Vector Coefficient::vectorize() const {
 }
 
 string to_string(const Coefficient::Kind &kind) {
-  switch (kind) {
-    case Coefficient::Kind::scalar:
-      return "scalar";
-    case Coefficient::Kind::gene:
-      return "gene-dependent";
-    case Coefficient::Kind::spot:
-      return "spot-dependent";
-    case Coefficient::Kind::type:
-      return "type-dependent";
-    case Coefficient::Kind::gene_type:
-      return "gene- and type-dependent";
-    case Coefficient::Kind::spot_type:
-      return "spot- and type-dependent";
-    default:
-      throw std::runtime_error(
-          "Error: invalid Coefficient::Kind in to_string().");
+  if (kind == Coefficient::Kind::scalar) {
+    return "scalar";
   }
+
+  static vector<pair<Coefficient::Kind, string>> kinds = {
+      {Coefficient::Kind::spot, DesignNS::spot_label},
+      {Coefficient::Kind::gene, DesignNS::gene_label},
+      {Coefficient::Kind::type, DesignNS::type_label},
+  };
+  static auto all_kinds = accumulate(
+      kinds.begin(), kinds.end(), static_cast<Coefficient::Kind>(0),
+      [](Coefficient::Kind a, const pair<Coefficient::Kind, string> &x) {
+        return a | x.first;
+      });
+
+  if ((kind & ~all_kinds) != static_cast<Coefficient::Kind>(0)) {
+    stringstream ss;
+    ss << "Error: encountered unknown kind " << static_cast<int>(kind)
+       << " in to_string().";
+    throw runtime_error(ss.str());
+  }
+
+  vector<string> dependence;
+  for (auto &x : kinds) {
+    if ((kind & x.first) != static_cast<Coefficient::Kind>(0)) {
+      dependence.push_back(x.second + "-");
+    }
+  }
+
+  return intercalate<vector<string>::iterator, string>(
+      dependence.begin(), dependence.end(), ", ") + "dependent";
 }
 
 string to_string(const Coefficient::Distribution &distribution) {
