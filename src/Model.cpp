@@ -91,6 +91,32 @@ void verify_model(const Model& m) {
     }
   }
 
+  {  // check for cycles in model spec
+    auto check_cycles = [&m](size_t root) {
+      vector<bool> visited(m.coeffs.size());
+      function<void(size_t)> go = [&m, &visited, &go](size_t x) {
+        if (visited[x]) {
+          throw runtime_error(
+              "Error: cyclic model specifications are currently not "
+              "supported.");
+        }
+        visited[x] = true;
+        for (auto &p : m.coeffs[x].prior_idxs) {
+          go(p);
+        }
+        visited[x] = false;
+      };
+      return go(root);
+    };
+    unordered_set<size_t> coeffs;
+    for (auto &e : m.experiments) {
+      coeffs.insert(e.rate_coeff_idxs.begin(), e.rate_coeff_idxs.end());
+      coeffs.insert(e.odds_coeff_idxs.begin(), e.odds_coeff_idxs.end());
+    }
+    for (auto &x : coeffs) {
+      check_cycles(x);
+    }
+  }
 }
 
 }  // namespace
