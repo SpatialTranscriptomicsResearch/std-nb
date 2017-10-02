@@ -10,6 +10,10 @@
 
 namespace Exception {
 namespace ModelSpec {
+struct InvalidModel : public std::runtime_error {
+  InvalidModel(const std::string& why)
+      : runtime_error("Error: invalid model (" + why + ").") {}
+};
 struct UnrecoverableParseError : public std::runtime_error {
   UnrecoverableParseError() : runtime_error("Error: unrecoverable parse error.") {}
 };
