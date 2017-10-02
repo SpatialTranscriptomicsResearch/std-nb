@@ -78,6 +78,21 @@ string remove_trailing_zeros(const string& str) {
   return string(str.begin(), pos);
 }
 
+void verify_model(const Model& m) {
+  {  // check for overspecification
+    static const auto input_dim
+        = Coefficient::Kind::gene | Coefficient::Kind::spot;
+    for (auto &x : m.coeffs) {
+      if ((x.kind & input_dim) == input_dim) {
+        throw runtime_error(
+            "Error: coefficient '" + x.label
+            + "' has dimensionality greater than or equal to the input data.");
+      }
+    }
+  }
+
+}
+
 }  // namespace
 
 std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
@@ -313,6 +328,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
   coeff_debug_dump("BEFORE");
   remove_redundant_terms();
   coeff_debug_dump("AFTER");
+
+  verify_model(*this);
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
