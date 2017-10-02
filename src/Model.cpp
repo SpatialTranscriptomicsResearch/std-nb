@@ -18,6 +18,8 @@ using namespace std;
 
 namespace STD {
 
+namespace {
+
 size_t iter_cnt = 0;
 
 CovariateInformation drop_covariate(const CovariateInformation &info,
@@ -40,14 +42,7 @@ CovariateInformation drop_covariates(
   return info;
 }
 
-std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
-  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
-    return coeff.label == cid.name and coeff.kind == cid.kind
-           and coeff.distribution == cid.dist and coeff.info == cid.info;
-  });
-}
-
-static CovariateInformation get_covariate_info(
+CovariateInformation get_covariate_info(
     const Design& design, const set<string>& covariates, size_t experiment)
 {
   auto covariates_ = covariates;
@@ -69,7 +64,7 @@ static CovariateInformation get_covariate_info(
 }
 
 // Removes trailing zeros in a numeric string's decimals.
-static string remove_trailing_zeros(const string& str) {
+string remove_trailing_zeros(const string& str) {
   if (str.find('.') == string::npos) {
     return str;
   }
@@ -81,6 +76,15 @@ static string remove_trailing_zeros(const string& str) {
     }
   }
   return string(str.begin(), pos);
+}
+
+}  // namespace
+
+std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
+  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
+    return coeff.label == cid.name and coeff.kind == cid.kind
+           and coeff.distribution == cid.dist and coeff.info == cid.info;
+  });
 }
 
 size_t Model::register_coefficient(
