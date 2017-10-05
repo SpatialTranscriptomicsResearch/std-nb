@@ -17,22 +17,21 @@ struct MetropolisHastings {
             typename... Args>
   T sample(T current, size_t n_iter_initial, RNG &rng, Gen generate, Score fnc,
            Args &... args) const {
-    const auto current_score = fnc(current, args...);
+    auto current_score = fnc(current, args...);
     size_t n_iter = n_iter_initial;
-    T accepted = current;
-    bool accept = false;
     while (n_iter--) {
       const T proposition = generate(current, rng);
-      const auto propsition_score = fnc(proposition, args...);
+      const auto proposition_score = fnc(proposition, args...);
 
-      if (propsition_score > current_score) {
+      bool accept = false;
+      if (proposition_score > current_score) {
         LOG(debug) << "Improved!";
         accept = true;
       } else {
-        const auto dG = propsition_score - current_score;
+        const auto dG = proposition_score - current_score;
         const double rnd = RandomDistribution::Uniform(rng);
-        const double prob = std::min<double>(1.0, boltzdist(dG, temperature));
-        if (std::isnan(propsition_score) == 0 and (dG > 0 or rnd <= prob)) {
+        const double prob = boltzdist(dG, temperature);
+        if (std::isnan(proposition_score) == 0 and rnd <= prob) {
           accept = true;
           LOG(debug) << "Accepted!";
         } else {
@@ -40,13 +39,13 @@ struct MetropolisHastings {
         }
       }
       if (accept) {
-        accepted = proposition;
-        break;
+        current = proposition;
+        current_score = proposition_score;
       }
     }
     LOG(debug) << "Performed  " << (n_iter_initial - n_iter)
                << " MCMC sampling iterations.";
-    return accepted;
+    return current;
   }
 };
 

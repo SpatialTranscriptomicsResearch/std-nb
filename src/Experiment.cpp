@@ -256,8 +256,9 @@ Vector Experiment::sample_contributions_gene_spot(
         return w;
       };
       MetropolisHastings sampler(parameters.temperature);
-      return unlog(sampler.sample(cnts, parameters.sample_iterations, rng,
-                                  generate, eval));
+      return unlog(sampler.sample(
+          cnts, parameters.sample_iterations, rng, generate,
+          [&](const Vector &log_k) -> double { return eval(unlog(log_k)); }));
     } break;
     case Sampling::Method::HMC:
       throw(runtime_error("Sampling method not implemented: HMC."));
