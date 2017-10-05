@@ -100,6 +100,15 @@ double log_negative_binomial(size_t x, double r, double p1, double p2) {
          + r * (log(p2) - logp);
 }
 
+double log_negative_binomial_zero(double r, double p) {
+  return r * log(1 - p);
+}
+
+double log_negative_binomial_zero_log_one_minus_p(double r,
+                                                  double log_one_minus_p) {
+  return r * log_one_minus_p;
+}
+
 double log_generalized_beta_prime(double x, double alpha, double beta, double p,
                                   double q) {
   return log(p) + (alpha * p - 1) * log(x / q)

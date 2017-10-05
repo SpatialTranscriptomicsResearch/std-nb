@@ -654,6 +654,10 @@ Model Model::compute_gradient(double &score) const {
             if (experiments[e].counts(g, s) == 0) {
               register_gradient_zero_count(g, e, s, grad, rate_gt[e],
                                            rate_st[e], odds_gt[e], odds_st[e]);
+              for (size_t t = 0; t < T; ++t)
+                score_ += log_negative_binomial_zero_log_one_minus_p(
+                    rate_gt[e](g, t) * rate_st[e](s, t),
+                    neg_odds_to_log_prob(odds_gt[e](g, t) * odds_st[e](s, t)));
             } else {
               auto cnts = experiments[e].sample_contributions_gene_spot(
                   g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
