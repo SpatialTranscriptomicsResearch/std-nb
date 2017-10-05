@@ -193,7 +193,7 @@ Vector Experiment::sample_contributions_gene_spot(
     log_p(t) = odds_to_log_prob(odds(t));
 
   // compute the count-dependent likelihood contribution
-  auto eval = [&](const Vector &k) {
+  auto eval = [&](const Vector &k) -> double {
     double score = 0;
     for (size_t t = 0; t < T; ++t)
       score += lgamma(rate(t) + k(t)) - lgamma(k(t) + 1) + k(t) * log_p(t);
@@ -201,7 +201,7 @@ Vector Experiment::sample_contributions_gene_spot(
     return score;
   };
 
-  auto compute_gradient = [&](const Vector &log_k, Vector &grad) {
+  auto compute_gradient = [&](const Vector &log_k, Vector &grad) -> void {
     grad = Vector(T);
     Vector k = unlog(log_k);
     double sum = 0;
@@ -211,7 +211,7 @@ Vector Experiment::sample_contributions_gene_spot(
       grad(t) = k(t) / count * (grad(t) - sum);
   };
 
-  auto fnc = [&](const Vector &log_k, Vector &grad) {
+  auto fnc = [&](const Vector &log_k, Vector &grad) -> double {
     compute_gradient(log_k, grad);
     double score = -eval(unlog(log_k));
     LOG(verbose) << "count = " << count << " fnc = " << score;
