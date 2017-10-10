@@ -421,19 +421,18 @@ void Model::remove_redundant_terms(Coefficient::Kind kind) {
   remove_redundant_terms_sub(cov2groups_odds);
 }
 
-
-void Model::remove_redundant_terms_sub(const vector<vector<size_t>> &cov2groups) {
+void Model::remove_redundant_terms_sub(
+    const vector<vector<size_t>> &cov2groups) {
   // TODO print warning in case coefficients are used in both rate and odds eqs
   auto redundant = find_redundant(cov2groups);
-  sort(begin(redundant), end(redundant));  // needed?
+  sort(begin(redundant), end(redundant));
+  reverse(begin(redundant), end(redundant));
 
   // drop redundant coefficients
-  size_t removed = 0;
   for (auto r : redundant) {
-    LOG(debug) << "Removing " << r << ": " << coeffs[r - removed] << ": "
-               << coeffs[r - removed].info.to_string(design.covariates);
-    coeffs.erase(begin(coeffs) + r - removed);
-    removed++;
+    LOG(debug) << "Removing " << r << ": " << coeffs[r] << ": "
+               << coeffs[r].info.to_string(design.covariates);
+    coeffs.erase(begin(coeffs) + r);
   }
 
   // fix prior_idxs for dropped redundant coefficients
@@ -447,7 +446,8 @@ void Model::remove_redundant_terms_sub(const vector<vector<size_t>> &cov2groups)
           idx--;
   }
 
-  // fix experiment.rate_coeff_idxs and experiment.odds_coeff_idxs for dropped redundant coefficients
+  // fix experiment.rate_coeff_idxs and experiment.odds_coeff_idxs for dropped
+  // redundant coefficients
   for (size_t e = 0; e < E; ++e) {
     for (auto idxs :
          {&experiments[e].rate_coeff_idxs, &experiments[e].odds_coeff_idxs}) {
