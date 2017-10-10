@@ -80,7 +80,7 @@ string default_rate_formula(const vector<string> &covariates) {
   vector<string> expr;
   prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
   using namespace DesignNS;
-  return gene_label + " * (" + type_label + "+" + section_label
+  return gene_label + " * (" + type_label + " + " + section_label
          + accumulate(expr.begin(), expr.end(), string()) + ") + " + spot_label
          + " * " + type_label + " + " + unit_label;
 }
@@ -93,7 +93,7 @@ string default_rate_formula(const vector<string> &covariates) {
  */
 string default_odds_formula() {
   using namespace DesignNS;
-  return gene_label + "*" + type_label + "+" + unit_label;
+  return gene_label + " * " + type_label + " + " + unit_label;
 }
 
 }
