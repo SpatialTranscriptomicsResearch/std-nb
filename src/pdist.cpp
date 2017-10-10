@@ -94,6 +94,11 @@ double log_negative_binomial(double x, double r, double p) {
          + r * log(1 - p);
 }
 
+double log_negative_binomial_odds(double x, double r, double o) {
+  return lgamma(x + r) - lgamma(x + 1) - lgamma(r) + x * log(o)
+         + (r + x) * log(1 + o);
+}
+
 double log_negative_binomial(double x, double r, double p1, double p2) {
   double logp = log(p1 + p2);
   return lgamma(x + r) - lgamma(x + 1) - lgamma(r) + x * (log(p1) - logp)
