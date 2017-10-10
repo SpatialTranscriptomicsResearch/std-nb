@@ -556,9 +556,9 @@ void Model::store(const string &prefix_, bool mean_and_var,
 void Model::restore(const string &prefix) {
   {
     for (auto &coeff : coeffs) {
-      coeff.restore(prefix + "covariate-" + coeff.label + "-"
-                    + coeff.info.to_string(design.covariates)
-                    + FILENAME_ENDING);
+      coeff.restore(
+          prefix + "covariate-" + storage_type(coeff.kind) + "-" + coeff.label
+          + "-" + coeff.info.to_string(design.covariates) + FILENAME_ENDING);
     }
   }
 
