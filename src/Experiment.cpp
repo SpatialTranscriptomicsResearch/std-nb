@@ -248,7 +248,7 @@ Vector Experiment::sample_contributions_gene_spot(
     } break;
     case Sampling::Method::MH: {
       cnts = proportions.array().log();
-      std::normal_distribution<double> normal_dist(0, 0.5);
+      std::normal_distribution<double> normal_dist(0, 1);
       auto generate = [&normal_dist](const Vector &v, RNG &rng_) -> Vector {
         Vector w = v;
         for (auto &x : w)
