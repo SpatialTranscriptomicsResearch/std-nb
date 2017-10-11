@@ -118,11 +118,6 @@ int main(int argc, char **argv) {
     "\n"
     "This software implements the Spatial Transcriptome Deconvolution model of\n"
     "Jonas Maaskola et al. 2016.\n"
-    "Among others it is related to the βγΓ-Poisson Factor Analysis model in\n"
-    "\"Beta-Negative Binomial Process and Poisson Factor Analysis\"\n"
-    "by Mingyuan Zhou, Lauren A. Hannah, David B. Dunson, and Lawrence Carin\n"
-    "Proceedings of the 15th International Conference on Artificial Intelligence and\n"
-    "Statistics (AISTATS) 2012, La Palma, Canary Islands. Volume XX of JMLR: W&CP XX.\n"
     "\n"
     "Please provide one or more count matrices as argument to the --file switch or as\n"
     "free arguments. These need to have genes in the rows and spots in the columns.";
