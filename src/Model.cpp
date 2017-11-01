@@ -788,7 +788,7 @@ double Model::param_likel() const {
   return score;
 }
 
-void Model::gradient_update() {
+void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds) {
   LOG(verbose) << "Performing gradient update iterations";
 
   auto fnc = [&](const Vector &x, Vector &grad) {
@@ -805,6 +805,18 @@ void Model::gradient_update() {
     Model model_grad = compute_gradient(score);
     for (auto &coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff.values);
+
+    // set gradient to zero for coefficients that have a kind that is not included
+    for (auto &coeff : model_grad.coeffs) {
+      bool is_included = false;
+      for (auto &included_kind : included_kinds)
+        if (coeff.kind == included_kind) {
+          is_included = true;
+          break;
+        }
+      if (not is_included)
+        coeff.values.fill(0);
+    }
 
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;

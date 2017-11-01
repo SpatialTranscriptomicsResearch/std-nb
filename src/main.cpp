@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include "Model.hpp"
 #include "aux.hpp"
@@ -37,11 +37,19 @@ struct Options {
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
   STD::Model pfa(data_sets, options.num_factors, options.design,
-      options.model_spec, parameters);
+                 options.model_spec, parameters);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
-  pfa.gradient_update();
+  pfa.parameters.grad_iterations = 50;
+  pfa.gradient_update({Coefficient::Kind::scalar});
+  pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
+                       Coefficient::Kind::spot});
+  pfa.parameters.grad_iterations = parameters.grad_iterations;
+  pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
+                       Coefficient::Kind::spot, Coefficient::Kind::type,
+                       Coefficient::Kind::gene_type,
+                       Coefficient::Kind::spot_type});
   pfa.store("", true);
   /* TODO covariates reactivate likelihood
   if (options.compute_likelihood)
@@ -95,7 +103,6 @@ string default_odds_formula() {
   using namespace DesignNS;
   return gene_label + " * " + type_label + " + " + unit_label;
 }
-
 }
 
 int main(int argc, char **argv) {
@@ -340,7 +347,7 @@ int main(int argc, char **argv) {
   ifstream(options.spec_path) >> options.model_spec;
 
   LOG(verbose) << "Final model specification:";
-  log([](const std::string& s) { LOG(verbose) << s; }, options.model_spec);
+  log([](const std::string &s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
   for (auto &spec : options.design.dataset_specifications) {

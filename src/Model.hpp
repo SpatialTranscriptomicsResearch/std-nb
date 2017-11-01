@@ -72,7 +72,7 @@ struct Model {
 
   Vector vectorize() const;
   void from_vector(const Vector &v);
-  void gradient_update();
+  void gradient_update(const std::vector<Coefficient::Kind> &included_kinds);
   size_t size() const;
   size_t number_parameters() const;
 
