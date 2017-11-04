@@ -26,7 +26,7 @@ Counts::Counts(const string &path_, bool transpose, const string &separator)
           path, read_floats, separator, row_names, col_names))) {
   if (transpose) {
     std::swap(row_names, col_names);
-    *matrix = matrix->transpose();
+    matrix->transposeInPlace();
   }
 }
 
