@@ -23,7 +23,7 @@ namespace {
 size_t iter_cnt = 0;
 
 CovariateInformation drop_covariate(const CovariateInformation &info,
-                                    const Design &design,
+                                    const Design::Design &design,
                                     const std::string &cov_label) {
   auto mod_info = info;
   for (size_t idx = 0; idx < info.idxs.size(); ++idx)
@@ -35,7 +35,7 @@ CovariateInformation drop_covariate(const CovariateInformation &info,
 }
 
 CovariateInformation drop_covariates(
-    CovariateInformation info, const Design &design,
+    CovariateInformation info, const Design::Design &design,
     const std::vector<std::string> &cov_labels) {
   for (auto &cov_label : cov_labels)
     info = drop_covariate(info, design, cov_label);
@@ -43,11 +43,11 @@ CovariateInformation drop_covariates(
 }
 
 CovariateInformation get_covariate_info(
-    const Design& design, const set<string>& covariates, size_t experiment)
+    const Design::Design& design, const set<string>& covariates, size_t experiment)
 {
   auto covariates_ = covariates;
 
-  using namespace DesignNS;
+  using namespace Design;
 
   // spot dependency implies section dependency
   if (covariates_.find(spot_label) != covariates_.end()) {
@@ -216,7 +216,7 @@ size_t Model::register_coefficient(
 
       // Create or update coordinate system
       auto gp_coord_info = drop_covariates(
-          info, design, { DesignNS::spot_label, DesignNS::section_label });
+          info, design, { Design::spot_label, Design::section_label });
       auto gp_coord_id = Coefficient::Id{
         .name = id + "-gp-coord",
         .kind = gp_kind,
@@ -234,8 +234,8 @@ size_t Model::register_coefficient(
 
       // Create or update GP proxy
       auto gp_proxy_info = drop_covariates(info, design,
-          { DesignNS::spot_label, DesignNS::section_label,
-              DesignNS::coordsys_label });
+          { Design::spot_label, Design::section_label,
+              Design::coordsys_label });
       auto gp_id = Coefficient::Id{
         .name = id + "-gp-proxy",
         .kind = gp_kind,
@@ -330,7 +330,7 @@ void Model::add_gp_proxies() {
     }
 }
 
-Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
+Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
              const ModelSpec& model_spec, const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),

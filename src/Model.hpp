@@ -23,7 +23,7 @@ struct Model {
   /** number of spots */
   size_t S;
 
-  Design design;
+  Design::Design design;
   std::vector<Experiment> experiments;
 
   Parameters parameters;
@@ -37,7 +37,7 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts>& data, size_t T, const Design& design,
+  Model(const std::vector<Counts>& data, size_t T, const Design::Design& design,
         const ModelSpec& model_spec, const Parameters& parameters);
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Kind kind);

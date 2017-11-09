@@ -12,7 +12,7 @@ using STD::Vector;
 using STD::Matrix;
 
 Coefficient::Kind determine_kind(const set<string> &term) {
-  using namespace DesignNS;
+  using namespace Design;
   static map<string, Coefficient::Kind> id2kind{
     { gene_label, Coefficient::Kind::gene },
     { spot_label, Coefficient::Kind::spot },
@@ -324,9 +324,9 @@ string to_string(const Coefficient::Kind &kind) {
   }
 
   static vector<pair<Coefficient::Kind, string>> kinds = {
-      {Coefficient::Kind::spot, DesignNS::spot_label},
-      {Coefficient::Kind::gene, DesignNS::gene_label},
-      {Coefficient::Kind::type, DesignNS::type_label},
+      {Coefficient::Kind::spot, Design::spot_label},
+      {Coefficient::Kind::gene, Design::gene_label},
+      {Coefficient::Kind::type, Design::type_label},
   };
   static auto all_kinds = accumulate(
       kinds.begin(), kinds.end(), static_cast<Coefficient::Kind>(0),

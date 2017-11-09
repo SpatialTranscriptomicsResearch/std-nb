@@ -3,8 +3,8 @@
 #include <cstdlib>
 #include <exception>
 #include <iostream>
-#include <string>
 #include <sstream>
+#include <string>
 #include <vector>
 #include "Model.hpp"
 #include "aux.hpp"
@@ -20,7 +20,7 @@ struct Options {
   vector<string> tsv_paths;
   string design_path;
   string spec_path;
-  Design design;
+  Design::Design design;
   ModelSpec model_spec;
   size_t num_factors = 20;
   bool intersect = false;
@@ -50,7 +50,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
  *   type * (gene + spot) + 1.
  */
 string simple_default_rate_formula() {
-  using namespace DesignNS;
+  using namespace Design;
   return type_label + " * (" + gene_label + " + " + spot_label + ") + "
          + unit_label;
 }
@@ -63,16 +63,15 @@ string simple_default_rate_formula() {
  * where the dots represent all user-defined covariates.
  */
 string default_rate_formula(const vector<string> &covariates) {
-  using DesignNS::labels;
+  using Design::labels;
   vector<string> filtered;
   copy_if(begin(covariates), end(covariates), back_inserter(filtered),
           [](const string x) {
-            return find(labels.begin(), labels.end(), x)
-                   == DesignNS::labels.end();
+            return find(labels.begin(), labels.end(), x) == labels.end();
           });
   vector<string> expr;
-  prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
-  using namespace DesignNS;
+  prepend(filtered.begin(), filtered.end(), back_inserter(expr), " + ");
+  using namespace Design;
   return gene_label + " * (" + type_label + " + " + section_label
          + accumulate(expr.begin(), expr.end(), string()) + ") + " + spot_label
          + " * " + type_label + " + " + unit_label;
@@ -85,10 +84,9 @@ string default_rate_formula(const vector<string> &covariates) {
  *   spot * type + 1.
  */
 string default_odds_formula() {
-  using namespace DesignNS;
+  using namespace Design;
   return gene_label + " * " + type_label + " + " + unit_label;
 }
-
 }
 
 int main(int argc, char **argv) {
@@ -330,7 +328,7 @@ int main(int argc, char **argv) {
   ifstream(options.spec_path) >> options.model_spec;
 
   LOG(verbose) << "Final model specification:";
-  log([](const std::string& s) { LOG(verbose) << s; }, options.model_spec);
+  log([](const std::string &s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
   for (auto &spec : options.design.dataset_specifications) {
