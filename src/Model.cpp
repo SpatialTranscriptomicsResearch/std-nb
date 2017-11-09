@@ -282,58 +282,6 @@ void Model::register_gradient_zero_count(
   }
 }
 
-// calculate parameter's likelihood
-double Model::param_likel() const {
-  double score = 0;
-  // TODO covariates likelihood
-  /*
-    const double a = parameters.hyperparameters.gamma_1;
-    const double b = parameters.hyperparameters.gamma_2;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t)
-        score += log_gamma_rate(gamma(g, t), a, b);
-
-    const double a = parameters.hyperparameters.lambda_1;
-    const double b = parameters.hyperparameters.lambda_2;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < G; ++g)
-          for (size_t t = 0; t < T; ++t)
-            score += log_gamma_rate(experiments[e].lambda(g, t), a, b);
-
-    const double a = parameters.hyperparameters.beta_1;
-    const double b = parameters.hyperparameters.beta_2;
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t g = 0; g < G; ++g)
-          score += log_gamma_rate(experiments[e].beta(g), a, b);
-
-    for (auto &coord_sys : coordinate_systems)
-      for (auto e : coord_sys.members)
-#pragma omp parallel for if (DO_PARALLEL)
-        for (size_t s = 0; s < experiments[e].S; ++s)
-          for (size_t t = 0; t < T; ++t) {
-            const double a = experiments[e].field(s, t) * mix_prior.r(t);
-            const double b = mix_prior.p(t);
-            score += log_gamma_rate(experiments[e].theta(s, t), a, b);
-          }
-
-    const double a = parameters.hyperparameters.rho_1;
-    const double b = parameters.hyperparameters.rho_2;
-#pragma omp parallel for if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-      for (size_t t = 0; t < T; ++t) {
-        const double no = negodds_rho(g, t);
-        score += log_beta_neg_odds(no, a, b);
-      }
-  */
-
-  return score;
-}
-
 void Model::gradient_update() {
   LOG(verbose) << "Performing gradient update iterations";
 
@@ -416,29 +364,6 @@ void Model::gradient_update() {
 
   from_vector(x.array());
 }
-
-/* TODO covariates reactivate likelihood
-double Model::log_likelihood(const string &prefix) const {
-  double l = 0;
-  for (size_t e = 0; e < E; ++e) {
-    Matrix m = experiments[e].log_likelihood();
-
-    auto &gene_names = experiments[e].counts.row_names;
-    auto &spot_names = experiments[e].counts.col_names;
-
-    string exp_prefix = prefix + "experiment"
-                        + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
-    write_matrix(m, exp_prefix + "loglikelihood" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, spot_names);
-    write_matrix(*experiments[e].counts.matrix,
-                 exp_prefix + "loglikelihood-counts" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, spot_names);
-    for (auto &x : m)
-      l += x;
-  }
-  return l;
-}
-*/
 
 // computes a matrix M(g,t) =
 //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)

@@ -73,7 +73,6 @@ struct Model {
       const std::vector<double> &odds_coeffs) const;
 
   void coeff_debug_dump(const std::string &tag) const;
-  double param_likel() const;
 
   Vector vectorize() const;
   void from_vector(const Vector &v);
@@ -86,9 +85,6 @@ struct Model {
   void store(const std::string &prefix, bool mean_and_var = false,
              bool reorder = true) const;
   void restore(const std::string &prefix);
-
-  // TODO covariates reactivate likelihood
-  // double log_likelihood(const std::string &prefix) const;
 
   // computes a matrix M(g,t)
   //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)

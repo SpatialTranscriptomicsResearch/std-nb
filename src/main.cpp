@@ -25,8 +25,6 @@ struct Options {
   size_t num_factors = 20;
   bool intersect = false;
   string load_prefix = "";
-  // TODO covariates reactivate likelihood
-  // bool compute_likelihood = false;
   bool share_coord_sys = false;
   bool keep_empty = false;
   bool transpose = false;
@@ -43,11 +41,6 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   LOG(info) << "Initial model" << endl << pfa;
   pfa.gradient_update();
   pfa.store("", true);
-  /* TODO covariates reactivate likelihood
-  if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = "
-              << pfa.log_likelihood(pfa.parameters.output_directory);
-  */
 }
 
 /**
@@ -206,9 +199,6 @@ int main(int argc, char **argv) {
      "Warn when parameter values reach the lower limit specified by --minval.")
     ("keep_empty", po::bool_switch(&options.keep_empty),
      "Do not discard genes or spots with zero counts.")
-    // TODO covariates reactivate likelihood
-    // ("likel", po::bool_switch(&options.compute_likelihood),
-    //  "Compute and print the likelihood after finishing.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
     ("downsample", po::value(&parameters.downsample)->default_value(parameters.downsample),
