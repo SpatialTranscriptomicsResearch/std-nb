@@ -1,8 +1,11 @@
 #include "spec_parser/Driver.hpp"
 
 #include <exception>
+#include <numeric>
 #include <sstream>
+#include <vector>
 
+#include "aux.hpp"
 #include "parser.tab.hpp"
 #include "spec_parser/RandomVariable.hpp"
 
@@ -29,17 +32,16 @@ void Driver::error(const yy::location& l, const std::string& m)
   throw ParseError(cur_line, l, m);
 }
 
-void Driver::add_formula(const std::string& id, const Formula& formula)
-{
-  /* TODO: needs rewrite
-  RegressionEquation req;
-  for (auto& term : formula.terms) {
-    auto variable
-        = get_variable(id, std::set<std::string>(term.cbegin(), term.cend()));
-    req.variables.push_back(variable->full_id());
-  }
-  regression_equations[id] = req;
-  */
+void Driver::add_formula(const std::string& id, const Formula& formula) {
+  auto n = size(formula.terms);
+  assert(n > 0);
+  std::vector<ExpType> exps(n);
+  std::transform(
+      begin(formula.terms), end(formula.terms), begin(exps),
+      [this, &id](const auto& x) {
+        return var(get_variable(id, std::set<std::string>(begin(x), end(x))));
+      });
+  regression_exprs[id] = accumulate1(begin(exps), end(exps));
 }
 
 Driver::ExpType& Driver::get_expr(const std::string& id) {

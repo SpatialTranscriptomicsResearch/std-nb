@@ -146,6 +146,21 @@ std::vector<std::string> split_at(char sep, const std::string &str);
 std::string trim(const std::string &str, char sym = ' ');
 
 /**
+ * Similar to std::accumulate but uses the first element in the input range as
+ * the initial value.
+ */
+template <typename InputIt,
+          typename value_type
+          = typename std::iterator_traits<InputIt>::value_type>
+value_type accumulate1(InputIt first, InputIt last) {
+  value_type x = *first;
+  while (++first != last) {
+    x = x + *first;
+  }
+  return x;
+}
+
+/**
  * Prepends iterator elements by a given symbol.
  */
 template <typename InputIt, typename OutputIt, typename T>
