@@ -47,6 +47,8 @@ struct Experiment {
   std::vector<size_t> rate_coeff_idxs;
   std::vector<size_t> odds_coeff_idxs;
 
+  void ensure_dimensions() const;
+
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;

@@ -33,6 +33,46 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
   LOG(debug) << "Coords: " << coords;
 }
 
+void Experiment::ensure_dimensions() const {
+  LOG(debug) << "Ensuring dimensions for experiment " << counts.path;
+  for (auto &idxs : {rate_coeff_idxs, odds_coeff_idxs})
+    for (auto &coeff_idx : idxs) {
+      int nrow = 0;
+      int ncol = 0;
+      Coefficient &coeff = *model->coeffs[coeff_idx];
+      switch (coeff.kind) {
+        case Coefficient::Kind::scalar:
+          nrow = ncol = 1;
+          break;
+        case Coefficient::Kind::gene:
+          nrow = G;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::spot:
+          nrow = S;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::type:
+          nrow = T;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::gene_type:
+          nrow = G;
+          ncol = T;
+          break;
+        case Coefficient::Kind::spot_type:
+          nrow = S;
+          ncol = T;
+          break;
+      }
+      if (coeff.values.rows() != nrow or coeff.values.cols() != ncol)
+        throw std::runtime_error("Error: mismatched dimension on coefficient "
+                                 + to_string(coeff_idx) + ": " + to_string(nrow)
+                                 + "x" + to_string(ncol) + " vs "
+                                 + coeff.to_string());
+    }
+}
+
 void Experiment::store(const string &prefix,
                        const vector<size_t> &order) const {
   auto factor_names = form_factor_names(T);

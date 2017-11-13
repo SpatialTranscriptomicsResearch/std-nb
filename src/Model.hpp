@@ -86,6 +86,7 @@ struct Model {
              bool reorder = true) const;
   void restore(const std::string &prefix);
 
+  void ensure_dimensions() const;
   // computes a matrix M(g,t)
   //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
   Matrix expected_gene_type() const;

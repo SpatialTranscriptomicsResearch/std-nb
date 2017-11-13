@@ -79,6 +79,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   add_covariates(model_spec);
 
+  ensure_dimensions();
+
   coeff_debug_dump("INITIAL");
   add_gp_proxies();
   // coeff_debug_dump("BEFORE");
@@ -89,6 +91,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
+}
+
+void Model::ensure_dimensions() const {
+  size_t i = 0;
+  for(auto &experiment: experiments) {
+    LOG(debug) << "Ensuring dimensions for experiment " << i++;
+    experiment.ensure_dimensions();
+  }
 }
 
 void Model::setZero() {
