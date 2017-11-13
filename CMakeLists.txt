@@ -35,10 +35,10 @@ SET(CMAKE_DEBUG_POSTFIX -nxt-dbg)
 # SET(CMAKE_PREFIX_PATH ${LOCAL_PREFIX})
 
 
-
-
+SET(CMAKE_CXX_STANDARD 17)
 SET(CMAKE_LINKER ld.gold)
 
+INCLUDE(CheckCXXCompilerFlag)
 INCLUDE(InstallRequiredSystemLibraries)
 
 SET(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Metropolis-Hastings MCMC for the multi-scoop Inidan Buffet Process aka. Beta-Negative Binomial Process")
@@ -64,11 +64,6 @@ IF(EXISTS "${CMAKE_SOURCE_DIR}/local_configuration.cmake")
   INCLUDE("${CMAKE_SOURCE_DIR}/local_configuration.cmake")
 ENDIF()
 
-
-# Check for C++11 features of the compiler
-INCLUDE(CheckCXX11Features)
-SET(CMAKE_CXX_FLAGS "${CMAKE_CXX11_FLAGS}")
-
 # Check whether the compiler supports position-independent code
 CHECK_CXX_COMPILER_FLAG("-fPIC" COMPILER_SUPPORTS_PIC)
 IF(COMPILER_SUPPORTS_PIC)
@@ -83,7 +78,6 @@ ENDIF()
 
 # Check whether the compiler supports link-time optimization
 IF(NOT(DEFINED WITH_LTO) OR WITH_LTO)
-  INCLUDE(CheckCXXCompilerFlag)
   CHECK_CXX_COMPILER_FLAG("-flto" COMPILER_SUPPORTS_LTO)
   IF(COMPILER_SUPPORTS_LTO)
     INCLUDE(CheckGCCVersion)
