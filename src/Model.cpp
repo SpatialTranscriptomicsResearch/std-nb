@@ -349,6 +349,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 
   add_covariates(model_spec);
 
+  ensure_dimensions();
+
   coeff_debug_dump("INITIAL");
   add_gp_proxies();
   coeff_debug_dump("BEFORE");
@@ -361,6 +363,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   // linear in number of counts, scaled so that mean = 1
 
   enforce_positive_parameters(parameters.min_value);
+}
+
+void Model::ensure_dimensions() const {
+  size_t i = 0;
+  for(auto &experiment: experiments) {
+    LOG(debug) << "Ensuring dimensions for experiment " << i++;
+    experiment.ensure_dimensions();
+  }
 }
 
 void Model::coeff_debug_dump(const string &tag) const {
