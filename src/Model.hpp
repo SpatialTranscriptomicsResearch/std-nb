@@ -28,10 +28,11 @@ struct Model {
 
   Parameters parameters;
 
-  using Coefficients = std::vector<Coefficient>;
+  using Coefficients = std::vector<CoefficientPtr>;
   Coefficients coeffs;
 
-  std::vector<Coefficient>::iterator find_coefficient(const Coefficient::Id& cid);
+  std::vector<CoefficientPtr>::iterator find_coefficient(
+      const Coefficient::Id &cid);
 
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type;
@@ -44,12 +45,9 @@ struct Model {
   void remove_redundant_terms_sub(const std::vector<std::vector<size_t>> &cov_groups);
 
   size_t register_coefficient(
-      const std::unordered_map<std::string, spec_parser::RandomVariable>& variable_map,
+      const std::unordered_map<std::string, ModelSpec::Variable>& variable_map,
       std::string id,
       size_t experiment);
-  void add_covariate_terms(
-    const std::unordered_map<std::string, spec_parser::RandomVariable> &variable_map,
-    const std::string &variable_id, std::function<void(Experiment&, size_t)> fnc);
   void add_covariates(const ModelSpec& ms);
 
   void add_gp_proxies();
@@ -58,9 +56,8 @@ struct Model {
   void setZero();
   Model compute_gradient(double &score) const;
   void register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                         Model &gradient, const Matrix &rate_gt,
-                         const Matrix &rate_st, const Matrix &odds_gt,
-                         const Matrix &odds_st) const;
+                         Model &gradient, const Vector &rate,
+                         const Vector &odds) const;
   void register_gradient_zero_count(size_t g, size_t e, size_t s,
                                     Model &gradient, const Matrix &rate_gt,
                                     const Matrix &rate_st,

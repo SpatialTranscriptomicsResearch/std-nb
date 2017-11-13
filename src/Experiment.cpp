@@ -35,6 +35,7 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
 
 void Experiment::store(const string &prefix,
                        const vector<size_t> &order) const {
+  /* TODO: Needs rewrite
   auto factor_names = form_factor_names(T);
   auto &gene_names = counts.row_names;
   auto &spot_names = counts.col_names;
@@ -90,6 +91,7 @@ void Experiment::store(const string &prefix,
                  prefix + "contributions_spot" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names);
   }
+  */
 }
 
 void Experiment::restore(const string &prefix) {
@@ -131,9 +133,10 @@ Matrix Experiment::log_likelihood() const {
 */
 
 /** sample count decomposition */
-Vector Experiment::sample_contributions_gene_spot(
-    size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
-    const Matrix &odds_gt, const Matrix &odds_st, RNG &rng) const {
+Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
+                                                  const Vector &rate,
+                                                  const Vector &odds,
+                                                  RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
   const auto count = counts(g, s);
@@ -145,14 +148,6 @@ Vector Experiment::sample_contributions_gene_spot(
     cnts[0] = count;
     return cnts;
   }
-
-  Vector rate(T);
-  for (size_t t = 0; t < T; ++t)
-    rate(t) = rate_gt(g, t) * rate_st(s, t);
-
-  Vector odds(T);
-  for (size_t t = 0; t < T; ++t)
-    odds(t) = odds_gt(g, t) * odds_st(s, t);
 
   Vector proportions(T);
   {
@@ -302,32 +297,6 @@ Vector Experiment::sample_contributions_gene_spot(
   return cnts;
 }
 
-// NOTE: scalar covariates are multiplied into this table
-Matrix Experiment::compute_gene_type_table(const vector<size_t> &idxs) const {
-  Matrix gt = Matrix::Ones(G, T);
-
-  for (auto &idx : idxs)
-    if (not model->coeffs[idx].spot_dependent())
-      for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= model->coeffs[idx].get(g, t, 0);
-
-  return gt;
-}
-
-// NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table(const vector<size_t> &idxs) const {
-  Matrix st = Matrix::Ones(S, T);
-
-  for (auto &idx : idxs)
-    if (model->coeffs[idx].spot_dependent())
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          st(s, t) *= model->coeffs[idx].get(0, t, s);
-
-  return st;
-}
-
 /* TODO cov var
 Vector Experiment::marginalize_genes() const {
 
@@ -356,6 +325,7 @@ Vector Experiment::marginalize_genes() const {
 
 Matrix Experiment::expectation() const {
   Matrix mean(G, S);
+  /* TODO: needs rewrite
   Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
   Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
   Matrix mean_gt = rate_gt.array() * odds_gt.array();
@@ -371,11 +341,13 @@ Matrix Experiment::expectation() const {
         x += mean_gt(g, t) * mean_st(s, t);
       mean(g, s) = x;
     }
+  */
   return mean;
 }
 
 Matrix Experiment::variance() const {
   Matrix var(G, S);
+  /* TODO: needs rewrite
   Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
   Matrix rate_st = compute_spot_type_table(rate_coeff_idxs);
   Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
@@ -390,10 +362,12 @@ Matrix Experiment::variance() const {
       }
       var(g, s) = x;
     }
+  */
   return var;
 }
 
 Matrix Experiment::expected_gene_type() const {
+  /* TODO: needs rewrite
   Matrix st = compute_spot_type_table(rate_coeff_idxs).array()
               * compute_spot_type_table(odds_coeff_idxs).array();
   Vector st_cs = colSums<Vector>(st);
@@ -404,9 +378,12 @@ Matrix Experiment::expected_gene_type() const {
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= st_cs[t];
   return expected;
+  */
+  return Matrix();
 }
 
 Matrix Experiment::expected_spot_type() const {
+  /* TODO: needs rewrite
   Matrix gt = compute_gene_type_table(rate_coeff_idxs).array()
               * compute_gene_type_table(odds_coeff_idxs).array();
   Vector gt_cs = colSums<Vector>(gt);
@@ -417,6 +394,8 @@ Matrix Experiment::expected_spot_type() const {
   for (size_t t = 0; t < T; ++t)
     expected.col(t) *= gt_cs[t];
   return expected;
+  */
+  return Matrix();
 }
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {

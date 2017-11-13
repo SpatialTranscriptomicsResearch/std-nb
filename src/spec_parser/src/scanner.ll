@@ -35,9 +35,12 @@ comment #[^\n]*
 "+"        return yy::parser::make_PLUS(loc);
 "*"        return yy::parser::make_STAR(loc);
 ":"        return yy::parser::make_COLON(loc);
-"^"        return yy::parser::make_EXP(loc);
+"^"        return yy::parser::make_EXPON(loc);
 "("        return yy::parser::make_LPAREN(loc);
 ")"        return yy::parser::make_RPAREN(loc);
+
+"log"      return yy::parser::make_LOG(loc);
+"exp"      return yy::parser::make_EXP(loc);
 
 {blank}+   loc.step();
 {comment}  loc.step();

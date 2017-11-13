@@ -13,7 +13,11 @@
 #include "timer.hpp"
 #include "verbosity.hpp"
 
+#include "spec_parser/Expression.hpp"
+
 namespace STD {
+
+using Expression = spec_parser::ExpressionPtr<CoefficientPtr>;
 
 #ifdef NDEBUG
 const bool noisy = false;
@@ -43,8 +47,11 @@ struct Experiment {
   std::vector<size_t> rate_coeff_idxs;
   std::vector<size_t> odds_coeff_idxs;
 
-  Matrix compute_gene_type_table(const std::vector<size_t> &coeff_idxs) const;
-  Matrix compute_spot_type_table(const std::vector<size_t> &coeff_idxs) const;
+  Expression rate_expr;
+  Expression odds_expr;
+
+  std::vector<std::pair<size_t, Expression>> rate_expr_derivs;
+  std::vector<std::pair<size_t, Expression>> odds_expr_derivs;
 
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
@@ -60,11 +67,8 @@ struct Experiment {
   // Matrix log_likelihood() const;
 
   /** sample count decomposition */
-  Vector sample_contributions_gene_spot(size_t g, size_t s,
-                                        const Matrix &rate_gt,
-                                        const Matrix &rate_st,
-                                        const Matrix &odds_gt,
-                                        const Matrix &odds_st, RNG &rng) const;
+  Vector sample_contributions_gene_spot(size_t g, size_t s, const Vector &rate,
+                                        const Vector &odds, RNG &rng) const;
 
   Vector marginalize_genes() const;
 

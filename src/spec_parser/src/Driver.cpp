@@ -31,6 +31,7 @@ void Driver::error(const yy::location& l, const std::string& m)
 
 void Driver::add_formula(const std::string& id, const Formula& formula)
 {
+  /* TODO: needs rewrite
   RegressionEquation req;
   for (auto& term : formula.terms) {
     auto variable
@@ -38,13 +39,14 @@ void Driver::add_formula(const std::string& id, const Formula& formula)
     req.variables.push_back(variable->full_id());
   }
   regression_equations[id] = req;
+  */
 }
 
-RegressionEquation* Driver::get_equation(const std::string& id) {
-  return &regression_equations[id];
+Driver::ExpType& Driver::get_expr(const std::string& id) {
+  return regression_exprs[id];
 }
 
-RandomVariable* Driver::get_variable(
+Driver::VarType& Driver::get_variable(
     const std::string& id, std::set<std::string> covariates)
 {
   { // disregard unit covariate
@@ -53,14 +55,14 @@ RandomVariable* Driver::get_variable(
       covariates.erase(it);
     }
   }
-  auto variable = RandomVariable(id, covariates);
-  auto full_id = variable.full_id();
+  auto variable = std::make_shared<RandomVariable>(id, covariates);
+  auto full_id = variable->full_id();
   { // check if variable already exists
     auto it = random_variables.find(full_id);
     if (it != random_variables.end()) {
-      return &(it->second);
+      return it->second;
     }
   }
   auto res = random_variables.emplace(full_id, std::move(variable));
-  return &(res.first->second);
+  return res.first->second;
 }

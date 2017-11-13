@@ -1,5 +1,7 @@
 #include "spec_parser/Distribution.hpp"
 
+#include "aux.hpp"
+
 using namespace spec_parser;
 
 const Distribution::Type default_dist = Distribution::Type::fixed;
@@ -51,4 +53,12 @@ Distribution::Distribution(
     const std::string& _type, const std::vector<std::string> _arguments)
     : Distribution(stodistr(_type), _arguments)
 {
+}
+
+std::string spec_parser::to_string(const Distribution& d) {
+  auto distr_name = Distribution::distrtos(d.type);
+  auto args
+      = intercalate<std::vector<std::string>::const_iterator, std::string>(
+          d.arguments.begin(), d.arguments.end(), ",");
+  return distr_name + "(" + args + ")";
 }

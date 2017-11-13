@@ -3,6 +3,7 @@
 
 #include <exception>
 #include <unordered_map>
+#include <string>
 
 #include "coefficient.hpp"
 
@@ -22,6 +23,8 @@ struct Distribution {
   Distribution(Type type, const std::vector<std::string> arguments);
   Distribution(const std::string& type, const std::vector<std::string> arguments);
 };
+
+std::string to_string(const Distribution& d);
 
 } // namespace spec_parser
 

@@ -16,6 +16,9 @@
 using namespace spec_parser;
 using namespace std;
 
+using spec_parser::expression::eval;
+using spec_parser::expression::deriv;
+
 namespace STD {
 
 namespace {
@@ -83,9 +86,9 @@ void verify_model(const Model& m) {
     static const auto input_dim
         = Coefficient::Kind::gene | Coefficient::Kind::spot;
     for (auto &x : m.coeffs) {
-      if ((x.kind & input_dim) == input_dim) {
+      if ((x->kind & input_dim) == input_dim) {
         throw runtime_error(
-            "Error: coefficient '" + x.label
+            "Error: coefficient '" + x->label
             + "' has dimensionality greater than or equal to the input data.");
       }
     }
@@ -101,7 +104,7 @@ void verify_model(const Model& m) {
               "supported.");
         }
         visited[x] = true;
-        for (auto &p : m.coeffs[x].prior_idxs) {
+        for (auto &p : m.coeffs[x]->prior_idxs) {
           go(p);
         }
         visited[x] = false;
@@ -121,15 +124,15 @@ void verify_model(const Model& m) {
 
 }  // namespace
 
-std::vector<Coefficient>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
-  return find_if(begin(coeffs), end(coeffs), [&](const Coefficient &coeff) {
-    return coeff.label == cid.name and coeff.kind == cid.kind
-           and coeff.distribution == cid.dist and coeff.info == cid.info;
+std::vector<CoefficientPtr>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
+  return find_if(begin(coeffs), end(coeffs), [&](const CoefficientPtr &coeff) {
+    return coeff->label == cid.name and coeff->kind == cid.kind
+           and coeff->distribution == cid.dist and coeff->info == cid.info;
   });
 }
 
 size_t Model::register_coefficient(
-    const unordered_map<string, RandomVariable>& variable_map,
+    const unordered_map<string, ModelSpec::Variable>& variable_map,
     string id,
     size_t experiment)
 {
@@ -150,8 +153,7 @@ size_t Model::register_coefficient(
       idx = coeffs.size();
       LOG(debug) << "Adding new coefficient for " << cid.name << " (" << idx
                  << ").";
-      Coefficient covterm(_G, _T, _S, cid);
-      coeffs.push_back(covterm);
+      coeffs.emplace_back(std::make_shared<Coefficient>(_G, _T, _S, cid));
       on_add(idx);
     }
     return idx;
@@ -165,7 +167,7 @@ size_t Model::register_coefficient(
       .info = CovariateInformation{},
     };
     return do_registration(
-        cid, 0, 0, 0, [&](size_t idx) { coeffs[idx].get(0, 0, 0) = value; });
+        cid, 0, 0, 0, [&](size_t idx) { coeffs[idx]->get(0, 0, 0) = value; });
   };
 
   auto register_random = [&]() {
@@ -175,15 +177,15 @@ size_t Model::register_coefficient(
     }
     auto variable = it->second;
 
-    auto info = get_covariate_info(design, variable.covariates, experiment);
-    auto kind = determine_kind(variable.covariates);
+    auto info = get_covariate_info(design, variable->covariates, experiment);
+    auto kind = determine_kind(variable->covariates);
 
-    if (variable.distribution == nullptr) {
+    if (variable->distribution == nullptr) {
       auto dist = Coefficient::Distribution::log_normal;
       LOG(verbose) << id
                    << " does not have a distribution specification. Using "
                    << to_string(dist) << " as per defaults.";
-      variable.distribution = make_shared<Distribution>(dist,
+      variable->distribution = make_shared<Distribution>(dist,
           vector<string> {
               remove_trailing_zeros(to_string(
                     parameters.hyperparameters.get_param(dist, 0))),
@@ -195,23 +197,23 @@ size_t Model::register_coefficient(
     Coefficient::Id cid{
       .name = id,
       .kind = kind,
-      .dist = variable.distribution->type,
+      .dist = variable->distribution->type,
       .info = info,
     };
 
     size_t idx = do_registration(
         cid, G, T, experiments[experiment].S, [&](size_t _idx) {
           size_t i = 1;
-          for (auto& prior : variable.distribution->arguments) {
+          for (auto& prior : variable->distribution->arguments) {
             size_t prior_idx = register_coefficient(
                 variable_map, prior, experiment);
-            coeffs[_idx].prior_idxs.push_back(prior_idx);
+            coeffs[_idx]->prior_idxs.push_back(prior_idx);
             LOG(debug) << "Prior " << i++ << " of " << id << " (" << _idx
                        << ") is " << prior << " (" << prior_idx << ").";
           }
         });
 
-    if (variable.distribution->type == Coefficient::Distribution::log_gp) {
+    if (variable->distribution->type == Coefficient::Distribution::log_gp) {
       auto gp_kind = kind & ~Coefficient::Kind::spot;
 
       // Create or update coordinate system
@@ -229,8 +231,8 @@ size_t Model::register_coefficient(
                          << ").";
             });
       LOG(debug) << "Updating GP coordinate system (" << gp_coord_idx << ").";
-      coeffs[gp_coord_idx].experiment_idxs.push_back(experiment);
-      coeffs[gp_coord_idx].prior_idxs.push_back(idx);
+      coeffs[gp_coord_idx]->experiment_idxs.push_back(experiment);
+      coeffs[gp_coord_idx]->prior_idxs.push_back(idx);
 
       // Create or update GP proxy
       auto gp_proxy_info = drop_covariates(info, design,
@@ -247,7 +249,7 @@ size_t Model::register_coefficient(
               LOG(debug) << "Added new GP proxy (" << _gp_proxy_idx << ").";
             });
       LOG(debug) << "Updating GP proxy (" << gp_proxy_idx << ").";
-      Coefficient& gp_coeff = coeffs[gp_proxy_idx];
+      Coefficient& gp_coeff = *coeffs[gp_proxy_idx];
       gp_coeff.experiment_idxs.push_back(experiment);
       if (std::find(begin(gp_coeff.prior_idxs), end(gp_coeff.prior_idxs),
               gp_coord_idx)
@@ -268,46 +270,50 @@ size_t Model::register_coefficient(
   return register_fixed(value);
 }
 
-void Model::add_covariate_terms(
-    const std::unordered_map<std::string, RandomVariable> &variable_map,
-    const std::string &variable_id, std::function<void(Experiment&, size_t)> fnc) {
-  for (size_t e = 0; e < E; ++e) {
-    LOG(verbose) << "Registering coefficient '" << variable_id
-                 << "' for experiment " << e;
-    size_t idx = register_coefficient(variable_map, variable_id, e);
-    coeffs[idx].experiment_idxs.push_back(e);
-    fnc(experiments[e], idx);
-  }
-}
-
 void Model::add_covariates(const ModelSpec &model_spec) {
-  LOG(debug) << "Adding rate coefficients";
-  for (auto &coefficient : model_spec.rate_coefficients) {
-    add_covariate_terms(model_spec.variables, coefficient,
-                        [](Experiment &experiment, size_t idx) {
-                          experiment.rate_coeff_idxs.push_back(idx);
-                        });
-  }
-  LOG(debug) << "Adding odds coefficients";
-  for (auto &coefficient : model_spec.odds_coefficients) {
-    add_covariate_terms(model_spec.variables, coefficient,
-                        [](Experiment &experiment, size_t idx) {
-                          experiment.odds_coeff_idxs.push_back(idx);
-                        });
+  using Variable = ModelSpec::Variable;
+  for (size_t e = 0; e < E; ++e) {
+    LOG(debug) << "Registering coefficients for experiment " << e;
+
+    std::vector<size_t> exp_coeffs;
+
+    const std::function<CoefficientPtr(const Variable &)> transformer =
+        [ this, e, &exp_coeffs,
+          &vmap = model_spec.variables ](const Variable &x)
+            ->CoefficientPtr {
+      auto idx = register_coefficient(vmap, x->full_id(), e);
+      coeffs[idx]->experiment_idxs.push_back(e);
+      if (coeffs[idx]->distribution != Coefficient::Distribution::fixed) {
+        exp_coeffs.emplace_back(idx);
+      }
+      return coeffs[idx];
+    };
+
+    auto &rate_expr = experiments[e].rate_expr
+        = spec_parser::expression::transform(transformer, model_spec.rate_expr);
+    auto &odds_expr = experiments[e].odds_expr
+        = spec_parser::expression::transform(transformer, model_spec.odds_expr);
+
+    for (auto &idx : exp_coeffs) {
+      auto rate_deriv = deriv(coeffs[idx], rate_expr);
+      auto odds_deriv = deriv(coeffs[idx], odds_expr);
+      experiments[e].rate_expr_derivs.emplace_back(idx, std::move(rate_deriv));
+      experiments[e].odds_expr_derivs.emplace_back(idx, std::move(odds_deriv));
+    }
   }
 }
 
 void Model::add_gp_proxies() {
   LOG(debug) << "Constructing GP proxies";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
-    if (coeffs[idx].distribution == Coefficient::Distribution::log_gp_proxy) {
-      LOG(debug) << "Constructing GP proxy " << idx << ": " << coeffs[idx];
-      for (auto &coord_coeff_idx : coeffs[idx].prior_idxs) {
-        assert(coeffs[coord_coeff_idx].distribution
+    if (coeffs[idx]->distribution == Coefficient::Distribution::log_gp_proxy) {
+      LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
+      for (auto &coord_coeff_idx : coeffs[idx]->prior_idxs) {
+        assert(coeffs[coord_coeff_idx]->distribution
                == Coefficient::Distribution::log_gp_coord);
         LOG(debug) << "using coordinate system coefficient " << coord_coeff_idx
-                   << ": " << coeffs[coord_coeff_idx];
-        auto &coord_coeff = coeffs[coord_coeff_idx];
+                   << ": " << *coeffs[coord_coeff_idx];
+        auto &coord_coeff = *coeffs[coord_coeff_idx];
         auto exp_idxs = coord_coeff.experiment_idxs;
         auto prior_idxs = coord_coeff.prior_idxs;
         size_t n = 0;
@@ -324,7 +330,7 @@ void Model::add_gp_proxies() {
           i += experiments[e].S;
         }
         LOG(debug) << "m.dimesions = " << m.rows() << "x" << m.cols();
-        coeffs[coord_coeff_idx].gp = make_shared<GP::GaussianProcess>(
+        coeffs[coord_coeff_idx]->gp = make_shared<GP::GaussianProcess>(
             GP::GaussianProcess(m, parameters.gp.length_scale));
       }
     }
@@ -359,19 +365,17 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
-
-  enforce_positive_parameters(parameters.min_value);
 }
 
 void Model::coeff_debug_dump(const string &tag) const {
   size_t index = 0;
   for (auto coeff : coeffs)
     LOG(debug) << tag << " " << index++ << " " << coeff << ": "
-               << coeff.info.to_string(design.covariates);
+               << coeff->info.to_string(design.covariates);
   auto fnc = [&](const string &s, size_t idx, size_t e) {
     LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
-               << coeffs[idx] << ": "
-               << coeffs[idx].info.to_string(design.covariates);
+               << *coeffs[idx] << ": "
+               << coeffs[idx]->info.to_string(design.covariates);
   };
   for (size_t e = 0; e < E; ++e) {
     for (auto idx : experiments[e].rate_coeff_idxs)
@@ -409,14 +413,14 @@ void Model::remove_redundant_terms(Coefficient::Kind kind) {
   vector<vector<size_t>> cov2groups_rate(coeffs.size());
   for (size_t e = 0; e < E; ++e)
     for (auto idx : experiments[e].rate_coeff_idxs)
-      if (coeffs[idx].kind == kind)
+      if (coeffs[idx]->kind == kind)
         cov2groups_rate[idx].push_back(e);
   remove_redundant_terms_sub(cov2groups_rate);
 
   vector<vector<size_t>> cov2groups_odds(coeffs.size());
   for (size_t e = 0; e < E; ++e)
     for (auto idx : experiments[e].odds_coeff_idxs)
-      if (coeffs[idx].kind == kind)
+      if (coeffs[idx]->kind == kind)
         cov2groups_rate[idx].push_back(e);
   remove_redundant_terms_sub(cov2groups_odds);
 }
@@ -430,14 +434,14 @@ void Model::remove_redundant_terms_sub(
 
   // drop redundant coefficients
   for (auto r : redundant) {
-    LOG(debug) << "Removing " << r << ": " << coeffs[r] << ": "
-               << coeffs[r].info.to_string(design.covariates);
+    LOG(debug) << "Removing " << r << ": " << *coeffs[r] << ": "
+               << coeffs[r]->info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r);
   }
 
   // fix prior_idxs for dropped redundant coefficients
   for (auto &coeff : coeffs) {
-    auto &idxs = coeff.prior_idxs;
+    auto &idxs = coeff->prior_idxs;
     for (auto r : redundant)
       idxs.erase(remove(begin(idxs), end(idxs), r), end(idxs));
     for (auto &idx : idxs)
@@ -507,14 +511,14 @@ void Model::store(const string &prefix_, bool mean_and_var,
     {
       for (auto &coeff : coeffs) {
         vector<string> spot_names;
-        if (coeff.spot_dependent())
-          for (auto idx : coeff.experiment_idxs)
+        if (coeff->spot_dependent())
+          for (auto idx : coeff->experiment_idxs)
             spot_names.insert(begin(spot_names),
                               begin(experiments[idx].counts.col_names),
                               end(experiments[idx].counts.col_names));
-        coeff.store(prefix + "covariate-" + storage_type(coeff.kind) + "-"
-                        + coeff.label + "-"
-                        + coeff.info.to_string(design.covariates)
+        coeff->store(prefix + "covariate-" + storage_type(coeff->kind) + "-"
+                        + coeff->label + "-"
+                        + coeff->info.to_string(design.covariates)
                         + FILENAME_ENDING,
                     parameters.compression_mode, gene_names, spot_names,
                     type_names, order);
@@ -556,9 +560,9 @@ void Model::store(const string &prefix_, bool mean_and_var,
 void Model::restore(const string &prefix) {
   {
     for (auto &coeff : coeffs) {
-      coeff.restore(
-          prefix + "covariate-" + storage_type(coeff.kind) + "-" + coeff.label
-          + "-" + coeff.info.to_string(design.covariates) + FILENAME_ENDING);
+      coeff->restore(
+          prefix + "covariate-" + storage_type(coeff->kind) + "-" + coeff->label
+          + "-" + coeff->info.to_string(design.covariates) + FILENAME_ENDING);
     }
   }
 
@@ -577,20 +581,20 @@ void Model::restore(const string &prefix) {
 
 void Model::setZero() {
   for (auto &coeff : coeffs)
-    coeff.values.setZero();
+    coeff->values.setZero();
 }
 
 size_t Model::number_parameters() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
-    s += coeff.number_parameters();
+    s += coeff->number_parameters();
   return s;
 }
 
 size_t Model::size() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
-    s += coeff.size();
+    s += coeff->size();
   return s;
 }
 
@@ -599,7 +603,7 @@ Vector Model::vectorize() const {
   auto iter = begin(v);
 
   for (auto &coeff : coeffs)
-    for (auto &x : coeff.vectorize())
+    for (auto &x : coeff->vectorize())
       *iter++ = x;
 
   assert(iter == end(v));
@@ -610,28 +614,17 @@ Vector Model::vectorize() const {
 void Model::from_vector(const Vector &v) {
   auto iter = begin(v);
   for (auto &coeff : coeffs)
-    coeff.from_vector(iter);
+    coeff->from_vector(iter);
 }
 
 Model Model::compute_gradient(double &score) const {
   LOG(debug) << "Computing gradient";
 
-  vector<Matrix> rate_gt, rate_st;
-  vector<Matrix> odds_gt, odds_st;
-
-  for (auto &experiment : experiments) {
-    rate_gt.push_back(
-        experiment.compute_gene_type_table(experiment.rate_coeff_idxs));
-    rate_st.push_back(
-        experiment.compute_spot_type_table(experiment.rate_coeff_idxs));
-    odds_gt.push_back(
-        experiment.compute_gene_type_table(experiment.odds_coeff_idxs));
-    odds_st.push_back(
-        experiment.compute_spot_type_table(experiment.odds_coeff_idxs));
-  }
-
   score = 0;
   Model gradient = *this;
+  std::transform(
+      begin(coeffs), end(coeffs), begin(gradient.coeffs),
+      [](const auto &x) { return std::make_shared<Coefficient>(*x); });
   gradient.setZero();
   gradient.contributions_gene_type.setZero();
   for (auto &experiment : gradient.experiments) {
@@ -642,34 +635,35 @@ Model Model::compute_gradient(double &score) const {
 #pragma omp parallel if (DO_PARALLEL)
   {
     Model grad = gradient;
+    std::transform(
+        begin(gradient.coeffs), end(gradient.coeffs), begin(grad.coeffs),
+        [](const auto &x) { return std::make_shared<Coefficient>(*x); });
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
+    Vector rate(T), odds(T);
 
-#pragma omp for schedule (guided)
+#pragma omp for schedule(guided)
     for (size_t g = 0; g < G; ++g)
       for (size_t e = 0; e < E; ++e)
         for (size_t s = 0; s < experiments[e].S; ++s)
           if (RandomDistribution::Uniform(rng)
               >= parameters.dropout_gene_spot) {
-            if (experiments[e].counts(g, s) == 0) {
-              register_gradient_zero_count(g, e, s, grad, rate_gt[e],
-                                           rate_st[e], odds_gt[e], odds_st[e]);
-              for (size_t t = 0; t < T; ++t)
-                score_ += log_negative_binomial_zero_log_one_minus_p(
-                    rate_gt[e](g, t) * rate_st[e](s, t),
-                    neg_odds_to_log_prob(odds_gt[e](g, t) * odds_st[e](s, t)));
-            } else {
-              auto cnts = experiments[e].sample_contributions_gene_spot(
-                  g, s, rate_gt[e], rate_st[e], odds_gt[e], odds_st[e], rng);
-              for (size_t t = 0; t < T; ++t) {
-                double r = rate_gt[e](g, t) * rate_st[e](s, t);
-                double odds = odds_gt[e](g, t) * odds_st[e](s, t);
-                double p = odds_to_prob(odds);
-                score_ += log_negative_binomial(cnts[t], r, p);
-              }
-              register_gradient(g, e, s, cnts, grad, rate_gt[e], rate_st[e],
-                                odds_gt[e], odds_st[e]);
+            // TODO: optimization for counts == 0
+            const auto &exp = experiments[e];
+            for (size_t t = 0; t < T; ++t) {
+              const auto eval_func = [g, t, s](const auto &x) {
+                return x->get(g, t, s);
+              };
+              rate(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.rate_expr));
+              odds(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.odds_expr));
             }
+            auto cnts
+                = exp.sample_contributions_gene_spot(g, s, rate, odds, rng);
+            for (size_t t = 0; t < T; ++t) {
+              double p = odds_to_prob(odds(t));
+              score_ += log_negative_binomial(cnts[t], rate(t), p);
+            }
+            register_gradient(g, e, s, cnts, grad, rate, odds);
           }
 
 #pragma omp critical
@@ -682,17 +676,16 @@ Model Model::compute_gradient(double &score) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    if (coeffs[i].distribution != Coefficient::Distribution::log_gp_proxy
+    if (coeffs[i]->distribution != Coefficient::Distribution::log_gp_proxy
         or iter_cnt >= parameters.gp.first_iteration)
-      score += coeffs[i].compute_gradient(coeffs, gradient.coeffs, i);
+      score += coeffs[i]->compute_gradient(coeffs, gradient.coeffs, i);
 
   return gradient;
 }
 
 void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                              Model &gradient, const Matrix &rate_gt,
-                              const Matrix &rate_st, const Matrix &odds_gt,
-                              const Matrix &odds_st) const {
+                              Model &gradient, const Vector &rate,
+                              const Vector &odds) const {
   for (size_t t = 0; t < T; ++t)
     gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
   for (size_t t = 0; t < T; ++t)
@@ -700,18 +693,24 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
 
   for (size_t t = 0; t < T; ++t) {
     const double k = cnts[t];
-    const double r = rate_gt(g, t) * rate_st(s, t);
-    const double odds = odds_gt(g, t) * odds_st(s, t);
-    const double p = odds_to_prob(odds);
-    const double log_one_minus_p = neg_odds_to_log_prob(odds);
+    const double r = rate(t);
+    const double o = odds(t);
+    const double p = odds_to_prob(o);
+    const double log_one_minus_p = neg_odds_to_log_prob(o);
 
     const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
     const double odds_term = k - p * (r + k);
 
-    for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
-      gradient.coeffs[idx].get(g, t, s) += rate_term;
-    for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
-      gradient.coeffs[idx].get(g, t, s) += odds_term;
+    const auto eval_func
+        = [g, t, s](const CoefficientPtr &x) { return x->get(g, t, s); };
+    for (auto & [ idx, grad_expr ] : experiments[e].rate_expr_derivs) {
+      gradient.coeffs[idx]->get(g, t, s)
+          += rate_term * eval<CoefficientPtr>(eval_func, grad_expr);
+    }
+    for (auto & [ idx, grad_expr ] : experiments[e].odds_expr_derivs) {
+      gradient.coeffs[idx]->get(g, t, s)
+          += odds_term * eval<CoefficientPtr>(eval_func, grad_expr);
+    }
   }
 }
 
@@ -730,9 +729,9 @@ void Model::register_gradient_zero_count(size_t g, size_t e, size_t s,
     const double odds_term = -p * r;
 
     for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
-      gradient.coeffs[idx].get(g, t, s) += rate_term;
+      gradient.coeffs[idx]->get(g, t, s) += rate_term;
     for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
-      gradient.coeffs[idx].get(g, t, s) += odds_term;
+      gradient.coeffs[idx]->get(g, t, s) += odds_term;
   }
 }
 
@@ -799,12 +798,11 @@ void Model::gradient_update() {
             + "/");
     }
 
-    from_vector(x.array().exp());
-    enforce_positive_parameters(parameters.min_value);
+    from_vector(x.array());
     double score = 0;
     Model model_grad = compute_gradient(score);
     for (auto &coeff : model_grad.coeffs)
-      LOG(debug) << coeff << " grad = " << Stats::summary(coeff.values);
+      LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
@@ -827,7 +825,7 @@ void Model::gradient_update() {
     return score;
   };
 
-  Vector x = vectorize().array().log();
+  Vector x = vectorize().array();
 
   double fx;
   switch (parameters.optim_method) {
@@ -839,9 +837,6 @@ void Model::gradient_update() {
       for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
-        enforce_positive_and_warn("RPROP log params", x,
-                                  log(parameters.min_value),
-                                  parameters.warn_lower_limit);
       }
     } break;
     case Optimize::Method::Gradient: {
@@ -850,9 +845,6 @@ void Model::gradient_update() {
         Vector grad;
         fx = fnc(x, grad);
         x = x + alpha * grad;
-        enforce_positive_and_warn("GradOpt log params", x,
-                                  log(parameters.min_value),
-                                  parameters.warn_lower_limit);
         LOG(verbose) << "iter " << iter << " alpha: " << alpha;
         LOG(verbose) << "iter " << iter << " fx: " << fx;
         LOG(verbose) << "iter " << iter << " x: " << endl << Stats::summary(x);
@@ -875,15 +867,7 @@ void Model::gradient_update() {
   }
   LOG(verbose) << "Final f(x) = " << fx;
 
-  from_vector(x.array().exp());
-}
-
-void Model::enforce_positive_parameters(double min_value) {
-  for (size_t i = 0; i < coeffs.size(); ++i)
-    enforce_positive_and_warn(
-        to_string(coeffs[i].kind) + " " + coeffs[i].label
-            + " covariate " + to_string_embedded(i, 3),
-        coeffs[i].values, min_value, parameters.warn_lower_limit);
+  from_vector(x.array());
 }
 
 /* TODO covariates reactivate likelihood
@@ -913,8 +897,10 @@ double Model::log_likelihood(const string &prefix) const {
 //   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
 Matrix Model::expected_gene_type() const {
   Matrix m = Matrix::Zero(G, T);
+  /* TODO: needs rewrite
   for (auto &experiment : experiments)
     m += experiment.expected_gene_type();
+  */
   return m;
 }
 
@@ -961,7 +947,7 @@ Model operator+(const Model &a, const Model &b) {
   model.contributions_gene += b.contributions_gene;
 
   for (size_t i = 0; i < a.coeffs.size(); ++i)
-    model.coeffs[i].values.array() += b.coeffs[i].values.array();
+    model.coeffs[i]->values.array() += b.coeffs[i]->values.array();
   for (size_t e = 0; e < model.E; ++e)
     model.experiments[e] = model.experiments[e] + b.experiments[e];
 

@@ -3,8 +3,8 @@
 
 #include <boost/program_options.hpp>
 
-#include "aux.hpp"
 #include "spec_parser/Driver.hpp"
+#include "spec_parser/Expression.hpp"
 
 #define OPTION(_id, _name, _shorthand, _default_value)          \
   namespace option {                                            \
@@ -74,7 +74,7 @@ void write(const std::string& rate_formula, const std::string& odds_formula,
   driver.parse(rate_variable + (":=" + rate_formula));
   driver.parse(odds_variable + (":=" + odds_formula));
   for (auto& x : driver.random_variables) {
-    driver.parse(x.second.full_id() + "~" + dist);
+    driver.parse(x.second->full_id() + "~" + dist);
   }
 
   std::cout << "# Regression formulas" << std::endl;
@@ -84,24 +84,20 @@ void write(const std::string& rate_formula, const std::string& odds_formula,
   std::cout << std::endl;
 
   std::cout << "# Regression equations" << std::endl;
-  for (auto& x : driver.regression_equations) {
-    std::cout
-        << x.first + "="
-               + intercalate<std::vector<std::string>::iterator, std::string>(
-                     x.second.variables.begin(), x.second.variables.end(), "*")
-        << std::endl;
+  for (auto& x : driver.regression_exprs) {
+    std::cout << x.first << " = " << show(x.second);
   }
 
   std::cout << std::endl;
 
   std::cout << "# Distribution specifications" << std::endl;
   // construct sorted variables map
-  std::map<std::string, RandomVariable*> vmap;
+  std::map<std::string, Driver::VarType*> vmap;
   for (auto& x : driver.random_variables) {
     vmap.emplace(x.first, &x.second);
   }
   for (auto& x : vmap) {
-    std::cout << to_string(*x.second) << std::endl;
+    std::cout << *x.second << std::endl;
   }
 }
 

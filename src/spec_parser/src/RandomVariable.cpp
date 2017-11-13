@@ -1,5 +1,7 @@
 #include "spec_parser/RandomVariable.hpp"
 
+#include "aux.hpp"
+
 using namespace spec_parser;
 
 RandomVariable::RandomVariable() = default;
@@ -24,17 +26,16 @@ std::string RandomVariable::full_id() const
 }
 
 std::string spec_parser::to_string(const RandomVariable& rv) {
-  std::string distr_spec;
-  if (rv.distribution != nullptr) {
-    auto distr_name
-        = Distribution::distrtos(rv.distribution->type);
-    auto args
-        = intercalate<std::vector<std::string>::const_iterator, std::string>(
-            rv.distribution->arguments.begin(),
-            rv.distribution->arguments.end(), ",");
-    distr_spec = distr_name + "(" + args + ")";
-  } else {
-    distr_spec = "unspecified";
-  }
-  return rv.full_id() + "~" + distr_spec;
+  return rv.full_id();
+}
+
+std::ostream& spec_parser::operator<<(std::ostream& os,
+                                      const RandomVariable& var) {
+  os << to_string(var);
+  return os;
+}
+std::ostream& spec_parser::operator<<(std::ostream& os,
+                                      const VariablePtr& var_ptr) {
+  os << *var_ptr;
+  return os;
 }

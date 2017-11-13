@@ -72,8 +72,8 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
   LOG(verbose) << *this;
 }
 
-double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
-                                     vector<Coefficient> &grad_coeffs,
+double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
+                                     vector<CoefficientPtr> &grad_coeffs,
                                      size_t coeff_idx) const {
   LOG(debug) << "Coefficient::compute_gradient " << coeff_idx << ":" << *this;
   if (distribution == Distribution::fixed
@@ -86,62 +86,60 @@ double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
   size_t parent_a = prior_idxs[0];
   size_t parent_b = prior_idxs[1];
   bool parent_a_flexible
-      = grad_coeffs[parent_a].distribution != Distribution::fixed;
+      = grad_coeffs[parent_a]->distribution != Distribution::fixed;
   bool parent_b_flexible
-      = grad_coeffs[parent_b].distribution != Distribution::fixed;
+      = grad_coeffs[parent_b]->distribution != Distribution::fixed;
   LOG(debug) << "parent_a_flexible = " << parent_a_flexible;
   LOG(debug) << "parent_b_flexible = " << parent_b_flexible;
   switch (distribution) {
     case Distribution::gamma:
       LOG(debug) << "Computing gamma distribution gradient.";
       return visit([&](size_t g, size_t t, size_t s) {
-        double a = coeffs[parent_a].get(g, t, s);
-        double b = coeffs[parent_b].get(g, t, s);
+        double a = coeffs[parent_a]->get(g, t, s);
+        double b = coeffs[parent_b]->get(g, t, s);
         double x = get(g, t, s);
 
-        grad_coeffs[coeff_idx].get(g, t, s) += (a - 1) - x * b;
+        grad_coeffs[coeff_idx]->get(g, t, s) += (a - 1) - x * b;
 
         if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s)
+          grad_coeffs[parent_a]->get(g, t, s)
               += a * (log(b) - digamma(a) + log(x));
         if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s) += a - b * x;
+          grad_coeffs[parent_b]->get(g, t, s) += a - b * x;
 
         return log_gamma_rate(x, a, b);
       });
     case Distribution::beta_prime:
       LOG(debug) << "Computing beta prime distribution gradient.";
       return visit([&](size_t g, size_t t, size_t s) {
-        double a = coeffs[parent_a].get(g, t, s);
-        double b = coeffs[parent_b].get(g, t, s);
+        double a = coeffs[parent_a]->get(g, t, s);
+        double b = coeffs[parent_b]->get(g, t, s);
         double x = get(g, t, s);
         double p = odds_to_prob(x);
 
-        grad_coeffs[coeff_idx].get(g, t, s) += a - 1 - (a + b - 2) * p;
+        grad_coeffs[coeff_idx]->get(g, t, s) += a - 1 - (a + b - 2) * p;
 
         if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s)
+          grad_coeffs[parent_a]->get(g, t, s)
               += log(x) - log(1 + x) + digamma_diff(a, b);
         if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s)
+          grad_coeffs[parent_b]->get(g, t, s)
               += -log(1 + x) + digamma_diff(b, a);
         return log_beta_odds(x, a, b);
       });
     case Distribution::log_normal:
       LOG(debug) << "Computing log normal distribution gradient.";
       return visit([&](size_t g, size_t t, size_t s) {
-        double exp_mu = coeffs[parent_a].get(g, t, s);
-        double sigma = coeffs[parent_b].get(g, t, s);
-        double exp_x = get(g, t, s);
-        double x = log(exp_x);
-        double mu = log(exp_mu);
+        double mu = coeffs[parent_a]->get(g, t, s);
+        double sigma = coeffs[parent_b]->get(g, t, s);
+        double x = get(g, t, s);
 
-        grad_coeffs[coeff_idx].get(g, t, s) += (mu - x) / (sigma * sigma);
+        grad_coeffs[coeff_idx]->get(g, t, s) += (mu - x) / (sigma * sigma);
 
         if (parent_a_flexible)
-          grad_coeffs[parent_a].get(g, t, s) += (x - mu) / (sigma * sigma);
+          grad_coeffs[parent_a]->get(g, t, s) += (x - mu) / (sigma * sigma);
         if (parent_b_flexible)
-          grad_coeffs[parent_b].get(g, t, s)
+          grad_coeffs[parent_b]->get(g, t, s)
               += (x - mu - sigma) * (x - mu + sigma) / (sigma * sigma);
         return log_normal(x, mu, sigma);
       });
@@ -152,8 +150,8 @@ double Coefficient::compute_gradient(const vector<Coefficient> &coeffs,
   }
 }
 
-double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
-                                        vector<Coefficient> &grad_coeffs,
+double Coefficient::compute_gradient_gp(const vector<CoefficientPtr> &coeffs,
+                                        vector<CoefficientPtr> &grad_coeffs,
                                         size_t coeff_idx) const {
   LOG(verbose) << "Computing log Gaussian process gradient.";
 
@@ -165,11 +163,11 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
 
   vector<const GP::GaussianProcess *> gps;
   for (auto idx : prior_idxs)
-    gps.push_back(coeffs[idx].gp.get());
+    gps.push_back(coeffs[idx]->gp.get());
 
   vector<Matrix> formed_data;
   for (auto idx : prior_idxs)
-    formed_data.push_back(coeffs[idx].form_data(coeffs));
+    formed_data.push_back(coeffs[idx]->form_data(coeffs));
 
   for (auto &m : formed_data)
     m.array() = m.array().log();
@@ -184,8 +182,8 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
   auto sv = predict_means_and_vars(gps, formed_data, deltas, mean_treatment,
                                    mus, vars, grad_delta);
 
-  grad_coeffs[coeff_idx].values.array() += grad_delta.array();
-  LOG(debug) << "    DELTA =        " << coeffs[coeff_idx].values.transpose();
+  grad_coeffs[coeff_idx]->values.array() += grad_delta.array();
+  LOG(debug) << "    DELTA =        " << coeffs[coeff_idx]->values.transpose();
   LOG(debug) << "GRADDELTA =        " << grad_delta.transpose();
 
   LOG(debug) << "spatial variance = " << sv.transpose();
@@ -194,7 +192,7 @@ double Coefficient::compute_gradient_gp(const vector<Coefficient> &coeffs,
       Matrix formed_gradient = (mus[idx] - formed_data[idx]).array()
                                / vars[idx].array() / vars[idx].array();
 
-      grad_coeffs[prior_idxs[idx]].add_formed_data(formed_gradient,
+      grad_coeffs[prior_idxs[idx]]->add_formed_data(formed_gradient,
                                                    grad_coeffs);
     }
 
@@ -422,47 +420,47 @@ string Coefficient::to_string() const {
   return s;
 }
 
-Matrix Coefficient::form_data(const vector<Coefficient> &coeffs) const {
+Matrix Coefficient::form_data(const vector<CoefficientPtr> &coeffs) const {
   if (distribution != Distribution::log_gp_coord)
     std::runtime_error(
         "Error: called for_data() on a coefficient that is not a Gaussian "
         "process coordinate system.");
   int n = 0;
   for (auto idx : prior_idxs)
-    n += coeffs[idx].values.rows();
+    n += coeffs[idx]->values.rows();
   int ncol = 0;
   for (auto idx : prior_idxs)
-    if (coeffs[idx].values.cols() > ncol)
-      ncol = coeffs[idx].values.cols();
+    if (coeffs[idx]->values.cols() > ncol)
+      ncol = coeffs[idx]->values.cols();
   Matrix m = Matrix::Zero(n, ncol);
   size_t row = 0;
   for (auto idx : prior_idxs) {
-    for (int i = 0; i < coeffs[idx].values.rows(); ++i) {
-      for (int j = 0; j < coeffs[idx].values.cols(); ++j)
-        m(row + i, j) = coeffs[idx].values(i, j);
+    for (int i = 0; i < coeffs[idx]->values.rows(); ++i) {
+      for (int j = 0; j < coeffs[idx]->values.cols(); ++j)
+        m(row + i, j) = coeffs[idx]->values(i, j);
     }
-    row += coeffs[idx].values.rows();
+    row += coeffs[idx]->values.rows();
   }
   return m;
 }
 
 void Coefficient::add_formed_data(const Matrix &m,
-                                  vector<Coefficient> &coeffs) const {
+                                  vector<CoefficientPtr> &coeffs) const {
   if (distribution != Distribution::log_gp_coord)
     std::runtime_error(
         "Error: called add_formed_data() on a coefficient that is not a "
         "Gaussian process coordinate system.");
   int n = 0;
   for (auto idx : prior_idxs)
-    n += coeffs[idx].values.rows();
+    n += coeffs[idx]->values.rows();
   assert(m.rows() == n);
   size_t row = 0;
   for (auto idx : prior_idxs) {
-    for (int i = 0; i < coeffs[idx].values.rows(); ++i) {
-      for (int j = 0; j < coeffs[idx].values.cols(); ++j)
-        coeffs[idx].values(i, j) += m(row + i, j);
+    for (int i = 0; i < coeffs[idx]->values.rows(); ++i) {
+      for (int j = 0; j < coeffs[idx]->values.cols(); ++j)
+        coeffs[idx]->values(i, j) += m(row + i, j);
     }
-    row += coeffs[idx].values.rows();
+    row += coeffs[idx]->values.rows();
   }
 }
 
