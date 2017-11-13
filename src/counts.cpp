@@ -236,7 +236,7 @@ Matrix Counts::compute_distances() const {
 }
 
 Matrix Counts::parse_coords() const {
-  if (matrix->rows() == 0)
+  if (matrix->cols() == 0)
     return Matrix(0, 0);
   const STD::Index n = split_on_x<double>(col_names[0]).size();
   Matrix coords(matrix->cols(), n);
