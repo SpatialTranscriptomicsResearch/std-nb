@@ -33,7 +33,7 @@ void Driver::error(const yy::location& l, const std::string& m)
 }
 
 void Driver::add_formula(const std::string& id, const Formula& formula) {
-  auto n = size(formula.terms);
+  auto n = formula.terms.size();
   assert(n > 0);
   std::vector<ExpType> exps(n);
   std::transform(

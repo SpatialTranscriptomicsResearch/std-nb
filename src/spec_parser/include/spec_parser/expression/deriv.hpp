@@ -55,7 +55,7 @@ private:
 
 template <typename T>
 ExpPtr<T> deriv(const T& x, const ExpPtr<T>& e) {
-  return Deriv(x, e)();
+  return Deriv<T>(x, e)();
 }
 
 }  // namespace expression

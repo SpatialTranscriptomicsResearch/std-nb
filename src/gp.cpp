@@ -62,7 +62,7 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
       double d = diff.dot(diff);
       k(i, j) = k(j, i) = exp(-1 / 2.0 * d / l_square);
     }
-  k.diagonal().array() = 1;
+  k.diagonal() = Vector::Ones(n);
   return k;
 }
 
