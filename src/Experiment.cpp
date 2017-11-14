@@ -35,7 +35,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
 
 void Experiment::store(const string &prefix,
                        const vector<size_t> &order) const {
-  /* TODO: Needs rewrite
   auto factor_names = form_factor_names(T);
   auto &gene_names = counts.row_names;
   auto &spot_names = counts.col_names;
@@ -50,6 +49,7 @@ void Experiment::store(const string &prefix,
 
 #pragma omp parallel sections if (DO_PARALLEL)
   {
+  /* TODO: Needs rewrite
 #pragma omp section
     write_matrix(expected_spot_type(),
                  prefix + "expected-mix" + FILENAME_ENDING,
@@ -74,6 +74,7 @@ void Experiment::store(const string &prefix,
     write_matrix(compute_spot_type_table(odds_coeff_idxs),
                  prefix + "odds_spot_type" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
+  */
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -91,7 +92,6 @@ void Experiment::store(const string &prefix,
                  prefix + "contributions_spot" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names);
   }
-  */
 }
 
 void Experiment::restore(const string &prefix) {
