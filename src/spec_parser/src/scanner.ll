@@ -10,7 +10,7 @@
 static yy::location loc;
 %}
 %option noyywrap nounput batch debug noinput
-id      [a-zA-Z][a-zA-Z_0-9]*
+id      [a-zA-Z][a-zA-Z_0-9']*
 numeric [0-9\.]+
 blank   [ \t]
 comment #[^\n]*

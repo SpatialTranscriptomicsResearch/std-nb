@@ -167,7 +167,7 @@ size_t Model::register_coefficient(
       .info = CovariateInformation{},
     };
     return do_registration(
-        cid, 0, 0, 0, [&](size_t idx) { coeffs[idx]->get(0, 0, 0) = value; });
+        cid, 0, 0, 0, [&](size_t idx) { coeffs[idx]->get_raw(0, 0, 0) = value; });
   };
 
   auto register_random = [&]() {
@@ -652,7 +652,7 @@ Model Model::compute_gradient(double &score) const {
             const auto &exp = experiments[e];
             for (size_t t = 0; t < T; ++t) {
               const auto eval_func = [g, t, s](const auto &x) {
-                return x->get(g, t, s);
+                return x->get_actual(g, t, s);
               };
               rate(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.rate_expr));
               odds(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.odds_expr));
@@ -702,13 +702,13 @@ void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
     const double odds_term = k - p * (r + k);
 
     const auto eval_func
-        = [g, t, s](const CoefficientPtr &x) { return x->get(g, t, s); };
+        = [g, t, s](const CoefficientPtr &x) { return x->get_actual(g, t, s); };
     for (auto & [ idx, grad_expr ] : experiments[e].rate_expr_derivs) {
-      gradient.coeffs[idx]->get(g, t, s)
+      gradient.coeffs[idx]->get_raw(g, t, s)
           += rate_term * eval<CoefficientPtr>(eval_func, grad_expr);
     }
     for (auto & [ idx, grad_expr ] : experiments[e].odds_expr_derivs) {
-      gradient.coeffs[idx]->get(g, t, s)
+      gradient.coeffs[idx]->get_raw(g, t, s)
           += odds_term * eval<CoefficientPtr>(eval_func, grad_expr);
     }
   }
@@ -729,9 +729,9 @@ void Model::register_gradient_zero_count(size_t g, size_t e, size_t s,
     const double odds_term = -p * r;
 
     for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
-      gradient.coeffs[idx]->get(g, t, s) += rate_term;
+      gradient.coeffs[idx]->get_raw(g, t, s) += rate_term;
     for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
-      gradient.coeffs[idx]->get(g, t, s) += odds_term;
+      gradient.coeffs[idx]->get_raw(g, t, s) += odds_term;
   }
 }
 

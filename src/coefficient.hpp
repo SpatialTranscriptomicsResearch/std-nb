@@ -27,6 +27,7 @@ struct Coefficient {
   enum class Distribution {
     fixed,
     gamma,
+    beta,
     beta_prime,
     // linear term
     log_normal,
@@ -82,8 +83,9 @@ struct Coefficient {
                              std::vector<CoefficientPtr> &grad_coeffs,
                              size_t idx) const;
 
-  double get(size_t g, size_t t, size_t s) const;  // rename to operator()
-  double &get(size_t g, size_t t, size_t s);       // rename to operator()
+  double get_raw(size_t g, size_t t, size_t s) const;  // rename to operator()
+  double &get_raw(size_t g, size_t t, size_t s);       // rename to operator()
+  double get_actual(size_t g, size_t t, size_t s) const;  // rename to operator()
   void store(const std::string &path, CompressionMode,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &spot_names,
