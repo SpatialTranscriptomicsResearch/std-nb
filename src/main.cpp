@@ -98,6 +98,20 @@ string default_odds_formula() {
 
 }
 
+template <typename T>
+void parse_file(const std::string &tag, const std::string &path, T &x) {
+  LOG(debug) << "Parsing " << tag << " file " << path;
+  if (not path.empty()) {
+    ifstream ifs(path);
+    if (ifs.good())
+      ifs >> x;
+    else {
+      LOG(fatal) << "Error accessing " << tag << " file " << path;
+      throw std::runtime_error("Error accessing " + tag + " file " + path);
+    }
+  }
+}
+
 int main(int argc, char **argv) {
   // available:
   // FE_DIVBYZERO is triggered by log(0)
@@ -299,7 +313,7 @@ int main(int argc, char **argv) {
   LOG(info) << "Working directory = " << exec_info.directory;
   LOG(info) << "Command = " << exec_info.cmdline << endl;
 
-  ifstream(options.design_path) >> options.design;
+  parse_file("design", options.design_path, options.design);
 
   for (auto &path : options.tsv_paths)
     options.design.add_dataset_specification(path);
@@ -336,8 +350,7 @@ int main(int argc, char **argv) {
     options.model_spec.from_string("odds:=" + _default_odds_formula);
   }
 
-  LOG(debug) << "Parsing model specification " << options.spec_path;
-  ifstream(options.spec_path) >> options.model_spec;
+  parse_file("model specification", options.spec_path, options.model_spec);
 
   LOG(verbose) << "Final model specification:";
   log([](const std::string& s) { LOG(verbose) << s; }, options.model_spec);
