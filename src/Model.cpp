@@ -490,7 +490,7 @@ void Model::store(const string &prefix_, bool mean_and_var,
   auto exp_gene_type = expected_gene_type();
   vector<size_t> order;
   if (reorder) {
-    auto cs = colSums<Vector>(exp_gene_type);
+    auto cs = colSums<Vector>(contributions_gene_type);
     order = get_order(cs);
   }
 
