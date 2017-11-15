@@ -16,10 +16,13 @@ const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
   Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
+                  Float beta_1_ = 2, Float beta_2_ = 2,
                   Float beta_prime_1_ = 2, Float beta_prime_2_ = 2,
                   Float normal_1_ = 0, Float normal_2_ = 1)
       : gamma_1(gamma_1_)
       , gamma_2(gamma_2_)
+      , beta_1(beta_1_)
+      , beta_2(beta_2_)
       , beta_prime_1(beta_prime_1_)
       , beta_prime_2(beta_prime_2_)
       , normal_1(normal_1_)
@@ -30,6 +33,10 @@ struct Hyperparameters {
   // default values for the gamma distribution
   Float gamma_1;
   Float gamma_2;
+
+  // default values for the beta distribution
+  Float beta_1;
+  Float beta_2;
 
   // default values for the beta prime distribution
   Float beta_prime_1;
