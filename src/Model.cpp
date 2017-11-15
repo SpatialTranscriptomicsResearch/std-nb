@@ -181,7 +181,7 @@ size_t Model::register_coefficient(
     auto kind = determine_kind(variable->covariates);
 
     if (variable->distribution == nullptr) {
-      auto dist = Coefficient::Distribution::log_normal;
+      auto dist = parameters.default_distribution;
       LOG(verbose) << id
                    << " does not have a distribution specification. Using "
                    << to_string(dist) << " as per defaults.";

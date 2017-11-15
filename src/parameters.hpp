@@ -81,6 +81,9 @@ struct Parameters {
   GaussianProcessParameters gp = {};
 
   double temperature = 1;
+
+  // TODO make CLI configurable
+  Coefficient::Distribution default_distribution = Coefficient::Distribution::normal;
 };
 }
 #endif
