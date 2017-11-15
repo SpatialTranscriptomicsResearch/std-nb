@@ -13,8 +13,8 @@ Distribution::Type Distribution::stodistr(const std::string& s) {
       {"Beta'", Type::beta_prime},
       {"Betaprime", Type::beta_prime},
       {"Gamma", Type::gamma},
-      {"GP", Type::log_gp},
-      {"Normal", Type::log_normal}};
+      {"GP", Type::gp},
+      {"Normal", Type::normal}};
   auto it = map.find(s);
   if (it == map.end()) {
     throw std::invalid_argument("Invalid distribution '" + s + "'.");
@@ -32,9 +32,9 @@ std::string Distribution::distrtos(const Type& d) {
       return "Fixed";
     case Type::gamma:
       return "Gamma";
-    case Type::log_gp:
+    case Type::gp:
       return "GP";
-    case Type::log_normal:
+    case Type::normal:
       return "Normal";
     default:
       throw std::logic_error("Not implemented.");

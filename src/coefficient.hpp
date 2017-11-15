@@ -30,10 +30,10 @@ struct Coefficient {
     beta,
     beta_prime,
     // linear term
-    log_normal,
-    log_gp,
-    log_gp_coord,
-    log_gp_proxy
+    normal,
+    gp,
+    gp_coord,
+    gp_proxy
   };
   struct Id {
     std::string name;

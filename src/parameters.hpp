@@ -17,13 +17,13 @@ const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 struct Hyperparameters {
   Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
                   Float beta_prime_1_ = 2, Float beta_prime_2_ = 2,
-                  Float log_normal_1_ = exp(0), Float log_normal_2_ = 1)
+                  Float normal_1_ = exp(0), Float normal_2_ = 1)
       : gamma_1(gamma_1_)
       , gamma_2(gamma_2_)
       , beta_prime_1(beta_prime_1_)
       , beta_prime_2(beta_prime_2_)
-      , log_normal_1(log_normal_1_)
-      , log_normal_2(log_normal_2_){};
+      , normal_1(normal_1_)
+      , normal_2(normal_2_){};
 
   // TODO add: hyper-hyper-parameters
 
@@ -36,8 +36,8 @@ struct Hyperparameters {
   Float beta_prime_2;
 
   // default values for the log normal distribution
-  double log_normal_1;
-  double log_normal_2;
+  double normal_1;
+  double normal_2;
 
   double get_param(Coefficient::Distribution distribution, size_t idx) const;
 };

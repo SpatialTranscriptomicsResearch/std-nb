@@ -38,7 +38,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
       kind(kind_),
       distribution(dist),
       info(info_) {
-  if (distribution == Distribution::log_gp and not spot_dependent())
+  if (distribution == Distribution::gp and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
         "spot- and type-dependent coefficients.");
@@ -77,10 +77,10 @@ double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
                                      size_t coeff_idx) const {
   LOG(debug) << "Coefficient::compute_gradient " << coeff_idx << ":" << *this;
   if (distribution == Distribution::fixed
-      or distribution == Distribution::log_gp
-      or distribution == Distribution::log_gp_coord)
+      or distribution == Distribution::gp
+      or distribution == Distribution::gp_coord)
     return 0;
-  if (distribution == Distribution::log_gp_proxy)
+  if (distribution == Distribution::gp_proxy)
     return compute_gradient_gp(coeffs, grad_coeffs, coeff_idx);
   assert(prior_idxs.size() >= 2);
   size_t parent_a = prior_idxs[0];
@@ -150,7 +150,7 @@ double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
 
         return log_beta(p, a, b);
       });
-    case Distribution::log_normal:
+    case Distribution::normal:
       LOG(debug) << "Computing log normal distribution gradient.";
       return visit([&](size_t g, size_t t, size_t s) {
         double mu = coeffs[parent_a]->get_actual(g, t, s);
@@ -343,7 +343,7 @@ size_t Coefficient::size() const { return values.size(); }
 size_t Coefficient::number_parameters() const {
   switch (distribution) {
     case Distribution::fixed:
-    case Distribution::log_gp_coord:
+    case Distribution::gp_coord:
       return 0;
     default:
       return size();
@@ -398,16 +398,18 @@ string to_string(const Coefficient::Distribution &distribution) {
       return "fixed";
     case Coefficient::Distribution::gamma:
       return "gamma";
+    case Coefficient::Distribution::beta:
+      return "beta";
     case Coefficient::Distribution::beta_prime:
-      return "beta_prime";
-    case Coefficient::Distribution::log_normal:
-      return "log_normal";
-    case Coefficient::Distribution::log_gp:
-      return "log_gaussian_process";
-    case Coefficient::Distribution::log_gp_proxy:
-      return "log_gaussian_process_proxy";
-    case Coefficient::Distribution::log_gp_coord:
-      return "log_gaussian_process_coord";
+      return "beta'";
+    case Coefficient::Distribution::normal:
+      return "normal";
+    case Coefficient::Distribution::gp:
+      return "gaussian_process";
+    case Coefficient::Distribution::gp_proxy:
+      return "gaussian_process_proxy";
+    case Coefficient::Distribution::gp_coord:
+      return "gaussian_process_coord";
     default:
       throw std::runtime_error("Error: invalid Coefficient::Distribution.");
   }
@@ -463,7 +465,7 @@ string Coefficient::to_string() const {
 }
 
 Matrix Coefficient::form_data(const vector<CoefficientPtr> &coeffs) const {
-  if (distribution != Distribution::log_gp_coord)
+  if (distribution != Distribution::gp_coord)
     std::runtime_error(
         "Error: called for_data() on a coefficient that is not a Gaussian "
         "process coordinate system.");
@@ -488,7 +490,7 @@ Matrix Coefficient::form_data(const vector<CoefficientPtr> &coeffs) const {
 
 void Coefficient::add_formed_data(const Matrix &m,
                                   vector<CoefficientPtr> &coeffs) const {
-  if (distribution != Distribution::log_gp_coord)
+  if (distribution != Distribution::gp_coord)
     std::runtime_error(
         "Error: called add_formed_data() on a coefficient that is not a "
         "Gaussian process coordinate system.");

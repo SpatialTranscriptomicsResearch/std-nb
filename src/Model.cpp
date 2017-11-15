@@ -213,7 +213,7 @@ size_t Model::register_coefficient(
           }
         });
 
-    if (variable->distribution->type == Coefficient::Distribution::log_gp) {
+    if (variable->distribution->type == Coefficient::Distribution::gp) {
       auto gp_kind = kind & ~Coefficient::Kind::spot;
 
       // Create or update coordinate system
@@ -222,7 +222,7 @@ size_t Model::register_coefficient(
       auto gp_coord_id = Coefficient::Id{
         .name = id + "-gp-coord",
         .kind = gp_kind,
-        .dist = Coefficient::Distribution::log_gp_coord,
+        .dist = Coefficient::Distribution::gp_coord,
         .info = gp_coord_info,
       };
       auto gp_coord_idx
@@ -241,7 +241,7 @@ size_t Model::register_coefficient(
       auto gp_id = Coefficient::Id{
         .name = id + "-gp-proxy",
         .kind = gp_kind,
-        .dist = Coefficient::Distribution::log_gp_proxy,
+        .dist = Coefficient::Distribution::gp_proxy,
         .info = gp_proxy_info,
       };
       auto gp_proxy_idx
@@ -306,11 +306,11 @@ void Model::add_covariates(const ModelSpec &model_spec) {
 void Model::add_gp_proxies() {
   LOG(debug) << "Constructing GP proxies";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
-    if (coeffs[idx]->distribution == Coefficient::Distribution::log_gp_proxy) {
+    if (coeffs[idx]->distribution == Coefficient::Distribution::gp_proxy) {
       LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
       for (auto &coord_coeff_idx : coeffs[idx]->prior_idxs) {
         assert(coeffs[coord_coeff_idx]->distribution
-               == Coefficient::Distribution::log_gp_coord);
+               == Coefficient::Distribution::gp_coord);
         LOG(debug) << "using coordinate system coefficient " << coord_coeff_idx
                    << ": " << *coeffs[coord_coeff_idx];
         auto &coord_coeff = *coeffs[coord_coeff_idx];
@@ -676,7 +676,7 @@ Model Model::compute_gradient(double &score) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    if (coeffs[i]->distribution != Coefficient::Distribution::log_gp_proxy
+    if (coeffs[i]->distribution != Coefficient::Distribution::gp_proxy
         or iter_cnt >= parameters.gp.first_iteration)
       score += coeffs[i]->compute_gradient(coeffs, gradient.coeffs, i);
 
