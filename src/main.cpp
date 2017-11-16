@@ -81,7 +81,7 @@ string default_rate_formula(const vector<string> &covariates) {
   prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
   using namespace DesignNS;
   return gene_label + " * (" + type_label + " + " + section_label
-         + accumulate(expr.begin(), expr.end(), string()) + ") + " + spot_label
+         + accumulate(expr.begin(), expr.end(), string(" ")) + ") + " + spot_label
          + " * " + type_label + " + " + unit_label;
 }
 
@@ -347,11 +347,11 @@ int main(int argc, char **argv) {
         break;
     }
     LOG(verbose) << "Default rate formula: " << _default_rate_formula;
-    options.model_spec.from_string("rate:=" + _default_rate_formula);
+    options.model_spec.from_string("rate := " + _default_rate_formula);
 
     string _default_odds_formula = default_odds_formula();
     LOG(verbose) << "Default odds formula: " << _default_odds_formula;
-    options.model_spec.from_string("odds:=" + _default_odds_formula);
+    options.model_spec.from_string("odds := " + _default_odds_formula);
   }
 
   parse_file("model specification", options.spec_path, options.model_spec);
