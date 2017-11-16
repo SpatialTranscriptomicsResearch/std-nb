@@ -117,6 +117,10 @@ ExpPtr<T> operator+(const ExpPtr<T>& a, const ExpPtr<T>& b) {
   return add(a, b);
 }
 template <typename T>
+ExpPtr<T> operator-(const ExpPtr<T>& a, const ExpPtr<T>& b) {
+  return add(a, neg(b));
+}
+template <typename T>
 ExpPtr<T> operator*(const ExpPtr<T>& a, const ExpPtr<T>& b) {
   return mul(a, b);
 }

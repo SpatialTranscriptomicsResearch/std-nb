@@ -129,7 +129,9 @@ regression_expr: regressor { $$ = spec_parser::var($1); }
                | "log" regression_expr { $$ = spec_parser::log($2); }
                | "exp" regression_expr { $$ = spec_parser::exp($2); }
                | regression_expr "+" regression_expr { $$ = $1 + $3; }
+               | regression_expr "-" regression_expr { $$ = $1 - $3; }
                | regression_expr "*" regression_expr { $$ = $1 * $3; };
+               | regression_expr "/" regression_expr { $$ = $1 / $3; };
 
 regressor: "identifier" "(" covariates ")" { $$ = driver.get_variable($1, $3); }
 
