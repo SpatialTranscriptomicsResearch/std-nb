@@ -39,7 +39,7 @@ void Driver::add_formula(const std::string& id, const Formula& formula) {
   std::transform(
       begin(formula.terms), end(formula.terms), begin(exps),
       [this, &id](const auto& x) {
-        return var(get_variable(id, std::set<std::string>(begin(x), end(x))));
+        return var(this->get_variable(id, std::set<std::string>(begin(x), end(x))));
       });
   regression_exprs[id] = accumulate1(begin(exps), end(exps));
 }
