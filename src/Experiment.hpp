@@ -47,12 +47,6 @@ struct Experiment {
   std::vector<size_t> rate_coeff_idxs;
   std::vector<size_t> odds_coeff_idxs;
 
-  Expression rate_expr;
-  Expression odds_expr;
-
-  std::vector<std::pair<size_t, Expression>> rate_expr_derivs;
-  std::vector<std::pair<size_t, Expression>> odds_expr_derivs;
-
   /** hidden contributions to the count data due to the different factors */
   Matrix contributions_gene_type, contributions_spot_type;
   Vector contributions_gene, contributions_spot;

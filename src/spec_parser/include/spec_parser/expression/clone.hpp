@@ -1,7 +1,7 @@
 #ifndef SPECPARSER_EXPRESSION_CLONE_HPP
 #define SPECPARSER_EXPRESSION_CLONE_HPP
 
-#include "./transform.hpp"
+#include "transform.hpp"
 
 namespace spec_parser {
 namespace expression {

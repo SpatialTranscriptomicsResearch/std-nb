@@ -3,6 +3,7 @@ ADD_DEFINITIONS(-Wall -Wshadow -funroll-loops -march=native)
 
 # Make it possible to #include generated header files for out-of-source builds
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR})
+INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/spec_parser/include)
 
 ADD_SUBDIRECTORY(spec_generator)
 ADD_SUBDIRECTORY(spec_parser)
@@ -22,6 +23,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   gamma_func.cpp
   gp.cpp
   io.cpp
+  jit.cpp
   log.cpp
   metropolis_hastings.cpp
   modelspec.cpp
@@ -58,6 +60,7 @@ TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   ${Boost_IOSTREAMS_LIBRARY}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_DATE_TIME_LIBRARY}
+  ${LLVM_LIBS}
   )
 
 TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)

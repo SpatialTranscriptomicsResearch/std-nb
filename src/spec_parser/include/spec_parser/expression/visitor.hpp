@@ -1,7 +1,7 @@
 #ifndef SPECPARSER_EXPRESSION_VISITOR_HPP
 #define SPECPARSER_EXPRESSION_VISITOR_HPP
 
-#include "./exp.hpp"
+#include "exp.hpp"
 
 namespace spec_parser {
 namespace expression {

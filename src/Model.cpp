@@ -271,34 +271,21 @@ size_t Model::register_coefficient(
 }
 
 void Model::add_covariates(const ModelSpec &model_spec) {
-  using Variable = ModelSpec::Variable;
+  auto rate_variables = collect_variables(model_spec.rate_expr);
+  auto odds_variables = collect_variables(model_spec.odds_expr);
   for (size_t e = 0; e < E; ++e) {
     LOG(debug) << "Registering coefficients for experiment " << e;
 
-    std::vector<size_t> exp_coeffs;
-
-    const std::function<CoefficientPtr(const Variable &)> transformer =
-        [ this, e, &exp_coeffs,
-          &vmap = model_spec.variables ](const Variable &x)
-            ->CoefficientPtr {
-      auto idx = register_coefficient(vmap, x->full_id(), e);
+    for(auto &variable: rate_variables) {
+      auto idx = register_coefficient(model_spec.variables, variable->full_id(), e);
       coeffs[idx]->experiment_idxs.push_back(e);
-      if (coeffs[idx]->distribution != Coefficient::Distribution::fixed) {
-        exp_coeffs.emplace_back(idx);
-      }
-      return coeffs[idx];
-    };
+      experiments[e].rate_coeff_idxs.push_back(idx);
+    }
 
-    auto &rate_expr = experiments[e].rate_expr
-        = spec_parser::expression::transform(transformer, model_spec.rate_expr);
-    auto &odds_expr = experiments[e].odds_expr
-        = spec_parser::expression::transform(transformer, model_spec.odds_expr);
-
-    for (auto &idx : exp_coeffs) {
-      auto rate_deriv = deriv(coeffs[idx], rate_expr);
-      auto odds_deriv = deriv(coeffs[idx], odds_expr);
-      experiments[e].rate_expr_derivs.emplace_back(idx, std::move(rate_deriv));
-      experiments[e].odds_expr_derivs.emplace_back(idx, std::move(odds_deriv));
+    for(auto &variable: odds_variables) {
+      auto idx = register_coefficient(model_spec.variables, variable->full_id(), e);
+      coeffs[idx]->experiment_idxs.push_back(e);
+      experiments[e].odds_coeff_idxs.push_back(idx);
     }
   }
 }
@@ -336,17 +323,50 @@ void Model::add_gp_proxies() {
     }
 }
 
+template <typename T>
+using ExprPtr = std::shared_ptr<spec_parser::expression::Exp<T>>;
+
+template <typename T>
+void compile_expression_and_derivs(const ExprPtr<T> &expr,
+                                   const std::string &tag) {
+  spec_parser::expression::codegen(expr, tag);
+  for (auto variable : collect_variables(expr)) {
+    auto deriv_expr = deriv(variable, expr);
+    spec_parser::expression::codegen(deriv_expr,
+                                     tag + "-" + to_string(*variable));
+  }
+}
+
 Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
-             const ModelSpec& model_spec, const Parameters &parameters_)
+             const ModelSpec &model_spec, const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
       E(0),
       S(0),
       design(design_),
+      module_name("std-module"),  // TODO use unique module names
+      rate_fnc(),
+      odds_fnc(),
+      rate_derivs(),
+      odds_derivs(),
       experiments(),
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
+  JIT::init_runtime(module_name);
+
+  compile_expression_and_derivs(model_spec.rate_expr, "rate");
+  compile_expression_and_derivs(model_spec.odds_expr, "odds");
+
+  JIT::finalize_module(module_name);
+
+  rate_fnc = JIT::get_function("rate");
+  odds_fnc = JIT::get_function("odds");
+  for (auto variable : collect_variables(model_spec.rate_expr))
+    rate_derivs.push_back(JIT::get_function("rate-" + to_string(*variable)));
+  for (auto variable : collect_variables(model_spec.odds_expr))
+    odds_derivs.push_back(JIT::get_function("odds-" + to_string(*variable)));
+
   for (auto &counts : c)
     add_experiment(counts);
   update_contributions();
@@ -641,6 +661,15 @@ Model Model::compute_gradient(double &score) const {
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
     Vector rate(T), odds(T);
+    // TODO ensure all experiments have the same number of coefficients
+    // currently, this could be violated due to redundancy removal
+    size_t num_rate_coeffs = rate_derivs.size();  // TODO see above
+    size_t num_odds_coeffs = odds_derivs.size();  // TODO see above
+    std::vector<std::vector<double>> rate_coeff_arrays, odds_coeff_arrays;
+    for (size_t t = 0; t < T; ++t) {
+      rate_coeff_arrays.push_back(std::vector<double>(num_rate_coeffs));
+      odds_coeff_arrays.push_back(std::vector<double>(num_odds_coeffs));
+    }
 
 #pragma omp for schedule(guided)
     for (size_t g = 0; g < G; ++g)
@@ -648,22 +677,30 @@ Model Model::compute_gradient(double &score) const {
         for (size_t s = 0; s < experiments[e].S; ++s)
           if (RandomDistribution::Uniform(rng)
               >= parameters.dropout_gene_spot) {
-            // TODO: optimization for counts == 0
             const auto &exp = experiments[e];
+
             for (size_t t = 0; t < T; ++t) {
-              const auto eval_func = [g, t, s](const auto &x) {
-                return x->get_actual(g, t, s);
-              };
-              rate(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.rate_expr));
-              odds(t) = std::exp(eval<CoefficientPtr>(eval_func, exp.odds_expr));
+              for (size_t i = 0; i < num_rate_coeffs; ++i)
+                rate_coeff_arrays[t][i]
+                    = coeffs[experiments[e].rate_coeff_idxs[i]]->get_actual(
+                        g, t, s);
+              for (size_t i = 0; i < num_odds_coeffs; ++i)
+                odds_coeff_arrays[t][i]
+                    = coeffs[experiments[e].odds_coeff_idxs[i]]->get_actual(
+                        g, t, s);
+
+              rate(t) = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
+              odds(t) = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
             }
+            // TODO: optimization for counts == 0
             auto cnts
                 = exp.sample_contributions_gene_spot(g, s, rate, odds, rng);
             for (size_t t = 0; t < T; ++t) {
+              register_gradient(g, e, s, t, cnts, grad, rate, odds,
+                                rate_coeff_arrays[t], odds_coeff_arrays[t]);
               double p = odds_to_prob(odds(t));
               score_ += log_negative_binomial(cnts[t], rate(t), p);
             }
-            register_gradient(g, e, s, cnts, grad, rate, odds);
           }
 
 #pragma omp critical
@@ -683,34 +720,36 @@ Model Model::compute_gradient(double &score) const {
   return gradient;
 }
 
-void Model::register_gradient(size_t g, size_t e, size_t s, const Vector &cnts,
-                              Model &gradient, const Vector &rate,
-                              const Vector &odds) const {
-  for (size_t t = 0; t < T; ++t)
-    gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
-  for (size_t t = 0; t < T; ++t)
-    gradient.experiments[e].contributions_spot_type(s, t) += cnts[t];
+void Model::register_gradient(size_t g, size_t e, size_t s, size_t t,
+                              const Vector &cnts, Model &gradient,
+                              const Vector &rate, const Vector &odds,
+                              const std::vector<double> &rate_coeffs,
+                              const std::vector<double> &odds_coeffs) const {
+  gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
+  gradient.experiments[e].contributions_spot_type(s, t) += cnts[t];
 
-  for (size_t t = 0; t < T; ++t) {
-    const double k = cnts[t];
-    const double r = rate(t);
-    const double o = odds(t);
-    const double p = odds_to_prob(o);
-    const double log_one_minus_p = neg_odds_to_log_prob(o);
+  const double k = cnts[t];
+  const double r = rate(t);
+  const double o = odds(t);
+  const double p = odds_to_prob(o);
+  const double log_one_minus_p = neg_odds_to_log_prob(o);
 
-    const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
-    const double odds_term = k - p * (r + k);
+  const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
+  const double odds_term = k - p * (r + k);
 
-    const auto eval_func
-        = [g, t, s](const CoefficientPtr &x) { return x->get_actual(g, t, s); };
-    for (auto & [ idx, grad_expr ] : experiments[e].rate_expr_derivs) {
-      gradient.coeffs[idx]->get_raw(g, t, s)
-          += rate_term * eval<CoefficientPtr>(eval_func, grad_expr);
-    }
-    for (auto & [ idx, grad_expr ] : experiments[e].odds_expr_derivs) {
-      gradient.coeffs[idx]->get_raw(g, t, s)
-          += odds_term * eval<CoefficientPtr>(eval_func, grad_expr);
-    }
+  // loop over rate covariates
+  auto deriv_iter = begin(rate_derivs);
+  for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
+    size_t coeff_idx = experiments[e].rate_coeff_idxs[idx];
+    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+        += rate_term * (*deriv_iter)(rate_coeffs.data());
+  }
+  // loop over odds covariates
+  deriv_iter = begin(odds_derivs);
+  for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
+    size_t coeff_idx = experiments[e].odds_coeff_idxs[idx];
+    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+        += odds_term * (*deriv_iter)(odds_coeffs.data());
   }
 }
 
@@ -719,20 +758,7 @@ void Model::register_gradient_zero_count(size_t g, size_t e, size_t s,
                                          const Matrix &rate_st,
                                          const Matrix &odds_gt,
                                          const Matrix &odds_st) const {
-  for (size_t t = 0; t < T; ++t) {
-    const double r = rate_gt(g, t) * rate_st(s, t);
-    const double odds = odds_gt(g, t) * odds_st(s, t);
-    const double p = odds_to_prob(odds);
-    const double log_one_minus_p = neg_odds_to_log_prob(odds);
-
-    const double rate_term = r * log_one_minus_p;
-    const double odds_term = -p * r;
-
-    for (auto &idx : gradient.experiments[e].rate_coeff_idxs)
-      gradient.coeffs[idx]->get_raw(g, t, s) += rate_term;
-    for (auto &idx : gradient.experiments[e].odds_coeff_idxs)
-      gradient.coeffs[idx]->get_raw(g, t, s) += odds_term;
-  }
+  // TODO
 }
 
 // calculate parameter's likelihood
@@ -953,4 +979,4 @@ Model operator+(const Model &a, const Model &b) {
 
   return model;
 }
-}
+}  // namespace STD

@@ -2,9 +2,13 @@
 #define SPECPARSER_EXPRESSION_EXP_HPP
 
 #include <memory>
+#include "jit.hpp"
+#include "log.hpp"
 
 namespace spec_parser {
 namespace expression {
+
+using Value = llvm::Value;
 
 template <typename T>
 struct Visitor;
@@ -13,6 +17,7 @@ template <typename T>
 struct Exp {
   virtual ~Exp() {}
   virtual void accept(Visitor<T>& v) = 0;
+  virtual Value* codegen() = 0;
 };
 
 template <typename T>
@@ -31,6 +36,7 @@ struct Bin : public Exp<T> {
   Bin(Type _op, const ExpPtr<T>& _lhs, const ExpPtr<T>& _rhs)
       : op(_op), lhs(_lhs), rhs(_rhs) {}
   virtual void accept(Visitor<T>& v) override { v.visit(*this); }
+  virtual Value* codegen() override;
 };
 
 template <typename T>
@@ -60,6 +66,7 @@ struct Unr : public Exp<T> {
   Unr(Type _op, const ExpPtr<T>& _operand) : op(_op), operand(_operand) {}
   ~Unr() {}
   virtual void accept(Visitor<T>& v) override { v.visit(*this); }
+  virtual Value* codegen() override;
 };
 
 template <typename T>
@@ -82,11 +89,13 @@ ExpPtr<T> exp(const ExpPtr<T>& operand) {
 /**
  * Numeric data
  */
+
 template <typename T>
 struct Num : public Exp<T> {
   double value;
   Num(double _value) : value(_value) {}
   virtual void accept(Visitor<T>& v) override { v.visit(*this); }
+  virtual Value* codegen() override;
 };
 
 template <typename T>
@@ -102,6 +111,8 @@ struct Var : public Exp<T> {
   T value;
   Var(const T& _value) : value(_value) {}
   virtual void accept(Visitor<T>& v) override { v.visit(*this); }
+  virtual Value* codegen() override;
+  bool operator<(const Var<T> b) { return value < b.value; };
 };
 
 template <typename T>
@@ -136,4 +147,5 @@ ExpPtr<T> operator-(const ExpPtr<T>& a) {
 }  // namespace expression
 }  // namespace spec_parser
 
+#include "codegen.hpp"
 #endif  // SPECPARSER_EXPRESSION_EXP_HPP

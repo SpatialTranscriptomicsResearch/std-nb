@@ -103,6 +103,30 @@ ELSE()
 ENDIF()
 
 
+
+FIND_PACKAGE(LLVM REQUIRED CONFIG)
+
+MESSAGE(STATUS "Found LLVM ${LLVM_PACKAGE_VERSION}")
+MESSAGE(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+
+# Set your project compile flags.
+# E.g. if using the C++ header files
+# you will need to enable C++11 support
+# for your compiler.
+
+INCLUDE_DIRECTORIES(SYSTEM ${LLVM_INCLUDE_DIRS})
+ADD_DEFINITIONS(${LLVM_DEFINITIONS})
+
+# Find the libraries that correspond to the LLVM components
+# that we wish to use
+# llvm_map_components_to_libnames(LLVM_LIBS support core irreader)
+llvm_map_components_to_libnames(LLVM_LIBS all)
+
+MESSAGE(STATUS "Using LLVM_LIBS: ${LLVM_LIBS}")
+MESSAGE(STATUS "Using LLVM_LIBRARIES: ${LLVM_LIBRARIES}")
+MESSAGE(STATUS "Using LLVM_LDFLAGS: ${LLVM_LDFLAGS}")
+MESSAGE(STATUS "Using LLVM_LIBRARY_DIRS: ${LLVM_LIBRARY_DIRS}")
+
 # Boost configuration
 # You may try uncommenting some of the commented options below if you have
 # trouble automatically finding Boost on your system.

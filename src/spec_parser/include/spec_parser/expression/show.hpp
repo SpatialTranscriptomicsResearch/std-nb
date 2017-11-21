@@ -3,7 +3,7 @@
 
 #include <sstream>
 
-#include "./visitor.hpp"
+#include "visitor.hpp"
 
 namespace spec_parser {
 namespace expression {

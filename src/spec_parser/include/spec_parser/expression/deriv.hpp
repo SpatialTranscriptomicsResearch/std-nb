@@ -1,8 +1,8 @@
 #ifndef SPECPARSER_EXPRESSION_DERIV_HPP
 #define SPECPARSER_EXPRESSION_DERIV_HPP
 
-#include "./clone.hpp"
-#include "./visitor.hpp"
+#include "clone.hpp"
+#include "visitor.hpp"
 
 namespace spec_parser {
 namespace expression {
@@ -28,7 +28,7 @@ struct Deriv : public Visitor<T> {
     }
   }
   virtual void visit(Unr<T>& e) override {
-    auto &a = e.operand;
+    auto& a = e.operand;
     auto da = Deriv<T>(v, a)();
     switch (e.op) {
       case Unr<T>::Type::NEG:
@@ -55,6 +55,11 @@ private:
 
 template <typename T>
 ExpPtr<T> deriv(const T& x, const ExpPtr<T>& e) {
+  LOG(verbose) << "Computing derivate w.r.t. " << to_string(*x)
+               << " of expression " << show(e);
+  auto res = Deriv<T>(x, e)();
+  LOG(verbose) << "Computed derivate w.r.t. " << to_string(*x)
+               << " of expression " << show(e) << " = " << show(res);
   return Deriv<T>(x, e)();
 }
 
