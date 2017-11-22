@@ -682,12 +682,10 @@ Model Model::compute_gradient(double &score) const {
             for (size_t t = 0; t < T; ++t) {
               for (size_t i = 0; i < num_rate_coeffs; ++i)
                 rate_coeff_arrays[t][i]
-                    = coeffs[experiments[e].rate_coeff_idxs[i]]->get_actual(
-                        g, t, s);
+                    = coeffs[exp.rate_coeff_idxs[i]]->get_actual(g, t, s);
               for (size_t i = 0; i < num_odds_coeffs; ++i)
                 odds_coeff_arrays[t][i]
-                    = coeffs[experiments[e].odds_coeff_idxs[i]]->get_actual(
-                        g, t, s);
+                    = coeffs[exp.odds_coeff_idxs[i]]->get_actual(g, t, s);
 
               rate(t) = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
               odds(t) = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
