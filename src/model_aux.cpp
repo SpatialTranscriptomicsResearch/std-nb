@@ -299,7 +299,7 @@ void Model::add_gp_proxies() {
 void Model::coeff_debug_dump(const string &tag) const {
   size_t index = 0;
   for (auto coeff : coeffs)
-    LOG(debug) << tag << " " << index++ << " " << coeff << ": "
+    LOG(debug) << tag << " " << index++ << " " << *coeff << ": "
                << coeff->info.to_string(design.covariates);
   auto fnc = [&](const string &s, size_t idx, size_t e) {
     LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
