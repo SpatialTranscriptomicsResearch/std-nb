@@ -454,7 +454,7 @@ void Model::remove_redundant_terms_sub(
 
   // drop redundant coefficients
   for (auto r : redundant) {
-    LOG(debug) << "Removing " << r << ": " << *coeffs[r] << ": "
+    LOG(verbose) << "Removing coefficient " << r << ": " << *coeffs[r] << ": "
                << coeffs[r]->info.to_string(design.covariates);
     coeffs.erase(begin(coeffs) + r);
   }
