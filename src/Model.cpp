@@ -81,8 +81,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
   coeff_debug_dump("INITIAL");
   add_gp_proxies();
-  coeff_debug_dump("BEFORE");
-  remove_redundant_terms();
+  // coeff_debug_dump("BEFORE");
+  // remove_redundant_terms();
   coeff_debug_dump("AFTER");
 
   verify_model(*this);
