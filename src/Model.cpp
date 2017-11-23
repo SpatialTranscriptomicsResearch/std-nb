@@ -16,8 +16,8 @@
 using namespace spec_parser;
 using namespace std;
 
-using spec_parser::expression::eval;
 using spec_parser::expression::deriv;
+using spec_parser::expression::eval;
 
 namespace STD {
 
@@ -182,15 +182,25 @@ Model Model::compute_gradient(double &score) const {
               rate(t) = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
               odds(t) = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
             }
-            // TODO: optimization for counts == 0
+
             auto cnts
                 = exp.sample_contributions_gene_spot(g, s, rate, odds, rng);
-            for (size_t t = 0; t < T; ++t) {
-              register_gradient(g, e, s, t, cnts, grad, rate, odds,
-                                rate_coeff_arrays[t], odds_coeff_arrays[t]);
-              double p = odds_to_prob(odds(t));
-              score_ += log_negative_binomial(cnts[t], rate(t), p);
-            }
+            if (exp.counts(g, s) > 0)
+              for (size_t t = 0; t < T; ++t) {
+                register_gradient(g, e, s, t, cnts, grad, rate, odds,
+                                  rate_coeff_arrays[t], odds_coeff_arrays[t]);
+                double p = odds_to_prob(odds(t));
+                score_ += log_negative_binomial(cnts[t], rate(t), p);
+              }
+            else
+              for (size_t t = 0; t < T; ++t) {
+                register_gradient_zero_count(g, e, s, t, cnts, grad, rate, odds,
+                                             rate_coeff_arrays[t],
+                                             odds_coeff_arrays[t]);
+                double log_one_minus_p = neg_odds_to_log_prob(odds(t));
+                score_ += log_negative_binomial_zero_log_one_minus_p(
+                    rate(t), log_one_minus_p);
+              }
           }
 
 #pragma omp critical
@@ -243,12 +253,33 @@ void Model::register_gradient(size_t g, size_t e, size_t s, size_t t,
   }
 }
 
-void Model::register_gradient_zero_count(size_t g, size_t e, size_t s,
-                                         Model &gradient, const Matrix &rate_gt,
-                                         const Matrix &rate_st,
-                                         const Matrix &odds_gt,
-                                         const Matrix &odds_st) const {
-  // TODO
+void Model::register_gradient_zero_count(
+    size_t g, size_t e, size_t s, size_t t, const Vector &cnts, Model &gradient,
+    const Vector &rate, const Vector &odds,
+    const std::vector<double> &rate_coeffs,
+    const std::vector<double> &odds_coeffs) const {
+  const double r = rate(t);
+  const double o = odds(t);
+  const double p = odds_to_prob(o);
+  const double log_one_minus_p = neg_odds_to_log_prob(o);
+
+  const double rate_term = r * log_one_minus_p;
+  const double odds_term = - p * r;
+
+  // loop over rate covariates
+  auto deriv_iter = begin(rate_derivs);
+  for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
+    size_t coeff_idx = experiments[e].rate_coeff_idxs[idx];
+    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+        += rate_term * (*deriv_iter)(rate_coeffs.data());
+  }
+  // loop over odds covariates
+  deriv_iter = begin(odds_derivs);
+  for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
+    size_t coeff_idx = experiments[e].odds_coeff_idxs[idx];
+    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+        += odds_term * (*deriv_iter)(odds_coeffs.data());
+  }
 }
 
 // calculate parameter's likelihood
