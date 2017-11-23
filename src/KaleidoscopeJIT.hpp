@@ -121,7 +121,8 @@ private:
       FPM->run(F);
 
     LOG(verbose) << "Optimized module";
-    M->dump();
+    // M->dump();
+    M->print(llvm::errs(), nullptr);
     std::cerr << std::endl;
 
     return M;

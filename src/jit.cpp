@@ -86,7 +86,8 @@ void define_log_exp() {
 
 void finalize_module(const std::string &Name) {
   LOG(verbose) << "Finalizing module";
-  Runtime::TheModule->dump();
+  // Runtime::TheModule->dump();
+  Runtime::TheModule->print(llvm::errs(), nullptr);
   std::cerr << std::endl;
 
   Runtime::TheJIT->addModule(std::move(Runtime::TheModule));
