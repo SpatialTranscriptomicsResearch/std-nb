@@ -95,7 +95,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
 
 void Model::ensure_dimensions() const {
   size_t i = 0;
-  for(auto &experiment: experiments) {
+  for (auto &experiment : experiments) {
     LOG(debug) << "Ensuring dimensions for experiment " << i++;
     experiment.ensure_dimensions();
   }
@@ -274,7 +274,7 @@ void Model::register_gradient_zero_count(
   const double log_one_minus_p = neg_odds_to_log_prob(o);
 
   const double rate_term = r * log_one_minus_p;
-  const double odds_term = - p * r;
+  const double odds_term = -p * r;
 
   // loop over rate covariates
   auto deriv_iter = begin(rate_derivs);
@@ -303,11 +303,18 @@ void Model::gradient_update() {
             + "/");
     }
 
+    // deactivate dropout in the last iteration for correct contribution stats
+    double dropout_temp = parameters.dropout_gene_spot;
+    if (iter_cnt == parameters.grad_iterations)
+      parameters.dropout_gene_spot = 0;
+
     from_vector(x.array());
     double score = 0;
     Model model_grad = compute_gradient(score);
     for (auto &coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
+
+    parameters.dropout_gene_spot = dropout_temp;
 
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
