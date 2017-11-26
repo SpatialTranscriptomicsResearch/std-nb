@@ -139,7 +139,13 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
                                                   RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
-  const auto count = counts(g, s);
+  const auto actual_count = counts(g, s);
+  size_t count;
+  if (parameters.downsample < 1)
+    count = std::binomial_distribution<size_t>(
+        actual_count, parameters.downsample)(rng);
+  else
+    count = actual_count;
 
   if (count == 0)
     return cnts;
@@ -416,4 +422,4 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   return experiment;
 }
-}
+}  // namespace STD

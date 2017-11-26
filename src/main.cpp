@@ -211,6 +211,9 @@ int main(int argc, char **argv) {
     //  "Compute and print the likelihood after finishing.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
+    ("downsample", po::value(&parameters.downsample)->default_value(parameters.downsample),
+     "Randomly downsample the number of reads. "
+     "Draws a binomially-distributed number of reads from the actually observed count using this parameter as probablity argument for the biomial distribution.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),

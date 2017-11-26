@@ -66,6 +66,7 @@ struct Parameters {
   size_t hmc_L = 5;
   size_t hmc_N = 15;
   double dropout_gene_spot = 0;
+  double downsample = 1;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
 
