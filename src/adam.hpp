@@ -6,7 +6,8 @@
 namespace STD {
 
 struct adam_parameters {
-  double alpha = 1e-3;
+  // alpha = 1e-3 is suggested in orginal publication;
+  double alpha = 0.1;
   double beta1 = 0.9;
   double beta2 = 0.999;
   double epsilon = 1e-8;
