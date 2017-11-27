@@ -199,8 +199,10 @@ double Coefficient::compute_gradient_gp(const vector<CoefficientPtr> &coeffs,
   for (auto idx : prior_idxs)
     formed_data.push_back(coeffs[idx]->form_data(coeffs));
 
+  /*
   for (auto &m : formed_data)
     m.array() = m.array().log();
+  */
 
   vector<Matrix> mus = formed_data;
   for (auto &m : mus)
