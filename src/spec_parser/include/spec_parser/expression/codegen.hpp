@@ -3,23 +3,20 @@
 
 #include <memory>
 #include "jit.hpp"
-// #include "log.hpp"
 
 namespace spec_parser {
 namespace expression {
 
 template <typename T>
 Value* Num<T>::codegen() {
-  // LOG(verbose) << "codegen: value " << value;
   return llvm::ConstantFP::get(JIT::Runtime::TheContext, llvm::APFloat(value));
 }
 
 template <typename T>
 Value* Var<T>::codegen() {
-  // LOG(verbose) << "codegen: variable " << value;
   std::string name = to_string(*value);
 
-  // Look this variable up in the function.
+  // look this variable up among the named variables
   Value* V = JIT::Runtime::NamedValues[name];
   if (!V)
     return JIT::Runtime::LogErrorV("Unknown variable name");
@@ -28,12 +25,9 @@ Value* Var<T>::codegen() {
 
 template <typename T>
 Value* Unr<T>::codegen() {
-  // LOG(verbose) << "codegen: unr";
   Value* op_value = operand->codegen();
   if (!op_value)
     return nullptr;
-  // LOG(verbose) << "codegen: unr op_value";
-  // op_value->print(llvm::errs());
 
   switch (op) {
     case Type::NEG: {
@@ -60,15 +54,10 @@ Value* Unr<T>::codegen() {
 
 template <typename T>
 Value* Bin<T>::codegen() {
-  // LOG(verbose) << "codegen: bin";
   Value* l = lhs->codegen();
   Value* r = rhs->codegen();
   if (!l || !r)
     return nullptr;
-  // LOG(verbose) << "codegen: bin l";
-  // l->print(llvm::errs());
-  // LOG(verbose) << "codegen: bin r";
-  // r->print(llvm::errs());
 
   switch (op) {
     case Type::ADD:
