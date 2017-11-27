@@ -143,6 +143,8 @@ int main(int argc, char **argv) {
   po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
   po::options_description lbfgs_options("lBFGS options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
+  po::options_description adagrad_options("AdaGrad options", num_cols);
+  po::options_description adam_options("Adam options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
 
   required_options.add_options()
@@ -207,7 +209,7 @@ int main(int argc, char **argv) {
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
-     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
+     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS, AdaGrad, Adam.")
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
      "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
@@ -245,6 +247,22 @@ int main(int argc, char **argv) {
     ("rprop_max", po::value(&parameters.rprop.max_change)->default_value(parameters.rprop.max_change, stringize(parameters.rprop.max_change)),
      "Maximal parameter-specific learning rate.");
 
+  adagrad_options.add_options()
+    ("adagrad_eta", po::value(&parameters.adagrad.eta)->default_value(parameters.adagrad.eta),
+     "AdaGrad learning rate.")
+    ("adagrad_epsilon", po::value(&parameters.adagrad.epsilon)->default_value(parameters.adagrad.epsilon),
+     "AdaGrad stability parameter.");
+
+  adam_options.add_options()
+    ("adam_alpha", po::value(&parameters.adam.alpha)->default_value(parameters.adam.alpha),
+     "Adam learning rate.")
+    ("adam_beta1", po::value(&parameters.adam.beta1)->default_value(parameters.adam.beta1),
+     "Adam gradient first moment annealing.")
+    ("adam_beta2", po::value(&parameters.adam.beta2)->default_value(parameters.adam.beta2),
+     "Adam gradient second moment annealing.")
+    ("adam_epsilon", po::value(&parameters.adam.epsilon)->default_value(parameters.adam.epsilon),
+     "Adam stability parameter.");
+
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
      "Default value for the 1st argument of gamma distributions.")
@@ -271,6 +289,8 @@ int main(int argc, char **argv) {
       .add(grad_options)
       .add(lbfgs_options)
       .add(rprop_options)
+      .add(adagrad_options)
+      .add(adam_options)
       .add(hmc_options)
       .add(hyperparameter_options);
 

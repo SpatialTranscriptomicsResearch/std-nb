@@ -11,6 +11,8 @@
 #include "io.hpp"
 #include "pdist.hpp"
 #include "rprop.hpp"
+#include "adagrad.hpp"
+#include "adam.hpp"
 #include "sampling.hpp"
 
 using namespace spec_parser;
@@ -375,6 +377,33 @@ void Model::gradient_update() {
       int niter = solver.minimize(fnc, x, fx);
 
       LOG(verbose) << "lBFGS performed " << niter << " iterations";
+    } break;
+    case Optimize::Method::AdaGrad: {
+      Vector grad;
+      Array agrad;
+      Array ax;
+      Array scale(Array::Zero(x.size()));
+      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+        fx = fnc(x, grad);
+        agrad = grad.array();
+        ax = x.array();
+        adagrad_update(agrad, scale, ax, parameters.adagrad);
+        x = ax.matrix();
+      }
+    } break;
+    case Optimize::Method::Adam: {
+      Vector grad;
+      Array agrad;
+      Array ax;
+      Array mom1(Array::Zero(x.size()));
+      Array mom2(Array::Zero(x.size()));
+      for (size_t iter = 1; iter <= parameters.grad_iterations; ++iter) {
+        fx = fnc(x, grad);
+        agrad = grad.array();
+        ax = x.array();
+        adam_update(agrad, mom1, mom2, ax, iter, parameters.adam);
+        x = ax.matrix();
+      }
     } break;
   }
   LOG(verbose) << "Final f(x) = " << fx;

@@ -16,6 +16,12 @@ ostream &operator<<(ostream &os, const Method &method) {
     case Method::lBFGS:
       os << "lBFGS";
       break;
+    case Method::AdaGrad:
+      os << "AdaGrad";
+      break;
+    case Method::Adam:
+      os << "Adam";
+      break;
   }
   return os;
 }
@@ -30,6 +36,10 @@ istream &operator>>(istream &is, Method &method) {
     method = Method::RPROP;
   else if (line == "lbfgs")
     method = Method::lBFGS;
+  else if (line == "adagrad")
+    method = Method::AdaGrad;
+  else if (line == "adam")
+    method = Method::Adam;
   else
     throw(runtime_error("Unknown optimization method: " + line));
   return is;

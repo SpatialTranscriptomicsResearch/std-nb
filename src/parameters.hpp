@@ -7,6 +7,8 @@
 #include "covariate.hpp"
 #include "optimization_method.hpp"
 #include "rprop.hpp"
+#include "adagrad.hpp"
+#include "adam.hpp"
 #include "sampling_method.hpp"
 #include "types.hpp"
 
@@ -70,6 +72,8 @@ struct Parameters {
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
 
+  adagrad_parameters adagrad;
+  adam_parameters adam;
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
