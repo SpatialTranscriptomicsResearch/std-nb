@@ -59,24 +59,9 @@ struct Experiment {
   void store(const std::string &prefix, const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
 
-  // TODO covariates reactivate likelihood
-  // Matrix log_likelihood() const;
-
   /** sample count decomposition */
   Vector sample_contributions_gene_spot(size_t g, size_t s, const Vector &rate,
                                         const Vector &odds, RNG &rng) const;
-
-  Vector marginalize_genes() const;
-
-  Matrix expectation() const;
-  Matrix variance() const;
-
-  // computes a matrix M(g,t) =
-  //   beta(g) gamma(g,t) lambda(g,t) sum_s theta(s,t) sigma(s)
-  Matrix expected_gene_type() const;
-  // computes a matrix M(s,t) =
-  //   theta(s,t) sigma(s) sum_g beta(g) lambda(g,t) gamma(g,t)
-  Matrix expected_spot_type() const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);
