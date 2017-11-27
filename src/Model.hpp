@@ -24,7 +24,7 @@ struct Model {
   /** number of spots */
   size_t S;
 
-  Design design;
+  Design::Design design;
   std::string module_name;
   using FuncType = std::function<double(const double *)>;
   FuncType rate_fnc, odds_fnc;
@@ -43,7 +43,7 @@ struct Model {
   Matrix contributions_gene_type;
   Vector contributions_gene;
 
-  Model(const std::vector<Counts> &data, size_t T, const Design &design,
+  Model(const std::vector<Counts> &data, size_t T, const Design::Design &design,
         const ModelSpec &model_spec, const Parameters &parameters);
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Kind kind);
@@ -79,8 +79,6 @@ struct Model {
   void gradient_update();
   size_t size() const;
   size_t number_parameters() const;
-
-  void enforce_positive_parameters(double min_value = 1e-200);
 
   void store(const std::string &prefix, bool mean_and_var = false,
              bool reorder = true) const;

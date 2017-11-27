@@ -24,7 +24,7 @@ string CovariateInformation::to_string(const Covariates &covariates) const {
   for (size_t i = 0; i < idxs.size(); ++i) {
     if (i > 0)
       s += ",";
-    if (covariates[idxs[i]].label == DesignNS::unit_label)
+    if (covariates[idxs[i]].label == Design::unit_label)
       s += "intercept";
     else
       s += covariates[idxs[i]].label + "="

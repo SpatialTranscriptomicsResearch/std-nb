@@ -41,7 +41,7 @@ void compile_expression_and_derivs(const ExprPtr<T> &expr,
   }
 }
 
-Model::Model(const vector<Counts> &c, size_t T_, const Design &design_,
+Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
              const ModelSpec &model_spec, const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
