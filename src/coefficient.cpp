@@ -72,6 +72,13 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
   LOG(verbose) << *this;
 }
 
+/** Calculates gradient with respect to the "natural" representation
+ *
+ * The natural representation always covers the entire real line
+ * for normal x -> x
+ * for gamma and beta prime x -> exp(x)
+ * for beta x -> exp(x) / (exp(x) + 1)
+ */
 double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
                                      vector<CoefficientPtr> &grad_coeffs,
                                      size_t coeff_idx) const {
@@ -137,7 +144,6 @@ double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
         double x = exp(log_odds);
         double p = odds_to_prob(x);
 
-        // grad_coeffs[coeff_idx]->get_raw(g, t, s) += a - 1 - (a + b - 2) * p;
         grad_coeffs[coeff_idx]->get_raw(g, t, s)
             += (a - 1) * (1 - p) - (b + 1) * p;
 
