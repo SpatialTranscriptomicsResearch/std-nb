@@ -26,7 +26,8 @@ struct Options {
   bool intersect = false;
   string load_prefix = "";
   bool share_coord_sys = false;
-  bool keep_empty = false;
+  size_t min_reads_gene = 1;
+  size_t min_reads_spot = 1;
   bool transpose = false;
   size_t top = 0;
   size_t bottom = 0;
@@ -197,8 +198,10 @@ int main(int argc, char **argv) {
      "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
      "Warn when parameter values reach the lower limit specified by --minval.")
-    ("keep_empty", po::bool_switch(&options.keep_empty),
-     "Do not discard genes or spots with zero counts.")
+    ("minread_spot", po::value(&options.min_reads_spot)->default_value(options.min_reads_spot),
+     "Discard spots that have fewer than this many reads.")
+    ("minread_gene", po::value(&options.min_reads_gene)->default_value(options.min_reads_gene),
+     "Discard genes that have fewer than this many reads.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
     ("downsample", po::value(&parameters.downsample)->default_value(parameters.downsample),
@@ -383,9 +386,9 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  auto data_sets
-      = load_data(paths, options.intersect, options.top, options.bottom,
-                  not options.keep_empty, options.transpose);
+  auto data_sets = load_data(paths, options.intersect, options.top,
+                             options.bottom, options.min_reads_spot,
+                             options.min_reads_gene, options.transpose);
 
   LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;
   LOG(verbose) << "gp.indep_variance = " << parameters.gp.independent_variance;
