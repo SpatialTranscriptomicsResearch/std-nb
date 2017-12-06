@@ -427,6 +427,11 @@ void Model::store(const string &prefix_, bool mean_and_var,
   {
 #pragma omp section
     {
+      ofstream ofs(prefix + "design.txt");
+      ofs << design;
+    }
+#pragma omp section
+    {
       // TODO use parse-able format
       ofstream ofs(prefix + "hyperparameters.txt");
       ofs << parameters.hyperparameters;
