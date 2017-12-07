@@ -89,6 +89,11 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   // remove_redundant_terms();
   coeff_debug_dump("AFTER");
 
+  size_t index = 0;
+  for (auto coeff : coeffs)
+    LOG(verbose) << index++ << " " << *coeff << ": "
+                 << coeff->info.to_string(design.covariates);
+
   verify_model(*this);
 
   // TODO cov spot initialize spot scaling:
@@ -96,11 +101,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 }
 
 void Model::ensure_dimensions() const {
-  size_t i = 0;
-  for (auto &experiment : experiments) {
-    LOG(debug) << "Ensuring dimensions for experiment " << i++;
+  for (auto &experiment : experiments)
     experiment.ensure_dimensions();
-  }
 }
 
 void Model::setZero() {
@@ -333,8 +335,8 @@ void Model::gradient_update() {
     }
 
     LOG(info) << "Iteration " << iter_cnt << ", score: " << score;
-    LOG(verbose) << "x: " << endl << Stats::summary(x);
-    LOG(verbose) << "grad: " << endl << Stats::summary(grad);
+    LOG(debug) << "x: " << endl << Stats::summary(x);
+    LOG(debug) << "grad: " << endl << Stats::summary(grad);
 
     return score;
   };
@@ -359,9 +361,9 @@ void Model::gradient_update() {
         Vector grad;
         fx = fnc(x, grad);
         x = x + alpha * grad;
-        LOG(verbose) << "iter " << iter << " alpha: " << alpha;
-        LOG(verbose) << "iter " << iter << " fx: " << fx;
-        LOG(verbose) << "iter " << iter << " x: " << endl << Stats::summary(x);
+        LOG(debug) << "iter " << iter << " alpha: " << alpha;
+        LOG(debug) << "iter " << iter << " fx: " << fx;
+        LOG(debug) << "iter " << iter << " x: " << endl << Stats::summary(x);
 
         alpha *= parameters.grad_anneal;
       }
@@ -406,7 +408,7 @@ void Model::gradient_update() {
       }
     } break;
   }
-  LOG(verbose) << "Final f(x) = " << fx;
+  LOG(info) << "Final f(x) = " << fx;
 
   from_vector(x.array());
 }

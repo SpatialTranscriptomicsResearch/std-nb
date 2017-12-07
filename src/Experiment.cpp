@@ -30,11 +30,10 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
    * contributions_gene_type
    * contributions_spot_type
    */
-  LOG(debug) << "Coords: " << coords;
+  LOG(trace) << "Coords: " << coords;
 }
 
 void Experiment::ensure_dimensions() const {
-  LOG(debug) << "Ensuring dimensions for experiment " << counts.path;
   for (auto &idxs : {rate_coeff_idxs, odds_coeff_idxs})
     for (auto &coeff_idx : idxs) {
       int nrow = 0;

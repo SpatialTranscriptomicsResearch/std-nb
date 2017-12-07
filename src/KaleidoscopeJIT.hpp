@@ -64,7 +64,7 @@ public:
         OptimizeLayer(CompileLayer, [this](std::shared_ptr<Module> M) {
           return optimizeModule(std::move(M));
         }) {
-    LOG(verbose) << "Constructing KaleidoscopeJIT";
+    LOG(debug) << "Constructing KaleidoscopeJIT";
     llvm::sys::DynamicLibrary::LoadLibraryPermanently(nullptr);
   }
 

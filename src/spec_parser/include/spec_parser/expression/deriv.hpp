@@ -55,11 +55,11 @@ private:
 
 template <typename T>
 ExpPtr<T> deriv(const T& x, const ExpPtr<T>& e) {
-  LOG(verbose) << "Computing derivate w.r.t. " << to_string(*x)
-               << " of expression " << show(e);
+  LOG(debug) << "Computing derivate w.r.t. " << to_string(*x)
+             << " of expression " << show(e);
   auto res = Deriv<T>(x, e)();
-  LOG(verbose) << "Computed derivate w.r.t. " << to_string(*x)
-               << " of expression " << show(e) << " = " << show(res);
+  LOG(debug) << "Computed derivate w.r.t. " << to_string(*x)
+             << " of expression " << show(e) << " = " << show(res);
   return Deriv<T>(x, e)();
 }
 

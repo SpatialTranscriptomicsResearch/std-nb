@@ -12,7 +12,7 @@ namespace expression {
 // call JIT::Runtime::define_log_exp before using this function
 template <typename T>
 void codegen(const ExpPtr<T> &expr, const std::string &Name) {
-  LOG(verbose) << "Generating code '" << Name << "' for expression "
+  LOG(debug) << "Generating code '" << Name << "' for expression "
                << show(expr);
   using namespace llvm;
 
@@ -60,7 +60,7 @@ void codegen(const ExpPtr<T> &expr, const std::string &Name) {
       throw std::runtime_error("An error occurred while generation code '"
                                + Name + "' for the expression " + show(expr));
 
-    LOG(verbose) << "Code generation succeeded for expression " << show(expr);
+    LOG(debug) << "Code generation succeeded for expression " << show(expr);
   } else {
     LOG(fatal) << "Code generation failed for expression " << show(expr);
     LOG(fatal) << "Removing function from parent.";

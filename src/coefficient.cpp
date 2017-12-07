@@ -69,7 +69,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
     for (auto &x : values)
       x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
 
-  LOG(verbose) << *this;
+  LOG(debug) << *this;
 }
 
 /** Calculates gradient with respect to the "natural" representation

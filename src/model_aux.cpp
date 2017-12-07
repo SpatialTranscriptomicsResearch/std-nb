@@ -155,16 +155,15 @@ size_t Model::register_coefficient(
 
     if (variable->distribution == nullptr) {
       auto dist = parameters.default_distribution;
-      LOG(verbose) << id
-                   << " does not have a distribution specification. Using "
-                   << to_string(dist) << " as per defaults.";
-      variable->distribution = make_shared<Distribution>(dist,
-          vector<string> {
-              remove_trailing_zeros(to_string(
-                    parameters.hyperparameters.get_param(dist, 0))),
-              remove_trailing_zeros(to_string(
-                    parameters.hyperparameters.get_param(dist, 1))),
-          });
+      LOG(debug) << id << " does not have a distribution specification. Using "
+                 << to_string(dist) << " as per defaults.";
+      variable->distribution = make_shared<Distribution>(
+          dist, vector<string>{
+                    remove_trailing_zeros(to_string(
+                        parameters.hyperparameters.get_param(dist, 0))),
+                    remove_trailing_zeros(to_string(
+                        parameters.hyperparameters.get_param(dist, 1))),
+                });
     }
 
     Coefficient::Id cid{

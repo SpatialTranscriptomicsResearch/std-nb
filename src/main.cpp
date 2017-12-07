@@ -39,7 +39,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
       options.model_spec, parameters);
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
-  LOG(info) << "Initial model" << endl << pfa;
+  LOG(info) << "Model" << endl << pfa;
   pfa.gradient_update();
   pfa.store("", true);
 }
@@ -329,7 +329,7 @@ int main(int argc, char **argv) {
   LOG(info) << exec_info.name_and_version();
   LOG(info) << exec_info.datetime;
   LOG(info) << "Working directory = " << exec_info.directory;
-  LOG(info) << "Command = " << exec_info.cmdline << endl;
+  LOG(info) << "Command = " << exec_info.cmdline;
 
   parse_file("design", options.design_path, options.design);
 
@@ -360,17 +360,17 @@ int main(int argc, char **argv) {
         _default_rate_formula = default_rate_formula(covariate_labels);
         break;
     }
-    LOG(verbose) << "Default rate formula: " << _default_rate_formula;
+    LOG(debug) << "Default rate formula: " << _default_rate_formula;
     options.model_spec.from_string("rate := " + _default_rate_formula);
 
     string _default_odds_formula = default_odds_formula();
-    LOG(verbose) << "Default odds formula: " << _default_odds_formula;
+    LOG(debug) << "Default odds formula: " << _default_odds_formula;
     options.model_spec.from_string("odds := " + _default_odds_formula);
   }
 
   parse_file("model specification", options.spec_path, options.model_spec);
 
-  LOG(verbose) << "Final model specification:";
+  LOG(debug) << "Final model specification:";
   log([](const std::string &s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
@@ -390,8 +390,8 @@ int main(int argc, char **argv) {
                              options.bottom, options.min_reads_spot,
                              options.min_reads_gene, options.transpose);
 
-  LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;
-  LOG(verbose) << "gp.indep_variance = " << parameters.gp.independent_variance;
+  LOG(debug) << "gp.length_scale = " << parameters.gp.length_scale;
+  LOG(debug) << "gp.indep_variance = " << parameters.gp.independent_variance;
 
   try {
     run(data_sets, options, parameters);

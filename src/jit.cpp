@@ -34,7 +34,7 @@ std::unique_ptr<orc::KaleidoscopeJIT> JIT::Runtime::TheJIT = nullptr;
 
 namespace JIT {
 void init_runtime(const std::string &module_name) {
-  LOG(verbose) << "Running Init()";
+  LOG(debug) << "Running Init()";
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
@@ -45,7 +45,7 @@ void init_runtime(const std::string &module_name) {
 
   JIT::define_log_exp();
 
-  LOG(verbose) << "Finished Init()";
+  LOG(debug) << "Finished Init()";
 }
 
 Value *Runtime::LogErrorV(const char *Str) {
@@ -85,7 +85,7 @@ void define_log_exp() {
 }
 
 void finalize_module(const std::string &Name) {
-  LOG(verbose) << "Finalizing module";
+  LOG(debug) << "Finalizing module";
   // Runtime::TheModule->dump();
   Runtime::TheModule->print(llvm::errs(), nullptr);
   std::cerr << std::endl;
@@ -105,16 +105,8 @@ std::function<double(const double *)> get_function(const std::string &Name) {
       = (double (*)(const double *))cantFail(ExprSymbol.getAddress());
   // TODO handle failure
 
-  LOG(verbose) << "getAdress() = "
+  LOG(debug) << "getAdress() = "
                << (intptr_t)cantFail(ExprSymbol.getAddress());
-
-  /*
-  double *x = new double[names.size()];
-  for (size_t i = 0; i < names.size(); ++i)
-    x[i] = 1.0 * i * i / 2;
-  double foo = FP(x);
-  LOG(verbose) << "result = " << foo;
-  */
 
   return FP;
 }

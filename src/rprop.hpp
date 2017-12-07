@@ -61,8 +61,8 @@ void rprop_update(const T &grad, U &prev_sgn, T &rate, T &data,
     sgn_iter++;
   }
   case0 -= caseP;
-  LOG(verbose) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
-  LOG(verbose) << "learning rates:" << std::endl << Stats::summary(rate);
+  LOG(debug) << "+1/0/-1 " << caseP << "/" << case0 << "/" << caseN;
+  LOG(debug) << "learning rates:" << std::endl << Stats::summary(rate);
 }
 
 #endif
