@@ -34,6 +34,7 @@ comment #[^\n]*
 "-"        return yy::parser::make_MINUS(loc);
 "+"        return yy::parser::make_PLUS(loc);
 "*"        return yy::parser::make_STAR(loc);
+"/"        return yy::parser::make_SLASH(loc);
 ":"        return yy::parser::make_COLON(loc);
 "^"        return yy::parser::make_EXPON(loc);
 "("        return yy::parser::make_LPAREN(loc);
