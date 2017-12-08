@@ -87,10 +87,9 @@ static void assert_unit(const std::string& str) {
 
 %%
 %left "+" "-";
+%left "*" "/";
 %left "^";
-%left "*";
 %left ":";
-%left "exp" "log";
 
 %start program;
 
