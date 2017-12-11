@@ -79,15 +79,26 @@ string default_rate_formula(const vector<string> &covariates) {
 }
 
 /**
- * Computes the default odds formula given the covariates in the spec file.
+ * Computes the previous default odds formula given the covariates in the spec file.
  *
- * The default rate formula is defined as
- *   spot * type + 1.
+ * The previous default odds formula is defined as
+ *   gene * type + 1.
  */
-string default_odds_formula() {
+string previous_default_odds_formula() {
   using namespace Design;
   return gene_label + " * " + type_label + " + " + unit_label;
 }
+}
+
+/**
+ * Computes the default odds formula given the covariates in the spec file.
+ *
+ * The default odds formula is defined as
+ *   gene + 1.
+ */
+string default_odds_formula() {
+  using namespace Design;
+  return gene_label + " + " + unit_label;
 }
 
 template <typename T>
