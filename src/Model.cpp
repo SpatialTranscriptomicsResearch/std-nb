@@ -320,6 +320,10 @@ void Model::gradient_update() {
 
     parameters.dropout_gene_spot = dropout_temp;
 
+    for (auto &coeff : model_grad.coeffs)
+      if (coeff->distribution == Coefficient::Distribution::fixed)
+        coeff->values.setZero();
+
     grad = model_grad.vectorize();
     contributions_gene_type = model_grad.contributions_gene_type;
     for (size_t e = 0; e < E; ++e) {
