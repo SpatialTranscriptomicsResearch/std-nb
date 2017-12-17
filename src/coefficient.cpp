@@ -45,29 +45,30 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
   // TODO cov prior fill prior_idx
   switch (kind) {
     case Kind::scalar:
-      values = Matrix::Ones(1, 1);
+      values = Matrix::Zero(1, 1);
       break;
     case Kind::gene:
-      values = Matrix::Ones(G, 1);
+      values = Matrix::Zero(G, 1);
       break;
     case Kind::spot:
-      values = Matrix::Ones(S, 1);
+      values = Matrix::Zero(S, 1);
       break;
     case Kind::type:
-      values = Matrix::Ones(T, 1);
+      values = Matrix::Zero(T, 1);
       break;
     case Kind::gene_type:
-      values = Matrix::Ones(G, T);
+      values = Matrix::Zero(G, T);
       break;
     case Kind::spot_type:
-      values = Matrix::Ones(S, T);
+      values = Matrix::Zero(S, T);
       break;
   }
 
-  if (kind == Coefficient::Kind::gene_type
-      or kind == Coefficient::Kind::spot_type)
+  if (distribution != Distribution::fixed
+      and (kind == Coefficient::Kind::gene_type
+           or kind == Coefficient::Kind::spot_type))
     for (auto &x : values)
-      x = exp(0.1 * std::normal_distribution<double>()(EntropySource::rng));
+      x = 0.1 * std::normal_distribution<double>()(EntropySource::rng);
 
   LOG(debug) << *this;
 }
