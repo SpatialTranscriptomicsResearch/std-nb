@@ -1,13 +1,14 @@
 #ifndef DRIVER_HH
 #define DRIVER_HH
 
+#include <memory>
 #include <unordered_map>
 #include <set>
 #include <string>
 
+#include "spec_parser/Expression.hpp"
 #include "spec_parser/Formula.hpp"
 #include "spec_parser/RandomVariable.hpp"
-#include "spec_parser/RegressionEquation.hpp"
 #include "parser.tab.hpp"
 
 // Tell Flex the lexer's prototype ...
@@ -27,22 +28,24 @@ struct ParseError : public std::runtime_error {
 
 class Driver {
   public:
+  using ExpType = ExpressionPtr<VariablePtr>;
+  using VarType = VariablePtr;
+
   void error(const yy::location& l, const std::string& m);
   void error(const std::string& m);
 
   bool trace_scanning, trace_parsing;
 
-  std::unordered_map<std::string, RegressionEquation> regression_equations;
-  std::unordered_map<std::string, RandomVariable> random_variables;
+  std::unordered_map<std::string, ExpType> regression_exprs;
+  std::unordered_map<std::string, VarType> random_variables;
 
   Driver();
   virtual ~Driver();
 
   void add_formula(const std::string& id, const Formula& formula);
 
-  RegressionEquation* get_equation(const std::string& id);
-  RandomVariable* get_variable(
-      const std::string& id, std::set<std::string> covariates);
+  ExpType& get_expr(const std::string& id);
+  VarType& get_variable(const std::string& id, std::set<std::string> covariates);
 
   int parse(const std::string& s);
   yy::location& location() const;

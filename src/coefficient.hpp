@@ -10,6 +10,10 @@
 #include "gp.hpp"
 #include "types.hpp"
 
+struct Coefficient;
+
+using CoefficientPtr = std::shared_ptr<Coefficient>;
+
 struct Coefficient {
   enum class Kind {
     scalar = 0,
@@ -23,12 +27,13 @@ struct Coefficient {
   enum class Distribution {
     fixed,
     gamma,
+    beta,
     beta_prime,
     // linear term
-    log_normal,
-    log_gp,
-    log_gp_coord,
-    log_gp_proxy
+    normal,
+    gp,
+    gp_coord,
+    gp_proxy
   };
   struct Id {
     std::string name;
@@ -45,9 +50,9 @@ struct Coefficient {
   Distribution distribution;
 
   std::shared_ptr<GP::GaussianProcess> gp;
-  STD::Matrix form_data(const std::vector<Coefficient> &coeffs) const;
+  STD::Matrix form_data(const std::vector<CoefficientPtr> &coeffs) const;
   void add_formed_data(const STD::Matrix &m,
-                       std::vector<Coefficient> &coeffs) const;
+                       std::vector<CoefficientPtr> &coeffs) const;
 
   CovariateInformation info;
   STD::Matrix values;
@@ -71,15 +76,16 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  double compute_gradient(const std::vector<Coefficient> &coeffs,
-                          std::vector<Coefficient> &grad_coeffs,
+  double compute_gradient(const std::vector<CoefficientPtr> &coeffs,
+                          std::vector<CoefficientPtr> &grad_coeffs,
                           size_t idx) const;
-  double compute_gradient_gp(const std::vector<Coefficient> &coeffs,
-                             std::vector<Coefficient> &grad_coeffs,
+  double compute_gradient_gp(const std::vector<CoefficientPtr> &coeffs,
+                             std::vector<CoefficientPtr> &grad_coeffs,
                              size_t idx) const;
 
-  double get(size_t g, size_t t, size_t s) const;  // rename to operator()
-  double &get(size_t g, size_t t, size_t s);       // rename to operator()
+  double get_raw(size_t g, size_t t, size_t s) const;  // rename to operator()
+  double &get_raw(size_t g, size_t t, size_t s);       // rename to operator()
+  double get_actual(size_t g, size_t t, size_t s) const;  // rename to operator()
   void store(const std::string &path, CompressionMode,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &spot_names,

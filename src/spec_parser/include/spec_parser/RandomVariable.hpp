@@ -1,15 +1,20 @@
 #ifndef RANDOMVARIABLE_HPP
 #define RANDOMVARIABLE_HPP
 
+#include <iostream>
 #include <memory>
 #include <set>
 #include <string>
 #include <vector>
 
-#include "aux.hpp"
 #include "spec_parser/Distribution.hpp"
+#include "spec_parser/Expression.hpp"
 
 namespace spec_parser {
+
+struct RandomVariable;
+
+using VariablePtr = std::shared_ptr<RandomVariable>;
 
 struct RandomVariable {
   std::set<std::string> covariates;
@@ -26,6 +31,9 @@ struct RandomVariable {
 };
 
 std::string to_string(const RandomVariable& rv);
+
+std::ostream& operator<<(std::ostream& os, const RandomVariable& var);
+std::ostream& operator<<(std::ostream& os, const VariablePtr& var_ptr);
 
 } // namespace spec_parser
 

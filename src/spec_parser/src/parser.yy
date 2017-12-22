@@ -14,8 +14,8 @@
 #include <set>
 
 #include "spec_parser/Distribution.hpp"
+#include "spec_parser/Expression.hpp"
 #include "spec_parser/Formula.hpp"
-#include "spec_parser/RegressionEquation.hpp"
 #include "spec_parser/RandomVariable.hpp"
 
 namespace spec_parser {
@@ -63,14 +63,14 @@ static void assert_unit(const std::string& str) {
   STAR    "*"
   COLON   ":"
   SLASH   "/"
-  EXP     "^"
+  EXPON   "^"
   LPAREN  "("
   RPAREN  ")"
+  LOG     "log"
+  EXP     "exp"
 ;
 %token <std::string> IDENTIFIER "identifier"
 %token <std::string> NUMERIC "numeric"
-
-%type <spec_parser::RegressionEquation> regression_expr;
 
 %type <std::string> covariate;
 %type <std::set<std::string>> covariates;
@@ -80,14 +80,15 @@ static void assert_unit(const std::string& str) {
 %type <std::vector<std::string>> distr_args;
 
 %type <std::string> regressand;
-%type <spec_parser::RandomVariable*> regressor;
+%type <spec_parser::VariablePtr> regressor;
+%type <spec_parser::ExpressionPtr<spec_parser::VariablePtr>> regression_expr;
 
 %type <spec_parser::Formula> formula_expr;
 
 %%
 %left "+" "-";
+%left "*" "/";
 %left "^";
-%left "*";
 %left ":";
 
 %start program;
@@ -119,10 +120,18 @@ covariates: %empty { $$ = std::set<std::string> {}; }
 
 covariate: "identifier" { $$ = $1; };
 
-regression_eq: regressand "=" regression_expr { *driver.get_equation($1) = $3; }
+regression_eq: regressand "=" regression_expr { driver.get_expr($1).swap($3); }
 
-regression_expr: regressor { $$ = spec_parser::RegressionEquation($1->full_id()); }
-               | regression_expr "*" regression_expr { $$ = $1 * $3; };
+regression_expr: regressor { $$ = spec_parser::var($1); }
+               | "numeric" { $$ = spec_parser::num<spec_parser::VariablePtr>(std::stod($1)); }
+               | "(" regression_expr ")" { $$ = $2; }
+               | "log" "(" regression_expr ")" { $$ = spec_parser::log($3); }
+               | "exp" "(" regression_expr ")" { $$ = spec_parser::exp($3); }
+               | "-" regression_expr { $$ = -$2; }
+               | regression_expr "+" regression_expr { $$ = $1 + $3; }
+               | regression_expr "-" regression_expr { $$ = $1 - $3; }
+               | regression_expr "*" regression_expr { $$ = $1 * $3; }
+               | regression_expr "/" regression_expr { $$ = $1 / $3; };
 
 regressor: "identifier" "(" covariates ")" { $$ = driver.get_variable($1, $3); }
 

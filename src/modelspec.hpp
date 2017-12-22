@@ -21,12 +21,14 @@ struct UnrecoverableParseError : public std::runtime_error {
 } // namespace ModelSpec
 
 struct ModelSpec {
+  using Variable = spec_parser::Driver::VarType;
+  using Expression = spec_parser::Driver::ExpType;
+
   void from_string(const std::string& str);
   void from_stream(std::istream& is);
 
-  // TODO: make into functions
-  std::vector<std::string> rate_coefficients, odds_coefficients;
-  std::unordered_map<std::string, spec_parser::RandomVariable> variables;
+  Expression rate_expr, odds_expr;
+  std::unordered_map<std::string, Variable> variables;
 
   private:
   spec_parser::Driver parser;

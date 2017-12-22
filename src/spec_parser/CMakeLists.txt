@@ -9,9 +9,9 @@ ADD_FLEX_BISON_DEPENDENCY(Lexer Parser)
 ADD_LIBRARY(parser SHARED
   src/Distribution.cpp
   src/Driver.cpp
+  src/Expression.cpp
   src/Formula.cpp
   src/RandomVariable.cpp
-  src/RegressionEquation.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/parser.tab.cpp
   ${CMAKE_CURRENT_BINARY_DIR}/lex.yy.cc
   )

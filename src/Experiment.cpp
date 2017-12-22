@@ -30,7 +30,46 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
    * contributions_gene_type
    * contributions_spot_type
    */
-  LOG(debug) << "Coords: " << coords;
+  LOG(trace) << "Coords: " << coords;
+}
+
+void Experiment::ensure_dimensions() const {
+  for (auto &idxs : {rate_coeff_idxs, odds_coeff_idxs})
+    for (auto &coeff_idx : idxs) {
+      int nrow = 0;
+      int ncol = 0;
+      Coefficient &coeff = *model->coeffs[coeff_idx];
+      switch (coeff.kind) {
+        case Coefficient::Kind::scalar:
+          nrow = ncol = 1;
+          break;
+        case Coefficient::Kind::gene:
+          nrow = G;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::spot:
+          nrow = S;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::type:
+          nrow = T;
+          ncol = 1;
+          break;
+        case Coefficient::Kind::gene_type:
+          nrow = G;
+          ncol = T;
+          break;
+        case Coefficient::Kind::spot_type:
+          nrow = S;
+          ncol = T;
+          break;
+      }
+      if (coeff.values.rows() != nrow or coeff.values.cols() != ncol)
+        throw std::runtime_error("Error: mismatched dimension on coefficient "
+                                 + to_string(coeff_idx) + ": " + to_string(nrow)
+                                 + "x" + to_string(ncol) + " vs "
+                                 + coeff.to_string());
+    }
 }
 
 void Experiment::store(const string &prefix,
@@ -49,6 +88,7 @@ void Experiment::store(const string &prefix,
 
 #pragma omp parallel sections if (DO_PARALLEL)
   {
+  /* TODO: Needs rewrite
 #pragma omp section
     write_matrix(expected_spot_type(),
                  prefix + "expected-mix" + FILENAME_ENDING,
@@ -73,6 +113,7 @@ void Experiment::store(const string &prefix,
     write_matrix(compute_spot_type_table(odds_coeff_idxs),
                  prefix + "odds_spot_type" + FILENAME_ENDING,
                  parameters.compression_mode, spot_names, factor_names, order);
+  */
 #pragma omp section
     write_matrix(contributions_gene_type,
                  prefix + "contributions_gene_type" + FILENAME_ENDING,
@@ -105,38 +146,20 @@ void Experiment::restore(const string &prefix) {
                            read_vector<Vector>, "\t");
 }
 
-/* TODO covariates reactivate likelihood
-Matrix Experiment::log_likelihood() const {
-  Matrix l(G, S);
-  const size_t K = min<size_t>(20, T);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g) {
-    Vector ps = model->negodds_rho.row(g);
-    for (size_t t = 0; t < T; ++t)
-      // NOTE conv neg bin has opposite interpretation of p
-      ps[t] = 1 - neg_odds_to_prob(ps[t]);
-    Vector rs(T);
-    for (size_t s = 0; s < S; ++s) {
-      for (size_t t = 0; t < T; ++t)
-        rs[t] = model->gamma(g, t) * lambda(g, t) * beta(g) * theta(s, t)
-                * spot(s);
-      double x = convolved_negative_binomial(counts(g, s), K, rs, ps);
-      LOG(debug) << "Computing log likelihood for g/s = " << g << "/" << s
-                 << " counts = " << counts(g, s) << " l = " << x;
-      l(g, s) += x;
-    }
-  }
-  return l;
-}
-*/
-
 /** sample count decomposition */
-Vector Experiment::sample_contributions_gene_spot(
-    size_t g, size_t s, const Matrix &rate_gt, const Matrix &rate_st,
-    const Matrix &odds_gt, const Matrix &odds_st, RNG &rng) const {
+Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
+                                                  const Vector &rate,
+                                                  const Vector &odds,
+                                                  RNG &rng) const {
   Vector cnts = Vector::Zero(T);
 
-  const auto count = counts(g, s);
+  const auto actual_count = counts(g, s);
+  size_t count;
+  if (parameters.downsample < 1)
+    count = std::binomial_distribution<size_t>(
+        actual_count, parameters.downsample)(rng);
+  else
+    count = actual_count;
 
   if (count == 0)
     return cnts;
@@ -145,14 +168,6 @@ Vector Experiment::sample_contributions_gene_spot(
     cnts[0] = count;
     return cnts;
   }
-
-  Vector rate(T);
-  for (size_t t = 0; t < T; ++t)
-    rate(t) = rate_gt(g, t) * rate_st(s, t);
-
-  Vector odds(T);
-  for (size_t t = 0; t < T; ++t)
-    odds(t) = odds_gt(g, t) * odds_st(s, t);
 
   Vector proportions(T);
   {
@@ -302,123 +317,6 @@ Vector Experiment::sample_contributions_gene_spot(
   return cnts;
 }
 
-// NOTE: scalar covariates are multiplied into this table
-Matrix Experiment::compute_gene_type_table(const vector<size_t> &idxs) const {
-  Matrix gt = Matrix::Ones(G, T);
-
-  for (auto &idx : idxs)
-    if (not model->coeffs[idx].spot_dependent())
-      for (size_t g = 0; g < G; ++g)
-        for (size_t t = 0; t < T; ++t)
-          gt(g, t) *= model->coeffs[idx].get(g, t, 0);
-
-  return gt;
-}
-
-// NOTE: scalar covariates are NOT multiplied into this table
-Matrix Experiment::compute_spot_type_table(const vector<size_t> &idxs) const {
-  Matrix st = Matrix::Ones(S, T);
-
-  for (auto &idx : idxs)
-    if (model->coeffs[idx].spot_dependent())
-      for (size_t s = 0; s < S; ++s)
-        for (size_t t = 0; t < T; ++t)
-          st(s, t) *= model->coeffs[idx].get(0, t, s);
-
-  return st;
-}
-
-/* TODO cov var
-Vector Experiment::marginalize_genes() const {
-
-  Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
-              / compute_gene_type_table(Coefficient::Variable::odds).array();
-  Vector gt_cs = colSums<Vector>(gt);
-
-  Vector intensities = Vector::Zero(T);
-  Matrix gt = compute_gene_type_table(Coefficient::Variable::rate).array()
-              / compute_gene_type_table(Coefficient::Variable::odds).array();
-  // Matrix st = compute_spot_type_table(Coefficient::Variable::rate).array()
-  //             / compute_spot_type_table(Coefficient::Variable::odds).array();
-  for (size_t t = 0; t < T; ++t) {
-    double intensity = 0;
-#pragma omp parallel for reduction(+ : intensity) if (DO_PARALLEL)
-    for (size_t g = 0; g < G; ++g)
-        intensity += gt(g, t);
-    // TODO cov var; the following seemed originally like the correct thing to do
-    //   for (size_t s = 0; s < S; ++s)
-    //     intensity += gt(g, t) * st(s, t);
-    intensities[t] = intensity;
-  }
-  return intensities;
-};
-*/
-
-Matrix Experiment::expectation() const {
-  Matrix mean(G, S);
-  Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
-  Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
-  Matrix mean_gt = rate_gt.array() * odds_gt.array();
-
-  Matrix rate_st = compute_spot_type_table(rate_coeff_idxs);
-  Matrix odds_st = compute_spot_type_table(odds_coeff_idxs);
-  Matrix mean_st = rate_st.array() * odds_st.array();
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double x = 0;
-      for (size_t t = 0; t < T; ++t)
-        x += mean_gt(g, t) * mean_st(s, t);
-      mean(g, s) = x;
-    }
-  return mean;
-}
-
-Matrix Experiment::variance() const {
-  Matrix var(G, S);
-  Matrix rate_gt = compute_gene_type_table(rate_coeff_idxs);
-  Matrix rate_st = compute_spot_type_table(rate_coeff_idxs);
-  Matrix odds_gt = compute_gene_type_table(odds_coeff_idxs);
-  Matrix odds_st = compute_spot_type_table(odds_coeff_idxs);
-#pragma omp parallel for if (DO_PARALLEL)
-  for (size_t g = 0; g < G; ++g)
-    for (size_t s = 0; s < S; ++s) {
-      double x = 0;
-      for (size_t t = 0; t < T; ++t) {
-        double odds = odds_gt(g, t) * odds_st(s, t);
-        x += rate_gt(g, t) * rate_st(s, t) * odds / neg_odds_to_prob(odds);
-      }
-      var(g, s) = x;
-    }
-  return var;
-}
-
-Matrix Experiment::expected_gene_type() const {
-  Matrix st = compute_spot_type_table(rate_coeff_idxs).array()
-              * compute_spot_type_table(odds_coeff_idxs).array();
-  Vector st_cs = colSums<Vector>(st);
-
-  Matrix expected = compute_gene_type_table(rate_coeff_idxs).array()
-                    * compute_gene_type_table(odds_coeff_idxs).array();
-
-  for (size_t t = 0; t < T; ++t)
-    expected.col(t) *= st_cs[t];
-  return expected;
-}
-
-Matrix Experiment::expected_spot_type() const {
-  Matrix gt = compute_gene_type_table(rate_coeff_idxs).array()
-              * compute_gene_type_table(odds_coeff_idxs).array();
-  Vector gt_cs = colSums<Vector>(gt);
-
-  Matrix expected = compute_spot_type_table(rate_coeff_idxs).array()
-                    * compute_spot_type_table(odds_coeff_idxs).array();
-
-  for (size_t t = 0; t < T; ++t)
-    expected.col(t) *= gt_cs[t];
-  return expected;
-}
-
 ostream &operator<<(ostream &os, const Experiment &experiment) {
   os << "Experiment "
      << "G = " << experiment.G << " "
@@ -437,4 +335,4 @@ Experiment operator+(const Experiment &a, const Experiment &b) {
 
   return experiment;
 }
-}
+}  // namespace STD

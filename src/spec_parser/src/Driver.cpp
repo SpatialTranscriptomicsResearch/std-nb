@@ -1,8 +1,11 @@
 #include "spec_parser/Driver.hpp"
 
 #include <exception>
+#include <numeric>
 #include <sstream>
+#include <vector>
 
+#include "aux.hpp"
 #include "parser.tab.hpp"
 #include "spec_parser/RandomVariable.hpp"
 
@@ -29,22 +32,23 @@ void Driver::error(const yy::location& l, const std::string& m)
   throw ParseError(cur_line, l, m);
 }
 
-void Driver::add_formula(const std::string& id, const Formula& formula)
-{
-  RegressionEquation req;
-  for (auto& term : formula.terms) {
-    auto variable
-        = get_variable(id, std::set<std::string>(term.cbegin(), term.cend()));
-    req.variables.push_back(variable->full_id());
-  }
-  regression_equations[id] = req;
+void Driver::add_formula(const std::string& id, const Formula& formula) {
+  auto n = formula.terms.size();
+  assert(n > 0);
+  std::vector<ExpType> exps(n);
+  std::transform(
+      begin(formula.terms), end(formula.terms), begin(exps),
+      [this, &id](const auto& x) {
+        return var(this->get_variable(id, std::set<std::string>(begin(x), end(x))));
+      });
+  regression_exprs[id] = accumulate1(begin(exps), end(exps));
 }
 
-RegressionEquation* Driver::get_equation(const std::string& id) {
-  return &regression_equations[id];
+Driver::ExpType& Driver::get_expr(const std::string& id) {
+  return regression_exprs[id];
 }
 
-RandomVariable* Driver::get_variable(
+Driver::VarType& Driver::get_variable(
     const std::string& id, std::set<std::string> covariates)
 {
   { // disregard unit covariate
@@ -53,14 +57,14 @@ RandomVariable* Driver::get_variable(
       covariates.erase(it);
     }
   }
-  auto variable = RandomVariable(id, covariates);
-  auto full_id = variable.full_id();
+  auto variable = std::make_shared<RandomVariable>(id, covariates);
+  auto full_id = variable->full_id();
   { // check if variable already exists
     auto it = random_variables.find(full_id);
     if (it != random_variables.end()) {
-      return &(it->second);
+      return it->second;
     }
   }
   auto res = random_variables.emplace(full_id, std::move(variable));
-  return &(res.first->second);
+  return res.first->second;
 }

@@ -76,37 +76,38 @@ void select_top_or_bottom(vector<Counts> &counts_v, size_t n, bool select_top) {
   }
 }
 
-void discard_empty_spots(Counts &cnt) {
+void discard_spots(Counts &cnt, size_t min_reads) {
   const size_t R = cnt.matrix->rows();
   const size_t C = cnt.matrix->cols();
   auto cs = colSums<Vector>(*cnt.matrix);
-  auto num_empty = 0;
+  auto num_discarded = 0;
   for (size_t c = 0; c < C; ++c)
-    if (cs(C - c - 1) == 0) {
-      num_empty++;
+    if (cs(C - c - 1) < min_reads) {
+      num_discarded++;
       cnt.col_names.erase(begin(cnt.col_names) + C - c - 1);
     }
 
   auto old = *cnt.matrix;
-  *cnt.matrix = Matrix(R, C - num_empty);
+  *cnt.matrix = Matrix(R, C - num_discarded);
   size_t c_ = 0;
   for (size_t c = 0; c < C; ++c)
-    if (cs(c) > 0)
+    if (cs(c) >= min_reads)
       cnt.matrix->col(c_++) = old.col(c);
-  LOG(verbose) << "Discarded " << num_empty << " spots with zero counts.";
+  LOG(verbose) << "Discarded " << num_discarded << " spots with fewer than "
+               << min_reads << " counts.";
 }
 
-void discard_empty_genes(vector<Counts> &cnts) {
+void discard_genes(vector<Counts> &cnts, size_t min_reads) {
   if (cnts.empty())
     return;
   const size_t R = cnts[0].matrix->rows();
   Vector rs = Vector::Zero(R);
   for (auto &cnt : cnts)
     rs += rowSums<Vector>(*cnt.matrix);
-  auto num_empty = 0;
+  auto num_discarded = 0;
   for (size_t r = 0; r < R; ++r)
-    if (rs(R - r - 1) == 0) {
-      num_empty++;
+    if (rs(R - r - 1) < min_reads) {
+      num_discarded++;
       for (auto &cnt : cnts)
         cnt.row_names.erase(begin(cnt.row_names) + R - r - 1);
     }
@@ -114,21 +115,22 @@ void discard_empty_genes(vector<Counts> &cnts) {
   for (auto &cnt : cnts) {
     const size_t C = cnt.matrix->cols();
     auto old = *cnt.matrix;
-    *cnt.matrix = Matrix(R - num_empty, C);
+    *cnt.matrix = Matrix(R - num_discarded, C);
     size_t r_ = 0;
     for (size_t r = 0; r < R; ++r)
-      if (rs(r) > 0)
+      if (rs(r) >= min_reads)
         cnt.matrix->row(r_++) = old.row(r);
   }
-  LOG(verbose) << "Discarded " << num_empty << " genes with zero counts.";
+  LOG(verbose) << "Discarded " << num_discarded << " genes with fewer than "
+               << min_reads << " counts.";
 }
 
 vector<Counts> load_data(const vector<string> &paths, bool intersect,
-                         size_t top, size_t bottom, bool discard_empty,
-                         bool transpose) {
+                         size_t top, size_t bottom, size_t min_reads_spot,
+                         size_t min_reads_gene, bool transpose) {
   vector<Counts> counts_v(paths.size());
 #pragma omp parallel for if (DO_PARALLEL)
-  for(size_t i = 0; i < paths.size(); ++i) {
+  for (size_t i = 0; i < paths.size(); ++i) {
     LOG(verbose) << "Loading " << paths[i];
     counts_v[i] = Counts(paths[i], transpose);
   }
@@ -141,11 +143,9 @@ vector<Counts> load_data(const vector<string> &paths, bool intersect,
   select_top_or_bottom(counts_v, top, true);
   select_top_or_bottom(counts_v, bottom, false);
 
-  if (discard_empty) {
-    for (auto &counts : counts_v)
-      discard_empty_spots(counts);
-    discard_empty_genes(counts_v);
-  }
+  for (auto &counts : counts_v)
+    discard_spots(counts, min_reads_spot);
+  discard_genes(counts_v, min_reads_gene);
 
   LOG(verbose) << "Done loading";
   return counts_v;
@@ -173,7 +173,7 @@ void match_genes(vector<Counts> &counts_v, Fnc fnc) {
     gene_map[selected[g]] = g;
 
 #pragma omp parallel for if (DO_PARALLEL)
-  for(size_t i = 0; i < counts_v.size(); ++i) {
+  for (size_t i = 0; i < counts_v.size(); ++i) {
     const size_t H = counts_v[i].matrix->rows();
     const size_t S = counts_v[i].matrix->cols();
     Matrix new_counts = Matrix::Zero(G, S);
@@ -236,7 +236,7 @@ Matrix Counts::compute_distances() const {
 }
 
 Matrix Counts::parse_coords() const {
-  if (matrix->rows() == 0)
+  if (matrix->cols() == 0)
     return Matrix(0, 0);
   const STD::Index n = split_on_x<double>(col_names[0]).size();
   Matrix coords(matrix->cols(), n);

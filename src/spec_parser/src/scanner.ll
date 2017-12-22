@@ -10,7 +10,7 @@
 static yy::location loc;
 %}
 %option noyywrap nounput batch debug noinput
-id      [a-zA-Z][a-zA-Z_0-9]*
+id      [a-zA-Z][a-zA-Z_0-9']*
 numeric [0-9\.]+
 blank   [ \t]
 comment #[^\n]*
@@ -34,10 +34,14 @@ comment #[^\n]*
 "-"        return yy::parser::make_MINUS(loc);
 "+"        return yy::parser::make_PLUS(loc);
 "*"        return yy::parser::make_STAR(loc);
+"/"        return yy::parser::make_SLASH(loc);
 ":"        return yy::parser::make_COLON(loc);
-"^"        return yy::parser::make_EXP(loc);
+"^"        return yy::parser::make_EXPON(loc);
 "("        return yy::parser::make_LPAREN(loc);
 ")"        return yy::parser::make_RPAREN(loc);
+
+"log"      return yy::parser::make_LOG(loc);
+"exp"      return yy::parser::make_EXP(loc);
 
 {blank}+   loc.step();
 {comment}  loc.step();

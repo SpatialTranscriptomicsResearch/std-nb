@@ -7,6 +7,8 @@
 #include "covariate.hpp"
 #include "optimization_method.hpp"
 #include "rprop.hpp"
+#include "adagrad.hpp"
+#include "adam.hpp"
 #include "sampling_method.hpp"
 #include "types.hpp"
 
@@ -16,14 +18,17 @@ const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
   Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
+                  Float beta_1_ = 2, Float beta_2_ = 2,
                   Float beta_prime_1_ = 2, Float beta_prime_2_ = 2,
-                  Float log_normal_1_ = exp(0), Float log_normal_2_ = 1)
+                  Float normal_1_ = 0, Float normal_2_ = 1)
       : gamma_1(gamma_1_)
       , gamma_2(gamma_2_)
+      , beta_1(beta_1_)
+      , beta_2(beta_2_)
       , beta_prime_1(beta_prime_1_)
       , beta_prime_2(beta_prime_2_)
-      , log_normal_1(log_normal_1_)
-      , log_normal_2(log_normal_2_){};
+      , normal_1(normal_1_)
+      , normal_2(normal_2_){};
 
   // TODO add: hyper-hyper-parameters
 
@@ -31,13 +36,17 @@ struct Hyperparameters {
   Float gamma_1;
   Float gamma_2;
 
+  // default values for the beta distribution
+  Float beta_1;
+  Float beta_2;
+
   // default values for the beta prime distribution
   Float beta_prime_1;
   Float beta_prime_2;
 
   // default values for the log normal distribution
-  double log_normal_1;
-  double log_normal_2;
+  double normal_1;
+  double normal_2;
 
   double get_param(Coefficient::Distribution distribution, size_t idx) const;
 };
@@ -59,9 +68,12 @@ struct Parameters {
   size_t hmc_L = 5;
   size_t hmc_N = 15;
   double dropout_gene_spot = 0;
+  double downsample = 1;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
 
+  adagrad_parameters adagrad;
+  adam_parameters adam;
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
@@ -81,6 +93,9 @@ struct Parameters {
   GaussianProcessParameters gp = {};
 
   double temperature = 1;
+
+  // TODO make CLI configurable
+  Coefficient::Distribution default_distribution = Coefficient::Distribution::normal;
 };
 }
 #endif

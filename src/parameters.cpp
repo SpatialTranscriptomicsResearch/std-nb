@@ -24,21 +24,21 @@ double Hyperparameters::get_param(Coefficient::Distribution distribution,
         return beta_prime_1;
       else
         return beta_prime_2;
-    case Coefficient::Distribution::log_normal:
+    case Coefficient::Distribution::normal:
       if (idx == 0)
-        return log_normal_1;
+        return normal_1;
       else
-        return log_normal_2;
-    case Coefficient::Distribution::log_gp:
+        return normal_2;
+    case Coefficient::Distribution::gp:
       if (idx == 0)
-        return log_normal_1;  // TODO gp mu parameter
+        return normal_1;  // TODO gp mu parameter
       else
-        return log_normal_2;  // TODO gp sigma parameter
-    case Coefficient::Distribution::log_gp_proxy:
+        return normal_2;  // TODO gp sigma parameter
+    case Coefficient::Distribution::gp_proxy:
       if (idx == 0)
-        return log_normal_1;  // TODO gp mu parameter
+        return normal_1;  // TODO gp mu parameter
       else
-        return log_normal_2;  // TODO gp sigma parameter
+        return normal_2;  // TODO gp sigma parameter
     default:
       // TODO cov prior set for other disitributions
       throw std::runtime_error(
@@ -55,8 +55,8 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   os << "gamma_2 = " << hyperparams.gamma_2 << endl;
   os << "beta_prime_1 = " << hyperparams.beta_prime_1 << endl;
   os << "beta_prime_2 = " << hyperparams.beta_prime_2 << endl;
-  os << "log_normal_1 = " << hyperparams.log_normal_1 << endl;
-  os << "log_normal_2 = " << hyperparams.log_normal_2 << endl;
+  os << "normal_1 = " << hyperparams.normal_1 << endl;
+  os << "normal_2 = " << hyperparams.normal_2 << endl;
   return os;
 }
 }

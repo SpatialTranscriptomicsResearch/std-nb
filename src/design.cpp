@@ -4,8 +4,9 @@
 
 using namespace std;
 
+namespace Design {
+
 vector<size_t> Design::determine_covariate_idxs(const set<string> &term) const {
-  using namespace DesignNS;
   vector<size_t> cov_idxs;
   for (auto &covariate_label : term) {
     LOG(debug) << "Treating covariate label: " << covariate_label;
@@ -41,7 +42,6 @@ void Design::from_string(const string &str) {
 }
 
 bool Design::is_reserved_name(const string &s) const {
-  using namespace DesignNS;
   if (s == unit_label or s == gene_label or s == spot_label or s == type_label)
     return true;
   return false;
@@ -77,7 +77,7 @@ void Design::from_stream(istream &is) {
 
     // determine index of path column
     for (size_t i = 0; i < tokens.size(); ++i)
-      if (to_lower(tokens[i]) == DesignNS::path_label) {
+      if (to_lower(tokens[i]) == path_label) {
         if (path_column >= 0)
           throw Exception::Design::MultiplePathColumns();
         else
@@ -89,7 +89,7 @@ void Design::from_stream(istream &is) {
 
     // determine index of name column
     for (size_t i = 0; i < tokens.size(); ++i)
-      if (to_lower(tokens[i]) == DesignNS::name_label) {
+      if (to_lower(tokens[i]) == name_label) {
         if (name_column >= 0)
           throw Exception::Design::MultipleNameColumns();
         else
@@ -141,7 +141,7 @@ void Design::from_stream(istream &is) {
 
 string Design::to_string() const {
   // TODO do not print unit column
-  string str = DesignNS::path_label + "\t" + DesignNS::name_label;
+  string str = path_label + "\t" + name_label;
   for (auto &covariate : covariates)
     str += "\t" + covariate.label;
   str += "\n";
@@ -157,12 +157,12 @@ string Design::to_string() const {
 void Design::add_covariate_section() {
   if (find_if(begin(covariates), end(covariates),
               [&](const Covariate &cov) {
-                return cov.label == DesignNS::section_label;
+                return cov.label == section_label;
               })
       != end(covariates))
     return;
 
-  Covariate cov = {DesignNS::section_label, {}};
+  Covariate cov = {section_label, {}};
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
     cov.values.push_back(std::to_string(i + 1));
     dataset_specifications[i].covariate_values.push_back(i);
@@ -173,12 +173,12 @@ void Design::add_covariate_section() {
 void Design::add_covariate_coordsys(bool share_coord_sys) {
   if (find_if(begin(covariates), end(covariates),
               [&](const Covariate &cov) {
-                return cov.label == DesignNS::coordsys_label;
+                return cov.label == coordsys_label;
               })
       != end(covariates))
     return;
 
-  Covariate cov = {DesignNS::coordsys_label, {}};
+  Covariate cov = {coordsys_label, {}};
   size_t coord_sys_idx = 0;
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
     cov.values.push_back(std::to_string(coord_sys_idx + 1));
@@ -192,12 +192,12 @@ void Design::add_covariate_coordsys(bool share_coord_sys) {
 void Design::add_covariate_unit() {
   if (find_if(begin(covariates), end(covariates),
               [&](const Covariate &cov) {
-                return cov.label == DesignNS::unit_label;
+                return cov.label == unit_label;
               })
       != end(covariates))
     return;
 
-  Covariate cov = {DesignNS::unit_label, {}};
+  Covariate cov = {unit_label, {}};
   cov.values.push_back(std::to_string(1));
   for (size_t i = 0; i < dataset_specifications.size(); ++i) {
     dataset_specifications[i].covariate_values.push_back(0);
@@ -213,4 +213,5 @@ istream &operator>>(istream &is, Design &design) {
 ostream &operator<<(ostream &os, const Design &design) {
   os << design.to_string();
   return os;
+}
 }

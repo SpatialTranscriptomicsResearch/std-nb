@@ -20,15 +20,14 @@ struct Options {
   vector<string> tsv_paths;
   string design_path;
   string spec_path;
-  Design design;
+  Design::Design design;
   ModelSpec model_spec;
   size_t num_factors = 20;
   bool intersect = false;
   string load_prefix = "";
-  // TODO covariates reactivate likelihood
-  // bool compute_likelihood = false;
   bool share_coord_sys = false;
-  bool keep_empty = false;
+  size_t min_reads_gene = 1;
+  size_t min_reads_spot = 1;
   bool transpose = false;
   size_t top = 0;
   size_t bottom = 0;
@@ -51,11 +50,6 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
                        Coefficient::Kind::gene_type,
                        Coefficient::Kind::spot_type});
   pfa.store("", true);
-  /* TODO covariates reactivate likelihood
-  if (options.compute_likelihood)
-    LOG(info) << "Final log-likelihood = "
-              << pfa.log_likelihood(pfa.parameters.output_directory);
-  */
 }
 
 /**
@@ -65,7 +59,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
  *   type * (gene + spot) + 1.
  */
 string simple_default_rate_formula() {
-  using namespace DesignNS;
+  using namespace Design;
   return type_label + " * (" + gene_label + " + " + spot_label + ") + "
          + unit_label;
 }
@@ -78,31 +72,55 @@ string simple_default_rate_formula() {
  * where the dots represent all user-defined covariates.
  */
 string default_rate_formula(const vector<string> &covariates) {
-  using DesignNS::labels;
+  using Design::labels;
   vector<string> filtered;
   copy_if(begin(covariates), end(covariates), back_inserter(filtered),
           [](const string x) {
-            return find(labels.begin(), labels.end(), x)
-                   == DesignNS::labels.end();
+            return find(labels.begin(), labels.end(), x) == labels.end();
           });
   vector<string> expr;
-  prepend(filtered.begin(), filtered.end(), back_inserter(expr), "+");
-  using namespace DesignNS;
+  prepend(filtered.begin(), filtered.end(), back_inserter(expr), " + ");
+  using namespace Design;
   return gene_label + " * (" + type_label + " + " + section_label
-         + accumulate(expr.begin(), expr.end(), string()) + ") + " + spot_label
+         + accumulate(expr.begin(), expr.end(), string(" ")) + ") + " + spot_label
          + " * " + type_label + " + " + unit_label;
+}
+
+/**
+ * Computes the previous default odds formula given the covariates in the spec file.
+ *
+ * The previous default odds formula is defined as
+ *   gene * type + 1.
+ */
+string previous_default_odds_formula() {
+  using namespace Design;
+  return gene_label + " * " + type_label + " + " + unit_label;
+}
 }
 
 /**
  * Computes the default odds formula given the covariates in the spec file.
  *
- * The default rate formula is defined as
- *   spot * type + 1.
+ * The default odds formula is defined as
+ *   gene + 1.
  */
 string default_odds_formula() {
-  using namespace DesignNS;
-  return gene_label + " * " + type_label + " + " + unit_label;
+  using namespace Design;
+  return gene_label + " + " + unit_label;
 }
+
+template <typename T>
+void parse_file(const std::string &tag, const std::string &path, T &x) {
+  LOG(debug) << "Parsing " << tag << " file " << path;
+  if (not path.empty()) {
+    ifstream ifs(path);
+    if (ifs.good())
+      ifs >> x;
+    else {
+      LOG(fatal) << "Error accessing " << tag << " file " << path;
+      throw std::runtime_error("Error accessing " + tag + " file " + path);
+    }
+  }
 }
 
 int main(int argc, char **argv) {
@@ -143,6 +161,8 @@ int main(int argc, char **argv) {
   po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
   po::options_description lbfgs_options("lBFGS options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
+  po::options_description adagrad_options("AdaGrad options", num_cols);
+  po::options_description adam_options("Adam options", num_cols);
   po::options_description hyperparameter_options("Hyper-parameter options", num_cols);
 
   required_options.add_options()
@@ -197,17 +217,19 @@ int main(int argc, char **argv) {
      "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
      "Warn when parameter values reach the lower limit specified by --minval.")
-    ("keep_empty", po::bool_switch(&options.keep_empty),
-     "Do not discard genes or spots with zero counts.")
-    // TODO covariates reactivate likelihood
-    // ("likel", po::bool_switch(&options.compute_likelihood),
-    //  "Compute and print the likelihood after finishing.")
+    ("minread_spot", po::value(&options.min_reads_spot)->default_value(options.min_reads_spot),
+     "Discard spots that have fewer than this many reads.")
+    ("minread_gene", po::value(&options.min_reads_gene)->default_value(options.min_reads_gene),
+     "Discard genes that have fewer than this many reads.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
+    ("downsample", po::value(&parameters.downsample)->default_value(parameters.downsample),
+     "Randomly downsample the number of reads. "
+     "Draws a binomially-distributed number of reads from the actually observed count using this parameter as probablity argument for the biomial distribution.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
      "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
-     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS.")
+     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS, AdaGrad, Adam.")
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
      "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
@@ -245,18 +267,38 @@ int main(int argc, char **argv) {
     ("rprop_max", po::value(&parameters.rprop.max_change)->default_value(parameters.rprop.max_change, stringize(parameters.rprop.max_change)),
      "Maximal parameter-specific learning rate.");
 
+  adagrad_options.add_options()
+    ("adagrad_eta", po::value(&parameters.adagrad.eta)->default_value(parameters.adagrad.eta),
+     "AdaGrad learning rate.")
+    ("adagrad_epsilon", po::value(&parameters.adagrad.epsilon)->default_value(parameters.adagrad.epsilon),
+     "AdaGrad stability parameter.");
+
+  adam_options.add_options()
+    ("adam_alpha", po::value(&parameters.adam.alpha)->default_value(parameters.adam.alpha),
+     "Adam learning rate.")
+    ("adam_beta1", po::value(&parameters.adam.beta1)->default_value(parameters.adam.beta1),
+     "Adam gradient first moment annealing.")
+    ("adam_beta2", po::value(&parameters.adam.beta2)->default_value(parameters.adam.beta2),
+     "Adam gradient second moment annealing.")
+    ("adam_epsilon", po::value(&parameters.adam.epsilon)->default_value(parameters.adam.epsilon),
+     "Adam stability parameter.");
+
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
      "Default value for the 1st argument of gamma distributions.")
     ("gamma_2", po::value(&parameters.hyperparameters.gamma_2)->default_value(parameters.hyperparameters.gamma_2),
      "Default value for the 2nd argument of gamma distributions.")
+    ("beta_1", po::value(&parameters.hyperparameters.beta_1)->default_value(parameters.hyperparameters.beta_1),
+     "Default value for the 1st argument of beta distributions.")
+    ("beta_2", po::value(&parameters.hyperparameters.beta_2)->default_value(parameters.hyperparameters.beta_2),
+     "Default value for the 2nd argument of beta distributions.")
     ("beta_prime_1", po::value(&parameters.hyperparameters.beta_prime_1)->default_value(parameters.hyperparameters.beta_prime_1),
      "Default value for the 1st argument of beta prime distributions.")
     ("beta_prime_2", po::value(&parameters.hyperparameters.beta_prime_2)->default_value(parameters.hyperparameters.beta_prime_2),
      "Default value for the 2nd argument of beta prime distributions.")
-    ("log_normal_1", po::value(&parameters.hyperparameters.log_normal_1)->default_value(parameters.hyperparameters.log_normal_1),
+    ("normal_1", po::value(&parameters.hyperparameters.normal_1)->default_value(parameters.hyperparameters.normal_1),
      "Default value for the exponential of the mean of log normal distributions.")
-    ("log_normalrho_2", po::value(&parameters.hyperparameters.log_normal_2)->default_value(parameters.hyperparameters.log_normal_2),
+    ("normal_2", po::value(&parameters.hyperparameters.normal_2)->default_value(parameters.hyperparameters.normal_2),
      "Default value for the variance of log normal distribution.");
 
   cli_options.add(generic_options)
@@ -267,6 +309,8 @@ int main(int argc, char **argv) {
       .add(grad_options)
       .add(lbfgs_options)
       .add(rprop_options)
+      .add(adagrad_options)
+      .add(adam_options)
       .add(hmc_options)
       .add(hyperparameter_options);
 
@@ -304,9 +348,9 @@ int main(int argc, char **argv) {
   LOG(info) << exec_info.name_and_version();
   LOG(info) << exec_info.datetime;
   LOG(info) << "Working directory = " << exec_info.directory;
-  LOG(info) << "Command = " << exec_info.cmdline << endl;
+  LOG(info) << "Command = " << exec_info.cmdline;
 
-  ifstream(options.design_path) >> options.design;
+  parse_file("design", options.design_path, options.design);
 
   for (auto &path : options.tsv_paths)
     options.design.add_dataset_specification(path);
@@ -335,18 +379,17 @@ int main(int argc, char **argv) {
         _default_rate_formula = default_rate_formula(covariate_labels);
         break;
     }
-    LOG(verbose) << "Default rate formula: " << _default_rate_formula;
-    options.model_spec.from_string("rate:=" + _default_rate_formula);
+    LOG(debug) << "Default rate formula: " << _default_rate_formula;
+    options.model_spec.from_string("rate := " + _default_rate_formula);
 
     string _default_odds_formula = default_odds_formula();
-    LOG(verbose) << "Default odds formula: " << _default_odds_formula;
-    options.model_spec.from_string("odds:=" + _default_odds_formula);
+    LOG(debug) << "Default odds formula: " << _default_odds_formula;
+    options.model_spec.from_string("odds := " + _default_odds_formula);
   }
 
-  LOG(debug) << "Parsing model specification " << options.spec_path;
-  ifstream(options.spec_path) >> options.model_spec;
+  parse_file("model specification", options.spec_path, options.model_spec);
 
-  LOG(verbose) << "Final model specification:";
+  LOG(debug) << "Final model specification:";
   log([](const std::string &s) { LOG(verbose) << s; }, options.model_spec);
 
   vector<string> paths;
@@ -362,12 +405,12 @@ int main(int argc, char **argv) {
     return EXIT_FAILURE;
   }
 
-  auto data_sets
-      = load_data(paths, options.intersect, options.top, options.bottom,
-                  not options.keep_empty, options.transpose);
+  auto data_sets = load_data(paths, options.intersect, options.top,
+                             options.bottom, options.min_reads_spot,
+                             options.min_reads_gene, options.transpose);
 
-  LOG(verbose) << "gp.length_scale = " << parameters.gp.length_scale;
-  LOG(verbose) << "gp.indep_variance = " << parameters.gp.independent_variance;
+  LOG(debug) << "gp.length_scale = " << parameters.gp.length_scale;
+  LOG(debug) << "gp.indep_variance = " << parameters.gp.independent_variance;
 
   try {
     run(data_sets, options, parameters);

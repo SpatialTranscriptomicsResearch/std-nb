@@ -8,6 +8,7 @@ namespace STD {
 using Int = uint32_t;
 using Float = double;
 using Index = Eigen::MatrixXd::Index;
+using Array = Eigen::ArrayXd;
 using Vector = Eigen::VectorXd;
 using IVector = Eigen::Matrix<Int, Eigen::Dynamic, 1>;
 using Matrix = Eigen::MatrixXd;
