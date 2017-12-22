@@ -31,6 +31,7 @@ struct Options {
   bool transpose = false;
   size_t top = 0;
   size_t bottom = 0;
+  size_t staging_iterations = 0;
 };
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
@@ -40,11 +41,13 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
-  pfa.parameters.grad_iterations = 50;
-  pfa.gradient_update({Coefficient::Kind::scalar});
-  pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
-                       Coefficient::Kind::spot});
-  pfa.parameters.grad_iterations = parameters.grad_iterations;
+  if (options.staging_iterations > 0) {
+    pfa.parameters.grad_iterations = options.staging_iterations;
+    pfa.gradient_update({Coefficient::Kind::scalar});
+    pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
+                         Coefficient::Kind::spot});
+    pfa.parameters.grad_iterations = parameters.grad_iterations;
+  }
   pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
                        Coefficient::Kind::spot, Coefficient::Kind::type,
                        Coefficient::Kind::gene_type,
@@ -234,6 +237,11 @@ int main(int argc, char **argv) {
      "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
      "Number of iterations to perform for iterative sampling methods.")
+    ("stage", po::value(&options.staging_iterations)->default_value(options.staging_iterations),
+     "Number of staging iteration to perform. "
+     "With this first only scalar coefficients will be optimized, "
+     "then also gene-dependent, spot-dependent, and type-dependent ones, "
+     "and finaly all - including the gene-type-dependent and spot-type-dependent ones.")
     ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
      "Temperature for Metropolis-Hastings sampling.");
 
