@@ -240,7 +240,7 @@ int main(int argc, char **argv) {
     ("stage", po::value(&options.staging_iterations)->default_value(options.staging_iterations),
      "Number of staging iteration to perform. "
      "With this first only scalar coefficients will be optimized, "
-     "then also gene-dependent, spot-dependent, and type-dependent ones, "
+     "then also gene-dependent and spot-dependent ones, "
      "and finaly all - including the gene-type-dependent and spot-type-dependent ones.")
     ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
      "Temperature for Metropolis-Hastings sampling.");
