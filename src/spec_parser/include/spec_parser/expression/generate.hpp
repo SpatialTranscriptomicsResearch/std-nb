@@ -11,7 +11,7 @@ namespace expression {
 // call JIT::Runtime::InitializeModule before using this function
 // call JIT::Runtime::define_log_exp before using this function
 template <typename T>
-void codegen(const ExpPtr<T> &expr, const std::string &Name) {
+void codegen(const ExpPtr<T> &expr, const std::string &Name, const std::set<T> &variables) {
   LOG(debug) << "Generating code '" << Name << "' for expression "
                << show(expr);
   using namespace llvm;
@@ -37,9 +37,6 @@ void codegen(const ExpPtr<T> &expr, const std::string &Name) {
 
   JIT::Runtime::Builder.SetInsertPoint(BB);
   JIT::Runtime::NamedValues.clear();
-
-  // TODO ensure the correct order is used
-  auto variables = collect_variables(expr);
 
   size_t idx = 0;
   for (auto variable : variables) {

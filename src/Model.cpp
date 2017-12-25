@@ -35,11 +35,12 @@ using ExprPtr = std::shared_ptr<spec_parser::expression::Exp<T>>;
 template <typename T>
 void compile_expression_and_derivs(const ExprPtr<T> &expr,
                                    const std::string &tag) {
-  spec_parser::expression::codegen(expr, tag);
+  spec_parser::expression::codegen(expr, tag, collect_variables(expr));
   for (auto variable : collect_variables(expr)) {
     auto deriv_expr = deriv(variable, expr);
     spec_parser::expression::codegen(deriv_expr,
-                                     tag + "-" + to_string(*variable));
+                                     tag + "-" + to_string(*variable),
+                                     collect_variables(expr));
   }
 }
 
