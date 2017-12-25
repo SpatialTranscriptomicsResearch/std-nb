@@ -296,20 +296,22 @@ void Model::register_gradient_zero_count(
   }
 }
 
-void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds) {
+void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds, size_t num_iterations) {
   LOG(verbose) << "Performing gradient update iterations";
+
+  size_t current_iteration = 0;
 
   auto fnc = [&](const Vector &x, Vector &grad) {
     if (((iter_cnt++) % parameters.report_interval) == 0) {
       const size_t iteration_num_digits
-          = 1 + floor(log(parameters.grad_iterations) / log(10));
+          = 1 + floor(log(num_iterations) / log(10));
       store("iter" + to_string_embedded(iter_cnt - 1, iteration_num_digits)
             + "/");
     }
 
     // deactivate dropout in the last iteration for correct contribution stats
     double dropout_temp = parameters.dropout_gene_spot;
-    if (iter_cnt == parameters.grad_iterations)
+    if (++current_iteration == num_iterations)
       parameters.dropout_gene_spot = 0;
 
     from_vector(x.array());
@@ -366,14 +368,14 @@ void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds) {
       Vector prev_sign(Vector::Zero(x.size()));
       Vector rates(x.size());
       rates.fill(parameters.grad_alpha);
-      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+      for (size_t iter = 0; iter < num_iterations; ++iter) {
         fx = fnc(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
       }
     } break;
     case Optimize::Method::Gradient: {
       double alpha = parameters.grad_alpha;
-      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+      for (size_t iter = 0; iter < num_iterations; ++iter) {
         Vector grad;
         fx = fnc(x, grad);
         x = x + alpha * grad;
@@ -401,7 +403,7 @@ void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds) {
       Array agrad;
       Array ax;
       Array scale(Array::Zero(x.size()));
-      for (size_t iter = 0; iter < parameters.grad_iterations; ++iter) {
+      for (size_t iter = 0; iter < num_iterations; ++iter) {
         fx = fnc(x, grad);
         agrad = grad.array();
         ax = x.array();
@@ -415,7 +417,7 @@ void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds) {
       Array ax;
       Array mom1(Array::Zero(x.size()));
       Array mom2(Array::Zero(x.size()));
-      for (size_t iter = 1; iter <= parameters.grad_iterations; ++iter) {
+      for (size_t iter = 1; iter <= num_iterations; ++iter) {
         fx = fnc(x, grad);
         agrad = grad.array();
         ax = x.array();

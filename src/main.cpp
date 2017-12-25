@@ -42,16 +42,17 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
   if (options.staging_iterations > 0) {
-    pfa.parameters.grad_iterations = options.staging_iterations;
-    pfa.gradient_update({Coefficient::Kind::scalar});
+    pfa.gradient_update({Coefficient::Kind::scalar},
+                        options.staging_iterations);
     pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
-                         Coefficient::Kind::spot});
-    pfa.parameters.grad_iterations = parameters.grad_iterations;
+                         Coefficient::Kind::spot},
+                        options.staging_iterations);
   }
-  pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
-                       Coefficient::Kind::spot, Coefficient::Kind::type,
-                       Coefficient::Kind::gene_type,
-                       Coefficient::Kind::spot_type});
+  pfa.gradient_update(
+      {Coefficient::Kind::scalar, Coefficient::Kind::gene,
+       Coefficient::Kind::spot, Coefficient::Kind::type,
+       Coefficient::Kind::gene_type, Coefficient::Kind::spot_type},
+      parameters.grad_iterations);
   pfa.store("", true);
 }
 
