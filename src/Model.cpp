@@ -44,11 +44,12 @@ void compile_expression_and_derivs(const ExprPtr<T> &expr,
 }
 
 Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
-             const ModelSpec &model_spec, const Parameters &parameters_)
+             const ModelSpec &model_spec_, const Parameters &parameters_)
     : G(max_row_number(c)),
       T(T_),
       E(0),
       S(0),
+      model_spec(model_spec_),
       design(design_),
       module_name("std-module"),  // TODO use unique module names
       rate_fnc(),
@@ -79,7 +80,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 
   LOG(debug) << "Model G = " << G << " T = " << T << " E = " << E;
 
-  add_covariates(model_spec);
+  add_covariates();
 
   ensure_dimensions();
 

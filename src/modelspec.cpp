@@ -64,20 +64,18 @@ void log(const std::function<void(const std::string& s)> log_func,
 {
   using namespace spec_parser;
 
-  log_func(">>>");
-
-  log_func("Rate expression");
-  log_func("-----------------");
-  log_func(show(model_spec.rate_expr));
+  log_func("# Rate expression");
+  log_func("# ---------------");
+  log_func("rate = " + show(model_spec.rate_expr));
   log_func("");
 
-  log_func("Odds expression");
-  log_func("-----------------");
-  log_func(show(model_spec.odds_expr));
+  log_func("# Odds expression");
+  log_func("# ---------------");
+  log_func("odds = " + show(model_spec.odds_expr));
   log_func("");
 
-  log_func("Coefficient distributions");
-  log_func("-------------------------");
+  log_func("# Coefficient distributions");
+  log_func("# -------------------------");
   std::map<std::string, ModelSpec::Variable> sorted_variables(
       model_spec.variables.begin(), model_spec.variables.end());
   for (auto &x : sorted_variables) {
@@ -88,6 +86,4 @@ void log(const std::function<void(const std::string& s)> log_func,
       log_func(to_string(*v) + "~undefined");
     }
   }
-
-  log_func("<<<");
 }

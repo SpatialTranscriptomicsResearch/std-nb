@@ -24,6 +24,7 @@ struct Model {
   /** number of spots */
   size_t S;
 
+  ModelSpec model_spec;
   Design::Design design;
   std::string module_name;
   using FuncType = std::function<double(const double *)>;
@@ -53,7 +54,7 @@ struct Model {
   size_t register_coefficient(
       const std::unordered_map<std::string, ModelSpec::Variable> &variable_map,
       std::string id, size_t experiment);
-  void add_covariates(const ModelSpec &ms);
+  void add_covariates();
 
   void add_gp_proxies();
   void add_prior_coefficients();

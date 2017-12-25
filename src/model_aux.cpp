@@ -242,7 +242,7 @@ size_t Model::register_coefficient(
   return register_fixed(value);
 }
 
-void Model::add_covariates(const ModelSpec &model_spec) {
+void Model::add_covariates() {
   auto rate_variables = collect_variables(model_spec.rate_expr);
   auto odds_variables = collect_variables(model_spec.odds_expr);
   for (size_t e = 0; e < E; ++e) {
@@ -428,6 +428,11 @@ void Model::store(const string &prefix_, bool mean_and_var,
     {
       ofstream ofs(prefix + "design.txt");
       ofs << design;
+    }
+#pragma omp section
+    {
+      ofstream ofs(prefix + "model.txt");
+      log([&](const std::string &s) { ofs << s << endl; }, model_spec);
     }
 #pragma omp section
     {
