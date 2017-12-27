@@ -125,7 +125,7 @@ string default_rate_formula(const vector<string> &covariates) {
  * The previous default odds formula is defined as
  *   gene * type + 1.
  */
-string previous_default_odds_formula() {
+string __attribute__((unused)) previous_default_odds_formula() {
   using namespace Design;
   return gene_label + " * " + type_label + " + " + unit_label;
 }
