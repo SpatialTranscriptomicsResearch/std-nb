@@ -298,7 +298,7 @@ void Model::register_gradient_zero_count(
   }
 }
 
-void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds, size_t num_iterations) {
+void Model::gradient_update(size_t num_iterations, std::function<bool(const Coefficient&)> is_included) {
   LOG(verbose) << "Performing gradient update iterations";
 
   size_t current_iteration = 0;
@@ -328,15 +328,9 @@ void Model::gradient_update(const vector<Coefficient::Kind> &included_kinds, siz
       if (coeff->distribution == Coefficient::Distribution::fixed)
         coeff->values.setZero();
 
-    // set gradient to zero for coefficients that have a kind that is not included
+    // set gradient to zero for coefficients that are not included
     for (auto &coeff : model_grad.coeffs) {
-      bool is_included = false;
-      for (auto &included_kind : included_kinds)
-        if (coeff->kind == included_kind) {
-          is_included = true;
-          break;
-        }
-      if (not is_included)
+      if (not is_included(*coeff))
         coeff->values.fill(0);
     }
 

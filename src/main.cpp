@@ -41,18 +41,47 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   if (options.load_prefix != "")
     pfa.restore(options.load_prefix);
   LOG(info) << "Initial model" << endl << pfa;
+
+  auto accept_kinds = [](const vector<Coefficient::Kind> &kinds) {
+    auto fnc = [&kinds](const Coefficient &coeff) {
+      for (auto &kind : kinds)
+        if (coeff.kind == kind)
+          return true;
+      return false;
+    };
+    return fnc;
+  };
+
   if (options.staging_iterations > 0) {
-    pfa.gradient_update({Coefficient::Kind::scalar},
-                        options.staging_iterations);
-    pfa.gradient_update({Coefficient::Kind::scalar, Coefficient::Kind::gene,
-                         Coefficient::Kind::spot},
-                        options.staging_iterations);
+    vector<Coefficient::Kind> scalars = {Coefficient::Kind::scalar};
+
+    LOG(info) << "Stage: fitting global scalars";
+    pfa.gradient_update(
+        options.staging_iterations, [&](const Coefficient &coeff) {
+          return accept_kinds(scalars)(coeff) and coeff.info.idxs.empty();
+        });
+
+    LOG(info) << "Stage: fitting all scalars";
+    pfa.gradient_update(options.staging_iterations, accept_kinds(scalars));
+
+    vector<Coefficient::Kind> non_type
+        = {Coefficient::Kind::scalar, Coefficient::Kind::gene,
+           Coefficient::Kind::spot};
+
+    LOG(info) << "Stage: fitting global non-type-dependent coefficients";
+    pfa.gradient_update(
+        options.staging_iterations, [&](const Coefficient &coeff) {
+          return accept_kinds(scalars)(coeff)
+                 or (accept_kinds(non_type)(coeff) and coeff.info.idxs.empty());
+        });
+
+    LOG(info) << "Stage: fitting all non-type-dependent coefficients";
+    pfa.gradient_update(options.staging_iterations, accept_kinds(non_type));
+
+    LOG(info) << "Stage: fitting all coefficients";
   }
-  pfa.gradient_update(
-      {Coefficient::Kind::scalar, Coefficient::Kind::gene,
-       Coefficient::Kind::spot, Coefficient::Kind::type,
-       Coefficient::Kind::gene_type, Coefficient::Kind::spot_type},
-      parameters.grad_iterations);
+  pfa.gradient_update(parameters.grad_iterations,
+                      [](const Coefficient &coeff) { return true; });
   pfa.store("", true);
 }
 
