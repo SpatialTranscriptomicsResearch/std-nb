@@ -60,7 +60,7 @@ ExpPtr<T> deriv(const T& x, const ExpPtr<T>& e) {
   auto res = Deriv<T>(x, e)();
   LOG(debug) << "Computed derivate w.r.t. " << to_string(*x)
              << " of expression " << show(e) << " = " << show(res);
-  return Deriv<T>(x, e)();
+  return res;
 }
 
 }  // namespace expression
