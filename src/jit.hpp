@@ -35,7 +35,7 @@ namespace JIT {
 // Code Generation
 //===----------------------------------------------------------------------===//
 
-void init_runtime(const std::string &module_name);
+void init_runtime(const std::string &module_name, const std::string prefix);
 void define_log_exp();
 void finalize_module(const std::string &Name);
 std::function<double(const double *)> get_function(const std::string &Name);

@@ -42,6 +42,8 @@ namespace llvm {
 namespace orc {
 
 class KaleidoscopeJIT {
+public:
+  std::string prefix;
 private:
   std::unique_ptr<TargetMachine> TM;
   const DataLayout DL;
@@ -56,8 +58,9 @@ private:
 public:
   using ModuleHandle = decltype(OptimizeLayer)::ModuleHandleT;
 
-  KaleidoscopeJIT()
-      : TM(EngineBuilder().selectTarget()),
+  KaleidoscopeJIT(const std::string &prefix_)
+      : prefix(prefix_),
+        TM(EngineBuilder().selectTarget()),
         DL(TM->createDataLayout()),
         ObjectLayer([]() { return std::make_shared<SectionMemoryManager>(); }),
         CompileLayer(ObjectLayer, SimpleCompiler(*TM)),
@@ -121,9 +124,12 @@ private:
       FPM->run(F);
 
     LOG(verbose) << "Optimized module";
+    std::error_code EC;
+    std::string path = prefix + M->getModuleIdentifier() + "-optimized.ll";
+    llvm::raw_fd_ostream ofs(path, EC, sys::fs::F_None);
+    M->print(ofs, nullptr);
+    ofs << "\n";
     // M->dump();
-    M->print(llvm::errs(), nullptr);
-    std::cerr << std::endl;
 
     return M;
   }

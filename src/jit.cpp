@@ -33,13 +33,13 @@ std::map<std::string, Value *> JIT::Runtime::NamedValues;
 std::unique_ptr<orc::KaleidoscopeJIT> JIT::Runtime::TheJIT = nullptr;
 
 namespace JIT {
-void init_runtime(const std::string &module_name) {
+void init_runtime(const std::string &module_name, const std::string prefix) {
   LOG(debug) << "Running Init()";
   InitializeNativeTarget();
   InitializeNativeTargetAsmPrinter();
   InitializeNativeTargetAsmParser();
 
-  Runtime::TheJIT = make_unique<orc::KaleidoscopeJIT>();
+  Runtime::TheJIT = llvm::make_unique<orc::KaleidoscopeJIT>(prefix);
 
   Runtime::InitializeModule(module_name);
 
@@ -87,8 +87,11 @@ void define_log_exp() {
 void finalize_module(const std::string &Name) {
   LOG(debug) << "Finalizing module";
   // Runtime::TheModule->dump();
-  Runtime::TheModule->print(llvm::errs(), nullptr);
-  std::cerr << std::endl;
+  std::error_code EC;
+  llvm::raw_fd_ostream ofs(Runtime::TheJIT->prefix + Name + ".ll", EC,
+                           sys::fs::F_None);
+  Runtime::TheModule->print(ofs, nullptr);
+  ofs << "\n";
 
   Runtime::TheJIT->addModule(std::move(Runtime::TheModule));
 }

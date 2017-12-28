@@ -61,7 +61,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
-  JIT::init_runtime(module_name);
+  JIT::init_runtime(module_name, parameters.output_directory + "/");
 
   compile_expression_and_derivs(model_spec.rate_expr, "rate");
   compile_expression_and_derivs(model_spec.odds_expr, "odds");
