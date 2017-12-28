@@ -2,6 +2,7 @@
 #define SPECPARSER_EXPRESSION_HPP
 
 #include "spec_parser/expression/deriv.hpp"
+#include "spec_parser/expression/simplify.hpp"
 #include "spec_parser/expression/eval.hpp"
 #include "spec_parser/expression/show.hpp"
 #include "spec_parser/expression/transform.hpp"
@@ -20,6 +21,7 @@ using expression::exp;
 
 using expression::eval;
 using expression::deriv;
+using expression::simplify;
 using expression::show;
 using expression::transform;
 

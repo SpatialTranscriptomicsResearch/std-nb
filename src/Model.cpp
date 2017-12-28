@@ -19,6 +19,7 @@ using namespace spec_parser;
 using namespace std;
 
 using spec_parser::expression::deriv;
+using spec_parser::expression::simplify;
 using spec_parser::expression::eval;
 
 namespace STD {
@@ -35,9 +36,9 @@ using ExprPtr = std::shared_ptr<spec_parser::expression::Exp<T>>;
 template <typename T>
 void compile_expression_and_derivs(const ExprPtr<T> &expr,
                                    const std::string &tag) {
-  spec_parser::expression::codegen(expr, tag, collect_variables(expr));
+  spec_parser::expression::codegen(simplify(expr), tag, collect_variables(expr));
   for (auto variable : collect_variables(expr)) {
-    auto deriv_expr = deriv(variable, expr);
+    auto deriv_expr = simplify(deriv(variable, expr));
     spec_parser::expression::codegen(deriv_expr,
                                      tag + "-" + to_string(*variable),
                                      collect_variables(expr));
