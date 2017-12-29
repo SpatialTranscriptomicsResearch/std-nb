@@ -147,7 +147,7 @@ void Model::from_vector(const Vector &v) {
     coeff->from_vector(iter);
 }
 
-Model Model::compute_gradient(double &score) const {
+Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   LOG(debug) << "Computing gradient";
 
   score = 0;
@@ -208,7 +208,8 @@ Model Model::compute_gradient(double &score) const {
                 register_gradient(g, e, s, t, cnts, grad, rate, odds,
                                   rate_coeff_arrays[t], odds_coeff_arrays[t]);
                 double p = odds_to_prob(odds(t));
-                score_ += log_negative_binomial(cnts[t], rate(t), p);
+                if (compute_likelihood)
+                  score_ += log_negative_binomial(cnts[t], rate(t), p);
               }
             else
               for (size_t t = 0; t < T; ++t) {
@@ -216,8 +217,9 @@ Model Model::compute_gradient(double &score) const {
                                              rate_coeff_arrays[t],
                                              odds_coeff_arrays[t]);
                 double log_one_minus_p = neg_odds_to_log_prob(odds(t));
-                score_ += log_negative_binomial_zero_log_one_minus_p(
-                    rate(t), log_one_minus_p);
+                if (compute_likelihood)
+                  score_ += log_negative_binomial_zero_log_one_minus_p(
+                      rate(t), log_one_minus_p);
               }
           }
 
@@ -300,7 +302,9 @@ void Model::register_gradient_zero_count(
   }
 }
 
-void Model::gradient_update(size_t num_iterations, std::function<bool(const Coefficient&)> is_included) {
+void Model::gradient_update(
+    size_t num_iterations,
+    std::function<bool(const Coefficient &)> is_included) {
   LOG(verbose) << "Performing gradient update iterations";
 
   size_t current_iteration = 0;
@@ -320,7 +324,10 @@ void Model::gradient_update(size_t num_iterations, std::function<bool(const Coef
 
     from_vector(x.array());
     double score = 0;
-    Model model_grad = compute_gradient(score);
+    Model model_grad = compute_gradient(
+        score, not parameters.skip_likelihood
+                   or current_iteration == num_iterations
+                   or current_iteration % parameters.report_interval == 0);
     for (auto &coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 

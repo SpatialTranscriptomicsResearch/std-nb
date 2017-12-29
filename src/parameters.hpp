@@ -80,6 +80,7 @@ struct Parameters {
   double lbfgs_epsilon = 1e-5;
   size_t lbfgs_iter = 100;
   size_t report_interval = 200;
+  bool skip_likelihood = false;
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
   Sampling::Method sample_method = Sampling::Method::Mean;

@@ -60,7 +60,7 @@ struct Model {
   void add_prior_coefficients();
 
   void setZero();
-  Model compute_gradient(double &score) const;
+  Model compute_gradient(double &score, bool compute_likelihood) const;
   void register_gradient(size_t g, size_t e, size_t s, size_t t,
                          const Vector &cnts, Model &gradient,
                          const Vector &rate, const Vector &odds,
