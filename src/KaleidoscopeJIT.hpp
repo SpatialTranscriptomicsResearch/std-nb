@@ -60,7 +60,11 @@ public:
 
   KaleidoscopeJIT(const std::string &prefix_)
       : prefix(prefix_),
-        TM(EngineBuilder().selectTarget()),
+        TM(EngineBuilder()
+               .setMCPU(llvm::sys::getHostCPUName())
+               .setEngineKind(llvm::EngineKind::JIT)
+               .setOptLevel(llvm::CodeGenOpt::Aggressive)
+               .selectTarget()),
         DL(TM->createDataLayout()),
         ObjectLayer([]() { return std::make_shared<SectionMemoryManager>(); }),
         CompileLayer(ObjectLayer, SimpleCompiler(*TM)),

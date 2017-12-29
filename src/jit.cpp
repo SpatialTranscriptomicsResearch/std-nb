@@ -60,6 +60,7 @@ Value *Runtime::LogErrorV(const char *Str) {
 void Runtime::InitializeModule(const std::string &name) {
   // Open a new module.
   TheModule = llvm::make_unique<Module>(name, TheContext);
+  TheModule->setTargetTriple(sys::getProcessTriple());
   TheModule->setDataLayout(TheJIT->getTargetMachine().createDataLayout());
 }
 
