@@ -223,11 +223,14 @@ int main(int argc, char **argv) {
     ("output,o", po::value(&parameters.output_directory),
      "Prefix for generated output files.")
     ("top", po::value(&options.top)->default_value(options.top),
-     "Use only those genes with the highest read count across all spots. Zero indicates all genes.")
+     "Use only those genes with the highest read count across all spots. "
+     "Zero indicates all genes.")
     ("bot", po::value(&options.bottom)->default_value(options.bottom),
-     "Use only those genes with the lowest read count across all spots. Zero indicates all genes.")
+     "Use only those genes with the lowest read count across all spots. "
+     "Zero indicates all genes.")
     ("transpose", po::bool_switch(&options.transpose),
-     "Count matrices have spots in columns and genes in columns. Default is genes in rows and spots in columns.");
+     "Count matrices have spots in columns and genes in columns. "
+     "Default is genes in rows and spots in columns.");
 
   gaussian_process_options.add_options()
     ("gp_iter", po::value(&parameters.gp.first_iteration)->default_value(parameters.gp.first_iteration),
@@ -260,11 +263,14 @@ int main(int argc, char **argv) {
      "Randomly downsample the number of reads. "
      "Draws a binomially-distributed number of reads from the actually observed count using this parameter as probablity argument for the biomial distribution.")
     ("compression", po::value(&parameters.compression_mode)->default_value(parameters.compression_mode, "gzip"),
-     "Compression method to use. Can be one of 'gzip', 'bzip2', 'none'.")
+     "Compression method to use. "
+     "Can be one of 'gzip', 'bzip2', 'none'.")
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
-     "Which optimization method to use. Available are: Gradient, RPROP, lBFGS, AdaGrad, Adam.")
+     "Which optimization method to use. "
+     "Available are: Gradient, RPROP, lBFGS, AdaGrad, Adam.")
     ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
-     "How to sample the contributions. Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
+     "How to sample the contributions. "
+     "Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP, lBFGS.")
     ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
      "Number of iterations to perform for iterative sampling methods.")
     ("stage", po::value(&options.staging_iterations)->default_value(options.staging_iterations),
