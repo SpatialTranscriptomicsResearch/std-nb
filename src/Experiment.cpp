@@ -318,10 +318,14 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 }
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {
+
+  size_t reads = experiment.counts.matrix->sum();
   os << "Experiment "
      << "G = " << experiment.G << " "
      << "S = " << experiment.S << " "
-     << "T = " << experiment.T << endl;
+     << "T = " << experiment.T << " "
+     << "R = " << reads << " -> "
+     << "R/S = " << 1.0 * reads / experiment.S << endl;
   return os;
 }
 
