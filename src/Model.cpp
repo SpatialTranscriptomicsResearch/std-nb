@@ -98,6 +98,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
     LOG(verbose) << index++ << " " << *coeff << ": "
                  << coeff->info.to_string(design.covariates);
 
+  auto fnc = [](const Experiment &a, const Experiment &b) -> bool {
+    return a.scale_ratio < b.scale_ratio;
+  };
+  double min_ratio = std::min_element(begin(experiments), end(experiments), fnc)
+                         ->scale_ratio;
+  for (auto &experiment : experiments)
+    experiment.scale_ratio /= min_ratio;
+
   verify_model(*this);
 
   // TODO cov spot initialize spot scaling:

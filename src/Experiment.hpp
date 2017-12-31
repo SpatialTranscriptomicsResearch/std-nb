@@ -42,6 +42,8 @@ struct Experiment {
   Counts counts;
   Matrix coords;
 
+  double scale_ratio;
+
   Parameters parameters;
 
   std::vector<size_t> rate_coeff_idxs;

@@ -260,6 +260,8 @@ int main(int argc, char **argv) {
      "Discard spots that have fewer than this many reads.")
     ("minread_gene", po::value(&options.min_reads_gene)->default_value(options.min_reads_gene),
      "Discard genes that have fewer than this many reads.")
+    ("adjdepth", po::bool_switch(&parameters.adjust_seq_depth),
+     "Enforce equal read/spot ratios by subsampling in sections with higher ratios.")
     ("dropout", po::value(&parameters.dropout_gene_spot)->default_value(parameters.dropout_gene_spot),
      "Randomly discard a fraction of the gene-spot pairs during sampling.")
     ("downsample", po::value(&parameters.downsample)->default_value(parameters.downsample),

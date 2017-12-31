@@ -20,6 +20,7 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       T(T_),
       counts(counts_),
       coords(counts.parse_coords()),
+      scale_ratio(counts.matrix->sum() / S),
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_spot_type(Matrix::Zero(S, T)),
@@ -154,12 +155,12 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
   Vector cnts = Vector::Zero(T);
 
   const auto actual_count = counts(g, s);
-  size_t count;
+  size_t count = actual_count;
+  if (parameters.adjust_seq_depth)
+    count = std::binomial_distribution<size_t>(count, 1 / scale_ratio)(rng);
   if (parameters.downsample < 1)
-    count = std::binomial_distribution<size_t>(
-        actual_count, parameters.downsample)(rng);
-  else
-    count = actual_count;
+    count
+        = std::binomial_distribution<size_t>(count, parameters.downsample)(rng);
 
   if (count == 0)
     return cnts;
