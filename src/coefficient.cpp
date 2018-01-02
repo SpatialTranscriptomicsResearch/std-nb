@@ -190,7 +190,7 @@ double Coefficient::compute_gradient_gp(const vector<CoefficientPtr> &coeffs,
 
   vector<double> deltas(values.size());
   for (size_t t = 0; t < deltas.size(); ++t)
-    deltas[t] = values(t);
+    deltas[t] = exp(values(t));
 
   vector<const GP::GaussianProcess *> gps;
   for (auto idx : prior_idxs)
