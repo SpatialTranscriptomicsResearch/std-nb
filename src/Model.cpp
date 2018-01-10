@@ -403,11 +403,13 @@ void Model::gradient_update() {
       Array ax;
       Array mom1(Array::Zero(x.size()));
       Array mom2(Array::Zero(x.size()));
+      auto updater = parameters.adam_nesterov_momentum ? nadam_update<Array>
+                                                       : adam_update<Array>;
       for (size_t iter = 1; iter <= parameters.grad_iterations; ++iter) {
         fx = fnc(x, grad);
         agrad = grad.array();
         ax = x.array();
-        adam_update(agrad, mom1, mom2, ax, iter, parameters.adam);
+        updater(agrad, mom1, mom2, ax, iter, parameters.adam);
         x = ax.matrix();
       }
     } break;
