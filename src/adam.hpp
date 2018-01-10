@@ -20,7 +20,7 @@ void adam_update(const T &grad, T &mom1, T &mom2, T &x, size_t t,
   const auto mom2_corr = sqrt(1 - pow(params.beta2, t));
   const auto alph_corr = params.alpha * mom2_corr / mom1_corr;
   mom1 = params.beta1 * mom1 + (1 - params.beta1) * grad;
-  mom2 = params.beta1 * mom2 + (1 - params.beta2) * grad * grad;
+  mom2 = params.beta2 * mom2 + (1 - params.beta2) * grad * grad;
   x += alph_corr * mom1 / (sqrt(mom2) + mom2_corr * params.epsilon);
 }
 
