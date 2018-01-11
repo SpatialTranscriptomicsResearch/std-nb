@@ -330,7 +330,9 @@ int main(int argc, char **argv) {
     ("adam_beta2", po::value(&parameters.adam.beta2)->default_value(parameters.adam.beta2),
      "Adam gradient second moment annealing.")
     ("adam_epsilon", po::value(&parameters.adam.epsilon)->default_value(parameters.adam.epsilon),
-     "Adam stability parameter.");
+     "Adam stability parameter.")
+    ("adam_nesterov", po::bool_switch(&parameters.adam_nesterov_momentum)->default_value(parameters.adam_nesterov_momentum),
+     "Use nesterov momentum.");
 
   hyperparameter_options.add_options()
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),

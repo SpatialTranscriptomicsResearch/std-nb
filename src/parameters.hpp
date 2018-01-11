@@ -75,6 +75,7 @@ struct Parameters {
 
   adagrad_parameters adagrad;
   adam_parameters adam;
+  bool adam_nesterov_momentum = false;
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
