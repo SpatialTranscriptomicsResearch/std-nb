@@ -415,7 +415,6 @@ void Model::store(const string &prefix_, bool mean_and_var,
   auto type_names = form_factor_names(T);
   auto &gene_names = experiments.begin()->counts.row_names;
 
-  auto exp_gene_type = expected_gene_type();
   vector<size_t> order;
   if (reorder) {
     auto cs = colSums<Vector>(contributions_gene_type);
@@ -440,9 +439,6 @@ void Model::store(const string &prefix_, bool mean_and_var,
       ofstream ofs(prefix + "hyperparameters.txt");
       ofs << parameters.hyperparameters;
     }
-#pragma omp section
-    write_matrix(exp_gene_type, prefix + "expected-features" + FILENAME_ENDING,
-                 parameters.compression_mode, gene_names, type_names, order);
 
 // TODO cov perhaps write out a single file for the scalar covariates
 #pragma omp section
