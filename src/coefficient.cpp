@@ -257,17 +257,17 @@ void Coefficient::store(const string &path, CompressionMode compression_mode,
                         vector<size_t> type_order) const {
   switch (kind) {
     case Coefficient::Kind::scalar:
-      write_matrix(values, path, compression_mode, {}, {});
+      write_matrix(values, path, compression_mode, {"scalar"}, {to_string()});
       break;
     case Coefficient::Kind::gene:
-      write_matrix(values, path, compression_mode, gene_names, {});
+      write_matrix(values, path, compression_mode, gene_names, {to_string()});
       break;
     case Coefficient::Kind::spot:
-      write_matrix(values, path, compression_mode, spot_names, {});
+      write_matrix(values, path, compression_mode, spot_names, {to_string()});
       break;
     case Coefficient::Kind::type:
       // TODO cov type order
-      write_matrix(values, path, compression_mode, type_names, {}, {},
+      write_matrix(values, path, compression_mode, type_names, {to_string()}, {},
                    type_order);
       break;
     case Coefficient::Kind::gene_type:
