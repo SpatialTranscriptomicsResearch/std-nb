@@ -60,6 +60,7 @@ struct Model {
   void add_prior_coefficients();
 
   void setZero();
+  std::pair<Matrix, Matrix> compute_mean_and_var(size_t e) const;
   Model compute_gradient(double &score, bool compute_likelihood) const;
   void register_gradient(size_t g, size_t e, size_t s, size_t t,
                          const Vector &cnts, Model &gradient,

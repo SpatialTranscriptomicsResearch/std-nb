@@ -155,6 +155,57 @@ void Model::from_vector(const Vector &v) {
     coeff->from_vector(iter);
 }
 
+pair<Matrix, Matrix> Model::compute_mean_and_var(size_t e) const {
+  LOG(debug) << "Computing means and variances";
+
+  const auto &exp = experiments[e];
+
+  Matrix Mean = Matrix::Zero(G, exp.S);
+  Matrix Var = Matrix::Zero(G, exp.S);
+
+#pragma omp parallel if (DO_PARALLEL)
+  {
+    Matrix mean = Matrix::Zero(G, exp.S);
+    Matrix var = Matrix::Zero(G, exp.S);
+    double rate, odds;
+    // TODO ensure all experiments have the same number of coefficients
+    // currently, this could be violated due to redundancy removal
+    size_t num_rate_coeffs = rate_derivs.size();  // TODO see above
+    size_t num_odds_coeffs = odds_derivs.size();  // TODO see above
+    std::vector<std::vector<double>> rate_coeff_arrays, odds_coeff_arrays;
+    for (size_t t = 0; t < T; ++t) {
+      rate_coeff_arrays.push_back(std::vector<double>(num_rate_coeffs));
+      odds_coeff_arrays.push_back(std::vector<double>(num_odds_coeffs));
+    }
+
+#pragma omp for schedule(guided)
+    for (size_t g = 0; g < G; ++g)
+      for (size_t s = 0; s < exp.S; ++s) {
+        for (size_t t = 0; t < T; ++t) {
+          for (size_t i = 0; i < num_rate_coeffs; ++i)
+            rate_coeff_arrays[t][i]
+                = coeffs[exp.rate_coeff_idxs[i]]->get_actual(g, t, s);
+          for (size_t i = 0; i < num_odds_coeffs; ++i)
+            odds_coeff_arrays[t][i]
+                = coeffs[exp.odds_coeff_idxs[i]]->get_actual(g, t, s);
+
+          rate = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
+          odds = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
+          mean(g, s) += rate * odds;
+          var(g, s) += rate * odds * (1 + odds);
+        }
+      }
+
+#pragma omp critical
+    {
+      Mean = Mean + mean;
+      Var = Var + var;
+    }
+  }
+
+  return {Mean, Var};
+}
+
 Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   LOG(debug) << "Computing gradient";
 

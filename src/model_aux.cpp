@@ -473,6 +473,19 @@ void Model::store(const string &prefix_, bool mean_and_var,
                         + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
     experiments[e].store(exp_prefix, order);
   }
+
+  if (mean_and_var)
+    for (size_t e = 0; e < E; ++e) {
+      string exp_prefix = prefix + "experiment"
+        + to_string_embedded(e, EXPERIMENT_NUM_DIGITS) + "-";
+      auto mean_var = compute_mean_and_var(e);
+      write_matrix(mean_var.first,
+          exp_prefix + "counts_expected" + FILENAME_ENDING,
+          parameters.compression_mode, gene_names, experiments[e].counts.col_names);
+      write_matrix(mean_var.second,
+          exp_prefix + "counts_variance" + FILENAME_ENDING,
+          parameters.compression_mode, gene_names, experiments[e].counts.col_names);
+    }
 }
 
 /* TODO covariates enable loading of subsets of covariates */
