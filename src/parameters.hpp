@@ -72,6 +72,7 @@ struct Parameters {
   bool adjust_seq_depth = false;
   CompressionMode compression_mode = CompressionMode::gzip;
   Hyperparameters hyperparameters;
+  Coefficient::Parameters coeff_parameters;
 
   adagrad_parameters adagrad;
   adam_parameters adam;

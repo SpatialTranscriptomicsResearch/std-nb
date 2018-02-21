@@ -335,6 +335,8 @@ int main(int argc, char **argv) {
      "Use nesterov momentum.");
 
   hyperparameter_options.add_options()
+    ("init_var", po::value(&parameters.coeff_parameters.variance)->default_value(parameters.coeff_parameters.variance, stringize(parameters.coeff_parameters.variance)),
+     "Initialize gene-type-dependent and spot-type-dependent variables from a normal distribution with this variance.")
     ("gamma_1", po::value(&parameters.hyperparameters.gamma_1)->default_value(parameters.hyperparameters.gamma_1),
      "Default value for the 1st argument of gamma distributions.")
     ("gamma_2", po::value(&parameters.hyperparameters.gamma_2)->default_value(parameters.hyperparameters.gamma_2),

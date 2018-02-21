@@ -26,18 +26,18 @@ Coefficient::Kind determine_kind(const set<string> &term) {
   return kind;
 }
 
-Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id& id)
-    : Coefficient(G, T, S, id.name, id.kind, id.dist, id.info)
-{
-}
+Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
+                         const Parameters &params)
+    : Coefficient(G, T, S, id.name, id.kind, id.dist, id.info, params) {}
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
                          Kind kind_, Distribution dist,
-                         CovariateInformation info_)
+                         CovariateInformation info_, const Parameters &params)
     : label(label_),
       kind(kind_),
       distribution(dist),
-      info(info_) {
+      info(info_),
+      parameters(params) {
   if (distribution == Distribution::gp and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
@@ -68,7 +68,8 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const string &label_,
       and (kind == Coefficient::Kind::gene_type
            or kind == Coefficient::Kind::spot_type))
     for (auto &x : values)
-      x = 0.1 * std::normal_distribution<double>()(EntropySource::rng);
+      x = parameters.variance
+          * std::normal_distribution<double>()(EntropySource::rng);
 
   LOG(debug) << *this;
 }

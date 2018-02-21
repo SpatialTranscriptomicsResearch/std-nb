@@ -15,6 +15,9 @@ struct Coefficient;
 using CoefficientPtr = std::shared_ptr<Coefficient>;
 
 struct Coefficient {
+  struct Parameters {
+    double variance = 0.1;
+  };
   enum class Kind {
     scalar = 0,
     gene = 1,
@@ -41,9 +44,9 @@ struct Coefficient {
     Coefficient::Distribution dist;
     CovariateInformation info;
   };
-  Coefficient(size_t G, size_t T, size_t S, const Id &id);
+  Coefficient(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
   Coefficient(size_t G, size_t T, size_t S, const std::string &label, Kind kind,
-              Distribution distribution, CovariateInformation info);
+              Distribution distribution, CovariateInformation info, const Parameters &params);
 
   std::string label;
   Kind kind;
@@ -55,6 +58,7 @@ struct Coefficient {
                        std::vector<CoefficientPtr> &coeffs) const;
 
   CovariateInformation info;
+  Parameters parameters;
   STD::Matrix values;
   std::vector<size_t> prior_idxs;
   std::vector<size_t> experiment_idxs;

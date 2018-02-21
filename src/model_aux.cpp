@@ -126,7 +126,8 @@ size_t Model::register_coefficient(
       idx = coeffs.size();
       LOG(debug) << "Adding new coefficient for " << cid.name << " (" << idx
                  << ").";
-      coeffs.emplace_back(std::make_shared<Coefficient>(_G, _T, _S, cid));
+      coeffs.emplace_back(std::make_shared<Coefficient>(
+          _G, _T, _S, cid, parameters.coeff_parameters));
       on_add(idx);
     }
     return idx;
