@@ -266,7 +266,8 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
             }));
             double total_odds = odds[0];
             register_gradient_total(g, e, s, total_rate, total_odds, grad, rate,
-                                    odds, rate_coeff_arrays, odds_coeff_arrays);
+                                    odds, rate_coeff_arrays, odds_coeff_arrays,
+                                    rng);
             double p = odds_to_prob(total_odds);
             if (compute_likelihood)
               score_ += log_negative_binomial(exp.counts(g, s), total_rate, p);
@@ -293,8 +294,14 @@ void Model::register_gradient_total(
     size_t g, size_t e, size_t s, double total_rate, double total_odds,
     Model &gradient, const Vector &rate, const Vector &odds,
     const std::vector<std::vector<double>> &rate_coeffs,
-    const std::vector<std::vector<double>> &odds_coeffs) const {
-  const double k = experiments[e].counts(g, s);
+    const std::vector<std::vector<double>> &odds_coeffs, RNG &rng) const {
+  const double K = experiments[e].counts(g, s);
+  double k = K;
+  if (parameters.adjust_seq_depth)
+    k = std::binomial_distribution<size_t>(k,
+                                           1 / experiments[e].scale_ratio)(rng);
+  if (parameters.downsample < 1)
+    k = std::binomial_distribution<size_t>(k, parameters.downsample)(rng);
   const double r = total_rate;
   const double p = odds_to_prob(total_odds);
   const double log_one_minus_p = neg_odds_to_log_prob(total_odds);
