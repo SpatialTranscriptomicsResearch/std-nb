@@ -302,7 +302,9 @@ void Model::register_gradient_total(
                                            1 / experiments[e].scale_ratio)(rng);
   if (parameters.downsample < 1)
     k = std::binomial_distribution<size_t>(k, parameters.downsample)(rng);
-  const double r = total_rate;
+  const double r
+      = total_rate
+        * (parameters.adjust_seq_depth ? 1 / experiments[e].scale_ratio : 1);
   const double p = odds_to_prob(total_odds);
   const double log_one_minus_p = neg_odds_to_log_prob(total_odds);
 
@@ -412,10 +414,13 @@ void Model::gradient_update(
             + "/");
     }
 
-    // deactivate dropout in the last iteration for correct contribution stats
-    double dropout_temp = parameters.dropout_gene_spot;
-    if (++current_iteration == num_iterations)
+    // deactivate stochasticity in the last iteration for correct contribution stats
+    auto temp_parameters = parameters;
+    if (++current_iteration == num_iterations) {
       parameters.dropout_gene_spot = 0;
+      parameters.adjust_seq_depth = false;
+      parameters.downsample = false;
+    }
 
     from_vector(x.array());
     double score = 0;
@@ -426,7 +431,7 @@ void Model::gradient_update(
     for (auto &coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 
-    parameters.dropout_gene_spot = dropout_temp;
+    parameters = temp_parameters;
 
     for (auto &coeff : model_grad.coeffs)
       if (coeff->distribution == Coefficient::Distribution::fixed)
