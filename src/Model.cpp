@@ -419,7 +419,7 @@ void Model::gradient_update(
     if (++current_iteration == num_iterations) {
       parameters.dropout_gene_spot = 0;
       parameters.adjust_seq_depth = false;
-      parameters.downsample = false;
+      parameters.downsample = 1;
     }
 
     from_vector(x.array());
