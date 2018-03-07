@@ -406,7 +406,7 @@ void Model::gradient_update(
 
   size_t current_iteration = 0;
 
-  auto fnc = [&](const Vector &x, Vector &grad) {
+  auto eval_and_compute_gradient = [&](const Vector &x, Vector &grad) {
     if (((iter_cnt++) % parameters.report_interval) == 0) {
       const size_t iteration_num_digits
           = 1 + floor(log(num_iterations) / log(10));
@@ -474,7 +474,7 @@ void Model::gradient_update(
       Vector rates(x.size());
       rates.fill(parameters.grad_alpha);
       for (size_t iter = 0; iter < num_iterations; ++iter) {
-        fx = fnc(x, grad);
+        fx = eval_and_compute_gradient(x, grad);
         rprop_update(grad, prev_sign, rates, x, parameters.rprop);
       }
     } break;
@@ -482,7 +482,7 @@ void Model::gradient_update(
       double alpha = parameters.grad_alpha;
       for (size_t iter = 0; iter < num_iterations; ++iter) {
         Vector grad;
-        fx = fnc(x, grad);
+        fx = eval_and_compute_gradient(x, grad);
         x = x + alpha * grad;
         LOG(debug) << "iter " << iter << " alpha: " << alpha;
         LOG(debug) << "iter " << iter << " fx: " << fx;
@@ -499,7 +499,7 @@ void Model::gradient_update(
       // Create solver and function object
       LBFGSSolver<double> solver(param);
 
-      int niter = solver.minimize(fnc, x, fx);
+      int niter = solver.minimize(eval_and_compute_gradient, x, fx);
 
       LOG(verbose) << "lBFGS performed " << niter << " iterations";
     } break;
@@ -509,7 +509,7 @@ void Model::gradient_update(
       Array ax;
       Array scale(Array::Zero(x.size()));
       for (size_t iter = 0; iter < num_iterations; ++iter) {
-        fx = fnc(x, grad);
+        fx = eval_and_compute_gradient(x, grad);
         agrad = grad.array();
         ax = x.array();
         adagrad_update(agrad, scale, ax, parameters.adagrad);
@@ -525,7 +525,7 @@ void Model::gradient_update(
       auto updater = parameters.adam_nesterov_momentum ? nadam_update<Array>
                                                        : adam_update<Array>;
       for (size_t iter = 1; iter <= num_iterations; ++iter) {
-        fx = fnc(x, grad);
+        fx = eval_and_compute_gradient(x, grad);
         agrad = grad.array();
         ax = x.array();
         updater(agrad, mom1, mom2, ax, iter, parameters.adam);

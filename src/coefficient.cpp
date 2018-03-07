@@ -143,8 +143,8 @@ double Coefficient::compute_gradient(const vector<CoefficientPtr> &coeffs,
         double a = coeffs[parent_a]->get_actual(g, t, s);
         double b = coeffs[parent_b]->get_actual(g, t, s);
         double log_odds = get_raw(g, t, s);
-        double x = exp(log_odds);
-        double p = odds_to_prob(x);
+        double odds = exp(log_odds);
+        double p = odds_to_prob(odds);
 
         grad_coeffs[coeff_idx]->get_raw(g, t, s)
             += (a - 1) * (1 - p) - (b + 1) * p;

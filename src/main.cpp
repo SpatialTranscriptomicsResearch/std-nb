@@ -36,11 +36,11 @@ struct Options {
 
 void run(const std::vector<Counts> &data_sets, const Options &options,
          const STD::Parameters &parameters) {
-  STD::Model pfa(data_sets, options.num_factors, options.design,
-                 options.model_spec, parameters);
+  STD::Model model(data_sets, options.num_factors, options.design,
+                   options.model_spec, parameters);
   if (options.load_prefix != "")
-    pfa.restore(options.load_prefix);
-  LOG(info) << "Initial model" << endl << pfa;
+    model.restore(options.load_prefix);
+  LOG(info) << "Initial model" << endl << model;
 
   auto accept_kinds = [](const vector<Coefficient::Kind> &kinds) {
     auto fnc = [&kinds](const Coefficient &coeff) {
@@ -56,33 +56,33 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
     vector<Coefficient::Kind> scalars = {Coefficient::Kind::scalar};
 
     LOG(info) << "Stage: fitting global scalars";
-    pfa.gradient_update(
+    model.gradient_update(
         options.staging_iterations, [&](const Coefficient &coeff) {
           return accept_kinds(scalars)(coeff) and coeff.info.idxs.empty();
         });
 
     LOG(info) << "Stage: fitting all scalars";
-    pfa.gradient_update(options.staging_iterations, accept_kinds(scalars));
+    model.gradient_update(options.staging_iterations, accept_kinds(scalars));
 
     vector<Coefficient::Kind> non_type
         = {Coefficient::Kind::scalar, Coefficient::Kind::gene,
            Coefficient::Kind::spot};
 
     LOG(info) << "Stage: fitting global non-type-dependent coefficients";
-    pfa.gradient_update(
+    model.gradient_update(
         options.staging_iterations, [&](const Coefficient &coeff) {
           return accept_kinds(scalars)(coeff)
                  or (accept_kinds(non_type)(coeff) and coeff.info.idxs.empty());
         });
 
     LOG(info) << "Stage: fitting all non-type-dependent coefficients";
-    pfa.gradient_update(options.staging_iterations, accept_kinds(non_type));
+    model.gradient_update(options.staging_iterations, accept_kinds(non_type));
 
     LOG(info) << "Stage: fitting all coefficients";
   }
-  pfa.gradient_update(parameters.grad_iterations,
-                      [](const Coefficient &coeff) { return true; });
-  pfa.store("", true);
+  model.gradient_update(parameters.grad_iterations,
+                        [](const Coefficient &coeff) { return true; });
+  model.store("", true);
 }
 
 /**
