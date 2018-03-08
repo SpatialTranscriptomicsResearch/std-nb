@@ -403,6 +403,9 @@ void Model::gradient_update(
     size_t num_iterations,
     std::function<bool(const Coefficient &)> is_included) {
   LOG(verbose) << "Performing gradient update iterations";
+  for (auto &coeff : coeffs)
+    if (is_included(*coeff))
+      LOG(debug) << "Optimizing " << coeff->to_string();
 
   size_t current_iteration = 0;
 
