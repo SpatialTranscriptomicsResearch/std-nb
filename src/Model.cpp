@@ -434,8 +434,10 @@ void Model::gradient_update(
     for (auto &coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 
+    // restore parameters from before deactivating stochasticity
     parameters = temp_parameters;
 
+    // set gradient to zero for fixed coefficients
     for (auto &coeff : model_grad.coeffs)
       if (coeff->distribution == Coefficient::Distribution::fixed)
         coeff->values.setZero();
