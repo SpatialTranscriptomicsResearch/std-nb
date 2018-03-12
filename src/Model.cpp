@@ -524,17 +524,6 @@ void Model::gradient_update(
   from_vector(x.array());
 }
 
-// computes a matrix M(g,t) =
-//   gamma(g,t) sum_e beta(e,g) lambda(e,g,t) sum_s theta(e,s,t) sigma(e,s)
-Matrix Model::expected_gene_type() const {
-  Matrix m = Matrix::Zero(G, T);
-  /* TODO: needs rewrite
-  for (auto &experiment : experiments)
-    m += experiment.expected_gene_type();
-  */
-  return m;
-}
-
 void Model::update_contributions() {
   contributions_gene_type.setZero();
   contributions_gene.setZero();
