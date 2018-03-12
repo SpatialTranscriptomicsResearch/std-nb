@@ -4,8 +4,6 @@
 #include <memory>
 #include <unordered_set>
 
-#include <LBFGS.h>
-
 #include "adagrad.hpp"
 #include "adam.hpp"
 #include "aux.hpp"
@@ -457,11 +455,6 @@ void Model::gradient_update(
           = model_grad.experiments[e].contributions_gene_type;
     }
 
-    if (parameters.optim_method == Optimize::Method::lBFGS) {
-      // as for lBFGS we want to minimize, we have to negate
-      score = -score;
-    }
-
     LOG(info) << "Iteration " << iter_cnt << ", score: " << score;
     LOG(debug) << "x: " << endl << Stats::summary(x);
     LOG(debug) << "grad: " << endl << Stats::summary(grad);
@@ -495,18 +488,6 @@ void Model::gradient_update(
 
         alpha *= parameters.grad_anneal;
       }
-    } break;
-    case Optimize::Method::lBFGS: {
-      using namespace LBFGSpp;
-      LBFGSParam<double> param;
-      param.epsilon = parameters.lbfgs_epsilon;
-      param.max_iterations = parameters.lbfgs_iter;
-      // Create solver and function object
-      LBFGSSolver<double> solver(param);
-
-      int niter = solver.minimize(eval_and_compute_gradient, x, fx);
-
-      LOG(verbose) << "lBFGS performed " << niter << " iterations";
     } break;
     case Optimize::Method::AdaGrad: {
       Vector grad;

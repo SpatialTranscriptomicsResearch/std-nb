@@ -192,7 +192,6 @@ int main(int argc, char **argv) {
   po::options_description advanced_options("Advanced options", num_cols);
   po::options_description grad_options("Gradient descent options", num_cols);
   po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
-  po::options_description lbfgs_options("lBFGS options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
   po::options_description adagrad_options("AdaGrad options", num_cols);
   po::options_description adam_options("Adam options", num_cols);
@@ -286,12 +285,6 @@ int main(int argc, char **argv) {
     ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
      "Temperature for Metropolis-Hastings sampling.");
 
-  lbfgs_options.add_options()
-    ("lbfgs_iter", po::value(&parameters.lbfgs_iter)->default_value(parameters.lbfgs_iter),
-     "Maximal number of iterations to perform per lBFGS optimization.")
-    ("lbfgs_eps", po::value(&parameters.lbfgs_epsilon)->default_value(parameters.lbfgs_epsilon, stringize(parameters.lbfgs_epsilon)),
-     "Epsilon parameter for lBFGS optimization.");
-
   hmc_options.add_options()
     ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
      "Epsilon parameter for the leapfrog algorithm.")
@@ -360,7 +353,6 @@ int main(int argc, char **argv) {
       .add(gaussian_process_options)
       .add(advanced_options)
       .add(grad_options)
-      .add(lbfgs_options)
       .add(rprop_options)
       .add(adagrad_options)
       .add(adam_options)
