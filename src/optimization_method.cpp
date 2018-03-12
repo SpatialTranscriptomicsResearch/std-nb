@@ -13,9 +13,6 @@ ostream &operator<<(ostream &os, const Method &method) {
     case Method::Gradient:
       os << "Gradient";
       break;
-    case Method::lBFGS:
-      os << "lBFGS";
-      break;
     case Method::AdaGrad:
       os << "AdaGrad";
       break;
@@ -34,8 +31,6 @@ istream &operator>>(istream &is, Method &method) {
     method = Method::Gradient;
   else if (line == "rprop")
     method = Method::RPROP;
-  else if (line == "lbfgs")
-    method = Method::lBFGS;
   else if (line == "adagrad")
     method = Method::AdaGrad;
   else if (line == "adam")
