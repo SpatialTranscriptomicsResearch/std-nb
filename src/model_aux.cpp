@@ -191,12 +191,14 @@ size_t Model::register_coefficient(
 
       // Create or update coordinate system
       auto gp_coord_info = drop_covariates(
-          info, design, { Design::spot_label, Design::section_label });
+          info, design, {Design::spot_label, Design::section_label});
       auto gp_coord_id = Coefficient::Id{
-        .name = id + "-gp-coord",
-        .kind = gp_kind,
-        .dist = Coefficient::Distribution::gp_coord,
-        .info = gp_coord_info,
+          .name
+          = id + "-gp-coord-"
+            + design.get_covariate_value(experiment, Design::coordsys_label),
+          .kind = gp_kind,
+          .dist = Coefficient::Distribution::gp_coord,
+          .info = gp_coord_info,
       };
       auto gp_coord_idx
           = do_registration(gp_coord_id, G, T, 0, [](size_t _gp_coord_idx) {
