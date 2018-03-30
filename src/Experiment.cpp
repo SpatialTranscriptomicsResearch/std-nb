@@ -1,5 +1,4 @@
 #include "Experiment.hpp"
-#include <LBFGS.h>
 #include "Model.hpp"
 #include "aux.hpp"
 #include "gamma_func.hpp"
@@ -264,24 +263,6 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
         compute_gradient(cnts, grad);
         rprop_update(grad, prev_sign, rates, cnts, parameters.rprop);
       }
-      return unlog(cnts);
-    } break;
-    case Sampling::Method::lBFGS: {
-      cnts = (proportions * count).array().log();
-
-      using namespace LBFGSpp;
-      LBFGSParam<double> param;
-      param.epsilon = parameters.lbfgs_epsilon;
-      // TODO make into separate CLI configurable parameter
-      param.max_iterations = parameters.lbfgs_iter;
-      // Create solver and function object
-      LBFGSSolver<double> solver(param);
-
-      double fx = std::numeric_limits<double>::infinity();
-      int niter = solver.minimize(fnc, cnts, fx);
-
-      LOG(verbose) << "lBFGS performed " << niter
-                   << " iterations and reached score " << fx;
       return unlog(cnts);
     } break;
     default:
