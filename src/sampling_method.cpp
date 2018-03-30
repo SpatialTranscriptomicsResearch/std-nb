@@ -28,9 +28,6 @@ ostream &operator<<(ostream &os, const Method &method) {
     case Method::TrialMean:
       os << "TrialMean";
       break;
-    case Method::lBFGS:
-      os << "lBFGS";
-      break;
   }
   return os;
 }
@@ -53,8 +50,6 @@ istream &operator>>(istream &is, Method &method) {
     method = Method::Trial;
   else if (line == "trialmean")
     method = Method::TrialMean;
-  else if (line == "lbfgs")
-    method = Method::lBFGS;
   else
     throw(runtime_error("Unknown sampling method: " + line));
   return is;

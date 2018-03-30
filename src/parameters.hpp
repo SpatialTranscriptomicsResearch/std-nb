@@ -80,8 +80,6 @@ struct Parameters {
   rprop_parameters rprop;
 
   std::string output_directory = default_output_string;
-  double lbfgs_epsilon = 1e-5;
-  size_t lbfgs_iter = 100;
   size_t report_interval = 200;
   bool skip_likelihood = false;
 
