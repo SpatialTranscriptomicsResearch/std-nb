@@ -71,6 +71,7 @@ struct Design {
       const std::set<std::string> &term) const;
   std::vector<size_t> get_covariate_value_idxs(
       size_t e, const std::vector<size_t> &covariate_idxs) const;
+  std::string get_covariate_value(size_t e, const std::string &term) const;
 };
 
 std::istream &operator>>(std::istream &is, Design &design);
