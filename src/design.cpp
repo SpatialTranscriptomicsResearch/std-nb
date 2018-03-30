@@ -36,6 +36,17 @@ vector<size_t> Design::get_covariate_value_idxs(
   return cov_values;
 }
 
+string Design::get_covariate_value(size_t e, const std::string &term) const {
+  auto idxs = determine_covariate_idxs({term});
+  if (idxs.size() == 1) {
+    size_t cov_idx = idxs[0];
+    size_t cov_value_idx = dataset_specifications[e].covariate_values[cov_idx];
+    return covariates[cov_idx].values[cov_value_idx];
+  } else
+    throw(runtime_error("Error: could not get the value for covariate '" + term
+                        + "' for experiment " + std::to_string(e)));
+}
+
 void Design::from_string(const string &str) {
   istringstream is(str);
   from_stream(is);
