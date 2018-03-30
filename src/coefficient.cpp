@@ -187,6 +187,8 @@ double Coefficient::compute_gradient_gp(const vector<CoefficientPtr> &coeffs,
                                         size_t coeff_idx) const {
   LOG(verbose) << "Computing log Gaussian process gradient.";
 
+  assert(distribution == Distribution::gp_proxy);
+
   GP::MeanTreatment mean_treatment = GP::MeanTreatment::zero;
 
   vector<double> deltas(values.size());
