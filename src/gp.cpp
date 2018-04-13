@@ -190,6 +190,10 @@ double predict_means_and_vars(const vector<const GaussianProcess *> &gps,
   LOG(debug) << "GP: means = " << means.transpose() << " sv = " << sv
              << " delta = " << delta;
 
+  // enforce maximum spatial variance
+  double min_val = 0.1;
+  sv = max(sv, min_val);
+
   if (sv > 0) {
     for (size_t idx = 0; idx < num_gp; ++idx) {
       LOG(trace) << "Doing coordinate system " << idx;
