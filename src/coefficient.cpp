@@ -61,9 +61,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
           "Error: invalid Coefficient::Kind in Coefficient::Coefficient().");
   }
 
-  if (distribution != Distribution::fixed
-      and (kind == Coefficient::Kind::gene_type
-           or kind == Coefficient::Kind::spot_type))
+  if (distribution != Type::fixed)
     for (auto &x : values)
       x = parameters.variance
           * std::normal_distribution<double>()(EntropySource::rng);
