@@ -48,7 +48,7 @@ struct Hyperparameters {
   double normal_1;
   double normal_2;
 
-  double get_param(Coefficient::Distribution distribution, size_t idx) const;
+  double get_param(Coefficient::Type distribution, size_t idx) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
@@ -97,7 +97,7 @@ struct Parameters {
   double temperature = 1;
 
   // TODO make CLI configurable
-  Coefficient::Distribution default_distribution = Coefficient::Distribution::normal;
+  Coefficient::Type default_distribution = Coefficient::Type::normal;
 };
 }
 #endif

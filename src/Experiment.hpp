@@ -46,8 +46,8 @@ struct Experiment {
 
   Parameters parameters;
 
-  std::vector<size_t> rate_coeff_idxs;
-  std::vector<size_t> odds_coeff_idxs;
+  std::vector<CoefficientPtr> rate_coeffs;
+  std::vector<CoefficientPtr> odds_coeffs;
 
   void ensure_dimensions() const;
 

@@ -43,9 +43,9 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
   LOG(info) << "Initial model" << endl << model;
 
   auto accept_kinds = [](const vector<Coefficient::Kind> &kinds) {
-    auto fnc = [&kinds](const Coefficient &coeff) {
+    auto fnc = [&kinds](const CoefficientPtr coeff) {
       for (auto &kind : kinds)
-        if (coeff.kind == kind)
+        if (coeff->kind == kind)
           return true;
       return false;
     };
@@ -57,8 +57,8 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
 
     LOG(info) << "Stage: fitting global scalars";
     model.gradient_update(
-        options.staging_iterations, [&](const Coefficient &coeff) {
-          return accept_kinds(scalars)(coeff) and coeff.info.idxs.empty();
+        options.staging_iterations, [&](const CoefficientPtr coeff) {
+          return accept_kinds(scalars)(coeff) and coeff->info.idxs.empty();
         });
 
     LOG(info) << "Stage: fitting all scalars";
@@ -70,9 +70,9 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
 
     LOG(info) << "Stage: fitting global non-type-dependent coefficients";
     model.gradient_update(
-        options.staging_iterations, [&](const Coefficient &coeff) {
+        options.staging_iterations, [&](const CoefficientPtr coeff) {
           return accept_kinds(scalars)(coeff)
-                 or (accept_kinds(non_type)(coeff) and coeff.info.idxs.empty());
+                 or (accept_kinds(non_type)(coeff) and coeff->info.idxs.empty());
         });
 
     LOG(info) << "Stage: fitting all non-type-dependent coefficients";
@@ -81,7 +81,7 @@ void run(const std::vector<Counts> &data_sets, const Options &options,
     LOG(info) << "Stage: fitting all coefficients";
   }
   model.gradient_update(parameters.grad_iterations,
-                        [](const Coefficient &coeff) { return true; });
+                        [](const CoefficientPtr coeff) { return true; });
   model.store("", true);
 }
 

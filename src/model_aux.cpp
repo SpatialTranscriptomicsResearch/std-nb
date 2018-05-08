@@ -54,19 +54,20 @@ string remove_trailing_zeros(const string& str) {
   return string(str.begin(), pos);
 }
 
-void verify_model(const Model& m) {
+void verify_model(const Model &m) {
   {  // check for overspecification
     static const auto input_dim
         = Coefficient::Kind::gene | Coefficient::Kind::spot;
     for (auto &x : m.coeffs) {
       if ((x->kind & input_dim) == input_dim) {
         throw runtime_error(
-            "Error: coefficient '" + x->label
+            "Error: coefficient '" + x->name
             + "' has dimensionality greater than or equal to the input data.");
       }
     }
   }
 
+  /* TODO FIXUP coeffs
   {  // check for cycles in model spec
     auto check_cycles = [&m](size_t root) {
       vector<bool> visited(m.coeffs.size());
@@ -92,56 +93,50 @@ void verify_model(const Model& m) {
     for (auto &x : coeffs) {
       check_cycles(x);
     }
-  }
+  } */
 }
 
 }  // namespace
 
-std::vector<CoefficientPtr>::iterator Model::find_coefficient(const Coefficient::Id& cid) {
+std::vector<CoefficientPtr>::iterator Model::find_coefficient(
+    const Coefficient::Id &cid) {
   return find_if(begin(coeffs), end(coeffs), [&](const CoefficientPtr &coeff) {
-    return coeff->label == cid.name and coeff->kind == cid.kind
-           and coeff->distribution == cid.dist and coeff->info == cid.info;
+    return coeff->name == cid.name and coeff->kind == cid.kind
+           and coeff->distribution == cid.distribution
+           and coeff->info == cid.info;
   });
 }
 
-size_t Model::register_coefficient(
-    const unordered_map<string, ModelSpec::Variable>& variable_map,
-    string id,
-    size_t experiment)
-{
+CoefficientPtr Model::register_coefficient(
+    const unordered_map<string, ModelSpec::Variable> &variable_map, string id,
+    size_t experiment) {
   // Register coefficient if it doesn't already exist and return its index in
   // the coeffs vector.
-  auto do_registration = [this](
-      const Coefficient::Id& cid,
-      size_t _G,
-      size_t _T,
-      size_t _S,
-      std::function<void(size_t)> on_add
-      ) -> size_t {
+  auto do_registration
+      = [this](const Coefficient::Id &cid, size_t _G, size_t _T, size_t _S,
+               std::function<void(const CoefficientPtr&)> on_add) -> CoefficientPtr {
     auto it = find_coefficient(cid);
-    size_t idx;
     if (it != end(coeffs)) {
-      idx = distance(begin(coeffs), it);
+      return *it;
     } else {
-      idx = coeffs.size();
-      LOG(debug) << "Adding new coefficient for " << cid.name << " (" << idx
-                 << ").";
-      coeffs.emplace_back(std::make_shared<Coefficient>(
+      LOG(debug) << "Adding new coefficient for " << cid.name << ".";
+      coeffs.emplace_back(Coefficient::make_shared(
           _G, _T, _S, cid, parameters.coeff_parameters));
-      on_add(idx);
+      auto coeff = coeffs.back();
+      on_add(coeff);
+      return coeff;
     }
-    return idx;
   };
 
   auto register_fixed = [&](double value) {
     Coefficient::Id cid{
       .name = id,
       .kind = Coefficient::Kind::scalar,
-      .dist = Coefficient::Distribution::fixed,
+      .distribution = Coefficient::Type::fixed,
       .info = CovariateInformation{},
     };
     return do_registration(
-        cid, 0, 0, 0, [&](size_t idx) { coeffs[idx]->get_raw(0, 0, 0) = value; });
+        cid, 0, 0, 0, [&](const CoefficientPtr &coeff) { coeff->get_raw(0, 0, 0) = value; });
   };
 
   auto register_random = [&]() {
@@ -152,7 +147,7 @@ size_t Model::register_coefficient(
     auto variable = it->second;
 
     auto info = get_covariate_info(design, variable->covariates, experiment);
-    auto kind = determine_kind(variable->covariates);
+    auto kind = Coefficient::determine_kind(variable->covariates);
 
     if (variable->distribution == nullptr) {
       auto dist = parameters.default_distribution;
@@ -170,23 +165,24 @@ size_t Model::register_coefficient(
     Coefficient::Id cid{
       .name = id,
       .kind = kind,
-      .dist = variable->distribution->type,
+      .distribution = variable->distribution->type,
       .info = info,
     };
 
-    size_t idx = do_registration(
-        cid, G, T, experiments[experiment].S, [&](size_t _idx) {
+    CoefficientPtr coeff = do_registration(
+        cid, G, T, experiments[experiment].S,
+        [&](const CoefficientPtr &coeff_) {
           size_t i = 1;
-          for (auto& prior : variable->distribution->arguments) {
-            size_t prior_idx = register_coefficient(
-                variable_map, prior, experiment);
-            coeffs[_idx]->prior_idxs.push_back(prior_idx);
-            LOG(debug) << "Prior " << i++ << " of " << id << " (" << _idx
-                       << ") is " << prior << " (" << prior_idx << ").";
+          for (auto &argument : variable->distribution->arguments) {
+            auto prior
+                = register_coefficient(variable_map, argument, experiment);
+            coeff_->priors.emplace_back(prior);
+            LOG(debug) << "Prior " << i++ << " of " << id << " is " << argument
+                       << " (" << *prior << ").";
           }
         });
 
-    if (variable->distribution->type == Coefficient::Distribution::gp) {
+    if (variable->distribution->type == Coefficient::Type::gp) {
       auto gp_kind = kind & ~Coefficient::Kind::spot;
 
       // Create or update coordinate system
@@ -197,43 +193,42 @@ size_t Model::register_coefficient(
           = id + "-gp-coord-"
             + design.get_covariate_value(experiment, Design::coordsys_label),
           .kind = gp_kind,
-          .dist = Coefficient::Distribution::gp_coord,
+          .distribution = Coefficient::Type::gp_coord,
           .info = gp_coord_info,
       };
-      auto gp_coord_idx
-          = do_registration(gp_coord_id, G, T, 0, [](size_t _gp_coord_idx) {
-              LOG(debug) << "Added new GP coordinate system (" << _gp_coord_idx
+      auto gp_coord_coeff
+          = do_registration(gp_coord_id, G, T, 0, [](const CoefficientPtr &coeff_) {
+              LOG(debug) << "Added new GP coordinate system (" << *coeff_
                          << ").";
             });
-      LOG(debug) << "Updating GP coordinate system (" << gp_coord_idx << ").";
-      coeffs[gp_coord_idx]->experiment_idxs.push_back(experiment);
-      coeffs[gp_coord_idx]->prior_idxs.push_back(idx);
+      LOG(debug) << "Updating GP coordinate system (" << *gp_coord_coeff << ").";
+      gp_coord_coeff->experiment_idxs.push_back(experiment);
+      gp_coord_coeff->priors.emplace_back(coeff);
 
       // Create or update GP proxy
-      auto gp_proxy_info = drop_covariates(info, design,
-          { Design::spot_label, Design::section_label,
-              Design::coordsys_label });
+      auto gp_proxy_info = drop_covariates(
+          info, design,
+          {Design::spot_label, Design::section_label, Design::coordsys_label});
       auto gp_id = Coefficient::Id{
-        .name = id + "-gp-proxy",
-        .kind = gp_kind,
-        .dist = Coefficient::Distribution::gp_proxy,
-        .info = gp_proxy_info,
+          .name = id + "-gp-proxy",
+          .kind = gp_kind,
+          .distribution = Coefficient::Type::gp_proxy,
+          .info = gp_proxy_info,
       };
-      auto gp_proxy_idx
-          = do_registration(gp_id, G, T, 0, [](size_t _gp_proxy_idx) {
-              LOG(debug) << "Added new GP proxy (" << _gp_proxy_idx << ").";
+      auto gp_proxy_coeff
+          = do_registration(gp_id, G, T, 0, [](const CoefficientPtr &coeff_) {
+              LOG(debug) << "Added new GP proxy (" << coeff_ << ").";
             });
-      LOG(debug) << "Updating GP proxy (" << gp_proxy_idx << ").";
-      Coefficient& gp_coeff = *coeffs[gp_proxy_idx];
-      gp_coeff.experiment_idxs.push_back(experiment);
-      if (std::find(begin(gp_coeff.prior_idxs), end(gp_coeff.prior_idxs),
-              gp_coord_idx)
-          == end(gp_coeff.prior_idxs)) {
-        gp_coeff.prior_idxs.push_back(gp_coord_idx);
+      LOG(debug) << "Updating GP proxy (" << *gp_proxy_coeff << ").";
+      gp_proxy_coeff->experiment_idxs.push_back(experiment);
+      if (std::find(begin(gp_proxy_coeff->priors), end(gp_proxy_coeff->priors),
+                    gp_coord_coeff)
+          == end(gp_proxy_coeff->priors)) {
+        gp_proxy_coeff->priors.emplace_back(gp_coord_coeff);
       }
     }
 
-    return idx;
+    return coeff;
   };
 
   double value;
@@ -252,15 +247,15 @@ void Model::add_covariates() {
     LOG(debug) << "Registering coefficients for experiment " << e;
 
     for(auto &variable: rate_variables) {
-      auto idx = register_coefficient(model_spec.variables, variable->full_id(), e);
-      coeffs[idx]->experiment_idxs.push_back(e);
-      experiments[e].rate_coeff_idxs.push_back(idx);
+      auto coeff = register_coefficient(model_spec.variables, variable->full_id(), e);
+      coeff->experiment_idxs.push_back(e);
+      experiments[e].rate_coeffs.emplace_back(coeff);
     }
 
     for(auto &variable: odds_variables) {
-      auto idx = register_coefficient(model_spec.variables, variable->full_id(), e);
-      coeffs[idx]->experiment_idxs.push_back(e);
-      experiments[e].odds_coeff_idxs.push_back(idx);
+      auto coeff = register_coefficient(model_spec.variables, variable->full_id(), e);
+      coeff->experiment_idxs.push_back(e);
+      experiments[e].odds_coeffs.emplace_back(coeff);
     }
   }
 }
@@ -268,16 +263,13 @@ void Model::add_covariates() {
 void Model::add_gp_proxies() {
   LOG(debug) << "Constructing GP proxies";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
-    if (coeffs[idx]->distribution == Coefficient::Distribution::gp_proxy) {
+    if (coeffs[idx]->distribution == Coefficient::Type::gp_proxy) {
       LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
-      for (auto &coord_coeff_idx : coeffs[idx]->prior_idxs) {
-        assert(coeffs[coord_coeff_idx]->distribution
-               == Coefficient::Distribution::gp_coord);
-        LOG(debug) << "using coordinate system coefficient " << coord_coeff_idx
-                   << ": " << *coeffs[coord_coeff_idx];
-        auto &coord_coeff = *coeffs[coord_coeff_idx];
-        auto exp_idxs = coord_coeff.experiment_idxs;
-        auto prior_idxs = coord_coeff.prior_idxs;
+      for (auto &coord_coeff : coeffs[idx]->priors) {
+        assert(coord_coeff->distribution == Coefficient::Type::gp_coord);
+        LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
+        auto exp_idxs = coord_coeff->experiment_idxs;
+        auto prior_idxs = coord_coeff->priors; // unused!
         size_t n = 0;
         for (size_t e : exp_idxs)
           n += experiments[e].S;
@@ -292,8 +284,9 @@ void Model::add_gp_proxies() {
           i += experiments[e].S;
         }
         LOG(debug) << "m.dimesions = " << m.rows() << "x" << m.cols();
-        coeffs[coord_coeff_idx]->gp = make_shared<GP::GaussianProcess>(
-            GP::GaussianProcess(m, parameters.gp.length_scale));
+        // TODO FIXUP coeffs
+        // coord_coeff->gp = make_shared<GP::GaussianProcess>(
+        //     GP::GaussianProcess(m, parameters.gp.length_scale));
       }
     }
 }
@@ -303,30 +296,28 @@ void Model::coeff_debug_dump(const string &tag) const {
   for (auto coeff : coeffs)
     LOG(debug) << tag << " " << index++ << " " << *coeff << ": "
                << coeff->info.to_string(design.covariates);
-  auto fnc = [&](const string &s, size_t idx, size_t e) {
-    LOG(debug) << tag << " " << s << " experiment " << e << " " << idx << " "
-               << *coeffs[idx] << ": "
-               << coeffs[idx]->info.to_string(design.covariates);
+  auto fnc = [&](const string &s, CoefficientPtr coeff, size_t e) {
+    LOG(debug) << tag << " " << s << " experiment " << e << " " << *coeff
+               << ": " << coeff->info.to_string(design.covariates);
   };
   for (size_t e = 0; e < E; ++e) {
-    for (auto idx : experiments[e].rate_coeff_idxs)
-      fnc("rate", idx, e);
-    for (auto idx : experiments[e].odds_coeff_idxs)
-      fnc("odds", idx, e);
+    for (auto coeff : experiments[e].rate_coeffs)
+      fnc("rate", coeff, e);
+    for (auto coeff : experiments[e].odds_coeffs)
+      fnc("odds", coeff, e);
   }
 }
 
-vector<size_t> find_redundant(const vector<vector<size_t>> &v) {
-  using inv_map_t = multimap<vector<size_t>, size_t>;
+set<CoefficientPtr> find_redundant(const map<CoefficientPtr, set<size_t>> &v) {
+  using inv_map_t = multimap<set<size_t>, CoefficientPtr>;
   inv_map_t m;
-  vector<size_t> redundant;
-  for (size_t i = 0; i < v.size(); ++i) {
-    auto key = v[i];
-    if (not key.empty()) {
-      pair<vector<size_t>, size_t> entry = {key, i};
-      m.insert(entry);
-      if (m.count(key) > 1)
-        redundant.push_back(i);
+  set<CoefficientPtr> redundant;
+  for (auto entry : v) {
+    if (not entry.second.empty()) {
+      pair<set<size_t>, CoefficientPtr> inv_entry = {entry.second, entry.first};
+      m.insert(inv_entry);
+      if (m.count(entry.second) > 1)
+        redundant.insert(entry.first);
     }
   }
   return redundant;
@@ -341,35 +332,35 @@ void Model::remove_redundant_terms() {
 
 // TODO covariates: add redundant term labels
 void Model::remove_redundant_terms(Coefficient::Kind kind) {
-  vector<vector<size_t>> cov2groups_rate(coeffs.size());
+  using map_t = map<CoefficientPtr, set<size_t>>;
+  map_t cov2groups_rate;
   for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].rate_coeff_idxs)
-      if (coeffs[idx]->kind == kind)
-        cov2groups_rate[idx].push_back(e);
+    for (auto coeff : experiments[e].rate_coeffs)
+      if (coeff->kind == kind)
+        cov2groups_rate[coeff].insert(e);
   remove_redundant_terms_sub(cov2groups_rate);
 
-  vector<vector<size_t>> cov2groups_odds(coeffs.size());
+  map_t cov2groups_odds;
   for (size_t e = 0; e < E; ++e)
-    for (auto idx : experiments[e].odds_coeff_idxs)
-      if (coeffs[idx]->kind == kind)
-        cov2groups_rate[idx].push_back(e);
+    for (auto coeff : experiments[e].odds_coeffs)
+      if (coeff->kind == kind)
+        cov2groups_rate[coeff].insert(e);
   remove_redundant_terms_sub(cov2groups_odds);
 }
 
 void Model::remove_redundant_terms_sub(
-    const vector<vector<size_t>> &cov2groups) {
+    const map<CoefficientPtr, set<size_t>> &cov2groups) {
   // TODO print warning in case coefficients are used in both rate and odds eqs
   auto redundant = find_redundant(cov2groups);
-  sort(begin(redundant), end(redundant));
-  reverse(begin(redundant), end(redundant));
 
   // drop redundant coefficients
-  for (auto r : redundant) {
-    LOG(verbose) << "Removing coefficient " << r << ": " << *coeffs[r] << ": "
-               << coeffs[r]->info.to_string(design.covariates);
-    coeffs.erase(begin(coeffs) + r);
+  for (auto coeff : redundant) {
+    LOG(verbose) << "Removing coefficient " << *coeff << ": "
+                 << coeff->info.to_string(design.covariates);
+    coeffs.erase(find(begin(coeffs), end(coeffs), coeff));
   }
 
+  /* TODO FIXUP coeffs
   // fix prior_idxs for dropped redundant coefficients
   for (auto &coeff : coeffs) {
     auto &idxs = coeff->prior_idxs;
@@ -393,7 +384,7 @@ void Model::remove_redundant_terms_sub(
           if (idx > r)
             idx--;
     }
-  }
+  } */
 }
 
 template <typename V>
@@ -454,11 +445,11 @@ void Model::store(const string &prefix_, bool mean_and_var,
                               begin(experiments[idx].counts.col_names),
                               end(experiments[idx].counts.col_names));
         coeff->store(prefix + "covariate-" + storage_type(coeff->kind) + "-"
-                        + coeff->label + "-"
-                        + coeff->info.to_string(design.covariates)
-                        + FILENAME_ENDING,
-                    parameters.compression_mode, gene_names, spot_names,
-                    type_names, order);
+                         + coeff->name + "-"
+                         + coeff->info.to_string(design.covariates)
+                         + FILENAME_ENDING,
+                     parameters.compression_mode, gene_names, spot_names,
+                     type_names, order);
       }
     }
 
@@ -496,7 +487,7 @@ void Model::restore(const string &prefix) {
   {
     for (auto &coeff : coeffs) {
       coeff->restore(
-          prefix + "covariate-" + storage_type(coeff->kind) + "-" + coeff->label
+          prefix + "covariate-" + storage_type(coeff->kind) + "-" + coeff->name
           + "-" + coeff->info.to_string(design.covariates) + FILENAME_ENDING);
     }
   }

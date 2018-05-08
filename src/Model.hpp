@@ -46,12 +46,13 @@ struct Model {
 
   Model(const std::vector<Counts> &data, size_t T, const Design::Design &design,
         const ModelSpec &model_spec, const Parameters &parameters);
+  Model clone() const;
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Kind kind);
   void remove_redundant_terms_sub(
-      const std::vector<std::vector<size_t>> &cov_groups);
+      const std::map<CoefficientPtr, std::set<size_t>> &cov_groups);
 
-  size_t register_coefficient(
+  CoefficientPtr register_coefficient(
       const std::unordered_map<std::string, ModelSpec::Variable> &variable_map,
       std::string id, size_t experiment);
   void add_covariates();
@@ -85,7 +86,7 @@ struct Model {
   Vector vectorize() const;
   void from_vector(const Vector &v);
   void gradient_update(size_t num_iterations,
-                       std::function<bool(const Coefficient &)> is_included);
+                       std::function<bool(const CoefficientPtr)> is_included);
   size_t size() const;
   size_t number_parameters() const;
 
