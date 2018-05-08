@@ -239,7 +239,9 @@ double GP::compute_gradient(CoefficientPtr grad_coeff) const {
       Matrix formed_gradient = (mus[idx] - formed_data[idx]).array()
                                / vars[idx].array() / vars[idx].array();
 
+      /* TODO FIXUP coeffs
       grad_coeff->priors[idx]->add_formed_data(formed_gradient);
+      */
     }
 
   double score = 0;
