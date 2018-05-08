@@ -214,8 +214,10 @@ double GP::compute_gradient(CoefficientPtr grad_coeff) const {
   */
 
   vector<Matrix> formed_data;
+  /* TODO FIXUP coeffs
   for (auto prior : priors)
     formed_data.push_back(prior->form_data());
+  */
 
   vector<Matrix> mus = formed_data;
   for (auto &m : mus)
