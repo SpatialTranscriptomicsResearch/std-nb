@@ -11,30 +11,30 @@ GaussianProcessParameters::GaussianProcessParameters(double len, double indep,
     , independent_variance(indep)
     , first_iteration(first_iter) {}
 
-double Hyperparameters::get_param(Coefficient::Distribution distribution,
+double Hyperparameters::get_param(Coefficient::Type distribution,
                                   size_t idx) const {
   switch (distribution) {
-    case Coefficient::Distribution::gamma:
+    case Coefficient::Type::gamma:
       if (idx == 0)
         return gamma_1;
       else
         return gamma_2;
-    case Coefficient::Distribution::beta_prime:
+    case Coefficient::Type::beta_prime:
       if (idx == 0)
         return beta_prime_1;
       else
         return beta_prime_2;
-    case Coefficient::Distribution::normal:
+    case Coefficient::Type::normal:
       if (idx == 0)
         return normal_1;
       else
         return normal_2;
-    case Coefficient::Distribution::gp:
+    case Coefficient::Type::gp:
       if (idx == 0)
         return normal_1;  // TODO gp mu parameter
       else
         return normal_2;  // TODO gp sigma parameter
-    case Coefficient::Distribution::gp_proxy:
+    case Coefficient::Type::gp_proxy:
       if (idx == 0)
         return normal_1;  // TODO gp mu parameter
       else

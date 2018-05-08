@@ -5,7 +5,7 @@
 using namespace spec_parser;
 
 const Distribution::Type default_dist = Distribution::Type::fixed;
-const std::vector<std::string> default_args = { "0" };
+const std::vector<std::string> default_args = {"0"};
 
 Distribution::Type Distribution::stodistr(const std::string& s) {
   static const std::unordered_map<std::string, Type> map{
@@ -41,21 +41,32 @@ std::string Distribution::distrtos(const Type& d) {
   }
 }
 
-Distribution::Distribution()
-    : type(default_dist)
-    , arguments(default_args)
-{
+Distribution::Distribution() : type(default_dist), arguments(default_args) {}
+Distribution::Distribution(Type _type,
+                           const std::vector<std::string> _arguments)
+    : type(_type), arguments(_arguments) {
+  if (not(arguments.size() == desired_argument_number()))
+    throw std::runtime_error("Error: wrong number of arguments for "
+                             + to_string(*this));
 }
-Distribution::Distribution(
-    Type _type, const std::vector<std::string> _arguments)
-    : type(_type)
-    , arguments(_arguments)
-{
-}
-Distribution::Distribution(
-    const std::string& _type, const std::vector<std::string> _arguments)
-    : Distribution(stodistr(_type), _arguments)
-{
+Distribution::Distribution(const std::string& _type,
+                           const std::vector<std::string> _arguments)
+    : Distribution(stodistr(_type), _arguments) {}
+
+size_t Distribution::desired_argument_number() {
+  switch (type) {
+    case Type::beta:
+    case Type::beta_prime:
+    case Type::gamma:
+    case Type::normal:
+      return 2;
+    case Type::fixed:
+      return 0;
+    case Type::gp:
+      return 3;
+    default:
+      throw std::logic_error("Not implemented.");
+  }
 }
 
 std::string spec_parser::to_string(const Distribution& d) {

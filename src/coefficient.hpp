@@ -10,59 +10,69 @@
 #include "gp.hpp"
 #include "types.hpp"
 
+namespace Coefficient {
+
 struct Coefficient;
+}
 
-using CoefficientPtr = std::shared_ptr<Coefficient>;
+using CoefficientPtr = std::shared_ptr<Coefficient::Coefficient>;
 
-struct Coefficient {
-  struct Parameters {
-    double variance = 0.1;
-  };
-  enum class Kind {
-    scalar = 0,
-    gene = 1,
-    spot = 2,
-    type = 4,
-    gene_type = 5,
-    spot_type = 6
-    // TODO make gene_spot and gene_spot_type illegal
-  };
-  enum class Distribution {
-    fixed,
-    gamma,
-    beta,
-    beta_prime,
-    // linear term
-    normal,
-    gp,
-    gp_coord,
-    gp_proxy
-  };
-  struct Id {
-    std::string name;
-    Coefficient::Kind kind;
-    Coefficient::Distribution dist;
-    CovariateInformation info;
-  };
-  Coefficient(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
-  Coefficient(size_t G, size_t T, size_t S, const std::string &label, Kind kind,
-              Distribution distribution, CovariateInformation info, const Parameters &params);
+namespace Coefficient {
+enum class Kind {
+  scalar = 0,
+  gene = 1,
+  spot = 2,
+  type = 4,
+  gene_type = 5,
+  spot_type = 6
+  // TODO make gene_spot and gene_spot_type illegal
+};
 
-  std::string label;
+enum class Type {
+  fixed,
+  gamma,
+  beta,
+  beta_prime,
+  // linear term
+  // file for quantitative covariates;
+  //   notation:
+  //     myfile ~ file(/where/the/file/is)
+  //     rate = rate(gene) + rate(type) + ... + myfile(gene) * rate_coeff(gene)
+  // continuous distributions:
+  //   exponential
+  //   multi-variate normal
+  // discrete distributions:
+  //   Bernoulli
+  //   Binomial
+  //   Poisson
+  normal,
+  gp,
+  gp_coord,
+  gp_proxy
+};
+
+struct Parameters {
+  double variance = 0.1;
+};
+
+struct Id {
+  std::string name;
   Kind kind;
-  Distribution distribution;
-
-  std::shared_ptr<GP::GaussianProcess> gp;
-  STD::Matrix form_data(const std::vector<CoefficientPtr> &coeffs) const;
-  void add_formed_data(const STD::Matrix &m,
-                       std::vector<CoefficientPtr> &coeffs) const;
-
+  Type distribution;
   CovariateInformation info;
+};
+
+struct Coefficient : public Id {
+  Coefficient(size_t G, size_t T, size_t S, const Id &id,
+              const Parameters &params);
+
   Parameters parameters;
   STD::Matrix values;
-  std::vector<size_t> prior_idxs;
+  std::vector<CoefficientPtr> priors;
   std::vector<size_t> experiment_idxs;
 
+  bool parent_a_flexible;
+  bool parent_b_flexible;
   bool gene_dependent() const;
   bool type_dependent() const;
   bool spot_dependent() const;
@@ -80,12 +90,7 @@ struct Coefficient {
   STD::Vector vectorize() const;
   std::string to_string() const;
 
-  double compute_gradient(const std::vector<CoefficientPtr> &coeffs,
-                          std::vector<CoefficientPtr> &grad_coeffs,
-                          size_t idx) const;
-  double compute_gradient_gp(const std::vector<CoefficientPtr> &coeffs,
-                             std::vector<CoefficientPtr> &grad_coeffs,
-                             size_t idx) const;
+  virtual double compute_gradient(CoefficientPtr grad_coeff) const = 0;
 
   double get_raw(size_t g, size_t t, size_t s) const;  // rename to operator()
   double &get_raw(size_t g, size_t t, size_t s);       // rename to operator()
@@ -136,35 +141,79 @@ struct Coefficient {
   }
 };
 
-Coefficient::Kind determine_kind(const std::set<std::string> &term);
+struct Fixed : public Coefficient {
+  Fixed(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+};
 
-std::string to_string(const Coefficient::Kind &kind);
-std::string to_string(const Coefficient::Distribution &distribution);
-std::string to_token(const Coefficient::Kind &kind);
-std::string storage_type(Coefficient::Kind kind);
+struct Distributions : public Coefficient {
+  Distributions(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+};
+struct Beta : public Distributions {
+  Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const;
+};
+struct BetaPrime : public Distributions {
+  BetaPrime(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const;
+};
+struct Normal : public Distributions {
+  Normal(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const;
+};
+struct Gamma : public Distributions {
+  Gamma(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const;
+};
+
+namespace GP {
+
+struct GP : public Coefficient {
+  GP(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  std::shared_ptr<::GP::GaussianProcess> gp;
+  double compute_gradient(CoefficientPtr grad_coeff) const;
+};
+struct Coord : public Coefficient {
+  Coord(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  STD::Matrix form_data() const;
+  void add_formed_data(const STD::Matrix &m) const;
+  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+};
+struct Points : public Coefficient {
+  Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+};
+}  // namespace GP
+
+size_t distribution_number_parameters(Type distribution);
+
+Kind determine_kind(const std::set<std::string> &term);
+
+std::string to_string(const Kind &kind);
+std::string to_string(const Type &distribution);
+std::string to_token(const Kind &kind);
+std::string storage_type(Kind kind);
 std::ostream &operator<<(std::ostream &os, const Coefficient &coeff);
 
-inline constexpr Coefficient::Kind operator&(Coefficient::Kind a,
-                                             Coefficient::Kind b) {
-  return static_cast<Coefficient::Kind>(static_cast<int>(a)
-                                        & static_cast<int>(b));
+inline constexpr Kind operator&(Kind a, Kind b) {
+  return static_cast<Kind>(static_cast<int>(a) & static_cast<int>(b));
 }
 
-inline constexpr Coefficient::Kind operator|(Coefficient::Kind a,
-                                             Coefficient::Kind b) {
-  return static_cast<Coefficient::Kind>(static_cast<int>(a)
-                                        | static_cast<int>(b));
+inline constexpr Kind operator|(Kind a, Kind b) {
+  return static_cast<Kind>(static_cast<int>(a) | static_cast<int>(b));
 }
 
-inline constexpr Coefficient::Kind operator^(Coefficient::Kind a,
-                                             Coefficient::Kind b) {
-  return static_cast<Coefficient::Kind>(static_cast<int>(a)
-                                        & static_cast<int>(b));
+inline constexpr Kind operator^(Kind a, Kind b) {
+  return static_cast<Kind>(static_cast<int>(a) & static_cast<int>(b));
 }
 
-inline constexpr Coefficient::Kind operator~(Coefficient::Kind a) {
-  return static_cast<Coefficient::Kind>((~static_cast<int>(a))
-                                        & ((1 << 11) - 1));
+inline constexpr Kind operator~(Kind a) {
+  return static_cast<Kind>((~static_cast<int>(a)) & ((1 << 11) - 1));
 }
+
+CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &id,
+                           const Parameters &params);
+
+}  // namespace Coefficient
 
 #endif

@@ -11,7 +11,7 @@ namespace spec_parser {
 
 struct Distribution {
   // TODO: consider using separate Distribution type to increase modularity
-  using Type = Coefficient::Distribution;
+  using Type = Coefficient::Type;
 
   static Type stodistr(const std::string& s);
   static std::string distrtos(const Type& d);
@@ -22,6 +22,7 @@ struct Distribution {
   Distribution();
   Distribution(Type type, const std::vector<std::string> arguments);
   Distribution(const std::string& type, const std::vector<std::string> arguments);
+  size_t desired_argument_number();
 };
 
 std::string to_string(const Distribution& d);

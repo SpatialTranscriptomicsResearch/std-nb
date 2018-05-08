@@ -44,6 +44,8 @@ void compile_expression_and_derivs(const ExprPtr<T> &expr,
   }
 }
 
+bool initialized_jit = false;
+
 Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
              const ModelSpec &model_spec_, const Parameters &parameters_)
     : G(max_row_number(c)),
@@ -61,12 +63,15 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
       parameters(parameters_),
       contributions_gene_type(Matrix::Zero(G, T)),
       contributions_gene(Vector::Zero(G)) {
-  JIT::init_runtime(module_name, parameters.output_directory + "/");
+  if (not(initialized_jit)) {
+    JIT::init_runtime(module_name, parameters.output_directory + "/");
 
-  compile_expression_and_derivs(model_spec.rate_expr, "rate");
-  compile_expression_and_derivs(model_spec.odds_expr, "odds");
+    compile_expression_and_derivs(model_spec.rate_expr, "rate");
+    compile_expression_and_derivs(model_spec.odds_expr, "odds");
 
-  JIT::finalize_module(module_name);
+    JIT::finalize_module(module_name);
+    initialized_jit = true;
+  }
 
   rate_fnc = JIT::get_function("rate");
   odds_fnc = JIT::get_function("odds");
@@ -93,8 +98,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 
   size_t index = 0;
   for (auto coeff : coeffs)
-    LOG(verbose) << index++ << " " << *coeff << ": "
-                 << coeff->info.to_string(design.covariates);
+    LOG(debug) << index++ << " " << *coeff << ": "
+               << coeff->info.to_string(design.covariates);
 
   auto fnc = [](const Experiment &a, const Experiment &b) -> bool {
     return a.scale_ratio < b.scale_ratio;
@@ -108,6 +113,14 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 
   // TODO cov spot initialize spot scaling:
   // linear in number of counts, scaled so that mean = 1
+}
+
+Model Model::clone() const {
+  // TODO reactivate coeffs make efficient; avoid recompilation
+  vector<Counts> counts;
+  for(auto experiment: experiments)
+    counts.push_back(experiment.counts);
+  return Model(counts, T, design, model_spec, parameters);
 }
 
 void Model::ensure_dimensions() const {
@@ -181,11 +194,9 @@ pair<Matrix, Matrix> Model::compute_mean_and_var(size_t e) const {
       for (size_t s = 0; s < exp.S; ++s) {
         for (size_t t = 0; t < T; ++t) {
           for (size_t i = 0; i < num_rate_coeffs; ++i)
-            rate_coeff_arrays[t][i]
-                = coeffs[exp.rate_coeff_idxs[i]]->get_actual(g, t, s);
+            rate_coeff_arrays[t][i] = exp.rate_coeffs[i]->get_actual(g, t, s);
           for (size_t i = 0; i < num_odds_coeffs; ++i)
-            odds_coeff_arrays[t][i]
-                = coeffs[exp.odds_coeff_idxs[i]]->get_actual(g, t, s);
+            odds_coeff_arrays[t][i] = exp.odds_coeffs[i]->get_actual(g, t, s);
 
           rate = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
           odds = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
@@ -208,10 +219,7 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   LOG(debug) << "Computing gradient";
 
   score = 0;
-  Model gradient = *this;
-  std::transform(
-      begin(coeffs), end(coeffs), begin(gradient.coeffs),
-      [](const auto &x) { return std::make_shared<Coefficient>(*x); });
+  Model gradient = clone();
   gradient.setZero();
   gradient.contributions_gene_type.setZero();
   for (auto &experiment : gradient.experiments) {
@@ -221,10 +229,7 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
 
 #pragma omp parallel if (DO_PARALLEL)
   {
-    Model grad = gradient;
-    std::transform(
-        begin(gradient.coeffs), end(gradient.coeffs), begin(grad.coeffs),
-        [](const auto &x) { return std::make_shared<Coefficient>(*x); });
+    Model grad = gradient.clone();
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
     Vector rate(T), odds(T);
@@ -249,10 +254,10 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
             for (size_t t = 0; t < T; ++t) {
               for (size_t i = 0; i < num_rate_coeffs; ++i)
                 rate_coeff_arrays[t][i]
-                    = coeffs[exp.rate_coeff_idxs[i]]->get_actual(g, t, s);
+                    = exp.rate_coeffs[i]->get_actual(g, t, s);
               for (size_t i = 0; i < num_odds_coeffs; ++i)
                 odds_coeff_arrays[t][i]
-                    = coeffs[exp.odds_coeff_idxs[i]]->get_actual(g, t, s);
+                    = exp.odds_coeffs[i]->get_actual(g, t, s);
 
               rate(t) = std::exp(rate_fnc(rate_coeff_arrays[t].data()));
               odds(t) = std::exp(odds_fnc(odds_coeff_arrays[t].data()));
@@ -281,9 +286,9 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    if (coeffs[i]->distribution != Coefficient::Distribution::gp_proxy
+    if (coeffs[i]->distribution != Coefficient::Type::gp_proxy
         or iter_cnt >= parameters.gp.first_iteration)
-      score += coeffs[i]->compute_gradient(coeffs, gradient.coeffs, i);
+      score += coeffs[i]->compute_gradient(gradient.coeffs[i]);
 
   return gradient;
 }
@@ -321,15 +326,13 @@ void Model::register_gradient_total(
     // loop over rate covariates
     auto deriv_iter = begin(rate_derivs);
     for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-      size_t coeff_idx = experiments[e].rate_coeff_idxs[idx];
-      gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+      gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
           += rate_term * rate(t) * (*deriv_iter)(rate_coeffs[t].data());
     }
     // loop over odds covariates
     deriv_iter = begin(odds_derivs);
     for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-      size_t coeff_idx = experiments[e].odds_coeff_idxs[idx];
-      gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+      gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
           += odds_term * (*deriv_iter)(odds_coeffs[t].data());
     }
   }
@@ -355,15 +358,13 @@ void Model::register_gradient(size_t g, size_t e, size_t s, size_t t,
   // loop over rate covariates
   auto deriv_iter = begin(rate_derivs);
   for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-    size_t coeff_idx = experiments[e].rate_coeff_idxs[idx];
-    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+    gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
         += rate_term * (*deriv_iter)(rate_coeffs.data());
   }
   // loop over odds covariates
   deriv_iter = begin(odds_derivs);
   for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-    size_t coeff_idx = experiments[e].odds_coeff_idxs[idx];
-    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+    gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
         += odds_term * (*deriv_iter)(odds_coeffs.data());
   }
 }
@@ -384,25 +385,23 @@ void Model::register_gradient_zero_count(
   // loop over rate covariates
   auto deriv_iter = begin(rate_derivs);
   for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-    size_t coeff_idx = experiments[e].rate_coeff_idxs[idx];
-    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+    gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
         += rate_term * (*deriv_iter)(rate_coeffs.data());
   }
   // loop over odds covariates
   deriv_iter = begin(odds_derivs);
   for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-    size_t coeff_idx = experiments[e].odds_coeff_idxs[idx];
-    gradient.coeffs[coeff_idx]->get_raw(g, t, s)
+    gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
         += odds_term * (*deriv_iter)(odds_coeffs.data());
   }
 }
 
 void Model::gradient_update(
     size_t num_iterations,
-    std::function<bool(const Coefficient &)> is_included) {
+    std::function<bool(const CoefficientPtr)> is_included) {
   LOG(verbose) << "Performing gradient update iterations";
-  for (auto &coeff : coeffs)
-    if (is_included(*coeff))
+  for (auto coeff : coeffs)
+    if (is_included(coeff))
       LOG(debug) << "Optimizing " << coeff->to_string();
 
   size_t current_iteration = 0;
@@ -429,20 +428,20 @@ void Model::gradient_update(
         score, not parameters.skip_likelihood
                    or current_iteration == num_iterations
                    or current_iteration % parameters.report_interval == 0);
-    for (auto &coeff : model_grad.coeffs)
+    for (auto coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 
     // restore parameters from before deactivating stochasticity
     parameters = temp_parameters;
 
     // set gradient to zero for fixed coefficients
-    for (auto &coeff : model_grad.coeffs)
-      if (coeff->distribution == Coefficient::Distribution::fixed)
+    for (auto coeff : model_grad.coeffs)
+      if (coeff->distribution == Coefficient::Type::fixed)
         coeff->values.setZero();
 
     // set gradient to zero for coefficients that are not included
-    for (auto &coeff : model_grad.coeffs) {
-      if (not is_included(*coeff))
+    for (auto coeff : model_grad.coeffs) {
+      if (not is_included(coeff))
         coeff->values.fill(0);
     }
 

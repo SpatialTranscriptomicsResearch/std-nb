@@ -34,12 +34,11 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
 }
 
 void Experiment::ensure_dimensions() const {
-  for (auto &idxs : {rate_coeff_idxs, odds_coeff_idxs})
-    for (auto &coeff_idx : idxs) {
+  for (auto &coeffs : {rate_coeffs, odds_coeffs})
+    for (auto &coeff : coeffs) {
       int nrow = 0;
       int ncol = 0;
-      Coefficient &coeff = *model->coeffs[coeff_idx];
-      switch (coeff.kind) {
+      switch (coeff->kind) {
         case Coefficient::Kind::scalar:
           nrow = ncol = 1;
           break;
@@ -64,11 +63,10 @@ void Experiment::ensure_dimensions() const {
           ncol = T;
           break;
       }
-      if (coeff.values.rows() != nrow or coeff.values.cols() != ncol)
-        throw std::runtime_error("Error: mismatched dimension on coefficient "
-                                 + to_string(coeff_idx) + ": " + to_string(nrow)
-                                 + "x" + to_string(ncol) + " vs "
-                                 + coeff.to_string());
+      if (coeff->values.rows() != nrow or coeff->values.cols() != ncol)
+        throw std::runtime_error("Error: mismatched dimension on coefficient: "
+                                 + to_string(nrow) + "x" + to_string(ncol)
+                                 + " vs " + coeff->to_string());
     }
 }
 
@@ -274,7 +272,6 @@ Vector Experiment::sample_contributions_gene_spot(size_t g, size_t s,
 }
 
 ostream &operator<<(ostream &os, const Experiment &experiment) {
-
   size_t reads = experiment.counts.matrix->sum();
   os << "Experiment "
      << "G = " << experiment.G << " "
