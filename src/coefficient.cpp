@@ -29,9 +29,9 @@ Kind determine_kind(const set<string> &term) {
 }
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
-                         const Parameters &params)
-    : Id(id),
-      parameters(params) {
+                         const Parameters &params,
+                         const std::vector<CoefficientPtr> &priors_)
+    : Id(id), parameters(params), priors(priors_) {
   if (type == Type::gp and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
@@ -66,11 +66,12 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
       x = parameters.variance
           * std::normal_distribution<double>()(EntropySource::rng);
 
-  // TODO FIXUP coeffs
-  // parent_a_flexible = grad_coeff->priors[0]->type != Type::fixed;
-  // parent_b_flexible = grad_coeff->priors[1]->type != Type::fixed;
   parent_a_flexible = false;
   parent_b_flexible = false;
+  if (priors.size() >= 2) {
+    parent_a_flexible = priors[0]->type != Type::fixed;
+    parent_b_flexible = priors[1]->type != Type::fixed;
+  }
 
   LOG(debug) << "parent_a_flexible = " << parent_a_flexible;
   LOG(debug) << "parent_b_flexible = " << parent_b_flexible;
@@ -80,30 +81,35 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
 
 Fixed::Fixed(size_t G, size_t T, size_t S, const Id &id,
              const Parameters &params)
-    : Coefficient(G, T, S, id, params) {}
+    : Coefficient(G, T, S, id, params, {}) {}
 Distributions::Distributions(size_t G, size_t T, size_t S, const Id &id,
-                             const Parameters &params)
-    : Coefficient(G, T, S, id, params) {}
+                             const Parameters &params,
+                             const std::vector<CoefficientPtr> &priors_)
+    : Coefficient(G, T, S, id, params, priors_) {}
 Gamma::Gamma(size_t G, size_t T, size_t S, const Id &id,
-             const Parameters &params)
-    : Distributions(G, T, S, id, params) {}
-Beta::Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params)
-    : Distributions(G, T, S, id, params) {}
+             const Parameters &params,
+             const std::vector<CoefficientPtr> &priors_)
+    : Distributions(G, T, S, id, params, priors_) {}
+Beta::Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+           const std::vector<CoefficientPtr> &priors_)
+    : Distributions(G, T, S, id, params, priors_) {}
 BetaPrime::BetaPrime(size_t G, size_t T, size_t S, const Id &id,
-                     const Parameters &params)
-    : Distributions(G, T, S, id, params) {}
+                     const Parameters &params,
+                     const std::vector<CoefficientPtr> &priors_)
+    : Distributions(G, T, S, id, params, priors_) {}
 Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
-               const Parameters &params)
-    : Distributions(G, T, S, id, params) {}
+               const Parameters &params,
+               const std::vector<CoefficientPtr> &priors_)
+    : Distributions(G, T, S, id, params, priors_) {}
 namespace GP {
 GP::GP(size_t G, size_t T, size_t S, const Id &id, const Parameters &params)
-    : Coefficient(G, T, S, id, params) {}
+    : Coefficient(G, T, S, id, params, {}) {}
 Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
              const Parameters &params)
-    : Coefficient(G, T, S, id, params) {}
+    : Coefficient(G, T, S, id, params, {}) {}
 Points::Points(size_t G, size_t T, size_t S, const Id &id,
                const Parameters &params)
-    : Coefficient(G, T, S, id, params) {}
+    : Coefficient(G, T, S, id, params, {}) {}
 }  // namespace GP
 
 /** Calculates gradient with respect to the "natural" representation
@@ -194,7 +200,7 @@ double Normal::compute_gradient(CoefficientPtr grad_coeff) const {
   });
 }
 
-namespace GP{
+namespace GP {
 
 double GP::compute_gradient(CoefficientPtr grad_coeff) const {
   LOG(verbose) << "Computing log Gaussian process gradient.";
@@ -253,7 +259,7 @@ double GP::compute_gradient(CoefficientPtr grad_coeff) const {
               += log_normal(formed_data[k](i, j), mus[k](i, j), vars[k](i, j));
   return score;
 }
-}
+}  // namespace GP
 
 bool kind_included(Kind kind, Kind x) { return (kind & x) == x; }
 
@@ -319,7 +325,8 @@ double &Coefficient::get_raw(size_t g, size_t t, size_t s) {
     case Kind::spot_type:
       return values(s, t);
     default:
-      throw std::runtime_error("Error: invalid Coefficient::Kind in get_raw().");
+      throw std::runtime_error(
+          "Error: invalid Coefficient::Kind in get_raw().");
   }
 }
 
@@ -535,7 +542,7 @@ void Coord::add_formed_data(const Matrix &m) const {
     row += prior->values.rows();
   }
 }
-}
+}  // namespace GP
 
 ostream &operator<<(ostream &os, const Coefficient &coeff) {
   os << coeff.to_string();
@@ -543,18 +550,19 @@ ostream &operator<<(ostream &os, const Coefficient &coeff) {
 }
 
 CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &cid,
-                           const Parameters &params) {
+                           const Parameters &params,
+                           const std::vector<CoefficientPtr> &priors) {
   switch (cid.type) {
     case Type::fixed:
       return std::make_shared<Fixed>(G, T, S, cid, params);
     case Type::normal:
-      return std::make_shared<Normal>(G, T, S, cid, params);
+      return std::make_shared<Normal>(G, T, S, cid, params, priors);
     case Type::beta:
-      return std::make_shared<Beta>(G, T, S, cid, params);
+      return std::make_shared<Beta>(G, T, S, cid, params, priors);
     case Type::beta_prime:
-      return std::make_shared<BetaPrime>(G, T, S, cid, params);
+      return std::make_shared<BetaPrime>(G, T, S, cid, params, priors);
     case Type::gamma:
-      return std::make_shared<Gamma>(G, T, S, cid, params);
+      return std::make_shared<Gamma>(G, T, S, cid, params, priors);
     case Type::gp_proxy:
       return std::make_shared<GP::GP>(G, T, S, cid, params);
     case Type::gp_coord:

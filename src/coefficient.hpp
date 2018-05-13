@@ -64,7 +64,8 @@ struct Id {
 
 struct Coefficient : public Id {
   Coefficient(size_t G, size_t T, size_t S, const Id &id,
-              const Parameters &params);
+              const Parameters &params,
+              const std::vector<CoefficientPtr> &priors_);
 
   Parameters parameters;
   STD::Matrix values;
@@ -147,22 +148,29 @@ struct Fixed : public Coefficient {
 };
 
 struct Distributions : public Coefficient {
-  Distributions(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  Distributions(size_t G, size_t T, size_t S, const Id &id,
+                const Parameters &params,
+                const std::vector<CoefficientPtr> &priors);
 };
 struct Beta : public Distributions {
-  Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+       const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 struct BetaPrime : public Distributions {
-  BetaPrime(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  BetaPrime(size_t G, size_t T, size_t S, const Id &id,
+            const Parameters &params,
+            const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 struct Normal : public Distributions {
-  Normal(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  Normal(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+         const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 struct Gamma : public Distributions {
-  Gamma(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  Gamma(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+        const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 
@@ -212,7 +220,8 @@ inline constexpr Kind operator~(Kind a) {
 }
 
 CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &id,
-                           const Parameters &params);
+                           const Parameters &params,
+                           const std::vector<CoefficientPtr> &priors);
 
 }  // namespace Coefficient
 
