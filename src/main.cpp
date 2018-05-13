@@ -272,11 +272,6 @@ int main(int argc, char **argv) {
     ("optim", po::value(&parameters.optim_method)->default_value(parameters.optim_method),
      "Which optimization method to use. "
      "Available are: Gradient, RPROP, AdaGrad, Adam.")
-    ("contrib", po::value(&parameters.sample_method)->default_value(parameters.sample_method),
-     "How to sample the contributions. "
-     "Available are: Mean, Multinomial, Trial, TrialMean, MH, HMC, RPROP.")
-    ("sample_iter", po::value(&parameters.sample_iterations)->default_value(parameters.sample_iterations),
-     "Number of iterations to perform for iterative sampling methods.")
     ("stage", po::value(&options.staging_iterations)->default_value(options.staging_iterations),
      "Number of staging iteration to perform. "
      "With this first only scalar coefficients will be optimized, "

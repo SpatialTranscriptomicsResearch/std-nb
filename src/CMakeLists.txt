@@ -31,7 +31,6 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   parameters.cpp
   pdist.cpp
   sampling.cpp
-  sampling_method.cpp
   terminal.cpp
   timer.cpp
   types.cpp
