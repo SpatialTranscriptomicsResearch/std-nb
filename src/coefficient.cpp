@@ -32,7 +32,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
                          const Parameters &params)
     : Id(id),
       parameters(params) {
-  if (distribution == Type::gp and not spot_dependent())
+  if (type == Type::gp and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
         "spot- and type-dependent coefficients.");
@@ -61,14 +61,14 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
           "Error: invalid Coefficient::Kind in Coefficient::Coefficient().");
   }
 
-  if (distribution != Type::fixed)
+  if (type != Type::fixed)
     for (auto &x : values)
       x = parameters.variance
           * std::normal_distribution<double>()(EntropySource::rng);
 
   // TODO FIXUP coeffs
-  // parent_a_flexible = grad_coeff->priors[0]->distribution != Type::fixed;
-  // parent_b_flexible = grad_coeff->priors[1]->distribution != Type::fixed;
+  // parent_a_flexible = grad_coeff->priors[0]->type != Type::fixed;
+  // parent_b_flexible = grad_coeff->priors[1]->type != Type::fixed;
   parent_a_flexible = false;
   parent_b_flexible = false;
 
@@ -199,7 +199,7 @@ namespace GP{
 double GP::compute_gradient(CoefficientPtr grad_coeff) const {
   LOG(verbose) << "Computing log Gaussian process gradient.";
 
-  assert(distribution == Type::gp_proxy);
+  assert(type == Type::gp_proxy);
 
   ::GP::MeanTreatment mean_treatment = ::GP::MeanTreatment::zero;
 
@@ -347,7 +347,7 @@ double sigmoid(double x) { return 1 / (1 + exp(-x)); }
 
 double Coefficient::get_actual(size_t g, size_t t, size_t s) const {
   double x = get_raw(g, t, s);
-  switch (distribution) {
+  switch (type) {
     case Type::beta:
       return sigmoid(x);
     case Type::beta_prime:
@@ -361,7 +361,7 @@ double Coefficient::get_actual(size_t g, size_t t, size_t s) const {
 size_t Coefficient::size() const { return values.size(); }
 
 size_t Coefficient::number_parameters() const {
-  switch (distribution) {
+  switch (type) {
     case Type::gp_coord:
     case Type::fixed:
       return 0;
@@ -420,8 +420,8 @@ string to_string(const Kind &kind) {
          + "dependent";
 }
 
-string to_string(const Type &distribution) {
-  switch (distribution) {
+string to_string(const Type &type) {
+  switch (type) {
     case Type::fixed:
       return "fixed";
     case Type::gamma:
@@ -481,7 +481,7 @@ string storage_type(Kind kind) {
 }
 
 string Coefficient::to_string() const {
-  string s = "Coefficient '" + name + "', " + ::Coefficient::to_string(distribution)
+  string s = "Coefficient '" + name + "', " + ::Coefficient::to_string(type)
              + "-distributed " + ::Coefficient::to_string(kind);
   s += ": " + std::to_string(values.rows()) + "x"
        + std::to_string(values.cols()) + " (" + std::to_string(values.size())
@@ -494,7 +494,7 @@ string Coefficient::to_string() const {
 namespace GP {
 
 Matrix Coord::form_data() const {
-  if (distribution != Type::gp_coord)
+  if (type != Type::gp_coord)
     std::runtime_error(
         "Error: called form_data() on a coefficient that is not a Gaussian "
         "process coordinate system.");
@@ -518,7 +518,7 @@ Matrix Coord::form_data() const {
 }
 
 void Coord::add_formed_data(const Matrix &m) const {
-  if (distribution != Type::gp_coord)
+  if (type != Type::gp_coord)
     std::runtime_error(
         "Error: called add_formed_data() on a coefficient that is not a "
         "Gaussian process coordinate system.");
@@ -544,7 +544,7 @@ ostream &operator<<(ostream &os, const Coefficient &coeff) {
 
 CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &cid,
                            const Parameters &params) {
-  switch (cid.distribution) {
+  switch (cid.type) {
     case Type::fixed:
       return std::make_shared<Fixed>(G, T, S, cid, params);
     case Type::normal:

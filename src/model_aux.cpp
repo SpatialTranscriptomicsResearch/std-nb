@@ -102,7 +102,7 @@ std::vector<CoefficientPtr>::iterator Model::find_coefficient(
     const Coefficient::Id &cid) {
   return find_if(begin(coeffs), end(coeffs), [&](const CoefficientPtr &coeff) {
     return coeff->name == cid.name and coeff->kind == cid.kind
-           and coeff->distribution == cid.distribution
+           and coeff->type == cid.type
            and coeff->info == cid.info;
   });
 }
@@ -110,8 +110,7 @@ std::vector<CoefficientPtr>::iterator Model::find_coefficient(
 CoefficientPtr Model::register_coefficient(
     const unordered_map<string, ModelSpec::Variable> &variable_map, string id,
     size_t experiment) {
-  // Register coefficient if it doesn't already exist and return its index in
-  // the coeffs vector.
+  // Register coefficient if it doesn't already exist and return a pointer to it
   auto do_registration
       = [this](const Coefficient::Id &cid, size_t _G, size_t _T, size_t _S,
                std::function<void(const CoefficientPtr&)> on_add) -> CoefficientPtr {
@@ -132,7 +131,7 @@ CoefficientPtr Model::register_coefficient(
     Coefficient::Id cid{
       .name = id,
       .kind = Coefficient::Kind::scalar,
-      .distribution = Coefficient::Type::fixed,
+      .type = Coefficient::Type::fixed,
       .info = CovariateInformation{},
     };
     return do_registration(
@@ -165,7 +164,7 @@ CoefficientPtr Model::register_coefficient(
     Coefficient::Id cid{
       .name = id,
       .kind = kind,
-      .distribution = variable->distribution->type,
+      .type = variable->distribution->type,
       .info = info,
     };
 
@@ -193,7 +192,7 @@ CoefficientPtr Model::register_coefficient(
           = id + "-gp-coord-"
             + design.get_covariate_value(experiment, Design::coordsys_label),
           .kind = gp_kind,
-          .distribution = Coefficient::Type::gp_coord,
+          .type = Coefficient::Type::gp_coord,
           .info = gp_coord_info,
       };
       auto gp_coord_coeff
@@ -212,7 +211,7 @@ CoefficientPtr Model::register_coefficient(
       auto gp_id = Coefficient::Id{
           .name = id + "-gp-proxy",
           .kind = gp_kind,
-          .distribution = Coefficient::Type::gp_proxy,
+          .type = Coefficient::Type::gp_proxy,
           .info = gp_proxy_info,
       };
       auto gp_proxy_coeff
@@ -263,10 +262,10 @@ void Model::add_covariates() {
 void Model::add_gp_proxies() {
   LOG(debug) << "Constructing GP proxies";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
-    if (coeffs[idx]->distribution == Coefficient::Type::gp_proxy) {
+    if (coeffs[idx]->type == Coefficient::Type::gp_proxy) {
       LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
       for (auto &coord_coeff : coeffs[idx]->priors) {
-        assert(coord_coeff->distribution == Coefficient::Type::gp_coord);
+        assert(coord_coeff->type == Coefficient::Type::gp_coord);
         LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
         auto exp_idxs = coord_coeff->experiment_idxs;
         auto prior_idxs = coord_coeff->priors; // unused!

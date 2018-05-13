@@ -286,7 +286,7 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    if (coeffs[i]->distribution != Coefficient::Type::gp_proxy
+    if (coeffs[i]->type != Coefficient::Type::gp_proxy
         or iter_cnt >= parameters.gp.first_iteration)
       score += coeffs[i]->compute_gradient(gradient.coeffs[i]);
 
@@ -436,7 +436,7 @@ void Model::gradient_update(
 
     // set gradient to zero for fixed coefficients
     for (auto coeff : model_grad.coeffs)
-      if (coeff->distribution == Coefficient::Type::fixed)
+      if (coeff->type == Coefficient::Type::fixed)
         coeff->values.setZero();
 
     // set gradient to zero for coefficients that are not included

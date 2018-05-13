@@ -58,7 +58,7 @@ struct Parameters {
 struct Id {
   std::string name;
   Kind kind;
-  Type distribution;
+  Type type;
   CovariateInformation info;
 };
 
