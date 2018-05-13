@@ -60,10 +60,6 @@ struct Experiment {
 
   void store(const std::string &prefix, const std::vector<size_t> &order) const;
   void restore(const std::string &prefix);
-
-  /** sample count decomposition */
-  Vector sample_contributions_gene_spot(size_t g, size_t s, const Vector &rate,
-                                        const Vector &odds, RNG &rng) const;
 };
 
 std::ostream &operator<<(std::ostream &os, const Experiment &experiment);
