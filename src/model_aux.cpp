@@ -111,16 +111,19 @@ CoefficientPtr Model::register_coefficient(
     size_t experiment) {
   // Register coefficient if it doesn't already exist and return a pointer to it
   auto do_registration
-      = [this](const Coefficient::Id &cid, size_t _G, size_t _T, size_t _S,
-               const vector<CoefficientPtr> &priors) -> CoefficientPtr {
+      = [this, &experiment](
+            const Coefficient::Id &cid, size_t _G, size_t _T, size_t _S,
+            const vector<CoefficientPtr> &priors) -> CoefficientPtr {
     auto it = find_coefficient(cid);
     if (it != end(coeffs)) {
+      (*it)->experiment_idxs.push_back(experiment);
       return *it;
     } else {
       LOG(debug) << "Adding new coefficient for " << cid.name << ".";
       coeffs.emplace_back(Coefficient::make_shared(
           _G, _T, _S, cid, parameters.coeff_parameters, priors));
       auto coeff = coeffs.back();
+      coeff->experiment_idxs.push_back(experiment);
       LOG(debug) << "Added new coefficient: " << *coeff << ".";
       return coeff;
     }
@@ -181,8 +184,7 @@ CoefficientPtr Model::register_coefficient(
 
     CoefficientPtr coeff
         = do_registration(cid, G, T, experiments[experiment].S, priors);
-
-    if (variable->distribution->type == Coefficient::Type::gp) {
+    if (variable->distribution->type == Coefficient::Type::gp_points) {
       auto gp_kind = kind & ~Coefficient::Kind::spot;
 
       // Create or update coordinate system
@@ -196,30 +198,12 @@ CoefficientPtr Model::register_coefficient(
           .type = Coefficient::Type::gp_coord,
           .info = gp_coord_info,
       };
-      auto gp_coord_coeff = do_registration(gp_coord_id, G, T, 0, {});
+      auto gp_coord_coeff = dynamic_pointer_cast<Coefficient::GP::Coord>(
+          do_registration(gp_coord_id, G, T, 0, priors));
       LOG(debug) << "Updating GP coordinate system (" << *gp_coord_coeff
                  << ").";
-      gp_coord_coeff->experiment_idxs.push_back(experiment);
-      gp_coord_coeff->priors.emplace_back(coeff);
-
-      // Create or update GP proxy
-      auto gp_proxy_info = drop_covariates(
-          info, design,
-          {Design::spot_label, Design::section_label, Design::coordsys_label});
-      auto gp_id = Coefficient::Id{
-          .name = id + "-gp-proxy",
-          .kind = gp_kind,
-          .type = Coefficient::Type::gp_proxy,
-          .info = gp_proxy_info,
-      };
-      auto gp_proxy_coeff = do_registration(gp_id, G, T, 0, {});
-      LOG(debug) << "Updating GP proxy (" << *gp_proxy_coeff << ").";
-      gp_proxy_coeff->experiment_idxs.push_back(experiment);
-      if (std::find(begin(gp_proxy_coeff->priors), end(gp_proxy_coeff->priors),
-                    gp_coord_coeff)
-          == end(gp_proxy_coeff->priors)) {
-        gp_proxy_coeff->priors.emplace_back(gp_coord_coeff);
-      }
+      gp_coord_coeff->points.emplace_back(
+          dynamic_pointer_cast<Coefficient::GP::Points>(coeff));
     }
 
     return coeff;
@@ -243,14 +227,12 @@ void Model::add_covariates() {
     for (auto &variable : rate_variables) {
       auto coeff
           = register_coefficient(model_spec.variables, variable->full_id(), e);
-      coeff->experiment_idxs.push_back(e);
       experiments[e].rate_coeffs.emplace_back(coeff);
     }
 
     for (auto &variable : odds_variables) {
       auto coeff
           = register_coefficient(model_spec.variables, variable->full_id(), e);
-      coeff->experiment_idxs.push_back(e);
       experiments[e].odds_coeffs.emplace_back(coeff);
     }
   }
@@ -259,31 +241,30 @@ void Model::add_covariates() {
 void Model::construct_GPs() {
   LOG(debug) << "Constructing GPs";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
-    if (coeffs[idx]->type == Coefficient::Type::gp_proxy) {
-      LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
-      for (auto &coord_coeff : coeffs[idx]->priors) {
-        assert(coord_coeff->type == Coefficient::Type::gp_coord);
-        LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
-        auto exp_idxs = coord_coeff->experiment_idxs;
-        auto prior_idxs = coord_coeff->priors;  // unused!
-        size_t n = 0;
-        for (size_t e : exp_idxs)
-          n += experiments[e].S;
-        size_t ncol = experiments[*exp_idxs.begin()].coords.cols();
-        LOG(debug) << "n = " << n;
-        Matrix m = Matrix::Zero(n, ncol);
-        size_t i = 0;
-        for (size_t e : exp_idxs) {
-          for (size_t s = 0; s < experiments[e].S; ++s)
-            for (size_t j = 0; j < ncol; ++j)
-              m(i + s, j) = experiments[e].coords(s, j);
-          i += experiments[e].S;
-        }
-        LOG(debug) << "m.dimesions = " << m.rows() << "x" << m.cols();
-        // TODO FIXUP coeffs
-        // coord_coeff->gp = make_shared<GP::GaussianProcess>(
-        //     GP::GaussianProcess(m, parameters.gp.length_scale));
+    if (coeffs[idx]->type == Coefficient::Type::gp_coord) {
+      LOG(debug) << "Constructing GP " << idx << ": " << *coeffs[idx];
+      auto coord_coeff
+          = dynamic_pointer_cast<Coefficient::GP::Coord>(coeffs[idx]);
+      assert(coord_coeff->type == Coefficient::Type::gp_coord);
+      LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
+      auto exp_idxs = coord_coeff->experiment_idxs;
+      auto prior_idxs = coord_coeff->priors;  // unused!
+      size_t n = 0;
+      for (size_t e : exp_idxs)
+        n += experiments[e].S;
+      size_t ncol = experiments[*exp_idxs.begin()].coords.cols();
+      LOG(debug) << "n = " << n;
+      Matrix m = Matrix::Zero(n, ncol);
+      size_t i = 0;
+      for (size_t e : exp_idxs) {
+        for (size_t s = 0; s < experiments[e].S; ++s)
+          for (size_t j = 0; j < ncol; ++j)
+            m(i + s, j) = experiments[e].coords(s, j);
+        i += experiments[e].S;
       }
+      LOG(debug) << "coordinate dimensions = " << m.rows() << "x" << m.cols();
+      coord_coeff->gp = make_shared<GP::GaussianProcess>(
+          GP::GaussianProcess(m, coord_coeff->length_scale));
     }
 }
 

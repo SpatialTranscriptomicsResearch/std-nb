@@ -32,7 +32,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
                          const Parameters &params,
                          const std::vector<CoefficientPtr> &priors_)
     : Id(id), parameters(params), priors(priors_) {
-  if (type == Type::gp and not spot_dependent())
+  if (type == Type::gp_points and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
         "spot- and type-dependent coefficients.");
@@ -61,6 +61,7 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
           "Error: invalid Coefficient::Kind in Coefficient::Coefficient().");
   }
 
+  // TODO sample properly
   if (type != Type::fixed)
     for (auto &x : values)
       x = parameters.variance
@@ -102,14 +103,18 @@ Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
                const std::vector<CoefficientPtr> &priors_)
     : Distributions(G, T, S, id, params, priors_) {}
 namespace GP {
-GP::GP(size_t G, size_t T, size_t S, const Id &id, const Parameters &params)
-    : Coefficient(G, T, S, id, params, {}) {}
 Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
-             const Parameters &params)
-    : Coefficient(G, T, S, id, params, {}) {}
+             const Parameters &params,
+             const std::vector<CoefficientPtr> &priors_)
+    : Coefficient(G, T, S, id, params, priors_),
+      length_scale(priors[0]->get_actual(0, 0, 0)) {
+  assert(not priors.empty());
+  assert(priors[0]->type == Type::fixed);
+}
 Points::Points(size_t G, size_t T, size_t S, const Id &id,
-               const Parameters &params)
-    : Coefficient(G, T, S, id, params, {}) {}
+               const Parameters &params,
+               const std::vector<CoefficientPtr> &priors_)
+    : Coefficient(G, T, S, id, params, priors_) {}
 }  // namespace GP
 
 /** Calculates gradient with respect to the "natural" representation
@@ -202,63 +207,45 @@ double Normal::compute_gradient(CoefficientPtr grad_coeff) const {
 
 namespace GP {
 
-double GP::compute_gradient(CoefficientPtr grad_coeff) const {
-  LOG(verbose) << "Computing log Gaussian process gradient.";
+double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
+  LOG(verbose) << "Computing Gaussian process gradient. length_scale = "
+               << length_scale;
 
-  assert(type == Type::gp_proxy);
+  assert(type == Type::gp_coord);
+  if (grad_coeff->type != Type::gp_coord)
+    throw std::runtime_error(
+        "Error: mismatched argument type in Coord::compute_gradient().");
 
-  ::GP::MeanTreatment mean_treatment = ::GP::MeanTreatment::zero;
+  Matrix formed_data = form_data();
+  Matrix formed_mean = form_mean();
 
-  vector<double> deltas(values.size());
-  for (size_t t = 0; t < deltas.size(); ++t)
-    deltas[t] = exp(values(t));
+  Vector svs = Vector::Ones(formed_data.cols());
+  Vector deltas = Vector::Ones(formed_data.cols());
+  for (int t = 0; t < svs.size(); ++t) {
+    svs(t) = priors[1]->get_actual(0, t, 0);
+    deltas(t) = priors[2]->get_actual(0, t, 0);
+  }
 
-  vector<const ::GP::GaussianProcess *> gps;
-  /* TODO FIXUP coeffs
-  for (auto prior : priors)
-    gps.push_back(prior->gp.get());
-  */
-
-  vector<Matrix> formed_data;
-  /* TODO FIXUP coeffs
-  for (auto prior : priors)
-    formed_data.push_back(prior->form_data());
-  */
-
-  vector<Matrix> mus = formed_data;
-  for (auto &m : mus)
-    m.setZero();
-
-  vector<Matrix> vars = mus;
+  Matrix mus = formed_data;
+  mus.setZero();
+  Matrix vars = mus;
 
   Vector grad_delta = Vector::Zero(values.size());
-  auto sv = predict_means_and_vars(gps, formed_data, deltas, mean_treatment,
-                                   mus, vars, grad_delta);
+  gp->predict_means_and_vars(formed_data, formed_mean, svs, deltas, mus, vars);
 
-  grad_coeff->values.array() += grad_delta.array();
-  LOG(debug) << "    DELTA =        " << values.transpose();
-  LOG(debug) << "GRADDELTA =        " << grad_delta.transpose();
+  Matrix formed_gradient
+      = (mus - formed_data).array() / vars.array() / vars.array();
 
-  LOG(debug) << "spatial variance = " << sv.transpose();
-  for (size_t idx = 0; idx < priors.size(); ++idx)
-    if (sv[idx] > 0) {
-      Matrix formed_gradient = (mus[idx] - formed_data[idx]).array()
-                               / vars[idx].array() / vars[idx].array();
-
-      /* TODO FIXUP coeffs
-      grad_coeff->priors[idx]->add_formed_data(formed_gradient);
-      */
-    }
+  dynamic_pointer_cast<Coord>(grad_coeff)->add_formed_data(formed_gradient);
 
   double score = 0;
-  for (size_t k = 0; k < formed_data.size(); ++k)
-    if (sv[k] > 0)
-      for (int i = 0; i < formed_data[k].rows(); ++i)
-        for (int j = 0; j < formed_data[k].cols(); ++j)
-          score
-              += log_normal(formed_data[k](i, j), mus[k](i, j), vars[k](i, j));
+  for (int i = 0; i < formed_data.rows(); ++i)
+    for (int j = 0; j < formed_data.cols(); ++j)
+      score += log_normal(formed_data(i, j), mus(i, j), vars(i, j));
+
+  LOG(verbose) << "GP score: " << score;
   return score;
-}
+}  // namespace GP
 }  // namespace GP
 
 bool kind_included(Kind kind, Kind x) { return (kind & x) == x; }
@@ -430,10 +417,8 @@ string to_string(const Type &type) {
       return "beta'";
     case Type::normal:
       return "normal";
-    case Type::gp:
-      return "gaussian_process";
-    case Type::gp_proxy:
-      return "gaussian_process_proxy";
+    case Type::gp_points:
+      return "gaussian_process_points";
     case Type::gp_coord:
       return "gaussian_process_coord";
     default:
@@ -486,51 +471,78 @@ string Coefficient::to_string() const {
        + ")";
   // TODO FIXUP coeffs improve
   s += " num_priors=" + std::to_string(priors.size());
+  size_t i = 0;
+  for (auto &prior : priors)
+    s += " prior" + std::to_string(i++) + "='" + prior->name + "'";
   return s;
 }
 
 namespace GP {
 
-Matrix Coord::form_data() const {
-  if (type != Type::gp_coord)
-    std::runtime_error(
-        "Error: called form_data() on a coefficient that is not a Gaussian "
-        "process coordinate system.");
+size_t Coord::size() const {
   int n = 0;
-  for (auto prior : priors)
-    n += prior->values.rows();
+  for (auto pts : points)
+    n += pts->values.rows();
+  return n;
+}
+
+Matrix Coord::form_data() const {
   int ncol = 0;
-  for (auto prior : priors)
-    if (prior->values.cols() > ncol)
-      ncol = prior->values.cols();
-  Matrix m = Matrix::Zero(n, ncol);
+  for (auto pts : points)
+    if (pts->values.cols() > ncol)
+      ncol = pts->values.cols();
+  Matrix m = Matrix::Zero(size(), ncol);
   size_t row = 0;
-  for (auto prior : priors) {
-    for (int i = 0; i < prior->values.rows(); ++i) {
-      for (int j = 0; j < prior->values.cols(); ++j)
-        m(row + i, j) = prior->values(i, j);
+  for (auto pts : points) {
+    for (int i = 0; i < pts->values.rows(); ++i) {
+      for (int j = 0; j < pts->values.cols(); ++j)
+        m(row + i, j) = pts->values(i, j);
     }
-    row += prior->values.rows();
+    row += pts->values.rows();
   }
   return m;
 }
 
-void Coord::add_formed_data(const Matrix &m) const {
+Matrix Coord::form_mean() const {
+  int ncol = 0;
+  for (auto pts : points)
+    if (pts->values.cols() > ncol)
+      ncol = pts->values.cols();
+  Matrix m = Matrix::Zero(size(), ncol);
+  size_t row = 0;
+  for (auto pts : points) {
+    for (int s = 0; s < pts->values.rows(); ++s) {
+      for (int t = 0; t < pts->values.cols(); ++t)
+        m(row + s, t) = pts->priors[0]->get_actual(0, t, s);
+    }
+    row += pts->values.rows();
+  }
+  return m;
+}
+
+void Coord::add_formed_data(const Matrix &m) {
   if (type != Type::gp_coord)
     std::runtime_error(
         "Error: called add_formed_data() on a coefficient that is not a "
         "Gaussian process coordinate system.");
   int n = 0;
-  for (auto prior : priors)
-    n += prior->values.rows();
+  for (auto pts : points)
+    n += pts->values.rows();
   assert(m.rows() == n);
   size_t row = 0;
-  for (auto prior : priors) {
-    for (int i = 0; i < prior->values.rows(); ++i) {
-      for (int j = 0; j < prior->values.cols(); ++j)
-        prior->values(i, j) += m(row + i, j);
+  for (auto pts : points) {
+    for (int i = 0; i < pts->values.rows(); ++i) {
+      for (int j = 0; j < pts->values.cols(); ++j)
+        pts->values(i, j) += m(row + i, j);
     }
-    row += prior->values.rows();
+    if (pts->priors[0]->type != Type::fixed
+        and pts->priors[0]->type != Type::file)
+      for (int i = 0; i < pts->values.rows(); ++i) {
+        for (int j = 0; j < pts->values.cols(); ++j)
+          pts->values(i, j) += m(row + i, j);
+      }
+
+    row += pts->values.rows();
   }
 }
 }  // namespace GP
@@ -554,12 +566,20 @@ CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &cid,
       return std::make_shared<BetaPrime>(G, T, S, cid, params, priors);
     case Type::gamma:
       return std::make_shared<Gamma>(G, T, S, cid, params, priors);
-    case Type::gp_proxy:
-      return std::make_shared<GP::GP>(G, T, S, cid, params);
-    case Type::gp_coord:
-      return std::make_shared<GP::Coord>(G, T, S, cid, params);
-    case Type::gp:
-      return std::make_shared<GP::Points>(G, T, S, cid, params);
+    case Type::gp_coord: {
+      assert(priors.size() == 4);
+      vector<CoefficientPtr> priors_;
+      priors_.emplace_back(priors[0]);
+      priors_.emplace_back(priors[2]);
+      priors_.emplace_back(priors[3]);
+      return std::make_shared<GP::Coord>(G, T, S, cid, params, priors_);
+    }
+    case Type::gp_points: {
+      assert(priors.size() == 4);
+      vector<CoefficientPtr> priors_;
+      priors_.emplace_back(priors[1]);
+      return std::make_shared<GP::Points>(G, T, S, cid, params, priors_);
+    }
     default:
       throw std::runtime_error(
           "Error: invalid Coefficient::Type in make_shared().");

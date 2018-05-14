@@ -46,9 +46,8 @@ enum class Type {
   //   Binomial
   //   Poisson
   normal,
-  gp,
-  gp_coord,
-  gp_proxy
+  gp_points,
+  gp_coord
 };
 
 struct Parameters {
@@ -175,22 +174,27 @@ struct Gamma : public Distributions {
 };
 
 namespace GP {
+struct Points : public Coefficient {
+  Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+         const std::vector<CoefficientPtr> &priors);
+  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+};
 
-struct GP : public Coefficient {
-  GP(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+struct Coord : public Coefficient {
+  using PointsPtr = std::shared_ptr<Points>;
+  using PointsPtrs = std::vector<PointsPtr>;
+  Coord(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+        const std::vector<CoefficientPtr> &priors);
+  PointsPtrs points;
+  double length_scale;
   std::shared_ptr<::GP::GaussianProcess> gp;
+  STD::Matrix form_data() const;
+  STD::Matrix form_mean() const;
+  size_t size() const;
+  void add_formed_data(const STD::Matrix &m);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
-struct Coord : public Coefficient {
-  Coord(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
-  STD::Matrix form_data() const;
-  void add_formed_data(const STD::Matrix &m) const;
-  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
-};
-struct Points : public Coefficient {
-  Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
-  double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
-};
+
 }  // namespace GP
 
 size_t distribution_number_parameters(Type distribution);

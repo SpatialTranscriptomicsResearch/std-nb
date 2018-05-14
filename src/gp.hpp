@@ -2,6 +2,7 @@
 #define GP_HPP
 #include <vector>
 #include "types.hpp"
+#include "log.hpp"
 
 namespace GP {
 using Matrix = STD::Matrix;
@@ -25,21 +26,30 @@ struct GaussianProcess {
   double calc_mean(Vector y, double delta) const;
   double calc_spatial_variance(const Vector &y, double mean,
                                double delta) const;
-  void predict_means_and_vars(const Vector &y, double delta,
-                              MeanTreatment mean_treatmeant, Vector &mu,
-                              Vector &var) const;
+  template <typename V>
+  void predict_means_and_vars(const Vector &y, const Vector &mean, double sv,
+                              double delta, V &&mu, V &&var) const {
+    LOG(verbose) << "Predicting means and variances for a vector of length " << y.size() << " sv = " << sv << " delta = " << delta;
+    assert(sv > 0);
+
+    Matrix inverse = inverse_covariance(sv, delta);
+
+    Vector y_minus_mean = y - mean;
+    for (size_t i = 0; i < n; ++i) {
+      mu(i) = 0;
+      for (size_t j = 0; j < n; ++j)
+        if (i != j)
+          mu(i) += y_minus_mean(j) * inverse(i, j);
+      mu(i) *= -1 / inverse(i, i);
+      var(i) = 1 / inverse(i, i);
+    }
+    mu = mu + mean;
+  }
+
+  void predict_means_and_vars(const Matrix &ys, const Matrix &means,
+                              const Vector &sv, const Vector &delta, Matrix &mu,
+                              Matrix &var) const;
 };
 
-STD::Vector predict_means_and_vars(
-    const std::vector<const GaussianProcess *> &gps,
-    const std::vector<Matrix> &ys, const std::vector<double> &delta,
-    MeanTreatment mean_treatment, std::vector<Matrix> &mus,
-    std::vector<Matrix> &vars, Vector &grad_delta);
-
-double predict_means_and_vars(const std::vector<const GaussianProcess *> &gps,
-                              const std::vector<Vector> &ys, double delta,
-                              MeanTreatment mean_treatment,
-                              std::vector<Vector> &mus,
-                              std::vector<Vector> &vars, double &grad_delta);
-}
+}  // namespace GP
 #endif

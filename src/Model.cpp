@@ -116,9 +116,11 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
 }
 
 Model Model::clone() const {
-  // TODO reactivate coeffs make efficient; avoid recompilation
+  // TODO reactivate coeffs make efficient
+  // avoid recompilation
+  // avoid recalculation of spectral decomposition
   vector<Counts> counts;
-  for(auto experiment: experiments)
+  for (auto experiment : experiments)
     counts.push_back(experiment.counts);
   return Model(counts, T, design, model_spec, parameters);
 }
@@ -286,7 +288,7 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
   gradient.update_contributions();
 
   for (size_t i = 0; i < coeffs.size(); ++i)
-    if (coeffs[i]->type != Coefficient::Type::gp_proxy
+    if (coeffs[i]->type != Coefficient::Type::gp_coord
         or iter_cnt >= parameters.gp.first_iteration)
       score += coeffs[i]->compute_gradient(gradient.coeffs[i]);
 
@@ -414,7 +416,7 @@ void Model::gradient_update(
             + "/");
     }
 
-    // deactivate stochasticity in the last iteration for correct contribution stats
+    // deactivate stochasticity in last iteration for correct contribution stats
     auto temp_parameters = parameters;
     if (++current_iteration == num_iterations) {
       parameters.dropout_gene_spot = 0;

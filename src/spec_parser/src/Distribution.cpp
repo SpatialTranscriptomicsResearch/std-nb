@@ -13,7 +13,7 @@ Distribution::Type Distribution::stodistr(const std::string& s) {
       {"Beta'", Type::beta_prime},
       {"Betaprime", Type::beta_prime},
       {"Gamma", Type::gamma},
-      {"GP", Type::gp},
+      {"GP", Type::gp_points},
       {"Normal", Type::normal}};
   auto it = map.find(s);
   if (it == map.end()) {
@@ -32,7 +32,7 @@ std::string Distribution::distrtos(const Type& d) {
       return "Fixed";
     case Type::gamma:
       return "Gamma";
-    case Type::gp:
+    case Type::gp_points:
       return "GP";
     case Type::normal:
       return "Normal";
@@ -62,8 +62,8 @@ size_t Distribution::desired_argument_number() {
       return 2;
     case Type::fixed:
       return 0;
-    case Type::gp:
-      return 3;
+    case Type::gp_points:
+      return 4;
     default:
       throw std::logic_error("Not implemented.");
   }
