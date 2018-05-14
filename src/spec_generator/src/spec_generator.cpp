@@ -27,7 +27,7 @@ OPTION(help, help, h, "")
 
 OPTION(rate, rate_formula, r, "(gene + spot) * type + 1")
 OPTION(odds, odds_formula, o, "gene * type + 1")
-OPTION(dist, dist, d, "Lognormal(1,1)")
+OPTION(dist, dist, d, "Normal(0,1)")
 
 struct Options {
   std::string rate_formula;
@@ -85,7 +85,7 @@ void write(const std::string& rate_formula, const std::string& odds_formula,
 
   std::cout << "# Regression equations" << std::endl;
   for (auto& x : driver.regression_exprs) {
-    std::cout << x.first << " = " << show(x.second);
+    std::cout << x.first << " = " << show(x.second) << std::endl;
   }
 
   std::cout << std::endl;
