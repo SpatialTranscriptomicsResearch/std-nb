@@ -133,10 +133,10 @@ void Model::setZero() {
     coeff->values.setZero();
 }
 
-size_t Model::number_parameters() const {
+size_t Model::number_variable() const {
   size_t s = 0;
   for (auto &coeff : coeffs)
-    s += coeff->number_parameters();
+    s += coeff->number_variable();
   return s;
 }
 
@@ -543,15 +543,15 @@ void Model::add_experiment(const Counts &counts) {
 }
 
 ostream &operator<<(ostream &os, const Model &model) {
-  size_t n_params = model.number_parameters();
+  size_t n_variable = model.number_variable();
   os << "Spatial Transcriptome Deconvolution "
      << "G = " << model.G << " "
      << "T = " << model.T << " "
      << "E = " << model.E << " "
      << "S = " << model.S << endl
-     << model.size() << " parameters, " << n_params << " variable" << endl
+     << model.size() << " parameters, " << n_variable << " variable" << endl
      << "G * S = " << (model.G * model.S) << " -> "
-     << 100.0 * n_params / (model.G * model.S) << "%." << endl;
+     << 100.0 * n_variable / (model.G * model.S) << "%." << endl;
 
   for (auto &experiment : model.experiments)
     os << experiment;
@@ -572,4 +572,4 @@ Model operator+(const Model &a, const Model &b) {
 
   return model;
 }
-}  // namespace STD
+}  // namespace

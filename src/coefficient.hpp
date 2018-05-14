@@ -79,7 +79,7 @@ struct Coefficient : public Id {
   bool spot_dependent() const;
 
   size_t size() const;
-  size_t number_parameters() const;
+  size_t number_variable() const;
   STD::Vector setZero();
 
   template <typename Iter>

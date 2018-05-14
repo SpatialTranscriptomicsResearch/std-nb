@@ -367,22 +367,13 @@ double Coefficient::get_actual(size_t g, size_t t, size_t s) const {
 
 size_t Coefficient::size() const { return values.size(); }
 
-size_t Coefficient::number_parameters() const {
+size_t Coefficient::number_variable() const {
   switch (type) {
     case Type::gp_coord:
     case Type::fixed:
       return 0;
-    // case Type::fixed:
-    // return 1;
-    case Type::beta:
-    case Type::beta_prime:
-    case Type::gamma:
-    case Type::normal:
-      return 2;
-    case Type::gp:
-      return 3;
     default:
-      throw std::logic_error("Not implemented.");
+      return size();
   }
 }
 

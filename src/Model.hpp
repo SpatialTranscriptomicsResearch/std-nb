@@ -87,7 +87,7 @@ struct Model {
   void gradient_update(size_t num_iterations,
                        std::function<bool(const CoefficientPtr)> is_included);
   size_t size() const;
-  size_t number_parameters() const;
+  size_t number_variable() const;
 
   void store(const std::string &prefix, bool mean_and_var = false,
              bool reorder = true) const;
