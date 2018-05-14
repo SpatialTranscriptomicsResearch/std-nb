@@ -10,7 +10,6 @@ ADD_SUBDIRECTORY(spec_parser)
 
 ADD_LIBRARY(transcriptomedeconvolution SHARED
   Experiment.cpp
-  Mesh.cpp
   Model.cpp
   aux.cpp
   coefficient.cpp
