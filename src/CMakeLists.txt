@@ -36,15 +36,18 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   verbosity.cpp
   )
 
-# ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
 ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
 ADD_EXECUTABLE(std main.cpp cli.cpp)
-# ADD_EXECUTABLE(test_sampling test_sampling.cpp)
-# ADD_EXECUTABLE(test_field test_fields.cpp)
 
-ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp)
-ADD_EXECUTABLE(test_gamma_convolution test_gamma_convolution.cpp)
-ADD_EXECUTABLE(test_negative_binomial_convolution test_negative_binomial_convolution.cpp)
+SET(BUILD_TESTS false)
+IF(BUILD_TESTS)
+  ADD_EXECUTABLE(test_gamma_cdf test_gamma_cdf.cpp)
+  ADD_EXECUTABLE(test_gamma_convolution test_gamma_convolution.cpp)
+  ADD_EXECUTABLE(test_negative_binomial_convolution test_negative_binomial_convolution.cpp)
+  # ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
+  # ADD_EXECUTABLE(test_sampling test_sampling.cpp)
+  # ADD_EXECUTABLE(test_field test_fields.cpp)
+ENDIF()
 
 TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   parser
@@ -62,13 +65,15 @@ TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   )
 
 TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)
-# TARGET_LINK_LIBRARIES(test-log-beta transcriptomedeconvolution)
-TARGET_LINK_LIBRARIES(test_gamma_cdf transcriptomedeconvolution)
-TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
-TARGET_LINK_LIBRARIES(test_negative_binomial_convolution transcriptomedeconvolution)
-# TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
-# TARGET_LINK_LIBRARIES(test_field transcriptomedeconvolution)
 TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
+IF(BUILD_TESTS)
+  TARGET_LINK_LIBRARIES(test_gamma_cdf transcriptomedeconvolution)
+  TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
+  TARGET_LINK_LIBRARIES(test_negative_binomial_convolution transcriptomedeconvolution)
+  # TARGET_LINK_LIBRARIES(test-log-beta transcriptomedeconvolution)
+  # TARGET_LINK_LIBRARIES(test_sampling transcriptomedeconvolution)
+  # TARGET_LINK_LIBRARIES(test_field transcriptomedeconvolution)
+ENDIF()
 
 IF(GOOGLEPERFTOOLS_FOUND)
   TARGET_LINK_LIBRARIES(std ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
