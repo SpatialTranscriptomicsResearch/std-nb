@@ -5,11 +5,8 @@ using namespace std;
 
 namespace STD {
 
-GaussianProcessParameters::GaussianProcessParameters(double len, double indep,
-                                                     size_t first_iter)
-    : length_scale(len)
-    , independent_variance(indep)
-    , first_iteration(first_iter) {}
+GaussianProcessParameters::GaussianProcessParameters(size_t first_iter)
+    : first_iteration(first_iter) {}
 
 double Hyperparameters::get_param(Coefficient::Type distribution,
                                   size_t idx) const {
@@ -59,4 +56,4 @@ std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
   os << "normal_2 = " << hyperparams.normal_2 << endl;
   return os;
 }
-}
+}  // namespace STD

@@ -7,7 +7,6 @@
 namespace GP {
 using Matrix = STD::Matrix;
 using Vector = STD::Vector;
-enum class MeanTreatment { zero, shared, independent };
 
 struct GaussianProcess {
   GaussianProcess() = delete;
@@ -23,9 +22,6 @@ struct GaussianProcess {
   double length_scale;
   Matrix eigenvectors;
   Vector eigenvalues;
-  double calc_mean(Vector y, double delta) const;
-  double calc_spatial_variance(const Vector &y, double mean,
-                               double delta) const;
   template <typename V>
   void predict_means_and_vars(const Vector &y, const Vector &mean, double sv,
                               double delta, V &&mu, V &&var) const {

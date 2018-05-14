@@ -233,11 +233,7 @@ int main(int argc, char **argv) {
 
   gaussian_process_options.add_options()
     ("gp_iter", po::value(&parameters.gp.first_iteration)->default_value(parameters.gp.first_iteration),
-     "In which iteration to start using the Gaussian process prior.")
-    ("gp_length", po::value(&parameters.gp.length_scale)->default_value(parameters.gp.length_scale),
-     "Length scale to use for Gaussian process.")
-    ("gp_var_indep", po::value(&parameters.gp.independent_variance)->default_value(parameters.gp.independent_variance),
-     "Independent variance to use for Gaussian process.");
+     "In which iteration to start using the Gaussian process prior.");
 
  auto stringize = [](double x) -> std::string {
    stringstream s;
@@ -448,9 +444,6 @@ int main(int argc, char **argv) {
   auto data_sets = load_data(paths, options.intersect, options.top,
                              options.bottom, options.min_reads_spot,
                              options.min_reads_gene, options.transpose);
-
-  LOG(debug) << "gp.length_scale = " << parameters.gp.length_scale;
-  LOG(debug) << "gp.indep_variance = " << parameters.gp.independent_variance;
 
   try {
     run(data_sets, options, parameters);

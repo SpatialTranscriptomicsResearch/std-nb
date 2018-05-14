@@ -2,13 +2,13 @@
 #define PARAMETERS_HPP
 
 #include <cstdint>
+#include "adagrad.hpp"
+#include "adam.hpp"
 #include "coefficient.hpp"
 #include "compression_mode.hpp"
 #include "covariate.hpp"
 #include "optimization_method.hpp"
 #include "rprop.hpp"
-#include "adagrad.hpp"
-#include "adam.hpp"
 #include "types.hpp"
 
 namespace STD {
@@ -16,18 +16,18 @@ namespace STD {
 const std::string default_output_string = "THIS PATH SHOULD NOT EXIST";
 
 struct Hyperparameters {
-  Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1,
-                  Float beta_1_ = 2, Float beta_2_ = 2,
-                  Float beta_prime_1_ = 2, Float beta_prime_2_ = 2,
-                  Float normal_1_ = 0, Float normal_2_ = 1)
-      : gamma_1(gamma_1_)
-      , gamma_2(gamma_2_)
-      , beta_1(beta_1_)
-      , beta_2(beta_2_)
-      , beta_prime_1(beta_prime_1_)
-      , beta_prime_2(beta_prime_2_)
-      , normal_1(normal_1_)
-      , normal_2(normal_2_){};
+  Hyperparameters(Float gamma_1_ = 1, Float gamma_2_ = 1, Float beta_1_ = 2,
+                  Float beta_2_ = 2, Float beta_prime_1_ = 2,
+                  Float beta_prime_2_ = 2, Float normal_1_ = 0,
+                  Float normal_2_ = 1)
+      : gamma_1(gamma_1_),
+        gamma_2(gamma_2_),
+        beta_1(beta_1_),
+        beta_2(beta_2_),
+        beta_prime_1(beta_prime_1_),
+        beta_prime_2(beta_prime_2_),
+        normal_1(normal_1_),
+        normal_2(normal_2_){};
 
   // TODO add: hyper-hyper-parameters
 
@@ -53,9 +53,7 @@ struct Hyperparameters {
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
-  GaussianProcessParameters(double len = 5, double indep = 1, size_t first_iteration = 80);
-  double length_scale;
-  double independent_variance;
+  GaussianProcessParameters(size_t first_iteration = 80);
   size_t first_iteration;
 };
 
@@ -95,5 +93,5 @@ struct Parameters {
   // TODO make CLI configurable
   Coefficient::Type default_distribution = Coefficient::Type::normal;
 };
-}
+}  // namespace STD
 #endif
