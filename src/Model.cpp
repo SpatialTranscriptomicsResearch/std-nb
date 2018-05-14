@@ -91,7 +91,7 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   ensure_dimensions();
 
   coeff_debug_dump("INITIAL");
-  add_gp_proxies();
+  construct_GPs();
   // coeff_debug_dump("BEFORE");
   // remove_redundant_terms();
   coeff_debug_dump("AFTER");

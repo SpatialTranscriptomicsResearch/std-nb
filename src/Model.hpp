@@ -56,7 +56,7 @@ struct Model {
       std::string id, size_t experiment);
   void add_covariates();
 
-  void add_gp_proxies();
+  void construct_GPs();
   void add_prior_coefficients();
 
   void setZero();

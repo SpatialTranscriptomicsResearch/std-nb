@@ -256,8 +256,8 @@ void Model::add_covariates() {
   }
 }
 
-void Model::add_gp_proxies() {
-  LOG(debug) << "Constructing GP proxies";
+void Model::construct_GPs() {
+  LOG(debug) << "Constructing GPs";
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
     if (coeffs[idx]->type == Coefficient::Type::gp_proxy) {
       LOG(debug) << "Constructing GP proxy " << idx << ": " << *coeffs[idx];
