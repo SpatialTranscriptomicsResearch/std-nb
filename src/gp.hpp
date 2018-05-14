@@ -32,7 +32,7 @@ struct GaussianProcess {
     LOG(verbose) << "Predicting means and variances for a vector of length " << y.size() << " sv = " << sv << " delta = " << delta;
     assert(sv > 0);
 
-    Matrix inverse = inverse_covariance(sv, delta);
+    Matrix inverse = inverse_covariance_eigen(sv, delta);
 
     Vector y_minus_mean = y - mean;
     for (size_t i = 0; i < n; ++i) {
