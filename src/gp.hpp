@@ -25,7 +25,7 @@ struct GaussianProcess {
   template <typename V>
   void predict_means_and_vars(const Vector &y, const Vector &mean, double sv,
                               double delta, V &&mu, V &&var) const {
-    LOG(verbose) << "Predicting means and variances for a vector of length " << y.size() << " sv = " << sv << " delta = " << delta;
+    LOG(debug) << "Predicting means and variances for a vector of length " << y.size() << " sv = " << sv << " delta = " << delta;
     assert(sv > 0);
 
     Matrix inverse = inverse_covariance_eigen(sv, delta);
