@@ -47,7 +47,8 @@ void compile_expression_and_derivs(const ExprPtr<T> &expr,
 bool initialized_jit = false;
 
 Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
-             const ModelSpec &model_spec_, const Parameters &parameters_)
+             const ModelSpec &model_spec_, const Parameters &parameters_,
+             bool construct_gp)
     : G(max_row_number(c)),
       T(T_),
       E(0),
@@ -91,7 +92,8 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   ensure_dimensions();
 
   coeff_debug_dump("INITIAL");
-  construct_GPs();
+  if (construct_gp)
+    construct_GPs();
   // coeff_debug_dump("BEFORE");
   // remove_redundant_terms();
   coeff_debug_dump("AFTER");
@@ -122,7 +124,17 @@ Model Model::clone() const {
   vector<Counts> counts;
   for (auto experiment : experiments)
     counts.push_back(experiment.counts);
-  return Model(counts, T, design, model_spec, parameters);
+  Model model(counts, T, design, model_spec, parameters, false);
+  for (size_t idx = 0; idx < coeffs.size(); ++idx)
+    if (coeffs[idx]->type == Coefficient::Type::gp_coord) {
+      auto coord_coeff
+          = dynamic_pointer_cast<Coefficient::Spatial::Coord>(coeffs[idx]);
+      auto model_coord_coeff
+          = dynamic_pointer_cast<Coefficient::Spatial::Coord>(
+              model.coeffs[idx]);
+      model_coord_coeff->gp = coord_coeff->gp;
+    }
+  return model;
 }
 
 void Model::ensure_dimensions() const {

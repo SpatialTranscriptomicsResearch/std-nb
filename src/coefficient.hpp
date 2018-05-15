@@ -173,7 +173,7 @@ struct Gamma : public Distributions {
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 
-namespace GP {
+namespace Spatial {
 struct Points : public Coefficient {
   Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
          const std::vector<CoefficientPtr> &priors);
@@ -187,15 +187,16 @@ struct Coord : public Coefficient {
         const std::vector<CoefficientPtr> &priors);
   PointsPtrs points;
   double length_scale;
-  std::shared_ptr<::GP::GaussianProcess> gp;
+  std::shared_ptr<GP::GaussianProcess> gp;
   STD::Matrix form_data() const;
   STD::Matrix form_mean() const;
+  void construct_gp();
   size_t size() const;
   void add_formed_data(const STD::Matrix &m);
   double compute_gradient(CoefficientPtr grad_coeff) const;
 };
 
-}  // namespace GP
+}  // namespace Spatial
 
 size_t distribution_number_parameters(Type distribution);
 

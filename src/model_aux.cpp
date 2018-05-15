@@ -198,12 +198,12 @@ CoefficientPtr Model::register_coefficient(
           .type = Coefficient::Type::gp_coord,
           .info = gp_coord_info,
       };
-      auto gp_coord_coeff = dynamic_pointer_cast<Coefficient::GP::Coord>(
+      auto gp_coord_coeff = dynamic_pointer_cast<Coefficient::Spatial::Coord>(
           do_registration(gp_coord_id, G, T, 0, priors));
       LOG(debug) << "Updating GP coordinate system (" << *gp_coord_coeff
                  << ").";
       gp_coord_coeff->points.emplace_back(
-          dynamic_pointer_cast<Coefficient::GP::Points>(coeff));
+          dynamic_pointer_cast<Coefficient::Spatial::Points>(coeff));
     }
 
     return coeff;
@@ -244,27 +244,10 @@ void Model::construct_GPs() {
     if (coeffs[idx]->type == Coefficient::Type::gp_coord) {
       LOG(debug) << "Constructing GP " << idx << ": " << *coeffs[idx];
       auto coord_coeff
-          = dynamic_pointer_cast<Coefficient::GP::Coord>(coeffs[idx]);
+          = dynamic_pointer_cast<Coefficient::Spatial::Coord>(coeffs[idx]);
       assert(coord_coeff->type == Coefficient::Type::gp_coord);
       LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
-      auto exp_idxs = coord_coeff->experiment_idxs;
-      auto prior_idxs = coord_coeff->priors;  // unused!
-      size_t n = 0;
-      for (size_t e : exp_idxs)
-        n += experiments[e].S;
-      size_t ncol = experiments[*exp_idxs.begin()].coords.cols();
-      LOG(debug) << "n = " << n;
-      Matrix m = Matrix::Zero(n, ncol);
-      size_t i = 0;
-      for (size_t e : exp_idxs) {
-        for (size_t s = 0; s < experiments[e].S; ++s)
-          for (size_t j = 0; j < ncol; ++j)
-            m(i + s, j) = experiments[e].coords(s, j);
-        i += experiments[e].S;
-      }
-      LOG(debug) << "coordinate dimensions = " << m.rows() << "x" << m.cols();
-      coord_coeff->gp = make_shared<GP::GaussianProcess>(
-          GP::GaussianProcess(m, coord_coeff->length_scale));
+      coord_coeff->construct_gp();
     }
 }
 

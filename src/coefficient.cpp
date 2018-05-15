@@ -4,6 +4,7 @@
 #include "compression.hpp"
 #include "design.hpp"
 #include "entropy.hpp"
+#include "gp.hpp"
 #include "io.hpp"
 #include "pdist.hpp"
 
@@ -102,7 +103,7 @@ Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
                const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
     : Distributions(G, T, S, id, params, priors_) {}
-namespace GP {
+namespace Spatial {
 Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
              const Parameters &params,
              const std::vector<CoefficientPtr> &priors_)
@@ -115,7 +116,7 @@ Points::Points(size_t G, size_t T, size_t S, const Id &id,
                const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
     : Coefficient(G, T, S, id, params, priors_) {}
-}  // namespace GP
+}  // namespace Spatial
 
 /** Calculates gradient with respect to the "natural" representation
  *
@@ -205,8 +206,7 @@ double Normal::compute_gradient(CoefficientPtr grad_coeff) const {
   });
 }
 
-namespace GP {
-
+namespace Spatial {
 double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
   LOG(verbose) << "Computing Gaussian process gradient. length_scale = "
                << length_scale;
@@ -245,8 +245,8 @@ double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
 
   LOG(verbose) << "GP score: " << score;
   return score;
-}  // namespace GP
-}  // namespace GP
+}
+}  // namespace Spatial
 
 bool kind_included(Kind kind, Kind x) { return (kind & x) == x; }
 
@@ -477,7 +477,7 @@ string Coefficient::to_string() const {
   return s;
 }
 
-namespace GP {
+namespace Spatial {
 
 size_t Coord::size() const {
   int n = 0;
@@ -544,7 +544,26 @@ void Coord::add_formed_data(const Matrix &m) {
     row += pts->values.rows();
   }
 }
-}  // namespace GP
+
+void Coord::construct_gp() {
+  size_t n = 0;
+  for (auto &pts : points)
+    n += pts->values.rows();
+  size_t ncol = points.front()->values.cols();
+  LOG(debug) << "n = " << n;
+  Matrix m = Matrix::Zero(n, ncol);
+  size_t i = 0;
+  for (auto &pts : points) {
+    for (int s = 0; s < pts->values.rows(); ++s)
+      for (int j = 0; j < pts->values.cols(); ++j)
+        m(i + s, j) = pts->values(s, j);
+    i += pts->values.rows();
+  }
+  LOG(debug) << "coordinate dimensions = " << m.rows() << "x" << m.cols();
+  gp = std::make_shared<GP::GaussianProcess>(
+      GP::GaussianProcess(m, length_scale));
+}
+}  // namespace Spatial
 
 ostream &operator<<(ostream &os, const Coefficient &coeff) {
   os << coeff.to_string();
@@ -571,13 +590,13 @@ CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &cid,
       priors_.emplace_back(priors[0]);
       priors_.emplace_back(priors[2]);
       priors_.emplace_back(priors[3]);
-      return std::make_shared<GP::Coord>(G, T, S, cid, params, priors_);
+      return std::make_shared<Spatial::Coord>(G, T, S, cid, params, priors_);
     }
     case Type::gp_points: {
       assert(priors.size() == 4);
       vector<CoefficientPtr> priors_;
       priors_.emplace_back(priors[1]);
-      return std::make_shared<GP::Points>(G, T, S, cid, params, priors_);
+      return std::make_shared<Spatial::Points>(G, T, S, cid, params, priors_);
     }
     default:
       throw std::runtime_error(
