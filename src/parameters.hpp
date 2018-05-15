@@ -53,7 +53,7 @@ struct Hyperparameters {
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
-  GaussianProcessParameters(size_t first_iteration = 80);
+  GaussianProcessParameters(size_t first_iteration = 0);
   size_t first_iteration;
 };
 
