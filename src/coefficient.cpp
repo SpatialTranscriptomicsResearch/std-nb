@@ -535,8 +535,7 @@ void Coord::add_formed_data(const Matrix &m) {
       for (int j = 0; j < pts->values.cols(); ++j)
         pts->values(i, j) += m(row + i, j);
     }
-    if (pts->priors[0]->type != Type::fixed
-        and pts->priors[0]->type != Type::file)
+    if (pts->priors[0]->type != Type::fixed)
       for (int i = 0; i < pts->values.rows(); ++i) {
         for (int j = 0; j < pts->values.cols(); ++j)
           pts->values(i, j) += m(row + i, j);
