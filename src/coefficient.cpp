@@ -91,18 +91,46 @@ Distributions::Distributions(size_t G, size_t T, size_t S, const Id &id,
 Gamma::Gamma(size_t G, size_t T, size_t S, const Id &id,
              const Parameters &params,
              const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {}
+    : Distributions(G, T, S, id, params, priors_) {
+  for (size_t i = 0; i < 2; ++i)
+    if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
+      throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
+                               + to_string() + " has invalid type "
+                               + ::Coefficient::to_string(priors[i]->type));
+}
 Beta::Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
            const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {}
+    : Distributions(G, T, S, id, params, priors_) {
+  for (size_t i = 0; i < 2; ++i)
+    if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
+      throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
+                               + to_string() + " has invalid type "
+                               + ::Coefficient::to_string(priors[i]->type));
+}
 BetaPrime::BetaPrime(size_t G, size_t T, size_t S, const Id &id,
                      const Parameters &params,
                      const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {}
+    : Distributions(G, T, S, id, params, priors_) {
+  for (size_t i = 0; i < 2; ++i)
+    if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
+      throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
+                               + to_string() + " has invalid type "
+                               + ::Coefficient::to_string(priors[i]->type));
+}
 Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
                const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {}
+    : Distributions(G, T, S, id, params, priors_) {
+  if (priors[0]->type != Type::fixed and priors[0]->type != Type::normal
+      and priors[0]->type != Type::gp_points)
+    throw std::runtime_error("Error: argument " + std::to_string(0) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[0]->type));
+  if (priors[1]->type != Type::fixed and priors[1]->type != Type::gamma)
+    throw std::runtime_error("Error: argument " + std::to_string(1) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[1]->type));
+}
 namespace Spatial {
 Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
              const Parameters &params,
@@ -111,11 +139,29 @@ Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
       length_scale(priors[0]->get_actual(0, 0, 0)) {
   assert(not priors.empty());
   assert(priors[0]->type == Type::fixed);
+  if (priors[0]->type != Type::fixed)
+    throw std::runtime_error("Error: argument " + std::to_string(0) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[0]->type));
+  if (priors[1]->type != Type::fixed and priors[1]->type != Type::gamma)
+    throw std::runtime_error("Error: argument " + std::to_string(1) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[1]->type));
+  if (priors[2]->type != Type::fixed and priors[2]->type != Type::gamma)
+    throw std::runtime_error("Error: argument " + std::to_string(2) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[2]->type));
 }
 Points::Points(size_t G, size_t T, size_t S, const Id &id,
                const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
-    : Coefficient(G, T, S, id, params, priors_) {}
+    : Coefficient(G, T, S, id, params, priors_) {
+  if (priors[0]->type != Type::fixed and priors[0]->type != Type::normal
+      and priors[0]->type != Type::gp_points)
+    throw std::runtime_error("Error: argument " + std::to_string(0) + " of "
+                             + to_string() + " has invalid type "
+                             + ::Coefficient::to_string(priors[0]->type));
+}
 }  // namespace Spatial
 
 /** Calculates gradient with respect to the "natural" representation
