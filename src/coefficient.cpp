@@ -277,12 +277,23 @@ double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
   Matrix vars = mus;
 
   Vector grad_delta = Vector::Zero(values.size());
-  gp->predict_means_and_vars(formed_data, formed_mean, svs, deltas, mus, vars);
+  auto grads = gp->predict_means_and_vars(formed_data, formed_mean, svs, deltas,
+                                          mus, vars);
 
   Matrix formed_gradient
       = (mus - formed_data).array() / vars.array() / vars.array();
 
   dynamic_pointer_cast<Coord>(grad_coeff)->add_formed_data(formed_gradient);
+
+  const size_t sv_idx = 1;
+  if (priors[sv_idx]->type != Type::fixed)
+    for (size_t t = 0; t < grads.size(); ++t)
+      grad_coeff->priors[sv_idx]->get_raw(0, t, 0) += grads[t].sv;
+
+  const size_t delta_idx = 2;
+  if (priors[delta_idx]->type != Type::fixed)
+    for (size_t t = 0; t < grads.size(); ++t)
+      grad_coeff->priors[delta_idx]->get_raw(0, t, 0) += grads[t].delta;
 
   double score = 0;
   for (int i = 0; i < formed_data.rows(); ++i)

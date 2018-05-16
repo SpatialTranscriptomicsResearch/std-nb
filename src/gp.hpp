@@ -22,15 +22,21 @@ struct GaussianProcess {
   double length_scale;
   Matrix eigenvectors;
   Vector eigenvalues;
+  struct VarGrad {
+    double sv;
+    double delta;
+  };
   template <typename V>
-  void predict_means_and_vars(const Vector &y, const Vector &mean, double sv,
-                              double delta, V &&mu, V &&var) const {
-    LOG(debug) << "Predicting means and variances for a vector of length " << y.size() << " sv = " << sv << " delta = " << delta;
+  VarGrad predict_means_and_vars(const Vector &y, const Vector &mean, double sv,
+                                 double delta, V &&mu, V &&var) const {
+    LOG(debug) << "Predicting means and variances for a vector of length "
+               << y.size() << " sv = " << sv << " delta = " << delta;
     assert(sv > 0);
 
     Matrix inverse = inverse_covariance_eigen(sv, delta);
 
     Vector y_minus_mean = y - mean;
+
     for (size_t i = 0; i < n; ++i) {
       mu(i) = 0;
       for (size_t j = 0; j < n; ++j)
@@ -40,11 +46,20 @@ struct GaussianProcess {
       var(i) = 1 / inverse(i, i);
     }
     mu = mu + mean;
+
+    // TODO compute variance gradient
+    double standard_score = y_minus_mean.transpose() * inverse * y_minus_mean;
+    double grad_sv = 0.5 / sv * (standard_score - 1);
+
+    VarGrad grad = {grad_sv, 0.0};
+    return grad;
   }
 
-  void predict_means_and_vars(const Matrix &ys, const Matrix &means,
-                              const Vector &sv, const Vector &delta, Matrix &mu,
-                              Matrix &var) const;
+  std::vector<VarGrad> predict_means_and_vars(const Matrix &ys,
+                                              const Matrix &means,
+                                              const Vector &sv,
+                                              const Vector &delta, Matrix &mu,
+                                              Matrix &var) const;
 };
 
 }  // namespace GP

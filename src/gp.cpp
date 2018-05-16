@@ -66,14 +66,14 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
   return k;
 }
 
-void GaussianProcess::predict_means_and_vars(const Matrix &y,
-                                             const Matrix &mean,
-                                             const Vector &sv,
-                                             const Vector &delta, Matrix &mu,
-                                             Matrix &var) const {
+vector<GaussianProcess::VarGrad> GaussianProcess::predict_means_and_vars(
+    const Matrix &y, const Matrix &mean, const Vector &sv, const Vector &delta,
+    Matrix &mu, Matrix &var) const {
+  vector<VarGrad> res;
   for (int i = 0; i < y.cols(); ++i)
-    predict_means_and_vars(y.col(i), mean.col(i), sv(i), delta(i), mu.col(i),
-                           var.col(i));
+    res.push_back(predict_means_and_vars(y.col(i), mean.col(i), sv(i), delta(i),
+                                         mu.col(i), var.col(i)));
+  return res;
 }
 
 }  // namespace GP
