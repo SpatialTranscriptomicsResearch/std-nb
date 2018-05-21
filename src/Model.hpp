@@ -45,7 +45,7 @@ struct Model {
 
   Model(const std::vector<Counts> &data, size_t T, const Design::Design &design,
         const ModelSpec &model_spec, const Parameters &parameters,
-        bool construct_gp=true);
+        bool initialize=true, bool construct_gp=true);
   Model clone() const;
   void remove_redundant_terms();
   void remove_redundant_terms(Coefficient::Kind kind);

@@ -1,8 +1,9 @@
 #ifndef GP_HPP
 #define GP_HPP
 #include <vector>
-#include "types.hpp"
+#include "entropy.hpp"
 #include "log.hpp"
+#include "types.hpp"
 
 namespace GP {
 using Matrix = STD::Matrix;
@@ -12,6 +13,7 @@ struct GaussianProcess {
   GaussianProcess() = delete;
   GaussianProcess(const Matrix &x, double len_scale);
   Matrix covariance(double spatial_var, double indep_var) const;
+  Matrix covariance_sqroot(double spatial_var, double indep_var) const;
 
   Matrix inverse_covariance_eigen(double spatial_var, double indep_var) const;
   Matrix inverse_covariance(double spatial_var, double indep_var) const;
@@ -49,7 +51,8 @@ struct GaussianProcess {
 
     // TODO compute variance gradient
     double standard_score = y_minus_mean.transpose() * inverse * y_minus_mean;
-    double grad_sv = 0.5 / sv * (standard_score - 1);
+    // TODO why is it not -n rather than -1 ?
+    double grad_sv = 0.5 * (standard_score - 1);
 
     VarGrad grad = {grad_sv, 0.0};
     return grad;
@@ -60,6 +63,10 @@ struct GaussianProcess {
                                               const Vector &sv,
                                               const Vector &delta, Matrix &mu,
                                               Matrix &var) const;
+
+  Vector sample(const Vector &mean, double sv, double delta) const;
+  Matrix sample(const Matrix &mean, const Vector &sv,
+                const Vector &delta) const;
 };
 
 }  // namespace GP

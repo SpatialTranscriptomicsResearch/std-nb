@@ -20,17 +20,22 @@ GaussianProcess::GaussianProcess(const Matrix &x, double len_scale)
 
 Matrix GaussianProcess::covariance(double spatial_var, double indep_var) const {
   Vector diag = eigenvalues.array() + indep_var;
-  return 1 / spatial_var * eigenvectors * diag.asDiagonal()
+  return spatial_var * eigenvectors * diag.asDiagonal()
          * eigenvectors.transpose();
+}
+
+Matrix GaussianProcess::covariance_sqroot(double spatial_var,
+                                          double indep_var) const {
+  Vector diag = (spatial_var * (eigenvalues.array() + indep_var)).sqrt();
+  return eigenvectors * diag.asDiagonal();
 }
 
 Matrix GaussianProcess::inverse_covariance_eigen(double spatial_var,
                                                  double indep_var) const {
   LOG(debug) << "Computing inverse covariance matrix for spatial variance = "
              << spatial_var << " and iid noise = " << indep_var;
-  Vector diag = 1 / (eigenvalues.array() + indep_var);
-  return 1 / spatial_var * eigenvectors * diag.asDiagonal()
-         * eigenvectors.transpose();
+  Vector diag = 1 / (spatial_var * (eigenvalues.array() + indep_var));
+  return eigenvectors * diag.asDiagonal() * eigenvectors.transpose();
 }
 
 Matrix GaussianProcess::inverse_covariance(double spatial_var,
@@ -59,8 +64,8 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
   for (size_t i = 0; i < n; ++i)
     for (size_t j = i + 1; j < n; ++j) {
       Vector diff = x.row(i) - x.row(j);
-      double d = diff.dot(diff);
-      k(i, j) = k(j, i) = exp(-1 / 2.0 * d / l_square);
+      double d2 = diff.squaredNorm();
+      k(i, j) = k(j, i) = exp(-0.5 * d2 / l_square);
     }
   k.diagonal() = Vector::Ones(n);
   return k;
@@ -76,4 +81,23 @@ vector<GaussianProcess::VarGrad> GaussianProcess::predict_means_and_vars(
   return res;
 }
 
+Vector GaussianProcess::sample(const Vector &mean, double sv,
+                               double delta) const {
+  assert(static_cast<size_t>(mean.size()) == n);
+  Vector z(n);
+  for (size_t i = 0; i < n; ++i)
+    z(i) = normal_distribution<double>(0, 1)(EntropySource::rng);
+  Matrix A = covariance_sqroot(sv, delta);
+  return mean + A * z;
+}
+
+Matrix GaussianProcess::sample(const Matrix &mean, const Vector &sv,
+                               const Vector &delta) const {
+  assert(mean.cols() == sv.size());
+  assert(mean.cols() == delta.size());
+  Matrix x = mean;
+  for (int i = 0; i < mean.cols(); ++i)
+    x.col(i) = sample(mean.col(i), sv(i), delta(i));
+  return x;
+}
 }  // namespace GP

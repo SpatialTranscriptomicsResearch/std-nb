@@ -10,6 +10,10 @@
 #include "gp.hpp"
 #include "types.hpp"
 
+namespace STD {
+struct Experiment;
+}
+
 namespace Coefficient {
 
 struct Coefficient;
@@ -69,7 +73,7 @@ struct Coefficient : public Id {
   Parameters parameters;
   STD::Matrix values;
   std::vector<CoefficientPtr> priors;
-  std::vector<size_t> experiment_idxs;
+  std::vector<STD::Experiment *> experiments;
 
   bool parent_a_flexible;
   bool parent_b_flexible;
@@ -79,7 +83,6 @@ struct Coefficient : public Id {
 
   size_t size() const;
   size_t number_variable() const;
-  STD::Vector setZero();
 
   template <typename Iter>
   void from_vector(Iter &iter) {
@@ -95,11 +98,12 @@ struct Coefficient : public Id {
   double get_raw(size_t g, size_t t, size_t s) const;  // rename to operator()
   double &get_raw(size_t g, size_t t, size_t s);       // rename to operator()
   double get_actual(size_t g, size_t t, size_t s) const;  // rename to operator()
+  virtual void sample() = 0;
   void store(const std::string &path, CompressionMode,
              const std::vector<std::string> &gene_names,
              const std::vector<std::string> &spot_names,
              const std::vector<std::string> &factor_names,
-             std::vector<size_t> col_order) const;
+             const std::vector<size_t> col_order) const;
   void restore(const std::string &path);
 
   template <typename Fnc>
@@ -144,6 +148,7 @@ struct Coefficient : public Id {
 struct Fixed : public Coefficient {
   Fixed(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
   double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+  void sample();
 };
 
 struct Distributions : public Coefficient {
@@ -155,22 +160,26 @@ struct Beta : public Distributions {
   Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
        const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
+  void sample();
 };
 struct BetaPrime : public Distributions {
   BetaPrime(size_t G, size_t T, size_t S, const Id &id,
             const Parameters &params,
             const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
+  void sample();
 };
 struct Normal : public Distributions {
   Normal(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
          const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
+  void sample();
 };
 struct Gamma : public Distributions {
   Gamma(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
         const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
+  void sample();
 };
 
 namespace Spatial {
@@ -178,6 +187,7 @@ struct Points : public Coefficient {
   Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
          const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
+  void sample();
 };
 
 struct Coord : public Coefficient {
@@ -190,10 +200,14 @@ struct Coord : public Coefficient {
   std::shared_ptr<GP::GaussianProcess> gp;
   STD::Matrix form_data() const;
   STD::Matrix form_mean() const;
+  STD::Vector form_priors(size_t prior_idx) const;
+  STD::Vector form_svs() const;
+  STD::Vector form_deltas() const;
   void construct_gp();
   size_t size() const;
-  void add_formed_data(const STD::Matrix &m);
+  void add_formed_data(const STD::Matrix &m, bool subtract_prior);
   double compute_gradient(CoefficientPtr grad_coeff) const;
+  void sample();
 };
 
 }  // namespace Spatial
@@ -202,9 +216,9 @@ size_t distribution_number_parameters(Type distribution);
 
 Kind determine_kind(const std::set<std::string> &term);
 
-std::string to_string(const Kind &kind);
-std::string to_string(const Type &distribution);
-std::string to_token(const Kind &kind);
+std::string to_string(Kind kind);
+std::string to_string(Type distribution);
+std::string to_token(Kind kind);
 std::string storage_type(Kind kind);
 std::ostream &operator<<(std::ostream &os, const Coefficient &coeff);
 

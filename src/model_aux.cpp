@@ -116,14 +116,14 @@ CoefficientPtr Model::register_coefficient(
             const vector<CoefficientPtr> &priors) -> CoefficientPtr {
     auto it = find_coefficient(cid);
     if (it != end(coeffs)) {
-      (*it)->experiment_idxs.push_back(experiment);
+      (*it)->experiments.push_back(&experiments[experiment]);
       return *it;
     } else {
       LOG(debug) << "Adding new coefficient for " << cid.name << ".";
       coeffs.emplace_back(Coefficient::make_shared(
           _G, _T, _S, cid, parameters.coeff_parameters, priors));
       auto coeff = coeffs.back();
-      coeff->experiment_idxs.push_back(experiment);
+      coeff->experiments.push_back(&experiments[experiment]);
       LOG(debug) << "Added new coefficient: " << *coeff << ".";
       return coeff;
     }
@@ -245,8 +245,6 @@ void Model::construct_GPs() {
       LOG(debug) << "Constructing GP " << idx << ": " << *coeffs[idx];
       auto coord_coeff
           = dynamic_pointer_cast<Coefficient::Spatial::Coord>(coeffs[idx]);
-      assert(coord_coeff->type == Coefficient::Type::gp_coord);
-      LOG(debug) << "using coordinate system coefficient " << *coord_coeff;
       coord_coeff->construct_gp();
     }
 }
@@ -400,10 +398,10 @@ void Model::store(const string &prefix_, bool mean_and_var,
       for (auto &coeff : coeffs) {
         vector<string> spot_names;
         if (coeff->spot_dependent())
-          for (auto idx : coeff->experiment_idxs)
+          for (Experiment *experiment : coeff->experiments)
             spot_names.insert(begin(spot_names),
-                              begin(experiments[idx].counts.col_names),
-                              end(experiments[idx].counts.col_names));
+                              begin(experiment->counts.col_names),
+                              end(experiment->counts.col_names));
         coeff->store(prefix + "covariate-" + storage_type(coeff->kind) + "-"
                          + coeff->name + "-"
                          + coeff->info.to_string(design.covariates)

@@ -48,7 +48,7 @@ bool initialized_jit = false;
 
 Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
              const ModelSpec &model_spec_, const Parameters &parameters_,
-             bool construct_gp)
+             bool initialize, bool construct_gp)
     : G(max_row_number(c)),
       T(T_),
       E(0),
@@ -98,6 +98,10 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   // remove_redundant_terms();
   coeff_debug_dump("AFTER");
 
+  if (initialize)
+    for (auto &coeff : coeffs)
+      coeff->sample();
+
   size_t index = 0;
   for (auto coeff : coeffs)
     LOG(debug) << index++ << " " << *coeff << ": "
@@ -112,9 +116,6 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
     experiment.scale_ratio /= min_ratio;
 
   verify_model(*this);
-
-  // TODO cov spot initialize spot scaling:
-  // linear in number of counts, scaled so that mean = 1
 }
 
 Model Model::clone() const {
@@ -124,7 +125,7 @@ Model Model::clone() const {
   vector<Counts> counts;
   for (auto experiment : experiments)
     counts.push_back(experiment.counts);
-  Model model(counts, T, design, model_spec, parameters, false);
+  Model model(counts, T, design, model_spec, parameters, false, false);
   for (size_t idx = 0; idx < coeffs.size(); ++idx)
     if (coeffs[idx]->type == Coefficient::Type::gp_coord) {
       auto coord_coeff
