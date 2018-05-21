@@ -78,7 +78,6 @@ struct Parameters {
 
   std::string output_directory = default_output_string;
   size_t report_interval = 200;
-  bool skip_likelihood = false;
 
   Optimize::Method optim_method = Optimize::Method::RPROP;
 

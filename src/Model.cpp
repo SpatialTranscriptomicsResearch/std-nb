@@ -229,7 +229,7 @@ pair<Matrix, Matrix> Model::compute_mean_and_var(size_t e) const {
   return {Mean, Var};
 }
 
-Model Model::compute_gradient(double &score, bool compute_likelihood) const {
+Model Model::compute_gradient(double &score) const {
   LOG(debug) << "Computing gradient";
 
   score = 0;
@@ -286,8 +286,7 @@ Model Model::compute_gradient(double &score, bool compute_likelihood) const {
                                     odds, rate_coeff_arrays, odds_coeff_arrays,
                                     rng);
             double p = odds_to_prob(total_odds);
-            if (compute_likelihood)
-              score_ += log_negative_binomial(exp.counts(g, s), total_rate, p);
+            score_ += log_negative_binomial(exp.counts(g, s), total_rate, p);
           }
 
 #pragma omp critical
@@ -438,10 +437,7 @@ void Model::gradient_update(
 
     from_vector(x.array());
     double score = 0;
-    Model model_grad = compute_gradient(
-        score, not parameters.skip_likelihood
-                   or current_iteration == num_iterations
-                   or current_iteration % parameters.report_interval == 0);
+    Model model_grad = compute_gradient(score);
     for (auto coeff : model_grad.coeffs)
       LOG(debug) << coeff << " grad = " << Stats::summary(coeff->values);
 

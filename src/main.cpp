@@ -244,9 +244,6 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("fast", po::bool_switch(&parameters.skip_likelihood),
-     "Report full likelihood only in the reporting iterations. "
-     "This saves about 20\% of time with version std-nxt 0.3-105-gc3011db-dirty [llvm-stage branch].")
     ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value, stringize(parameters.min_value)),
      "Minimal value to enforce for parameters.")
     ("warn", po::bool_switch(&parameters.warn_lower_limit),
