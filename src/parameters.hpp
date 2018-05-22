@@ -53,8 +53,9 @@ struct Hyperparameters {
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
-  GaussianProcessParameters(size_t first_iteration = 0);
+  GaussianProcessParameters(size_t first_iteration = 0, bool free_mean=false);
   size_t first_iteration;
+  bool free_mean;
 };
 
 struct Parameters {
@@ -85,7 +86,7 @@ struct Parameters {
   double grad_alpha = 1e-1;
   double grad_anneal = 0.999;
 
-  GaussianProcessParameters gp = {};
+  GaussianProcessParameters gp = {0, false};
 
   double temperature = 1;
 

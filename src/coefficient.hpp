@@ -203,6 +203,7 @@ struct Coord : public Coefficient {
   STD::Vector form_priors(size_t prior_idx) const;
   STD::Vector form_svs() const;
   STD::Vector form_deltas() const;
+  void subtract_mean();
   void construct_gp();
   size_t size() const;
   void add_formed_data(const STD::Matrix &m, bool subtract_prior);

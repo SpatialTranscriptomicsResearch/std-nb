@@ -81,8 +81,10 @@ GaussianProcess::VarGrad GaussianProcess::predict_means_and_vars(
 
   const double lower_limit = 1e-6;
   bool lower_limit_reached = false;
-  if (lower_limit_reached = delta < lower_limit)
+  if (delta < lower_limit) {
     delta = lower_limit;
+    lower_limit_reached = true;
+  }
 
   Vector Uy = eigenvectors.transpose() * y;
   Vector Umu = eigenvectors.transpose() * mean;

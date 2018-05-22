@@ -99,8 +99,13 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   coeff_debug_dump("AFTER");
 
   if (initialize)
-    for (auto &coeff : coeffs)
+    for (auto &coeff : coeffs) {
       coeff->sample();
+      if (coeff->type == Coefficient::Type::gp_coord
+          and not parameters.gp.free_mean)
+        dynamic_pointer_cast<Coefficient::Spatial::Coord>(coeff)
+            ->subtract_mean();
+    }
 
   size_t index = 0;
   for (auto coeff : coeffs)
