@@ -310,15 +310,12 @@ double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
   assert(formed_data.rows() == formed_mean.rows());
   assert(formed_data.cols() == formed_mean.cols());
 
-  Matrix mus = formed_data;
-  mus.setZero();
-  Matrix vars = mus;
-
   auto grads = gp->predict_means_and_vars(formed_data, formed_mean, form_svs(),
-                                          form_deltas(), mus, vars);
+                                          form_deltas());
 
-  Matrix formed_gradient
-      = (mus - formed_data).array() / vars.array() / vars.array();
+  Matrix formed_gradient = formed_data;
+  for (size_t t = 0; t < grads.size(); ++t)
+    formed_gradient.col(t) = grads[t].points;
 
   dynamic_pointer_cast<Coord>(grad_coeff)
       ->add_formed_data(formed_gradient, true);
@@ -334,9 +331,8 @@ double Coord::compute_gradient(CoefficientPtr grad_coeff) const {
       grad_coeff->priors[delta_idx]->get_raw(0, t, 0) += grads[t].delta;
 
   double score = 0;
-  for (int i = 0; i < formed_data.rows(); ++i)
-    for (int j = 0; j < formed_data.cols(); ++j)
-      score += log_normal(formed_data(i, j), mus(i, j), vars(i, j));
+  for (auto &grad : grads)
+    score += grad.score;
 
   LOG(verbose) << "GP score: " << score;
   return score;
@@ -675,13 +671,13 @@ void Coord::add_formed_data(const Matrix &m, bool subtract_prior) {
 
 void Coord::construct_gp() {
   size_t n = 0;
-  for (auto e: experiments)
+  for (auto e : experiments)
     n += e->S;
   size_t ncol = experiments.front()->coords.cols();
   LOG(debug) << "n = " << n;
   Matrix m = Matrix::Zero(n, ncol);
   size_t i = 0;
-  for (auto e: experiments) {
+  for (auto e : experiments) {
     for (int s = 0; s < e->coords.rows(); ++s)
       for (int j = 0; j < e->coords.cols(); ++j)
         m(i + s, j) = e->coords(s, j);

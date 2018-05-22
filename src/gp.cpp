@@ -71,13 +71,62 @@ Matrix GaussianProcess::rbf_kernel(const Matrix &x, double l) {
   return k;
 }
 
+GaussianProcess::VarGrad GaussianProcess::predict_means_and_vars(
+    const Vector &y, const Vector &mean, double sv, double delta) const {
+  LOG(verbose) << "Predicting means and variances for a vector of length "
+               << y.size() << " sv = " << sv << " delta = " << delta;
+
+  assert(sv > 0);
+  assert(delta > 0);
+
+  const double lower_limit = 1e-6;
+  bool lower_limit_reached = false;
+  if (lower_limit_reached = delta < lower_limit)
+    delta = lower_limit;
+
+  Vector Uy = eigenvectors.transpose() * y;
+  Vector Umu = eigenvectors.transpose() * mean;
+
+  Vector diff = Uy - Umu;
+  Vector diag = (eigenvalues.array() + delta).inverse();
+  double standard_score = 1 / sv * diff.transpose() * diag.asDiagonal() * diff;
+
+  double grad_sv = 0.5 * (standard_score - n);
+
+  double grad_delta_det = (1 / (eigenvalues.array() + delta)).sum();
+  double grad_delta_score = -1 / sv * diff.transpose() * diag.asDiagonal()
+                            * diag.asDiagonal() * diff;
+  // NOTE: for Gamma distributions (which the priors are enforced to be),
+  // we compute the gradient with respect to a transformed variable,
+  // whence the * delta
+  double grad_delta = -0.5 * delta * (grad_delta_det + grad_delta_score);
+
+  Vector grad_pts
+      = -sv * diff.transpose() * diag.asDiagonal() * eigenvectors.transpose();
+
+  double score
+      = -0.5
+        * (n * (log(2 * M_PI) + log(sv))
+           + (eigenvalues.array() + delta).log().sum() + standard_score);
+
+  LOG(debug) << "GP score = " << n * (log(2 * M_PI) + log(sv)) << " + "
+             << (eigenvalues.array() + delta).log().sum() << " + "
+             << standard_score;
+  if (lower_limit_reached and grad_delta < 0) {
+    LOG(warning) << "WARNING!";
+    grad_delta = 0;
+  }
+  VarGrad grad = {grad_sv, grad_delta, grad_pts, score};
+  return grad;
+};
+
 vector<GaussianProcess::VarGrad> GaussianProcess::predict_means_and_vars(
-    const Matrix &y, const Matrix &mean, const Vector &sv, const Vector &delta,
-    Matrix &mu, Matrix &var) const {
+    const Matrix &y, const Matrix &mean, const Vector &sv,
+    const Vector &delta) const {
   vector<VarGrad> res;
   for (int i = 0; i < y.cols(); ++i)
-    res.push_back(predict_means_and_vars(y.col(i), mean.col(i), sv(i), delta(i),
-                                         mu.col(i), var.col(i)));
+    res.push_back(
+        predict_means_and_vars(y.col(i), mean.col(i), sv(i), delta(i)));
   return res;
 }
 
