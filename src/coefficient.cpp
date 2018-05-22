@@ -671,7 +671,7 @@ void Coord::add_formed_data(const Matrix &m, bool subtract_prior) {
 
 void Coord::subtract_mean() {
   for (auto pts : points)
-    for (size_t t = 0; t < pts->values.cols(); ++t) {
+    for (int t = 0; t < pts->values.cols(); ++t) {
       // double ave = pts->values.col(t).sum() / pts->values.cols();
       double ave = pts->values.col(t).mean();
       LOG(verbose) << "subtract mean " << t << " = " << ave;
