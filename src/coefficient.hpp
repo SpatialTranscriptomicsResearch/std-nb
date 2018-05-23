@@ -54,10 +54,6 @@ enum class Type {
   gp_coord
 };
 
-struct Parameters {
-  double variance = 0.1;
-};
-
 struct Id {
   std::string name;
   Kind kind;
@@ -67,10 +63,8 @@ struct Id {
 
 struct Coefficient : public Id {
   Coefficient(size_t G, size_t T, size_t S, const Id &id,
-              const Parameters &params,
               const std::vector<CoefficientPtr> &priors_);
 
-  Parameters parameters;
   STD::Matrix values;
   std::vector<CoefficientPtr> priors;
   std::vector<STD::Experiment *> experiments;
@@ -146,37 +140,35 @@ struct Coefficient : public Id {
 };
 
 struct Fixed : public Coefficient {
-  Fixed(size_t G, size_t T, size_t S, const Id &id, const Parameters &params);
+  Fixed(size_t G, size_t T, size_t S, const Id &id);
   double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
   void sample();
 };
 
 struct Distributions : public Coefficient {
   Distributions(size_t G, size_t T, size_t S, const Id &id,
-                const Parameters &params,
                 const std::vector<CoefficientPtr> &priors);
 };
 struct Beta : public Distributions {
-  Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+  Beta(size_t G, size_t T, size_t S, const Id &id,
        const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
   void sample();
 };
 struct BetaPrime : public Distributions {
   BetaPrime(size_t G, size_t T, size_t S, const Id &id,
-            const Parameters &params,
             const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
   void sample();
 };
 struct Normal : public Distributions {
-  Normal(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+  Normal(size_t G, size_t T, size_t S, const Id &id,
          const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
   void sample();
 };
 struct Gamma : public Distributions {
-  Gamma(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+  Gamma(size_t G, size_t T, size_t S, const Id &id,
         const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const;
   void sample();
@@ -184,7 +176,7 @@ struct Gamma : public Distributions {
 
 namespace Spatial {
 struct Points : public Coefficient {
-  Points(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+  Points(size_t G, size_t T, size_t S, const Id &id,
          const std::vector<CoefficientPtr> &priors);
   double compute_gradient(CoefficientPtr grad_coeff) const { return 0; };
   void sample();
@@ -193,7 +185,7 @@ struct Points : public Coefficient {
 struct Coord : public Coefficient {
   using PointsPtr = std::shared_ptr<Points>;
   using PointsPtrs = std::vector<PointsPtr>;
-  Coord(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+  Coord(size_t G, size_t T, size_t S, const Id &id,
         const std::vector<CoefficientPtr> &priors);
   PointsPtrs points;
   double length_scale;
@@ -240,7 +232,6 @@ inline constexpr Kind operator~(Kind a) {
 }
 
 CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &id,
-                           const Parameters &params,
                            const std::vector<CoefficientPtr> &priors);
 
 }  // namespace Coefficient

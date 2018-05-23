@@ -34,9 +34,8 @@ Kind determine_kind(const set<string> &term) {
 }
 
 Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
-                         const Parameters &params,
                          const std::vector<CoefficientPtr> &priors_)
-    : Id(id), parameters(params), priors(priors_) {
+    : Id(id), priors(priors_) {
   if (type == Type::gp_points and not spot_dependent())
     throw std::runtime_error(
         "Error: Gaussian processes only allowed for spot-dependent or "
@@ -80,19 +79,16 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
   LOG(debug) << *this;
 }
 
-Fixed::Fixed(size_t G, size_t T, size_t S, const Id &id,
-             const Parameters &params)
-    : Coefficient(G, T, S, id, params, {}) {}
+Fixed::Fixed(size_t G, size_t T, size_t S, const Id &id)
+    : Coefficient(G, T, S, id, {}) {}
 
 Distributions::Distributions(size_t G, size_t T, size_t S, const Id &id,
-                             const Parameters &params,
                              const std::vector<CoefficientPtr> &priors_)
-    : Coefficient(G, T, S, id, params, priors_) {}
+    : Coefficient(G, T, S, id, priors_) {}
 
 Gamma::Gamma(size_t G, size_t T, size_t S, const Id &id,
-             const Parameters &params,
              const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {
+    : Distributions(G, T, S, id, priors_) {
   for (size_t i = 0; i < 2; ++i)
     if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
       throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
@@ -100,9 +96,9 @@ Gamma::Gamma(size_t G, size_t T, size_t S, const Id &id,
                                + ::Coefficient::to_string(priors[i]->type));
 }
 
-Beta::Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
+Beta::Beta(size_t G, size_t T, size_t S, const Id &id,
            const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {
+    : Distributions(G, T, S, id, priors_) {
   for (size_t i = 0; i < 2; ++i)
     if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
       throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
@@ -111,9 +107,8 @@ Beta::Beta(size_t G, size_t T, size_t S, const Id &id, const Parameters &params,
 }
 
 BetaPrime::BetaPrime(size_t G, size_t T, size_t S, const Id &id,
-                     const Parameters &params,
                      const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {
+    : Distributions(G, T, S, id, priors_) {
   for (size_t i = 0; i < 2; ++i)
     if (priors[i]->type != Type::fixed and priors[i]->type != Type::gamma)
       throw std::runtime_error("Error: argument " + std::to_string(i) + " of "
@@ -122,9 +117,8 @@ BetaPrime::BetaPrime(size_t G, size_t T, size_t S, const Id &id,
 }
 
 Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
-               const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
-    : Distributions(G, T, S, id, params, priors_) {
+    : Distributions(G, T, S, id, priors_) {
   if (priors[0]->type != Type::fixed and priors[0]->type != Type::normal
       and priors[0]->type != Type::gp_points)
     throw std::runtime_error("Error: argument " + std::to_string(0) + " of "
@@ -138,9 +132,8 @@ Normal::Normal(size_t G, size_t T, size_t S, const Id &id,
 
 namespace Spatial {
 Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
-             const Parameters &params,
              const std::vector<CoefficientPtr> &priors_)
-    : Coefficient(G, T, S, id, params, priors_),
+    : Coefficient(G, T, S, id, priors_),
       length_scale(priors[0]->get_actual(0, 0, 0)) {
   assert(not priors.empty());
   assert(priors[0]->type == Type::fixed);
@@ -159,9 +152,8 @@ Coord::Coord(size_t G, size_t T, size_t S, const Id &id,
 }
 
 Points::Points(size_t G, size_t T, size_t S, const Id &id,
-               const Parameters &params,
                const std::vector<CoefficientPtr> &priors_)
-    : Coefficient(G, T, S, id, params, priors_) {
+    : Coefficient(G, T, S, id, priors_) {
   if (priors[0]->type != Type::fixed and priors[0]->type != Type::normal
       and priors[0]->type != Type::gp_points)
     throw std::runtime_error("Error: argument " + std::to_string(0) + " of "
@@ -705,32 +697,31 @@ ostream &operator<<(ostream &os, const Coefficient &coeff) {
 }
 
 CoefficientPtr make_shared(size_t G, size_t T, size_t S, const Id &cid,
-                           const Parameters &params,
                            const std::vector<CoefficientPtr> &priors) {
   switch (cid.type) {
     case Type::fixed:
-      return std::make_shared<Fixed>(G, T, S, cid, params);
+      return std::make_shared<Fixed>(G, T, S, cid);
     case Type::normal:
-      return std::make_shared<Normal>(G, T, S, cid, params, priors);
+      return std::make_shared<Normal>(G, T, S, cid, priors);
     case Type::beta:
-      return std::make_shared<Beta>(G, T, S, cid, params, priors);
+      return std::make_shared<Beta>(G, T, S, cid, priors);
     case Type::beta_prime:
-      return std::make_shared<BetaPrime>(G, T, S, cid, params, priors);
+      return std::make_shared<BetaPrime>(G, T, S, cid, priors);
     case Type::gamma:
-      return std::make_shared<Gamma>(G, T, S, cid, params, priors);
+      return std::make_shared<Gamma>(G, T, S, cid, priors);
     case Type::gp_coord: {
       assert(priors.size() == 4);
       vector<CoefficientPtr> priors_;
       priors_.emplace_back(priors[0]);
       priors_.emplace_back(priors[2]);
       priors_.emplace_back(priors[3]);
-      return std::make_shared<Spatial::Coord>(G, T, S, cid, params, priors_);
+      return std::make_shared<Spatial::Coord>(G, T, S, cid, priors_);
     }
     case Type::gp_points: {
       assert(priors.size() == 4);
       vector<CoefficientPtr> priors_;
       priors_.emplace_back(priors[1]);
-      return std::make_shared<Spatial::Points>(G, T, S, cid, params, priors_);
+      return std::make_shared<Spatial::Points>(G, T, S, cid, priors_);
     }
     default:
       throw std::runtime_error(

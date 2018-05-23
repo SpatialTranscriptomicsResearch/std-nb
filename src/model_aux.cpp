@@ -120,8 +120,7 @@ CoefficientPtr Model::register_coefficient(
       return *it;
     } else {
       LOG(debug) << "Adding new coefficient for " << cid.name << ".";
-      coeffs.emplace_back(Coefficient::make_shared(
-          _G, _T, _S, cid, parameters.coeff_parameters, priors));
+      coeffs.emplace_back(Coefficient::make_shared(_G, _T, _S, cid, priors));
       auto coeff = coeffs.back();
       coeff->experiments.push_back(&experiments[experiment]);
       LOG(debug) << "Added new coefficient: " << *coeff << ".";
