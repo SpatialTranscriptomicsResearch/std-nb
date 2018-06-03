@@ -120,6 +120,9 @@ Model::Model(const vector<Counts> &c, size_t T_, const Design::Design &design_,
   for (auto &experiment : experiments)
     experiment.scale_ratio /= min_ratio;
 
+  if (parameters.gp.center)
+    center();
+
   verify_model(*this);
 }
 
@@ -415,6 +418,14 @@ void Model::register_gradient_zero_count(
   }
 }
 
+void Model::center() {
+  for (auto &coeff : coeffs)
+    if (coeff->type == Coefficient::Type::gp_points)
+      for (int t = 0; t < coeff->values.cols(); ++t)
+        coeff->values.col(t)
+            = coeff->values.col(t).array() - coeff->values.col(t).mean();
+}
+
 void Model::gradient_update(
     size_t num_iterations,
     std::function<bool(const CoefficientPtr)> is_included) {
@@ -442,6 +453,10 @@ void Model::gradient_update(
     }
 
     from_vector(x.array());
+
+    if (parameters.gp.center)
+      center();
+
     double score = 0;
     Model model_grad = compute_gradient(score);
     for (auto coeff : model_grad.coeffs)

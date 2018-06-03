@@ -53,9 +53,11 @@ struct Hyperparameters {
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams);
 
 struct GaussianProcessParameters {
-  GaussianProcessParameters(size_t first_iteration = 0, bool free_mean=false);
+  GaussianProcessParameters(size_t first_iteration = 0, bool free_mean = false,
+                            bool center = false);
   size_t first_iteration;
   bool free_mean;
+  bool center;
 };
 
 struct Parameters {

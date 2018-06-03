@@ -68,6 +68,7 @@ struct Model {
                          const Vector &rate, const Vector &odds,
                          const std::vector<double> &rate_coeffs,
                          const std::vector<double> &odds_coeffs) const;
+  void center();
 
   void register_gradient_total(
       size_t g, size_t e, size_t s, double total_rate, double total_odds,

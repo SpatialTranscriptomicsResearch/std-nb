@@ -236,7 +236,9 @@ int main(int argc, char **argv) {
      "In which iteration to start using the Gaussian process prior.")
     ("gp_freemean", po::value(&parameters.gp.free_mean)->default_value(parameters.gp.free_mean),
      "During intialization, do not force the mean of GPs to be zero. "
-     "By default, the mean is subtracted and thus set to zero.");
+     "By default, the mean is subtracted and thus set to zero.")
+    ("gp_center", po::bool_switch(&parameters.gp.center),
+     "Center all Gaussian processes by keeping mean fixed to zero.");
 
  auto stringize = [](double x) -> std::string {
    stringstream s;

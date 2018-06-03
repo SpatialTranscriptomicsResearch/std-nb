@@ -6,8 +6,8 @@ using namespace std;
 namespace STD {
 
 GaussianProcessParameters::GaussianProcessParameters(size_t first_iter,
-                                                     bool mean)
-    : first_iteration(first_iter), free_mean(mean) {}
+                                                     bool mean, bool center_)
+    : first_iteration(first_iter), free_mean(mean), center(center_) {}
 
 double Hyperparameters::get_param(Coefficient::Type distribution,
                                   size_t idx) const {
