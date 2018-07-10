@@ -175,7 +175,7 @@ int main(int argc, char **argv) {
   string usage_info = "Spatial Transcriptome Deconvolution\n"
     "\n"
     "This software implements the Spatial Transcriptome Deconvolution model of\n"
-    "Jonas Maaskola et al. 2017.\n"
+    "Jonas Maaskola et al. 2018.\n"
     "\n"
     "Please provide one or more count matrices as argument to the --file switch or as\n"
     "free arguments. These need to have genes in the rows and spots in the columns.";

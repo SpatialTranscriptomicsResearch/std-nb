@@ -27,16 +27,6 @@ double Hyperparameters::get_param(Coefficient::Type distribution,
         return normal_1;
       else
         return normal_2;
-    case Coefficient::Type::gp_points:
-      if (idx == 0)
-        return normal_1;  // TODO gp mu parameter
-      else
-        return normal_2;  // TODO gp sigma parameter
-    case Coefficient::Type::gp_coord:
-      if (idx == 0)
-        return normal_1;  // TODO gp mu parameter
-      else
-        return normal_2;  // TODO gp sigma parameter
     default:
       // TODO cov prior set for other disitributions
       throw std::runtime_error(
