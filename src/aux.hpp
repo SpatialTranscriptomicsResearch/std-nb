@@ -108,20 +108,6 @@ V rowSums(const M &m) {
 
 std::vector<size_t> random_order(size_t n);
 
-template <typename T>
-void min_max(const std::string &label, const T &v) {
-  // TODO Eigen reactivate
-  /*
-  arma::running_stat<double> stats;
-  for (auto &x : v)
-    stats(x);
-
-  LOG(debug) << label << " mean = " << stats.mean() << " var  = " << stats.var()
-             << " min  = " << stats.min() << " max  = " << stats.max()
-             << std::endl;
-  */
-}
-
 template <typename V>
 V gibbs(const V &y) {
   double m = *std::max_element(begin(y), end(y));

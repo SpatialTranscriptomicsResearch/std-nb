@@ -46,7 +46,6 @@ IF(BUILD_TESTS)
   ADD_EXECUTABLE(test_negative_binomial_convolution test_negative_binomial_convolution.cpp)
   # ADD_EXECUTABLE(test-log-beta test-log-beta.cpp pdist.cpp)
   # ADD_EXECUTABLE(test_sampling test_sampling.cpp)
-  # ADD_EXECUTABLE(test_field test_fields.cpp)
 ENDIF()
 
 TARGET_LINK_LIBRARIES(transcriptomedeconvolution
