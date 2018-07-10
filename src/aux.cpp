@@ -24,51 +24,6 @@ vector<size_t> random_order(size_t n) {
   return order;
 }
 
-void enforce_positive_and_warn(const string &tag, STD::Matrix &m,
-                               double min_val, bool warn) {
-  for (STD::Index i = 0; i < m.rows(); ++i)
-    for (STD::Index j = 0; j < m.cols(); ++j)
-      if (m(i, j) < min_val) {
-        if (warn) {
-          LOG(warning) << "Found problematic value " << m(i, j) << " in " << tag
-                       << " matrix at position " << i << " / " << j;
-          LOG(warning) << "Setting to " << min_val << " and continuing.";
-        }
-        m(i, j) = min_val;
-      }
-}
-
-void enforce_positive_and_warn(const string &tag, STD::Vector &v,
-                               double min_val, bool warn) {
-  for (STD::Index i = 0; i < v.rows(); ++i)
-    if (v(i) < min_val) {
-      if (warn) {
-        LOG(warning) << "Found problematic value " << v(i) << " in " << tag
-                     << " vector at position " << i;
-        LOG(warning) << "Setting to " << min_val << " and continuing.";
-      }
-      v(i) = min_val;
-    }
-}
-
-void enforce_positive_and_warn(const string &tag, vector<double> &v,
-                               double min_val, bool warn) {
-  size_t small_numbers = 0;
-  for (size_t i = 0; i < v.size(); ++i)
-    if (v[i] < min_val) {
-      small_numbers++;
-      if (warn) {
-        LOG(warning) << "Found problematic value " << v[i] << " in " << tag
-                     << " vector at position " << i;
-        LOG(warning) << "Setting to " << min_val << " and continuing.";
-      }
-      v[i] = min_val;
-    }
-  if (small_numbers > 0)
-    LOG(warning) << "Found " << small_numbers << " problematic values in "
-                 << tag << "vector.";
-}
-
 vector<string> split_at(char sep, const string &str) {
   vector<string> ret;
   istringstream ss(str);

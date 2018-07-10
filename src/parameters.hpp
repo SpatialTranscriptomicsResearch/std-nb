@@ -61,8 +61,6 @@ struct GaussianProcessParameters {
 };
 
 struct Parameters {
-  /** Minimal positive value to enforce for parameters */
-  double min_value = 1e-16;
   double dropout_gene_spot = 0;
   double downsample = 1;
   bool adjust_seq_depth = false;

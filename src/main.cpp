@@ -248,8 +248,6 @@ int main(int argc, char **argv) {
   advanced_options.add_options()
     ("intersect", po::bool_switch(&options.intersect),
      "When using multiple count matrices, use the intersection of rows, rather than their union.")
-    ("minval", po::value(&parameters.min_value)->default_value(parameters.min_value, stringize(parameters.min_value)),
-     "Minimal value to enforce for parameters.")
     ("minread_spot", po::value(&options.min_reads_spot)->default_value(options.min_reads_spot),
      "Discard spots that have fewer than this many reads.")
     ("minread_gene", po::value(&options.min_reads_gene)->default_value(options.min_reads_gene),
