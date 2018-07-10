@@ -47,10 +47,6 @@ struct Model {
         const ModelSpec &model_spec, const Parameters &parameters,
         bool initialize=true, bool construct_gp=true);
   Model clone() const;
-  void remove_redundant_terms();
-  void remove_redundant_terms(Coefficient::Kind kind);
-  void remove_redundant_terms_sub(
-      const std::map<CoefficientPtr, std::set<size_t>> &cov_groups);
 
   CoefficientPtr register_coefficient(
       const std::unordered_map<std::string, ModelSpec::Variable> &variable_map,
