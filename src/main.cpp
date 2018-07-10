@@ -321,9 +321,9 @@ int main(int argc, char **argv) {
     ("beta_prime_2", po::value(&parameters.hyperparameters.beta_prime_2)->default_value(parameters.hyperparameters.beta_prime_2),
      "Default value for the 2nd argument of beta prime distributions.")
     ("normal_1", po::value(&parameters.hyperparameters.normal_1)->default_value(parameters.hyperparameters.normal_1),
-     "Default value for the exponential of the mean of log normal distributions.")
+     "Default value for the mean of normal distributions.")
     ("normal_2", po::value(&parameters.hyperparameters.normal_2)->default_value(parameters.hyperparameters.normal_2),
-     "Default value for the variance of log normal distribution.");
+     "Default value for the variance of normal distribution.");
 
   cli_options.add(generic_options)
       .add(required_options)
