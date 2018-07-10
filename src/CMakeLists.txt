@@ -36,7 +36,6 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   verbosity.cpp
   )
 
-ADD_EXECUTABLE(enrich enrich.cpp cli.cpp)
 ADD_EXECUTABLE(std main.cpp cli.cpp)
 
 SET(BUILD_TESTS false)
@@ -64,7 +63,6 @@ TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   )
 
 TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)
-TARGET_LINK_LIBRARIES(enrich transcriptomedeconvolution)
 IF(BUILD_TESTS)
   TARGET_LINK_LIBRARIES(test_gamma_cdf transcriptomedeconvolution)
   TARGET_LINK_LIBRARIES(test_gamma_convolution transcriptomedeconvolution)
@@ -76,13 +74,11 @@ ENDIF()
 
 IF(GOOGLEPERFTOOLS_FOUND)
   TARGET_LINK_LIBRARIES(std ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
-  TARGET_LINK_LIBRARIES(enrich ${PROFILER_LIBRARY} ${TCMALLOC_LIBRARY})
 ENDIF()
 
 CONFIGURE_FILE(git_config.hpp.in git_config.hpp)
 SET_TARGET_PROPERTIES(std PROPERTIES RELEASE_POSTFIX ${CMAKE_RELEASE_POSTFIX})
 SET_TARGET_PROPERTIES(std PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
-INSTALL(TARGETS enrich DESTINATION bin)
 INSTALL(TARGETS std DESTINATION bin)
 INSTALL(TARGETS transcriptomedeconvolution DESTINATION lib)
