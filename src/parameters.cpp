@@ -17,6 +17,11 @@ double Hyperparameters::get_param(Coefficient::Type distribution,
         return gamma_1;
       else
         return gamma_2;
+    case Coefficient::Type::beta:
+      if (idx == 0)
+        return beta_1;
+      else
+        return beta_2;
     case Coefficient::Type::beta_prime:
       if (idx == 0)
         return beta_prime_1;
@@ -28,7 +33,6 @@ double Hyperparameters::get_param(Coefficient::Type distribution,
       else
         return normal_2;
     default:
-      // TODO cov prior set for other disitributions
       throw std::runtime_error(
           "Error: no default hyper parameters defined for chosen "
           "distribution.");
@@ -37,10 +41,10 @@ double Hyperparameters::get_param(Coefficient::Type distribution,
 }
 
 std::ostream &operator<<(std::ostream &os, const Hyperparameters &hyperparams) {
-  // TODO print all
-
   os << "gamma_1 = " << hyperparams.gamma_1 << endl;
   os << "gamma_2 = " << hyperparams.gamma_2 << endl;
+  os << "beta_1 = " << hyperparams.beta_1 << endl;
+  os << "beta_2 = " << hyperparams.beta_2 << endl;
   os << "beta_prime_1 = " << hyperparams.beta_prime_1 << endl;
   os << "beta_prime_2 = " << hyperparams.beta_prime_2 << endl;
   os << "normal_1 = " << hyperparams.normal_1 << endl;
