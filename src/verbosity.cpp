@@ -1,5 +1,5 @@
-#include <stdexcept>
 #include "verbosity.hpp"
+#include <stdexcept>
 
 using namespace std;
 
@@ -33,6 +33,25 @@ ostream &operator<<(ostream &os, Verbosity verb) {
   return os;
 }
 istream &operator>>(istream &is, Verbosity &verb) {
-  // TODO implement
+  string token;
+  is >> token;
+  if (token == "everything")
+    verb = Verbosity::everything;
+  else if (token == "trace")
+    verb = Verbosity::trace;
+  else if (token == "debug")
+    verb = Verbosity::debug;
+  else if (token == "verbose")
+    verb = Verbosity::verbose;
+  else if (token == "info")
+    verb = Verbosity::info;
+  else if (token == "warning")
+    verb = Verbosity::warning;
+  else if (token == "error")
+    verb = Verbosity::error;
+  else if (token == "fatal")
+    verb = Verbosity::fatal;
+  else
+    throw runtime_error("Error: unkown verbosity level '" + token + "'.");
   return is;
 }
