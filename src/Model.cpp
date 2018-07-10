@@ -197,15 +197,14 @@ pair<Matrix, Matrix> Model::compute_mean_and_var(size_t e) const {
   Matrix Mean = Matrix::Zero(G, exp.S);
   Matrix Var = Matrix::Zero(G, exp.S);
 
+  const size_t num_rate_coeffs = rate_derivs.size();
+  const size_t num_odds_coeffs = odds_derivs.size();
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     Matrix mean = Matrix::Zero(G, exp.S);
     Matrix var = Matrix::Zero(G, exp.S);
     double rate, odds;
-    // TODO ensure all experiments have the same number of coefficients
-    // currently, this could be violated due to redundancy removal
-    size_t num_rate_coeffs = rate_derivs.size();  // TODO see above
-    size_t num_odds_coeffs = odds_derivs.size();  // TODO see above
     std::vector<std::vector<double>> rate_coeff_arrays, odds_coeff_arrays;
     for (size_t t = 0; t < T; ++t) {
       rate_coeff_arrays.push_back(std::vector<double>(num_rate_coeffs));
@@ -250,16 +249,15 @@ Model Model::compute_gradient(double &score) const {
     experiment.contributions_gene_type.setZero();
   }
 
+  const size_t num_rate_coeffs = rate_derivs.size();
+  const size_t num_odds_coeffs = odds_derivs.size();
+
 #pragma omp parallel if (DO_PARALLEL)
   {
     Model grad = gradient.clone();
     auto rng = EntropySource::rngs[omp_get_thread_num()];
     double score_ = 0;
     Vector rate(T), odds(T);
-    // TODO ensure all experiments have the same number of coefficients
-    // currently, this could be violated due to redundancy removal
-    size_t num_rate_coeffs = rate_derivs.size();  // TODO see above
-    size_t num_odds_coeffs = odds_derivs.size();  // TODO see above
     std::vector<std::vector<double>> rate_coeff_arrays, odds_coeff_arrays;
     for (size_t t = 0; t < T; ++t) {
       rate_coeff_arrays.push_back(std::vector<double>(num_rate_coeffs));
