@@ -25,10 +25,6 @@ Experiment::Experiment(Model *model_, const Counts &counts_, size_t T_,
       contributions_gene(rowSums<Vector>(*counts.matrix)),
       contributions_spot(colSums<Vector>(*counts.matrix)) {
   LOG(debug) << "Experiment G = " << G << " S = " << S << " T = " << T;
-  /* TODO consider to initialize:
-   * contributions_gene_type
-   * contributions_spot_type
-   */
   LOG(trace) << "Coords: " << coords;
 }
 

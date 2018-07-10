@@ -48,7 +48,6 @@ void normalize(const Iter begin, const Iter end) {
  * Retrieve specified quantiles from a container
  *
  * Side effect: sorts the container
- * TODO automatically determine return type
  *
  * @param begin Iterator pointing to the first value
  * @param begin Iterator pointing past the last value

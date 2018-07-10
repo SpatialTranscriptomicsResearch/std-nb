@@ -41,7 +41,6 @@ Coefficient::Coefficient(size_t G, size_t T, size_t S, const Id &id,
         "Error: Gaussian processes only allowed for spot-dependent or "
         "spot- and type-dependent coefficients.");
   if (type != Type::gp_coord)
-    // TODO cov prior fill prior_idx
     switch (kind) {
       case Kind::scalar:
         values = Matrix::Zero(1, 1);
@@ -376,7 +375,6 @@ void Coefficient::store(const string &path, CompressionMode compression_mode,
         write_matrix(values, path, compression_mode, spot_names, {to_string()});
         break;
       case Kind::type:
-        // TODO cov type order
         write_matrix(values, path, compression_mode, type_names, {to_string()},
                      {}, type_order);
         break;
@@ -565,7 +563,6 @@ string Coefficient::to_string() const {
   s += ": " + std::to_string(values.rows()) + "x"
        + std::to_string(values.cols()) + " (" + std::to_string(values.size())
        + ")";
-  // TODO FIXUP coeffs improve
   s += " num_priors=" + std::to_string(priors.size());
   size_t i = 0;
   for (auto &prior : priors)
