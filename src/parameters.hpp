@@ -64,9 +64,6 @@ struct Parameters {
   /** Minimal positive value to enforce for parameters */
   double min_value = 1e-16;
   bool warn_lower_limit = false;
-  double hmc_epsilon = 1e-2;
-  size_t hmc_L = 5;
-  size_t hmc_N = 15;
   double dropout_gene_spot = 0;
   double downsample = 1;
   bool adjust_seq_depth = false;

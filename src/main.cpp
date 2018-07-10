@@ -191,7 +191,6 @@ int main(int argc, char **argv) {
   po::options_description gaussian_process_options("Gaussian process options", num_cols);
   po::options_description advanced_options("Advanced options", num_cols);
   po::options_description grad_options("Gradient descent options", num_cols);
-  po::options_description hmc_options("Hybrid Monte-Carlo options", num_cols);
   po::options_description rprop_options("RPROP options", num_cols);
   po::options_description adagrad_options("AdaGrad options", num_cols);
   po::options_description adam_options("Adam options", num_cols);
@@ -278,14 +277,6 @@ int main(int argc, char **argv) {
     ("temp", po::value(&parameters.temperature)->default_value(parameters.temperature),
      "Temperature for Metropolis-Hastings sampling.");
 
-  hmc_options.add_options()
-    ("hmc_epsilon", po::value(&parameters.hmc_epsilon)->default_value(parameters.hmc_epsilon),
-     "Epsilon parameter for the leapfrog algorithm.")
-    ("hmc_l", po::value(&parameters.hmc_L)->default_value(parameters.hmc_L),
-     "Number of micro-steps to take in the leapfrog algorithm.")
-    ("hmc_n", po::value(&parameters.hmc_N)->default_value(parameters.hmc_N),
-     "Number of leapfrog steps to take per iteration.");
-
   grad_options.add_options()
     ("grad_alpha", po::value(&parameters.grad_alpha)->default_value(parameters.grad_alpha, stringize(parameters.grad_alpha)),
      "Initial learning rate for gradient learning.")
@@ -347,7 +338,6 @@ int main(int argc, char **argv) {
       .add(rprop_options)
       .add(adagrad_options)
       .add(adam_options)
-      .add(hmc_options)
       .add(hyperparameter_options);
 
   po::positional_options_description positional_options;
