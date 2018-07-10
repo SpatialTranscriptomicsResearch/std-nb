@@ -312,7 +312,7 @@ void Model::store(const string &prefix_, bool mean_and_var,
       ofs << parameters.hyperparameters;
     }
 
-// TODO cov perhaps write out a single file for the scalar covariates
+// TODO perhaps write out a single file for the scalar covariates
 #pragma omp section
     {
       for (auto &coeff : coeffs) {
@@ -362,7 +362,7 @@ void Model::store(const string &prefix_, bool mean_and_var,
     }
 }
 
-/* TODO covariates enable loading of subsets of covariates */
+/* TODO enable loading of subsets of covariates */
 void Model::restore(const string &prefix) {
   {
     for (auto &coeff : coeffs) {

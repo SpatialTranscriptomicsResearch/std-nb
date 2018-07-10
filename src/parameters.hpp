@@ -29,8 +29,6 @@ struct Hyperparameters {
         normal_1(normal_1_),
         normal_2(normal_2_){};
 
-  // TODO add: hyper-hyper-parameters
-
   // default values for the gamma distribution
   Float gamma_1;
   Float gamma_2;
