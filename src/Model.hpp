@@ -45,7 +45,7 @@ struct Model {
 
   Model(const std::vector<Counts> &data, size_t T, const Design::Design &design,
         const ModelSpec &model_spec, const Parameters &parameters,
-        bool initialize=true, bool construct_gp=true);
+        bool initialize = true, bool construct_gp = true);
   Model clone() const;
 
   CoefficientPtr register_coefficient(
@@ -59,24 +59,14 @@ struct Model {
   void setZero();
   std::pair<Matrix, Matrix> compute_mean_and_var(size_t e) const;
   Model compute_gradient(double &score) const;
-  void register_gradient(size_t g, size_t e, size_t s, size_t t,
-                         const Vector &cnts, Model &gradient,
-                         const Vector &rate, const Vector &odds,
-                         const std::vector<double> &rate_coeffs,
-                         const std::vector<double> &odds_coeffs) const;
   void center();
 
-  void register_gradient_total(
-      size_t g, size_t e, size_t s, double total_rate, double total_odds,
-      Model &gradient, const Vector &rate, const Vector &odds,
-      const std::vector<std::vector<double>> &rate_coeffs,
-      const std::vector<std::vector<double>> &odds_coeffs, RNG &rng) const;
-
-  void register_gradient_zero_count(
-      size_t g, size_t e, size_t s, size_t t, const Vector &cnts,
-      Model &gradient, const Vector &rate, const Vector &odds,
-      const std::vector<double> &rate_coeffs,
-      const std::vector<double> &odds_coeffs) const;
+  void register_gradient(size_t g, size_t e, size_t s, double total_rate,
+                         double total_odds, Model &gradient, const Vector &rate,
+                         const Vector &odds,
+                         const std::vector<std::vector<double>> &rate_coeffs,
+                         const std::vector<std::vector<double>> &odds_coeffs,
+                         RNG &rng) const;
 
   void coeff_debug_dump(const std::string &tag) const;
 

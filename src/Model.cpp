@@ -289,9 +289,8 @@ Model Model::compute_gradient(double &score) const {
               return x == odds[0];
             }));
             double total_odds = odds[0];
-            register_gradient_total(g, e, s, total_rate, total_odds, grad, rate,
-                                    odds, rate_coeff_arrays, odds_coeff_arrays,
-                                    rng);
+            register_gradient(g, e, s, total_rate, total_odds, grad, rate, odds,
+                              rate_coeff_arrays, odds_coeff_arrays, rng);
             double p = odds_to_prob(total_odds);
             score_ += log_negative_binomial(exp.counts(g, s), total_rate, p);
           }
@@ -313,7 +312,7 @@ Model Model::compute_gradient(double &score) const {
   return gradient;
 }
 
-void Model::register_gradient_total(
+void Model::register_gradient(
     size_t g, size_t e, size_t s, double total_rate, double total_odds,
     Model &gradient, const Vector &rate, const Vector &odds,
     const std::vector<std::vector<double>> &rate_coeffs,
@@ -343,76 +342,22 @@ void Model::register_gradient_total(
   }
 
   for (size_t t = 0; t < T; ++t) {
-    // loop over rate covariates
-    auto deriv_iter = begin(rate_derivs);
-    for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-      gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
-          += rate_term * rate(t) * (*deriv_iter)(rate_coeffs[t].data());
+    {  // loop over rate covariates
+      auto deriv_iter = begin(rate_derivs);
+      for (size_t idx = 0; deriv_iter != end(rate_derivs);
+           ++idx, ++deriv_iter) {
+        gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
+            += rate_term * rate(t) * (*deriv_iter)(rate_coeffs[t].data());
+      }
     }
-    // loop over odds covariates
-    deriv_iter = begin(odds_derivs);
-    for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-      gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
-          += odds_term * (*deriv_iter)(odds_coeffs[t].data());
+    {  // loop over odds covariates
+      auto deriv_iter = begin(odds_derivs);
+      for (size_t idx = 0; deriv_iter != end(odds_derivs);
+           ++idx, ++deriv_iter) {
+        gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
+            += odds_term * (*deriv_iter)(odds_coeffs[t].data());
+      }
     }
-  }
-}
-
-void Model::register_gradient(size_t g, size_t e, size_t s, size_t t,
-                              const Vector &cnts, Model &gradient,
-                              const Vector &rate, const Vector &odds,
-                              const std::vector<double> &rate_coeffs,
-                              const std::vector<double> &odds_coeffs) const {
-  gradient.experiments[e].contributions_gene_type(g, t) += cnts[t];
-  gradient.experiments[e].contributions_spot_type(s, t) += cnts[t];
-
-  const double k = cnts[t];
-  const double r = rate(t);
-  const double o = odds(t);
-  const double p = odds_to_prob(o);
-  const double log_one_minus_p = neg_odds_to_log_prob(o);
-
-  const double rate_term = r * (log_one_minus_p + digamma_diff(r, k));
-  const double odds_term = k - p * (r + k);
-
-  // loop over rate covariates
-  auto deriv_iter = begin(rate_derivs);
-  for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-    gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
-        += rate_term * (*deriv_iter)(rate_coeffs.data());
-  }
-  // loop over odds covariates
-  deriv_iter = begin(odds_derivs);
-  for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-    gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
-        += odds_term * (*deriv_iter)(odds_coeffs.data());
-  }
-}
-
-void Model::register_gradient_zero_count(
-    size_t g, size_t e, size_t s, size_t t, const Vector &cnts, Model &gradient,
-    const Vector &rate, const Vector &odds,
-    const std::vector<double> &rate_coeffs,
-    const std::vector<double> &odds_coeffs) const {
-  const double r = rate(t);
-  const double o = odds(t);
-  const double p = odds_to_prob(o);
-  const double log_one_minus_p = neg_odds_to_log_prob(o);
-
-  const double rate_term = r * log_one_minus_p;
-  const double odds_term = -p * r;
-
-  // loop over rate covariates
-  auto deriv_iter = begin(rate_derivs);
-  for (size_t idx = 0; deriv_iter != end(rate_derivs); ++idx, ++deriv_iter) {
-    gradient.experiments[e].rate_coeffs[idx]->get_raw(g, t, s)
-        += rate_term * (*deriv_iter)(rate_coeffs.data());
-  }
-  // loop over odds covariates
-  deriv_iter = begin(odds_derivs);
-  for (size_t idx = 0; deriv_iter != end(odds_derivs); ++idx, ++deriv_iter) {
-    gradient.experiments[e].odds_coeffs[idx]->get_raw(g, t, s)
-        += odds_term * (*deriv_iter)(odds_coeffs.data());
   }
 }
 
