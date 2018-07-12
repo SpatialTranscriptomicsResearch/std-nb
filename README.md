@@ -4,13 +4,11 @@ Spatial Transcriptome Deconvolution model.
 In order to compile it, you need the following libraries:
 * [Boost](http://www.boost.org/), version 1.58.0 or newer
 * [Eigen](http://eigen.tuxfamily.org/), version 3
+* [Flex](https://github.com/westes/flex)
 * [Bison](https://www.gnu.org/software/bison/), version 3.0.4 or newer
-* [LLVM](http://llvm.org/), version 5.0.0.  
-  Please note that LLVM needs to be compiled with the runtime type identification (RTTI) feature enabled.  
-  This can be ensured by configuring LLVM with the following command:
-```sh
-cmake .. -DCMAKE_INSTALL_PREFIX=~/local/llvm  -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -DBUILD_SHARED_LIBS=TRUE -DLLVM_BUILD_EXAMPLES=TRUE -DLLVM_ENABLE_RTTI=TRUE
-```
+* [LLVM](http://llvm.org/), version 5.0.0 or newer
+
+Also, your C++ compiler should support OpenMP so that we can utilize parallel computation on multi-core systems.
 
 Compiling
 =========
