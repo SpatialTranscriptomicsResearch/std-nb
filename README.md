@@ -1,7 +1,11 @@
-This is code to perform probabilistic inference for the
-Spatial Transcriptome Deconvolution model.
+# Convolved Negative Binomial Regression for Spatial Transcriptome Deconvolution
+This repository contains code to perform Spatial Transcriptome Deconvolution with the Convolved Negative Binomial regression model described in<br>
+*Charting Tissue Expression Anatomy by Spatial Transcriptome Deconvolution*<br>
+Jonas Maaskola, Ludvig Bergenstråhle, Aleksandra Jurek, José Fernández Navarro, Jens Lagergren, Joakim Lundeberg<br>
+doi: https://doi.org/10.1101/362624
 
-In order to compile it, you need the following libraries:
+## Dependencies
+In order to compile it, you need the following dependencies:
 * [Boost](http://www.boost.org/), version 1.58.0 or newer
 * [Eigen](http://eigen.tuxfamily.org/), version 3
 * [Flex](https://github.com/westes/flex)
@@ -15,8 +19,7 @@ cmake .. -DCMAKE_INSTALL_PREFIX=~/local/llvm -DCMAKE_BUILD_TYPE=RELWITHDEBINFO -
 
 Also, your C++ compiler should support OpenMP so that we can utilize parallel computation on multi-core systems.
 
-Compiling
-=========
+## Compiling
 You build and install the code as follows.
 Note that ```<INSTALL_PREFIX>``` is a path below which the program will be installed.
 This could be e.g. ```$HOME/local``` to install into a user-local prefix.
