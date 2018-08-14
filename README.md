@@ -28,6 +28,8 @@ make
 make install
 ```
 
+The above will build both a release and a debug version of the code. Please use `make release` or `make debug` in place of `make` above if you want to build only the release or debug version. The binary for the release version will be called `std-nxt` and the binary for the debug version will be called `std-nxt-dbg`.
+
 Note that ```<INSTALL_PREFIX>/bin``` and ```<INSTALL_PREFIX>/lib``` have to be included in your ```PATH``` and ```LD_LIBRARY_PATH``` environment variables, respectively.
 
 To do this you have to have lines like the following
