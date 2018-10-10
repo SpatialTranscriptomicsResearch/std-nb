@@ -2,7 +2,7 @@
 #define TYPES_HPP
 
 #include <cstdint>
-#include <eigen3/Eigen/Dense>
+#include <Eigen/Dense>
 
 namespace STD {
 using Int = uint32_t;

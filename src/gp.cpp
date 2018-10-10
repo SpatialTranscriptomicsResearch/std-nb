@@ -1,5 +1,5 @@
 #include "gp.hpp"
-#include <eigen3/Eigen/Eigenvalues>
+#include <Eigen/Eigenvalues>
 #include "log.hpp"
 #include "parallel.hpp"
 #include "types.hpp"
