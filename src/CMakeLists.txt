@@ -8,6 +8,14 @@ INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR}/spec_parser/include)
 ADD_SUBDIRECTORY(spec_generator)
 ADD_SUBDIRECTORY(spec_parser)
 
+ADD_LIBRARY(std_jit SHARED
+  jit.cpp
+  log.cpp
+  verbosity.cpp
+)
+
+TARGET_LINK_LIBRARIES(std_jit LLVM)
+
 ADD_LIBRARY(transcriptomedeconvolution SHARED
   Experiment.cpp
   Model.cpp
@@ -22,8 +30,6 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   gamma_func.cpp
   gp.cpp
   io.cpp
-  jit.cpp
-  log.cpp
   metropolis_hastings.cpp
   modelspec.cpp
   optimization_method.cpp
@@ -33,8 +39,7 @@ ADD_LIBRARY(transcriptomedeconvolution SHARED
   terminal.cpp
   timer.cpp
   types.cpp
-  verbosity.cpp
-  )
+)
 
 ADD_EXECUTABLE(std main.cpp cli.cpp)
 
@@ -49,6 +54,7 @@ ENDIF()
 
 TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   parser
+  std_jit
   m
   -L${Boost_LIBRARY_DIRS}
   ${Boost_FILESYSTEM_LIBRARY}
@@ -59,7 +65,6 @@ TARGET_LINK_LIBRARIES(transcriptomedeconvolution
   ${Boost_IOSTREAMS_LIBRARY}
   ${Boost_PROGRAM_OPTIONS_LIBRARY}
   ${Boost_DATE_TIME_LIBRARY}
-  LLVM
   )
 
 TARGET_LINK_LIBRARIES(std transcriptomedeconvolution)
@@ -81,4 +86,4 @@ SET_TARGET_PROPERTIES(std PROPERTIES RELEASE_POSTFIX ${CMAKE_RELEASE_POSTFIX})
 SET_TARGET_PROPERTIES(std PROPERTIES DEBUG_POSTFIX ${CMAKE_DEBUG_POSTFIX})
 
 INSTALL(TARGETS std DESTINATION bin)
-INSTALL(TARGETS transcriptomedeconvolution DESTINATION lib)
+INSTALL(TARGETS std_jit transcriptomedeconvolution DESTINATION lib)
