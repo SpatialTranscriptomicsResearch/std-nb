@@ -383,6 +383,22 @@ int main(int argc, char **argv) {
 
   LOG(verbose) << "Design: " << options.design;
 
+  vector<string> paths;
+  for (auto &spec : options.design.dataset_specifications) {
+    LOG(debug) << "Adding path " << spec.path;
+    paths.push_back(spec.path);
+  }
+
+  if (paths.empty()) {
+    LOG(fatal) << "Error: No input files specified.\n"
+                  "You must either give paths to one or more count matrix "
+                  "files or use the --design switch.\n"
+               << "Please consult the command line help with -h and the "
+                  "documentation.\n"
+               << "If errors persist please get in touch with the developers.";
+    return EXIT_FAILURE;
+  }
+
   {  // add default formulas to the model spec
     vector<string> covariate_labels;
     transform(begin(options.design.covariates), end(options.design.covariates),
@@ -413,19 +429,6 @@ int main(int argc, char **argv) {
 
   LOG(debug) << "Final model specification:";
   log([](const std::string &s) { LOG(verbose) << s; }, options.model_spec);
-
-  vector<string> paths;
-  for (auto &spec : options.design.dataset_specifications) {
-    LOG(debug) << "Adding path " << spec.path;
-    paths.push_back(spec.path);
-  }
-
-  if (paths.empty()) {
-    LOG(fatal) << "Error: No input files specified.\n"
-                  "You must either give paths to one or more count matrix "
-                  "files or use the --design switch.";
-    return EXIT_FAILURE;
-  }
 
   auto data_sets = load_data(paths, options.intersect, options.top,
                              options.bottom, options.min_reads_spot,
