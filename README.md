@@ -78,4 +78,4 @@ Hopefully this suffices to get you started! Have fun!
 
 Related
 =======
-Note that you can find script to analyse the output of this package in [another git repository](https://gits-15.sys.kth.se/maaskola/multiScoopIBP-scripts).
+Note that you can find script to analyse the output of this package in [another git repository](https://github.com/SpatialTranscriptomicsResearch/transcriptomoscope).
