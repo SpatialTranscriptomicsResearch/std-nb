@@ -1,5 +1,6 @@
 #include <fenv.h>
 #include <boost/filesystem.hpp>
+#include <chrono>
 #include <cstdlib>
 #include <exception>
 #include <iostream>
@@ -164,6 +165,9 @@ int main(int argc, char **argv) {
   // FE_OVERFLOW
   // FE_UNDERFLOW
   feenableexcept(FE_INVALID | FE_OVERFLOW);
+
+  std::chrono::high_resolution_clock::time_point start_time
+      = std::chrono::high_resolution_clock::now();
 
   EntropySource::seed();
 
@@ -444,6 +448,15 @@ int main(int argc, char **argv) {
     LOG(fatal) << "If errors persist please get in touch with the developers.";
     return EXIT_FAILURE;
   }
+
+  std::chrono::high_resolution_clock::time_point stop_time
+      = std::chrono::high_resolution_clock::now();
+
+  auto duration
+      = 1e-6 * std::chrono::duration_cast<std::chrono::microseconds>(stop_time - start_time)
+            .count();
+
+  LOG(info) << "Runtime: " << duration << " sec";
 
   return EXIT_SUCCESS;
 }
